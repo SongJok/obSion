@@ -46,6 +46,8 @@ export interface Run {
   id: string;
   turn_id: string;
   status: RunStatus;
+  agent_version_id: string | null;
+  model_profile_id: string | null;
   intent: Record<string, unknown>;
   plan: { route?: string; required_evidence?: string[]; steps?: PlanStep[] };
   step_count: number;
@@ -57,6 +59,7 @@ export interface Run {
   cost_amount: string;
   error_code: string | null;
   error_message: string | null;
+  replay_of_run_id: string | null;
   created_at: string;
 }
 
@@ -72,6 +75,7 @@ export interface RunStep {
   name: string;
   kind: string;
   status: string;
+  capability_version_id: string | null;
   error_code: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -126,8 +130,10 @@ export interface Evidence {
   resource: string;
   observed_at: string;
   content: Record<string, unknown>;
+  content_fingerprint: string;
   confidence: string;
   classification: string;
+  permissions: string[];
   lineage: Record<string, unknown>;
 }
 

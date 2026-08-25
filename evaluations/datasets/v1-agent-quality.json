@@ -1,0 +1,62 @@
+{
+  "name": "v1-agent-quality",
+  "description": "Golden Dataset contracts for the three V1 intelligence paths. CI binds each run_ref to a terminal candidate Run before starting the evaluation.",
+  "domain": "cross-domain",
+  "cases": [
+    {
+      "external_id": "knowledge-policy-answer-001",
+      "version": 1,
+      "evaluator": "RUN_OUTPUT",
+      "input_payload": {"run_ref": "knowledge-policy"},
+      "expected": {
+        "run_status": "COMPLETED",
+        "route": "KNOWLEDGE",
+        "intent": "ANALYTICS_QUERY",
+        "capabilities": ["knowledge.search"],
+        "evidence_types": ["DOCUMENT"],
+        "answer_contains": ["owner", "rollback"],
+        "minimum_evidence_coverage": 1.0,
+        "minimum_citation_precision": 1.0,
+        "minimum_answer_faithfulness": 1.0
+      },
+      "fixtures": {}
+    },
+    {
+      "external_id": "data-revenue-query-001",
+      "version": 1,
+      "evaluator": "RUN_OUTPUT",
+      "input_payload": {"run_ref": "data-revenue"},
+      "expected": {
+        "run_status": "COMPLETED",
+        "route": "DATA",
+        "intent": "ANALYTICS_QUERY",
+        "capabilities": ["data.query"],
+        "sql": ["SELECT region, SUM(revenue) AS revenue FROM analytics.sales WHERE occurred_at >= $1 AND occurred_at < $2 GROUP BY region LIMIT 500"],
+        "evidence_types": ["DATA"],
+        "answer_contains": ["revenue"],
+        "minimum_evidence_coverage": 1.0,
+        "minimum_citation_precision": 1.0,
+        "minimum_answer_faithfulness": 1.0
+      },
+      "fixtures": {}
+    },
+    {
+      "external_id": "incident-payment-latency-001",
+      "version": 1,
+      "evaluator": "RUN_OUTPUT",
+      "input_payload": {"run_ref": "incident-payment-latency"},
+      "expected": {
+        "run_status": "COMPLETED",
+        "route": "INCIDENT",
+        "intent": "ANOMALY_INVESTIGATION",
+        "capabilities": ["metric.query", "metric.anomaly", "deployment.list", "log.aggregate"],
+        "evidence_types": ["METRIC", "DEPLOYMENT", "LOG"],
+        "answer_contains": ["payment", "latency"],
+        "minimum_evidence_coverage": 1.0,
+        "minimum_citation_precision": 1.0,
+        "minimum_answer_faithfulness": 1.0
+      },
+      "fixtures": {}
+    }
+  ]
+}

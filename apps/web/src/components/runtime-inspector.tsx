@@ -11,6 +11,7 @@ import {
   Files,
   Gauge,
   PanelRightClose,
+  RotateCcw,
   ShieldCheck,
   Wrench,
   X,
@@ -23,6 +24,8 @@ interface RuntimeInspectorProps {
   open: boolean;
   mobileVisible?: boolean;
   onClose: () => void;
+  onReplay: () => void;
+  replaying?: boolean;
   run?: Run;
   events: RunEvent[];
   steps: RunStep[];
@@ -37,6 +40,8 @@ export function RuntimeInspector({
   open,
   mobileVisible,
   onClose,
+  onReplay,
+  replaying,
   run,
   events,
   steps,
@@ -56,14 +61,28 @@ export function RuntimeInspector({
           <Activity size={17} />
           <strong>运行详情</strong>
         </div>
-        <button className="icon-button" onClick={onClose} aria-label="关闭运行面板">
-          <PanelRightClose size={18} />
-        </button>
+        <div className="inspector-header-actions">
+          {run && ["COMPLETED", "FAILED", "CANCELLED"].includes(run.status) && (
+            <button
+              className="icon-button"
+              onClick={onReplay}
+              disabled={replaying}
+              aria-label="回放此运行快照"
+              title="回放固定证据与产物，不重新访问外部系统"
+            >
+              <RotateCcw size={17} />
+            </button>
+          )}
+          <button className="icon-button" onClick={onClose} aria-label="关闭运行面板">
+            <PanelRightClose size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="inspector-summary">
         <StatusBadge status={run?.status ?? "IDLE"} />
         <span>{run?.plan.route ? routeName(run.plan.route) : "等待任务"}</span>
+        {run?.replay_of_run_id && <span className="replay-chip">历史快照</span>}
         {run?.cost_amount && <small>¥ / ${Number(run.cost_amount).toFixed(4)}</small>}
       </div>
 

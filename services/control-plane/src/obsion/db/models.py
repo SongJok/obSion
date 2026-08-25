@@ -40,6 +40,8 @@ from obsion.domain.enums import (
     Classification,
     ConnectorStatus,
     DecisionEffect,
+    EvaluationResultStatus,
+    EvaluationTarget,
     EvidenceType,
     MemoryScope,
     MemoryStatus,
@@ -895,6 +897,7 @@ class EvaluationCase(Base, IdMixin, OrganizationMixin):
     )
     external_id: Mapped[str] = mapped_column(String(200), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
+    evaluator: Mapped[EvaluationTarget] = mapped_column(enum_type(EvaluationTarget), nullable=False)
     input_payload: Mapped[dict] = mapped_column(JSON, nullable=False)
     expected: Mapped[dict] = mapped_column(JSON, nullable=False)
     fixtures: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -915,7 +918,55 @@ class EvaluationRun(Base, IdMixin, OrganizationMixin, TimestampMixin):
     )
     application_revision: Mapped[str] = mapped_column(String(160), nullable=False)
     status: Mapped[str] = mapped_column(String(80), nullable=False)
+    requested_by: Mapped[UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+    baseline_run_id: Mapped[UUID | None] = mapped_column(Uuid, ForeignKey("evaluation_runs.id"))
+    dataset_snapshot_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    snapshot_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    configuration_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    gate_passed: Mapped[bool | None] = mapped_column(Boolean)
     metrics: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationCaseResult(Base, IdMixin, OrganizationMixin):
+    __tablename__ = "evaluation_case_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "evaluation_run_id",
+            "evaluation_case_id",
+            name="uq_evaluation_case_results_evaluation_run_id",
+        ),
+        UniqueConstraint(
+            "evaluation_run_id",
+            "ordinal",
+            name="uq_evaluation_case_results_evaluation_run_id_ordinal",
+        ),
+        CheckConstraint("duration_ms >= 0", name="non_negative_duration"),
+    )
+
+    evaluation_run_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("evaluation_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    evaluation_case_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("evaluation_cases.id"), nullable=False
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    external_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    evaluator: Mapped[EvaluationTarget] = mapped_column(enum_type(EvaluationTarget), nullable=False)
+    status: Mapped[EvaluationResultStatus] = mapped_column(
+        enum_type(EvaluationResultStatus), nullable=False
+    )
+    case_snapshot_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    checks: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    scores: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    observed: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    evidence_refs: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    error_code: Mapped[str | None] = mapped_column(String(160))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class PromptDefinition(Base, IdMixin, OrganizationMixin, TimestampMixin, RegistryDefinitionMixin):

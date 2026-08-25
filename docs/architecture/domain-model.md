@@ -45,7 +45,11 @@ Every persistent record has an organization boundary. Cross-organization joins a
 
 ## Evaluation model
 
-`EvaluationDataset` contains immutable `EvaluationCase` revisions. An `EvaluationRun` pins agent, skill, prompt, model profile, capability fixtures, and application revision. Metrics and judge evidence are stored per case to make regressions explainable.
+`EvaluationDataset` contains immutable `EvaluationCase` revisions. An `EvaluationRun`
+pins the dataset fingerprint, agent, resolved skill/capability/prompt versions, model
+profile routing metadata, application revision, terminal Run bindings, and gate
+policy. Immutable `EvaluationCaseResult` rows store checks, scores, safe observations,
+and Evidence fingerprints per case so regressions remain explainable and auditable.
 
 ## Automation and action aggregates
 

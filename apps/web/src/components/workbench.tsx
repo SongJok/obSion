@@ -53,6 +53,7 @@ export function Workbench() {
   const [error, setError] = useState("");
   const [attachments, setAttachments] = useState<Artifact[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [replaying, setReplaying] = useState(false);
   const requestGeneration = useRef(0);
 
   const clearInspection = useCallback(() => {
@@ -290,6 +291,32 @@ export function Workbench() {
     }
   }, [run]);
 
+  const replay = useCallback(async () => {
+    if (!run || !TERMINAL.has(run.status)) return;
+    setReplaying(true);
+    setError("");
+    try {
+      const replayed = await api.replayRun(run.id);
+      const generation = ++requestGeneration.current;
+      setRun(replayed);
+      setEvents([]);
+      setSteps([]);
+      setEvidence([]);
+      setClaims([]);
+      setArtifacts([]);
+      setMessages((previous) => previous.map((bundle) =>
+        bundle.turn.id === replayed.turn_id
+          ? { ...bundle, run: replayed, artifact: undefined, artifacts: [] }
+          : bundle,
+      ));
+      void pollRun(replayed, generation);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "无法回放运行快照");
+    } finally {
+      setReplaying(false);
+    }
+  }, [pollRun, run]);
+
   const newThread = () => {
     ++requestGeneration.current;
     setThread(undefined);
@@ -359,7 +386,7 @@ export function Workbench() {
                   }
                 />
               </main>
-              <RuntimeInspector open={inspectorOpen} mobileVisible={mobileInspectorOpen} onClose={() => { setInspectorOpen(false); setMobileInspectorOpen(false); }} run={run} events={events} steps={steps} evidence={evidence} claims={claims} artifacts={artifacts} />
+              <RuntimeInspector open={inspectorOpen} mobileVisible={mobileInspectorOpen} onClose={() => { setInspectorOpen(false); setMobileInspectorOpen(false); }} onReplay={() => void replay()} replaying={replaying} run={run} events={events} steps={steps} evidence={evidence} claims={claims} artifacts={artifacts} />
             </div>
           </>
         ) : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "data" ? <DataView /> : <AdminView />}

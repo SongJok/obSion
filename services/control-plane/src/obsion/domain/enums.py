@@ -121,6 +121,18 @@ class VerificationStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class EvaluationTarget(StrEnum):
+    ROUTING = "ROUTING"
+    SQL_POLICY = "SQL_POLICY"
+    RUN_OUTPUT = "RUN_OUTPUT"
+
+
+class EvaluationResultStatus(StrEnum):
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    ERROR = "ERROR"
+
+
 class Visibility(StrEnum):
     PRIVATE = "PRIVATE"
     WORKSPACE = "WORKSPACE"

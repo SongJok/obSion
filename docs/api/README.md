@@ -27,7 +27,9 @@ correlation. Error responses use:
 ## Core resources
 
 - `/workspaces`, `/threads`, and `/threads/{id}/turns` manage the durable work context.
-- `/runs/{id}` supports inspection, cancellation, and replay.
+- `/runs/{id}` supports inspection, cancellation, and deterministic terminal-run
+  replay. Replay copies the immutable recorded snapshot and never re-invokes a model
+  or connector; use a new Turn when current external state is required.
 - `/runs/{id}/events` and `/runs/{id}/events/stream` expose ordered replayable events;
   use `after` or `Last-Event-ID` to resume without duplicating earlier events.
 - `/runs/{id}/steps|evidence|claims|artifacts` expose the verification trajectory.
@@ -48,6 +50,10 @@ correlation. Error responses use:
   operation, while `/actions/{id}/cancel` cancels only an eligible lifecycle state.
 - `/admin` manages tenant-scoped registries, bindings, models, policies, catalog,
   evaluations, and audit metadata.
+- `/admin/evaluations/datasets/{id}/runs` starts a deterministic release gate.
+  `run_bindings` connects Golden Dataset `run_ref` values to real terminal Runs;
+  `/admin/evaluations/runs/{id}/results` exposes immutable per-case checks, scores and
+  Evidence references. Baselines must use the exact same dataset snapshot.
 
 Create-turn, replay, and evaluation-run commands return the created resource and use
 durable identifiers. Consumers should retry reads and event-stream connections; they

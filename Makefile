@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web migrate migration-check lint format test check
+.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web migrate migration-check lint format test check validate-evaluations
 
 bootstrap:
 	uv sync --all-packages --all-extras
@@ -27,9 +27,13 @@ migrate:
 migration-check:
 	uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
 
+validate-evaluations:
+	uv run obsion validate-evaluations
+
 lint:
 	uv run ruff check .
 	uv run mypy services/control-plane/src packages/sdk-python/src
+	uv run obsion validate-evaluations
 	npm run lint
 	npm run typecheck
 

@@ -134,6 +134,26 @@ export function AdminView() {
         <Catalog icon={<FileClock />} title="Audits" count={data.audit.length} detail="不可变操作轨迹" />
       </section>
 
+      <section className="control-card evaluation-gates" aria-label="评测发布门禁">
+        <header><div><FlaskConical size={17} /><strong>评测发布门禁</strong></div><span>{data.evaluations.length}</span></header>
+        <div className="evaluation-gate-list">
+          {data.evaluations.slice(0, 8).map((evaluation) => {
+            const metrics = asRecord(evaluation.metrics);
+            const baseline = asRecord(metrics.baseline);
+            const regressions = Array.isArray(baseline.regressions) ? baseline.regressions.length : 0;
+            const passed = evaluation.gate_passed === true;
+            return (
+              <article key={String(evaluation.id)}>
+                <span className={`evaluation-gate-status ${passed ? "passed" : "failed"}`}>{passed ? "通过" : "阻断"}</span>
+                <div><strong>{String(evaluation.application_revision)}</strong><small>{Number(metrics.passed ?? 0)}/{Number(metrics.total ?? 0)} 案例通过 · 回归 {regressions}</small></div>
+                <code title={String(evaluation.snapshot_sha256)}>{String(evaluation.snapshot_sha256).slice(0, 10)}</code>
+              </article>
+            );
+          })}
+          {!data.evaluations.length && <p className="list-empty">尚未运行版本固定评测</p>}
+        </div>
+      </section>
+
       <div className="admin-columns">
         <section className="control-card">
           <header><div><Activity size={17} /><strong>连接器健康</strong></div><span>{data.connectors.length}</span></header>
@@ -164,4 +184,8 @@ function Stat({ icon, label, value, sub }: { icon: React.ReactNode; label: strin
 
 function Catalog({ icon, title, count, detail }: { icon: React.ReactNode; title: string; count: number; detail: string }) {
   return <article><span>{icon}</span><div><strong>{title}</strong><small>{detail}</small></div><b>{count}</b></article>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }

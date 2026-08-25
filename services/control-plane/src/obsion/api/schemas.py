@@ -9,6 +9,8 @@ from obsion.domain.enums import (
     ApprovalStatus,
     ArtifactKind,
     Classification,
+    EvaluationResultStatus,
+    EvaluationTarget,
     MemoryScope,
     MemoryStatus,
     RunStatus,
@@ -107,6 +109,8 @@ class RunView(APIModel):
     id: UUID
     turn_id: UUID
     status: RunStatus
+    agent_version_id: UUID | None
+    model_profile_id: UUID | None
     intent: dict[str, Any]
     plan: dict[str, Any]
     max_steps: int
@@ -136,6 +140,7 @@ class RunStepView(APIModel):
     kind: StepKind
     status: StepStatus
     depends_on: list[int]
+    capability_version_id: UUID | None
     output_ref: str | None
     retry_count: int
     started_at: datetime | None
@@ -185,8 +190,10 @@ class EvidenceView(APIModel):
     observed_at: datetime
     ingested_at: datetime
     content: dict[str, Any]
+    content_fingerprint: str
     confidence: Decimal
     classification: Classification
+    permissions: list[str]
     lineage: dict[str, Any]
 
 
@@ -239,6 +246,8 @@ class CapabilityInvokeView(APIModel):
     approval_id: UUID | None = None
     error_code: str | None = None
     error_message: str | None = None
+    capability_version_id: UUID | None = None
+    connector_id: UUID | None = None
 
 
 class CreateMemoryRequest(APIModel):
@@ -284,6 +293,7 @@ class EvaluationDatasetView(APIModel):
 class CreateEvaluationCaseRequest(APIModel):
     external_id: str = Field(min_length=1, max_length=200)
     version: int = Field(default=1, ge=1)
+    evaluator: EvaluationTarget | None = None
     input_payload: dict[str, Any]
     expected: dict[str, Any]
     fixtures: dict[str, Any] = Field(default_factory=dict)
@@ -294,6 +304,7 @@ class EvaluationCaseView(APIModel):
     dataset_id: UUID
     external_id: str
     version: int
+    evaluator: EvaluationTarget
     input_payload: dict[str, Any]
     expected: dict[str, Any]
     fixtures: dict[str, Any]
@@ -304,6 +315,11 @@ class StartEvaluationRunRequest(APIModel):
     agent_version_id: UUID
     model_profile_id: UUID
     application_revision: str = Field(min_length=1, max_length=160)
+    baseline_run_id: UUID | None = None
+    minimum_pass_rate: float = Field(default=1.0, ge=0, le=1)
+    maximum_regression_rate: float = Field(default=0.0, ge=0, le=1)
+    score_thresholds: dict[str, float] = Field(default_factory=dict)
+    run_bindings: dict[str, UUID] = Field(default_factory=dict)
 
 
 class EvaluationRunView(APIModel):
@@ -313,9 +329,37 @@ class EvaluationRunView(APIModel):
     model_profile_id: UUID
     application_revision: str
     status: str
+    requested_by: UUID | None
+    baseline_run_id: UUID | None
+    dataset_snapshot_sha256: str
+    snapshot_sha256: str
+    configuration_snapshot: dict[str, Any]
+    gate_passed: bool | None
     metrics: dict[str, Any]
+    started_at: datetime | None
+    completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class EvaluationCaseResultView(APIModel):
+    id: UUID
+    evaluation_run_id: UUID
+    evaluation_case_id: UUID
+    ordinal: int
+    external_id: str
+    case_version: int
+    evaluator: EvaluationTarget
+    status: EvaluationResultStatus
+    case_snapshot_sha256: str
+    checks: dict[str, Any]
+    scores: dict[str, Any]
+    observed: dict[str, Any]
+    evidence_refs: list[dict[str, Any]]
+    error_code: str | None
+    error_message: str | None
+    duration_ms: int
+    created_at: datetime
 
 
 class DocumentView(APIModel):

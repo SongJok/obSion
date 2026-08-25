@@ -67,6 +67,7 @@ class GatewayRequest:
     step_id: UUID | None = None
     agent_version_id: UUID | None = None
     capability_version: int | None = None
+    capability_version_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +79,8 @@ class GatewayResult:
     approval_id: UUID | None = None
     error_code: str | None = None
     error_message: str | None = None
+    capability_version_id: UUID | None = None
+    connector_id: UUID | None = None
 
 
 class CapabilityGateway:
@@ -161,6 +164,8 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 error_code=exc.code,
                 error_message=exc.message,
+                capability_version_id=version.id,
+                connector_id=connector.id,
             )
         if decision.effect == DecisionEffect.DENY:
             await self._audit(
@@ -176,6 +181,8 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 error_code="capability_denied",
                 error_message="The capability request was denied by policy",
+                capability_version_id=version.id,
+                connector_id=connector.id,
             )
 
         if decision.effect == DecisionEffect.ASK:
@@ -187,6 +194,8 @@ class CapabilityGateway:
                     status=GatewayStatus.WAITING_APPROVAL,
                     policy_decision_id=decision.id,
                     approval_id=approval.id,
+                    capability_version_id=version.id,
+                    connector_id=connector.id,
                 )
 
         rate_key = ":".join(
@@ -220,6 +229,8 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 error_code="rate_limit_unavailable",
                 error_message="The capability safety service is temporarily unavailable",
+                capability_version_id=version.id,
+                connector_id=connector.id,
             )
         if not rate_allowed:
             await self._gateway_event(session, request, "capability.rate_limited")
@@ -236,6 +247,8 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 error_code="capability_rate_limited",
                 error_message="The capability rate limit has been reached",
+                capability_version_id=version.id,
+                connector_id=connector.id,
             )
 
         executor = self.executors.get(version.transport.value)
@@ -246,6 +259,8 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 error_code="capability_transport_unavailable",
                 error_message="No executor is installed for the capability transport",
+                capability_version_id=version.id,
+                connector_id=connector.id,
             )
         started = perf_counter()
         await self.events.append(
@@ -329,6 +344,8 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 output=output,
                 evidence_id=evidence.id,
+                capability_version_id=version.id,
+                connector_id=connector.id,
             )
         except Exception as exc:
             latency_ms = int((perf_counter() - started) * 1000)
@@ -363,11 +380,18 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 error_code=error_code,
                 error_message="The connector could not complete the request",
+                capability_version_id=version.id,
+                connector_id=connector.id,
             )
 
     async def _resolve(
         self, session: AsyncSession, request: GatewayRequest
     ) -> tuple[CapabilityDefinition, CapabilityVersion, Connector]:
+        if request.capability_version is not None and request.capability_version_id is not None:
+            raise ValidationError(
+                "capability_version_ambiguous",
+                "A capability request may pin either a version number or a version ID",
+            )
         statement = (
             select(CapabilityDefinition, CapabilityVersion, CapabilityBinding, Connector)
             .join(CapabilityVersion, CapabilityVersion.capability_id == CapabilityDefinition.id)
@@ -390,6 +414,8 @@ class CapabilityGateway:
         )
         if request.capability_version is not None:
             statement = statement.where(CapabilityVersion.version == request.capability_version)
+        if request.capability_version_id is not None:
+            statement = statement.where(CapabilityVersion.id == request.capability_version_id)
         rows = (await session.execute(statement)).all()
         row = next(
             (

@@ -24,6 +24,8 @@ export interface Run {
   id: string;
   turn_id: string;
   status: RunStatus;
+  agent_version_id: string | null;
+  model_profile_id: string | null;
   intent: Record<string, unknown>;
   plan: Record<string, unknown>;
   max_steps: number;
@@ -340,6 +342,48 @@ export interface ActionDetail {
   attempts: ActionAttempt[];
 }
 
+export type EvaluationTarget = "ROUTING" | "SQL_POLICY" | "RUN_OUTPUT";
+
+export interface EvaluationRun {
+  id: string;
+  dataset_id: string;
+  agent_version_id: string;
+  model_profile_id: string;
+  application_revision: string;
+  status: string;
+  requested_by: string | null;
+  baseline_run_id: string | null;
+  dataset_snapshot_sha256: string;
+  snapshot_sha256: string;
+  configuration_snapshot: Record<string, unknown>;
+  gate_passed: boolean | null;
+  metrics: Record<string, unknown>;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvaluationCaseResult {
+  id: string;
+  evaluation_run_id: string;
+  evaluation_case_id: string;
+  ordinal: number;
+  external_id: string;
+  case_version: number;
+  evaluator: EvaluationTarget;
+  status: "PASSED" | "FAILED" | "ERROR";
+  case_snapshot_sha256: string;
+  checks: Record<string, boolean>;
+  scores: Record<string, number>;
+  observed: Record<string, unknown>;
+  evidence_refs: Array<Record<string, unknown>>;
+  error_code: string | null;
+  error_message: string | null;
+  duration_ms: number;
+  created_at: string;
+}
+
 export class ObsionApiError extends Error {
   constructor(
     readonly statusCode: number,
@@ -521,6 +565,66 @@ export class ObsionClient {
       method: "POST",
       body: JSON.stringify({ query, limit }),
     });
+  }
+
+  createEvaluationDataset(input: {
+    name: string;
+    domain: string;
+    description?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/evaluations/datasets", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  addEvaluationCase(
+    datasetId: string,
+    input: {
+      external_id: string;
+      version?: number;
+      evaluator: EvaluationTarget;
+      input_payload: Record<string, unknown>;
+      expected: Record<string, unknown>;
+      fixtures?: Record<string, unknown>;
+    },
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/admin/evaluations/datasets/${datasetId}/cases`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  runEvaluation(
+    datasetId: string,
+    input: {
+      agent_version_id: string;
+      model_profile_id: string;
+      application_revision: string;
+      baseline_run_id?: string;
+      minimum_pass_rate?: number;
+      maximum_regression_rate?: number;
+      score_thresholds?: Record<string, number>;
+      run_bindings?: Record<string, string>;
+    },
+  ): Promise<EvaluationRun> {
+    return this.request(`/api/v1/admin/evaluations/datasets/${datasetId}/runs`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listEvaluationRuns(datasetId?: string): Promise<EvaluationRun[]> {
+    const query = datasetId ? `?dataset_id=${encodeURIComponent(datasetId)}` : "";
+    return this.request(`/api/v1/admin/evaluations/runs${query}`);
+  }
+
+  getEvaluationRun(runId: string): Promise<EvaluationRun> {
+    return this.request(`/api/v1/admin/evaluations/runs/${runId}`);
+  }
+
+  listEvaluationResults(runId: string): Promise<EvaluationCaseResult[]> {
+    return this.request(`/api/v1/admin/evaluations/runs/${runId}/results`);
   }
 
   createWorkflow(

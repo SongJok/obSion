@@ -1548,6 +1548,30 @@
             ],
             "title": "Approval Id"
           },
+          "capability_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capability Version Id"
+          },
+          "connector_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connector Id"
+          },
           "error_code": {
             "anyOf": [
               {
@@ -2068,6 +2092,16 @@
       },
       "CreateEvaluationCaseRequest": {
         "properties": {
+          "evaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "expected": {
             "additionalProperties": true,
             "title": "Expected",
@@ -3122,6 +3156,122 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "EvaluationCaseResultView": {
+        "properties": {
+          "case_snapshot_sha256": {
+            "title": "Case Snapshot Sha256",
+            "type": "string"
+          },
+          "case_version": {
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "checks": {
+            "additionalProperties": true,
+            "title": "Checks",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "evaluation_case_id": {
+            "format": "uuid",
+            "title": "Evaluation Case Id",
+            "type": "string"
+          },
+          "evaluation_run_id": {
+            "format": "uuid",
+            "title": "Evaluation Run Id",
+            "type": "string"
+          },
+          "evaluator": {
+            "$ref": "#/components/schemas/EvaluationTarget"
+          },
+          "evidence_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "external_id": {
+            "title": "External Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "observed": {
+            "additionalProperties": true,
+            "title": "Observed",
+            "type": "object"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "scores": {
+            "additionalProperties": true,
+            "title": "Scores",
+            "type": "object"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EvaluationResultStatus"
+          }
+        },
+        "required": [
+          "id",
+          "evaluation_run_id",
+          "evaluation_case_id",
+          "ordinal",
+          "external_id",
+          "case_version",
+          "evaluator",
+          "status",
+          "case_snapshot_sha256",
+          "checks",
+          "scores",
+          "observed",
+          "evidence_refs",
+          "error_code",
+          "error_message",
+          "duration_ms",
+          "created_at"
+        ],
+        "title": "EvaluationCaseResultView",
+        "type": "object"
+      },
       "EvaluationCaseView": {
         "properties": {
           "created_at": {
@@ -3133,6 +3283,9 @@
             "format": "uuid",
             "title": "Dataset Id",
             "type": "string"
+          },
+          "evaluator": {
+            "$ref": "#/components/schemas/EvaluationTarget"
           },
           "expected": {
             "additionalProperties": true,
@@ -3168,6 +3321,7 @@
           "dataset_id",
           "external_id",
           "version",
+          "evaluator",
           "input_payload",
           "expected",
           "fixtures",
@@ -3217,6 +3371,15 @@
         "title": "EvaluationDatasetView",
         "type": "object"
       },
+      "EvaluationResultStatus": {
+        "enum": [
+          "PASSED",
+          "FAILED",
+          "ERROR"
+        ],
+        "title": "EvaluationResultStatus",
+        "type": "string"
+      },
       "EvaluationRunView": {
         "properties": {
           "agent_version_id": {
@@ -3228,6 +3391,35 @@
             "title": "Application Revision",
             "type": "string"
           },
+          "baseline_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Run Id"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "configuration_snapshot": {
+            "additionalProperties": true,
+            "title": "Configuration Snapshot",
+            "type": "object"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -3237,6 +3429,21 @@
             "format": "uuid",
             "title": "Dataset Id",
             "type": "string"
+          },
+          "dataset_snapshot_sha256": {
+            "title": "Dataset Snapshot Sha256",
+            "type": "string"
+          },
+          "gate_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gate Passed"
           },
           "id": {
             "format": "uuid",
@@ -3252,6 +3459,34 @@
             "format": "uuid",
             "title": "Model Profile Id",
             "type": "string"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "snapshot_sha256": {
+            "title": "Snapshot Sha256",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
           },
           "status": {
             "title": "Status",
@@ -3270,12 +3505,29 @@
           "model_profile_id",
           "application_revision",
           "status",
+          "requested_by",
+          "baseline_run_id",
+          "dataset_snapshot_sha256",
+          "snapshot_sha256",
+          "configuration_snapshot",
+          "gate_passed",
           "metrics",
+          "started_at",
+          "completed_at",
           "created_at",
           "updated_at"
         ],
         "title": "EvaluationRunView",
         "type": "object"
+      },
+      "EvaluationTarget": {
+        "enum": [
+          "ROUTING",
+          "SQL_POLICY",
+          "RUN_OUTPUT"
+        ],
+        "title": "EvaluationTarget",
+        "type": "string"
       },
       "EventView": {
         "properties": {
@@ -3369,6 +3621,10 @@
             "title": "Content",
             "type": "object"
           },
+          "content_fingerprint": {
+            "title": "Content Fingerprint",
+            "type": "string"
+          },
           "evidence_type": {
             "title": "Evidence Type",
             "type": "string"
@@ -3392,6 +3648,13 @@
             "format": "date-time",
             "title": "Observed At",
             "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
           },
           "resource": {
             "title": "Resource",
@@ -3429,8 +3692,10 @@
           "observed_at",
           "ingested_at",
           "content",
+          "content_fingerprint",
           "confidence",
           "classification",
+          "permissions",
           "lineage"
         ],
         "title": "EvidenceView",
@@ -4052,6 +4317,18 @@
       },
       "RunStepView": {
         "properties": {
+          "capability_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capability Version Id"
+          },
           "completed_at": {
             "anyOf": [
               {
@@ -4142,6 +4419,7 @@
           "kind",
           "status",
           "depends_on",
+          "capability_version_id",
           "output_ref",
           "retry_count",
           "started_at",
@@ -4153,6 +4431,18 @@
       },
       "RunView": {
         "properties": {
+          "agent_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Version Id"
+          },
           "cancellation_requested_at": {
             "anyOf": [
               {
@@ -4240,6 +4530,18 @@
             "title": "Max Steps",
             "type": "integer"
           },
+          "model_profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Profile Id"
+          },
           "output_tokens": {
             "title": "Output Tokens",
             "type": "integer"
@@ -4299,6 +4601,8 @@
           "id",
           "turn_id",
           "status",
+          "agent_version_id",
+          "model_profile_id",
           "intent",
           "plan",
           "max_steps",
@@ -4414,10 +4718,51 @@
             "title": "Application Revision",
             "type": "string"
           },
+          "baseline_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Run Id"
+          },
+          "maximum_regression_rate": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Maximum Regression Rate",
+            "type": "number"
+          },
+          "minimum_pass_rate": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Minimum Pass Rate",
+            "type": "number"
+          },
           "model_profile_id": {
             "format": "uuid",
             "title": "Model Profile Id",
             "type": "string"
+          },
+          "run_bindings": {
+            "additionalProperties": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Run Bindings",
+            "type": "object"
+          },
+          "score_thresholds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Score Thresholds",
+            "type": "object"
           }
         },
         "required": [
@@ -6777,6 +7122,108 @@
           }
         ],
         "summary": "List Runs",
+        "tags": [
+          "administration",
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/admin/evaluations/runs/{run_id}": {
+      "get": {
+        "operationId": "get_evaluation_run_api_v1_admin_evaluations_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationRunView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Evaluation Run",
+        "tags": [
+          "administration",
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/admin/evaluations/runs/{run_id}/results": {
+      "get": {
+        "operationId": "list_evaluation_results_api_v1_admin_evaluations_runs__run_id__results_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EvaluationCaseResultView"
+                  },
+                  "title": "Response List Evaluation Results Api V1 Admin Evaluations Runs  Run Id  Results Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Evaluation Results",
         "tags": [
           "administration",
           "evaluations"

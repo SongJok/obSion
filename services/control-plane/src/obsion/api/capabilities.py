@@ -133,4 +133,6 @@ async def invoke_capability(
         approval_id=result.approval_id,
         error_code=result.error_code,
         error_message=result.error_message,
+        capability_version_id=result.capability_version_id,
+        connector_id=result.connector_id,
     )

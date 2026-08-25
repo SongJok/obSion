@@ -50,4 +50,9 @@ not enable them.
 
 ## Quality gates
 
-Every phase requires API/schema compatibility checks, database migrations, unit and integration tests, tenant-isolation tests, threat-model cases, OpenTelemetry coverage, operator documentation, and automated evaluation datasets for changed agent behavior.
+Every phase requires API/schema compatibility checks, database migrations, unit and
+integration tests, tenant-isolation tests, threat-model cases, OpenTelemetry coverage,
+operator documentation, and automated evaluation datasets for changed agent behavior.
+Committed Golden Datasets are validated in CI; candidate releases bind their real
+terminal Runs, compare against an exact-snapshot baseline, and must pass configured
+pass-rate, regression-rate and named-score gates.

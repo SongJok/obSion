@@ -64,6 +64,59 @@ test("governed data and knowledge requests preserve their contracts", async () =
   }
 });
 
+test("evaluation requests preserve immutable gate contracts", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push([new URL(url).pathname, init.method, init.body ? JSON.parse(init.body) : null]);
+    return new Response(JSON.stringify({ id: "evaluation-resource", gate_passed: true }), {
+      status: 201,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  try {
+    const client = new ObsionClient("https://obsion.example");
+    await client.addEvaluationCase("dataset-1", {
+      external_id: "route-001",
+      evaluator: "ROUTING",
+      input_payload: { question: "What is the policy?" },
+      expected: { route: "KNOWLEDGE" },
+    });
+    await client.runEvaluation("dataset-1", {
+      agent_version_id: "agent-version-1",
+      model_profile_id: "profile-1",
+      application_revision: "revision-1",
+      baseline_run_id: "baseline-1",
+      minimum_pass_rate: 1,
+    });
+    assert.deepEqual(requests, [
+      [
+        "/api/v1/admin/evaluations/datasets/dataset-1/cases",
+        "POST",
+        {
+          external_id: "route-001",
+          evaluator: "ROUTING",
+          input_payload: { question: "What is the policy?" },
+          expected: { route: "KNOWLEDGE" },
+        },
+      ],
+      [
+        "/api/v1/admin/evaluations/datasets/dataset-1/runs",
+        "POST",
+        {
+          agent_version_id: "agent-version-1",
+          model_profile_id: "profile-1",
+          application_revision: "revision-1",
+          baseline_run_id: "baseline-1",
+          minimum_pass_rate: 1,
+        },
+      ],
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("artifact uploads retain the runtime-generated multipart boundary", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (_url, init) => {

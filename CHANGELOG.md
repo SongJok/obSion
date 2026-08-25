@@ -7,6 +7,12 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Evidence-producing evaluation gates with explicit routing, SQL-policy and recorded
+  Run evaluators; immutable per-case results; Agent/Skill/Capability/Prompt/model
+  snapshots; Golden Dataset Run bindings; baseline comparisons; and CI validation.
+- Deterministic Run snapshot replay with stable fingerprints, pinned Capability
+  version IDs, remapped Evidence/Claim/Artifact lineage, replay-safe event envelopes,
+  and no Model or Connector re-execution.
 - Durable Workspace, Thread, Turn, Run, Step, Event, Artifact, Evidence, and Claim
   lifecycles with replay and resumable event streaming.
 - Python control plane with Capability, Model, Policy, Approval, Credential, Audit,

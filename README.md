@@ -37,7 +37,8 @@ paths:
   brokering, distributed rate limiting, and immutable audit records;
 - model-independent profiles and OpenAI-compatible provider routing without fabricated
   fallback answers;
-- governed memory candidates and version-pinned evaluation datasets;
+- governed memory candidates and evidence-producing, version-pinned evaluation gates
+  with immutable case results and baseline regression comparison;
 - immutable deterministic workflows with manual and cron/IANA-timezone triggers,
   durable execution leases, concurrency policy, human review gates, recurring Harness
   analysis, and recipient-scoped notifications;
@@ -137,8 +138,9 @@ make check
 This runs Ruff, strict mypy, Python unit/integration/end-to-end tests, ESLint,
 TypeScript checks, package tests, and Alembic drift detection. CI additionally builds
 both production containers against a real PostgreSQL migration job. Declarative
-registry files can be validated with `uv run obsion validate-registry` and the OpenAPI
-contract regenerated with `uv run obsion openapi`.
+registry files can be validated with `uv run obsion validate-registry`, Golden
+Datasets with `uv run obsion validate-evaluations`, and the OpenAPI contract regenerated
+with `uv run obsion openapi`.
 
 ## Production deployment
 

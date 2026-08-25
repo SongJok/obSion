@@ -80,6 +80,7 @@ export const api = {
     }),
   getRun: (runId: string) => request<Run>(`/runs/${runId}`),
   cancelRun: (runId: string) => request<Run>(`/runs/${runId}/cancel`, { method: "POST" }),
+  replayRun: (runId: string) => request<Run>(`/runs/${runId}/replay`, { method: "POST" }),
   listEvents: (runId: string, after = 0) =>
     request<RunEvent[]>(`/runs/${runId}/events?after=${after}`),
   listSteps: (runId: string) => request<RunStep[]>(`/runs/${runId}/steps`),

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from obsion.api.schemas import (
     CreateEvaluationCaseRequest,
     CreateEvaluationDatasetRequest,
+    EvaluationCaseResultView,
     EvaluationCaseView,
     EvaluationDatasetView,
     EvaluationRunView,
@@ -101,3 +102,25 @@ async def list_runs(
 ) -> list[EvaluationRunView]:
     runs = await service.list_runs(session, principal, dataset_id)
     return [EvaluationRunView.model_validate(item) for item in runs]
+
+
+@router.get("/runs/{run_id}", response_model=EvaluationRunView)
+async def get_evaluation_run(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: EvaluationService = Depends(get_evaluation_service),
+) -> EvaluationRunView:
+    evaluation = await service.get_run(session, principal, run_id)
+    return EvaluationRunView.model_validate(evaluation)
+
+
+@router.get("/runs/{run_id}/results", response_model=list[EvaluationCaseResultView])
+async def list_evaluation_results(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: EvaluationService = Depends(get_evaluation_service),
+) -> list[EvaluationCaseResultView]:
+    results = await service.list_results(session, principal, run_id)
+    return [EvaluationCaseResultView.model_validate(item) for item in results]

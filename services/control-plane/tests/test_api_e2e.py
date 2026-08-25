@@ -167,16 +167,100 @@ def test_governed_knowledge_run_is_replayable(client: TestClient) -> None:
     assert {"policy.decided", "evidence.created", "critic.completed", "run.completed"}.issubset(
         {event["name"] for event in events}
     )
-    assert client.get(f"/api/v1/runs/{run_id}/evidence").json()
+    source_steps = client.get(f"/api/v1/runs/{run_id}/steps").json()
+    capability_steps = [item for item in source_steps if item["kind"] == "CAPABILITY"]
+    assert capability_steps
+    assert all(item["capability_version_id"] for item in capability_steps)
+    source_evidence = client.get(f"/api/v1/runs/{run_id}/evidence").json()
+    assert source_evidence
     claims = client.get(f"/api/v1/runs/{run_id}/claims").json()
     assert claims[0]["verification_status"] == "VERIFIED"
-    artifact = client.get(f"/api/v1/runs/{run_id}/artifacts").json()[0]
+    source_artifacts = client.get(f"/api/v1/runs/{run_id}/artifacts").json()
+    artifact = source_artifacts[0]
     assert "rollback plan" in artifact["inline_content"]["markdown"]
     assert artifact["inline_content"]["verification"]["verified"] is True
 
     replay = client.post(f"/api/v1/runs/{run_id}/replay")
     assert replay.status_code == 202, replay.text
     assert replay.json()["replay_of_run_id"] == run_id
+    replay_id = replay.json()["id"]
+    replay_run = replay.json()
+    for _ in range(80):
+        replay_run = client.get(f"/api/v1/runs/{replay_id}").json()
+        if replay_run["status"] in {"COMPLETED", "FAILED", "CANCELLED"}:
+            break
+        time.sleep(0.05)
+    assert replay_run["status"] == "COMPLETED", replay_run
+    assert replay_run["intent"] == run["intent"]
+    assert replay_run["plan"] == run["plan"]
+    assert replay_run["step_count"] == run["step_count"]
+    assert replay_run["input_tokens"] == run["input_tokens"]
+    assert replay_run["output_tokens"] == run["output_tokens"]
+    assert replay_run["cost_amount"] == run["cost_amount"]
+
+    replay_events = client.get(f"/api/v1/runs/{replay_id}/events").json()
+    assert [item["sequence"] for item in replay_events] == list(range(1, len(replay_events) + 1))
+    replay_event_names = {item["name"] for item in replay_events}
+    assert {"run.replay.started", "run.replay.event", "run.replay.completed"}.issubset(
+        replay_event_names
+    )
+    assert "capability.requested" not in replay_event_names
+    assert "tool.started" not in replay_event_names
+    replay_completed = next(
+        item for item in replay_events if item["name"] == "run.replay.completed"
+    )
+    assert replay_completed["payload"]["source_run_id"] == run_id
+    assert replay_completed["payload"]["evidence"] == len(source_evidence)
+    assert len(replay_completed["payload"]["snapshot_sha256"]) == 64
+
+    replay_steps = client.get(f"/api/v1/runs/{replay_id}/steps").json()
+    assert [item["capability_version_id"] for item in replay_steps] == [
+        item["capability_version_id"] for item in source_steps
+    ]
+    replay_evidence = client.get(f"/api/v1/runs/{replay_id}/evidence").json()
+    assert [item["content_fingerprint"] for item in replay_evidence] == [
+        item["content_fingerprint"] for item in source_evidence
+    ]
+    assert [item["content"] for item in replay_evidence] == [
+        item["content"] for item in source_evidence
+    ]
+    assert all(item["lineage"]["replay_source_run_id"] == run_id for item in replay_evidence)
+
+    replay_claims = client.get(f"/api/v1/runs/{replay_id}/claims").json()
+    assert [item["statement"] for item in replay_claims] == [item["statement"] for item in claims]
+    replay_evidence_ids = {item["id"] for item in replay_evidence}
+    assert all(set(item["evidence_ids"]).issubset(replay_evidence_ids) for item in replay_claims)
+    assert not replay_evidence_ids.intersection(
+        evidence_id for item in claims for evidence_id in item["evidence_ids"]
+    )
+
+    replay_artifacts = client.get(f"/api/v1/runs/{replay_id}/artifacts").json()
+    assert [item["inline_content"] for item in replay_artifacts] != [
+        item["inline_content"] for item in source_artifacts
+    ]
+    assert (
+        replay_artifacts[0]["inline_content"]["markdown"] == artifact["inline_content"]["markdown"]
+    )
+    assert replay_artifacts[0]["lineage"]["replay_source_run_id"] == run_id
+
+    second_replay = client.post(f"/api/v1/runs/{run_id}/replay")
+    assert second_replay.status_code == 202, second_replay.text
+    second_replay_id = second_replay.json()["id"]
+    second_replay_run = second_replay.json()
+    for _ in range(80):
+        second_replay_run = client.get(f"/api/v1/runs/{second_replay_id}").json()
+        if second_replay_run["status"] in {"COMPLETED", "FAILED", "CANCELLED"}:
+            break
+        time.sleep(0.05)
+    assert second_replay_run["status"] == "COMPLETED", second_replay_run
+    second_replay_events = client.get(f"/api/v1/runs/{second_replay_id}/events").json()
+    second_replay_completed = next(
+        item for item in second_replay_events if item["name"] == "run.replay.completed"
+    )
+    assert (
+        second_replay_completed["payload"]["snapshot_sha256"]
+        == replay_completed["payload"]["snapshot_sha256"]
+    )
 
 
 def test_memory_requires_scope_and_redacts_candidates(client: TestClient) -> None:
@@ -264,6 +348,44 @@ def test_workspace_attachment_becomes_untrusted_evidence(client: TestClient) -> 
 
 
 def test_version_pinned_evaluation_records_case_results(client: TestClient) -> None:
+    workspace = create_workspace(client)
+    document = client.post(
+        "/api/v1/knowledge/documents",
+        files={
+            "file": (
+                "evaluation-policy.md",
+                b"# Evaluation release gate\nEvery release gate requires immutable evidence.",
+                "text/markdown",
+            )
+        },
+        data={
+            "source": "test-suite",
+            "external_id": "evaluation-release-gate-v1",
+            "title": "Evaluation release gate",
+            "classification": "INTERNAL",
+            "acl": '{"organization": true}',
+        },
+    )
+    assert document.status_code == 201, document.text
+    thread = client.post(
+        "/api/v1/threads",
+        json={"workspace_id": workspace["id"], "title": "Evaluation source Run"},
+    ).json()
+    created = client.post(
+        f"/api/v1/threads/{thread['id']}/turns",
+        json={"input": "What does the evaluation release gate require?"},
+    )
+    assert created.status_code == 202, created.text
+    source_run = created.json()["run"]
+    for _ in range(80):
+        source_run = client.get(f"/api/v1/runs/{source_run['id']}").json()
+        if source_run["status"] in {"COMPLETED", "FAILED", "CANCELLED"}:
+            break
+        time.sleep(0.05)
+    assert source_run["status"] == "COMPLETED", source_run
+    assert source_run["agent_version_id"]
+    assert source_run["model_profile_id"]
+
     dataset = client.post(
         "/api/v1/admin/evaluations/datasets",
         json={
@@ -279,6 +401,7 @@ def test_version_pinned_evaluation_records_case_results(client: TestClient) -> N
         json={
             "external_id": "route-knowledge-001",
             "version": 1,
+            "evaluator": "ROUTING",
             "input_payload": {"question": "Summarize the employee handbook"},
             "expected": {"route": "KNOWLEDGE"},
             "fixtures": {},
@@ -290,28 +413,135 @@ def test_version_pinned_evaluation_records_case_results(client: TestClient) -> N
         json={
             "external_id": "deny-delete-001",
             "version": 1,
+            "evaluator": "SQL_POLICY",
             "input_payload": {"sql": "delete from analytics.orders", "dialect": "postgres"},
             "expected": {"sql_allowed": False},
             "fixtures": {"allowed_tables": ["analytics.orders"]},
         },
     )
     assert sql_case.status_code == 201, sql_case.text
+    run_case = client.post(
+        f"/api/v1/admin/evaluations/datasets/{dataset_id}/cases",
+        json={
+            "external_id": "knowledge-output-001",
+            "version": 1,
+            "evaluator": "RUN_OUTPUT",
+            "input_payload": {"run_ref": "knowledge-release-gate"},
+            "expected": {
+                "run_status": "COMPLETED",
+                "route": "KNOWLEDGE",
+                "capabilities": ["knowledge.search"],
+                "evidence_types": ["DOCUMENT"],
+                "answer_contains": ["immutable evidence"],
+                "minimum_evidence_coverage": 1.0,
+                "minimum_citation_precision": 1.0,
+                "minimum_answer_faithfulness": 1.0,
+            },
+            "fixtures": {},
+        },
+    )
+    assert run_case.status_code == 201, run_case.text
 
-    agents = client.get("/api/v1/admin/agents").json()
-    profiles = client.get("/api/v1/admin/models/profiles").json()
+    fake_answer_case = client.post(
+        f"/api/v1/admin/evaluations/datasets/{dataset_id}/cases",
+        json={
+            "external_id": "fake-answer-denied",
+            "version": 1,
+            "input_payload": {"question": "This is not a recorded Run"},
+            "expected": {"contains": ["fabricated"]},
+            "fixtures": {"actual": "fabricated"},
+        },
+    )
+    assert fake_answer_case.status_code == 422
+    assert fake_answer_case.json()["code"] == "evaluation_target_required"
+
     evaluation = client.post(
         f"/api/v1/admin/evaluations/datasets/{dataset_id}/runs",
         json={
-            "agent_version_id": agents[0]["version_id"],
-            "model_profile_id": profiles[0]["id"],
+            "agent_version_id": source_run["agent_version_id"],
+            "model_profile_id": source_run["model_profile_id"],
             "application_revision": "test-revision",
+            "score_thresholds": {
+                "evidence_coverage": 1.0,
+                "citation_precision": 1.0,
+                "answer_faithfulness": 1.0,
+            },
+            "run_bindings": {"knowledge-release-gate": source_run["id"]},
         },
     )
     assert evaluation.status_code == 201, evaluation.text
     body = evaluation.json()
     assert body["status"] == "COMPLETED"
+    assert body["gate_passed"] is True
     assert body["metrics"]["pass_rate"] == 1.0
-    assert body["metrics"]["passed"] == 2
+    assert body["metrics"]["passed"] == 3
+    assert len(body["dataset_snapshot_sha256"]) == 64
+    assert len(body["snapshot_sha256"]) == 64
+    assert body["configuration_snapshot"]["agent"]["version_id"] == source_run[
+        "agent_version_id"
+    ]
+    assert body["configuration_snapshot"]["capabilities"]
+    bound_run = body["configuration_snapshot"]["bound_runs"][0]
+    assert bound_run["run_id"] == source_run["id"]
+    assert bound_run["capability_versions"][0]["name"] == "knowledge.search"
+
+    results = client.get(f"/api/v1/admin/evaluations/runs/{body['id']}/results")
+    assert results.status_code == 200, results.text
+    case_results = results.json()
+    assert [item["ordinal"] for item in case_results] == [1, 2, 3]
+    assert all(item["status"] == "PASSED" for item in case_results)
+    assert all(len(item["case_snapshot_sha256"]) == 64 for item in case_results)
+    run_result = next(item for item in case_results if item["evaluator"] == "RUN_OUTPUT")
+    assert run_result["evidence_refs"]
+    assert run_result["observed"]["answer_sha256"]
+    assert "immutable evidence" not in str(run_result["observed"])
+
+    baseline = client.post(
+        f"/api/v1/admin/evaluations/datasets/{dataset_id}/runs",
+        json={
+            "agent_version_id": source_run["agent_version_id"],
+            "model_profile_id": source_run["model_profile_id"],
+            "application_revision": "test-revision-2",
+            "baseline_run_id": body["id"],
+            "score_thresholds": {
+                "evidence_coverage": 1.0,
+                "citation_precision": 1.0,
+                "answer_faithfulness": 1.0,
+            },
+            "run_bindings": {"knowledge-release-gate": source_run["id"]},
+        },
+    )
+    assert baseline.status_code == 201, baseline.text
+    compared = baseline.json()
+    assert compared["gate_passed"] is True
+    assert compared["dataset_snapshot_sha256"] == body["dataset_snapshot_sha256"]
+    assert compared["snapshot_sha256"] != body["snapshot_sha256"]
+    assert compared["metrics"]["baseline"] == {
+        "compared": True,
+        "regressions": [],
+        "improvements": [],
+        "regression_rate": 0.0,
+    }
+    fetched = client.get(f"/api/v1/admin/evaluations/runs/{compared['id']}")
+    assert fetched.status_code == 200
+    assert fetched.json()["baseline_run_id"] == body["id"]
+
+    other_tenant = Principal(
+        id=UUID("00000000-0000-7000-8000-000000000099"),
+        organization_id=UUID("00000000-0000-7000-8000-000000000099"),
+        external_id="evaluation-intruder",
+        display_name="Evaluation intruder",
+        permissions=frozenset({"evaluations.read"}),
+    )
+    client.app.dependency_overrides[get_principal] = lambda: other_tenant
+    try:
+        assert client.get(f"/api/v1/admin/evaluations/runs/{body['id']}").status_code == 404
+        assert (
+            client.get(f"/api/v1/admin/evaluations/runs/{body['id']}/results").status_code
+            == 404
+        )
+    finally:
+        client.app.dependency_overrides.pop(get_principal, None)
 
 
 def test_workspace_membership_is_enforced_for_runs_and_writes(client: TestClient) -> None:

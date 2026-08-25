@@ -153,5 +153,7 @@ manually; use a manual idempotent trigger when an occurrence must be replayed.
   audit window.
 - Review policy denials, rate-limit changes, connector health, and cost anomalies daily.
 - Re-run version-pinned evaluations before promoting agents, skills, prompts, models,
-  semantic definitions, or capability schemas.
+  semantic definitions, or capability schemas. Bind every Golden Dataset `run_ref` to
+  a terminal candidate Run, use a completed exact-snapshot baseline, and stop the
+  release when `gate_passed` is false.
 - Retire old versions only after retained runs no longer require replay against them.

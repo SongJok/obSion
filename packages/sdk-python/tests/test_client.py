@@ -84,6 +84,75 @@ async def test_client_exposes_governed_data_and_knowledge_flows() -> None:
 
 
 @pytest.mark.asyncio
+async def test_client_exposes_versioned_evaluation_gates() -> None:
+    requests: list[tuple[str, str, dict[str, object]]] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content) if request.content else {}
+        requests.append((request.method, request.url.path, body))
+        if request.url.path.endswith("/results"):
+            return httpx.Response(200, json=[{"status": "PASSED"}])
+        return httpx.Response(201, json={"id": "evaluation-resource", "gate_passed": True})
+
+    async with AsyncObsionClient(
+        "https://obsion.example", transport=httpx.MockTransport(handler)
+    ) as client:
+        dataset = await client.create_evaluation_dataset(
+            name="release-gate", domain="knowledge"
+        )
+        assert dataset["id"] == "evaluation-resource"
+        await client.add_evaluation_case(
+            "dataset-1",
+            {
+                "external_id": "route-001",
+                "evaluator": "ROUTING",
+                "input_payload": {"question": "What is the policy?"},
+                "expected": {"route": "KNOWLEDGE"},
+            },
+        )
+        run = await client.run_evaluation(
+            "dataset-1",
+            {
+                "agent_version_id": "agent-version-1",
+                "model_profile_id": "profile-1",
+                "application_revision": "revision-1",
+                "minimum_pass_rate": 1.0,
+            },
+        )
+        assert run["gate_passed"] is True
+        assert (await client.list_evaluation_results("run-1"))[0]["status"] == "PASSED"
+
+    assert requests == [
+        (
+            "POST",
+            "/api/v1/admin/evaluations/datasets",
+            {"name": "release-gate", "domain": "knowledge", "description": ""},
+        ),
+        (
+            "POST",
+            "/api/v1/admin/evaluations/datasets/dataset-1/cases",
+            {
+                "external_id": "route-001",
+                "evaluator": "ROUTING",
+                "input_payload": {"question": "What is the policy?"},
+                "expected": {"route": "KNOWLEDGE"},
+            },
+        ),
+        (
+            "POST",
+            "/api/v1/admin/evaluations/datasets/dataset-1/runs",
+            {
+                "agent_version_id": "agent-version-1",
+                "model_profile_id": "profile-1",
+                "application_revision": "revision-1",
+                "minimum_pass_rate": 1.0,
+            },
+        ),
+        ("GET", "/api/v1/admin/evaluations/runs/run-1/results", {}),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_client_uploads_and_downloads_artifacts() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":

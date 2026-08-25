@@ -1,0 +1,19 @@
+{
+  "external_id": "knowledge-answer-001",
+  "version": 1,
+  "evaluator": "RUN_OUTPUT",
+  "input_payload": {
+    "run_ref": "knowledge-policy"
+  },
+  "expected": {
+    "run_status": "COMPLETED",
+    "route": "KNOWLEDGE",
+    "capabilities": ["knowledge.search"],
+    "evidence_types": ["DOCUMENT"],
+    "answer_contains": ["required governed fact"],
+    "minimum_evidence_coverage": 1.0,
+    "minimum_citation_precision": 1.0,
+    "minimum_answer_faithfulness": 1.0
+  },
+  "fixtures": {}
+}

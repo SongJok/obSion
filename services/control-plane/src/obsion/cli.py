@@ -5,6 +5,7 @@ from typing import Any
 
 import uvicorn
 
+from obsion.evaluations.manifests import EvaluationManifestError, validate_evaluation_root
 from obsion.main import create_app
 from obsion.registry.manifests import RegistryManifestError, validate_registry_root
 
@@ -44,6 +45,14 @@ def _validate_registry(args: argparse.Namespace) -> None:
     )
 
 
+def _validate_evaluations(args: argparse.Namespace) -> None:
+    try:
+        summary = validate_evaluation_root(Path(args.root))
+    except EvaluationManifestError as exc:
+        raise SystemExit(str(exc)) from exc
+    print(json.dumps(summary, sort_keys=True))  # noqa: T201
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="obsion", description="Operate the Obsion control plane")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -63,6 +72,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     registry.add_argument("--root", default=".")
     registry.set_defaults(handler=_validate_registry)
+
+    evaluations = commands.add_parser(
+        "validate-evaluations", help="Validate version-controlled Golden Dataset contracts"
+    )
+    evaluations.add_argument("--root", default="evaluations/datasets")
+    evaluations.set_defaults(handler=_validate_evaluations)
     return parser
 
 

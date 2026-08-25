@@ -602,6 +602,12 @@ class WorkspaceService:
 
     async def replay_run(self, session: AsyncSession, principal: Principal, run_id: UUID) -> Run:
         source = await require_run_access(session, principal, run_id, write=True)
+        if not is_terminal(source.status):
+            raise ConflictError(
+                "run_not_replayable",
+                "Only a terminal run has a stable replay snapshot",
+                status=source.status,
+            )
         now = utc_now()
         replay = Run(
             organization_id=principal.organization_id,
@@ -631,6 +637,20 @@ class WorkspaceService:
                 actor_id=principal.id,
                 run_id=replay.id,
                 payload={"source_run_id": str(source.id)},
+            ),
+        )
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=principal.organization_id,
+                correlation_id=replay.id,
+                actor_type=ActorType.USER,
+                actor_id=principal.id,
+                action="run.replay.request",
+                resource_type="run",
+                resource_id=str(replay.id),
+                outcome="QUEUED",
+                metadata={"source_run_id": str(source.id), "source_status": source.status},
             ),
         )
         return replay

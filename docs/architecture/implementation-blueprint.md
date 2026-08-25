@@ -83,6 +83,14 @@ single-use hashed resume token. Replay pins recorded agent, skill, model profile
 capability versions, inputs, and evidence snapshots, and distinguishes replay from a
 fresh rerun.
 
+A replay never re-enters the Capability or Model Gateway. The worker atomically
+materializes the terminal source Run's steps, version IDs, evidence fingerprints,
+Claims, Claim-Evidence links, artifacts, usage, and safe event envelopes under new
+resource IDs. The replay records one stable SHA-256 fingerprint over the source
+snapshot, preserves source observation timestamps, and exposes replay-specific events
+so an inspector cannot confuse historical playback with a new external invocation.
+Repeating a replay of the same immutable source produces the same snapshot fingerprint.
+
 ## Model execution
 
 Agent specifications refer to profiles such as `reasoning-high`, `fast`, `private`,
@@ -94,6 +102,17 @@ untrusted context segment and cannot become system or skill instructions.
 No provider is required to boot the control plane. A run that needs a model and has no
 eligible endpoint becomes a typed, recoverable configuration failure; it never falls
 back to fabricated content.
+
+## Evaluation execution
+
+Golden Dataset cases declare an explicit routing, SQL-policy, or recorded-Run
+evaluator. Evaluation Runs fingerprint the immutable case set and snapshot the Agent,
+resolved registry dependencies, model routing metadata, application revision, real
+terminal Run bindings, and gate configuration. Results are immutable per-case records
+with safe observations and Evidence references. A baseline comparison is valid only
+for the exact same dataset fingerprint; release gates combine pass rate, case errors,
+regression rate, and named quality-score thresholds. The detailed contract is in the
+[evaluation architecture](evaluation-design.md).
 
 ## Policy semantics
 

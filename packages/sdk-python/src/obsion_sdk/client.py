@@ -309,6 +309,65 @@ class AsyncObsionClient:
             ),
         )
 
+    async def create_evaluation_dataset(
+        self,
+        *,
+        name: str,
+        domain: str,
+        description: str = "",
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/admin/evaluations/datasets",
+                json={"name": name, "domain": domain, "description": description},
+            ),
+        )
+
+    async def add_evaluation_case(
+        self, dataset_id: str, case: dict[str, Any]
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST", f"/api/v1/admin/evaluations/datasets/{dataset_id}/cases", json=case
+            ),
+        )
+
+    async def run_evaluation(
+        self, dataset_id: str, request: dict[str, Any]
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST", f"/api/v1/admin/evaluations/datasets/{dataset_id}/runs", json=request
+            ),
+        )
+
+    async def list_evaluation_runs(
+        self, *, dataset_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        params = {"dataset_id": dataset_id} if dataset_id else None
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/admin/evaluations/runs", params=params),
+        )
+
+    async def get_evaluation_run(self, run_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("GET", f"/api/v1/admin/evaluations/runs/{run_id}"),
+        )
+
+    async def list_evaluation_results(self, run_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET", f"/api/v1/admin/evaluations/runs/{run_id}/results"
+            ),
+        )
+
     async def create_workflow(
         self, workspace_id: str, definition: dict[str, Any]
     ) -> dict[str, Any]:

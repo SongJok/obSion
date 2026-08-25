@@ -48,6 +48,7 @@ from obsion.domain.enums import (
 from obsion.domain.run_state import is_terminal, validate_run_transition
 from obsion.harness.critic import Critic
 from obsion.harness.planner import Planner
+from obsion.harness.replay import RunReplayService
 from obsion.harness.understanding import UnderstandingEngine
 from obsion.knowledge.parsers import parse_document
 from obsion.model_gateway.context import ContextBuilder, ContextSegment, TrustLevel
@@ -78,11 +79,17 @@ class HarnessRuntime:
         self.planner = Planner()
         self.critic = Critic()
         self.data = DataIntelligenceService(settings)
+        self.replays = RunReplayService()
 
     async def execute(self, organization_id: UUID, run_id: UUID) -> None:
         with tracer.start_as_current_span("obsion.run") as span:
             span.set_attribute("obsion.run.id", str(run_id))
             try:
+                replay = await self._materialize_replay(organization_id, run_id)
+                if replay:
+                    span.set_attribute("obsion.run.replay", True)
+                    run_counter.add(1, {"status": "REPLAYED"})
+                    return
                 await self._prepare(organization_id, run_id)
                 should_continue = await self._execute_steps(organization_id, run_id)
                 if should_continue:
@@ -100,6 +107,19 @@ class HarnessRuntime:
                 span.set_attribute("error.type", type(exc).__name__)
                 run_counter.add(1, {"status": "FAILED"})
                 await self._fail(organization_id, run_id, exc)
+
+    async def _materialize_replay(self, organization_id: UUID, run_id: UUID) -> bool:
+        async with self.database.sessions() as session, session.begin():
+            replay_of_run_id = await session.scalar(
+                select(Run.replay_of_run_id).where(
+                    Run.id == run_id,
+                    Run.organization_id == organization_id,
+                )
+            )
+            if replay_of_run_id is None:
+                return False
+            await self.replays.materialize(session, organization_id, run_id)
+            return True
 
     async def _load_context(
         self,
@@ -362,7 +382,7 @@ class HarnessRuntime:
                     )
                 if run.step_count + len(ready) > run.max_steps:
                     raise BudgetExceededError("steps", run.max_steps)
-                jobs: list[tuple[UUID, dict[str, Any], UUID | None, str]] = []
+                jobs: list[tuple[UUID, dict[str, Any], UUID | None, UUID | None, str]] = []
                 for step in ready:
                     step.status = StepStatus.RUNNING
                     step.started_at = step.started_at or utc_now()
@@ -372,6 +392,7 @@ class HarnessRuntime:
                             step.id,
                             dict(step.input_payload),
                             run.agent_version_id,
+                            step.capability_version_id,
                             agent_definition.name,
                         )
                     )
@@ -385,9 +406,16 @@ class HarnessRuntime:
                         payload,
                         principal,
                         agent_version_id,
+                        capability_version_id,
                         agent_name,
                     )
-                    for step_id, payload, agent_version_id, agent_name in jobs
+                    for (
+                        step_id,
+                        payload,
+                        agent_version_id,
+                        capability_version_id,
+                        agent_name,
+                    ) in jobs
                 ]
             )
             if any(outcome == GatewayStatus.WAITING_APPROVAL for outcome in outcomes):
@@ -510,6 +538,7 @@ class HarnessRuntime:
         payload: dict[str, Any],
         principal: Principal,
         agent_version_id: UUID | None,
+        capability_version_id: UUID | None,
         agent_name: str,
     ) -> GatewayStatus:
         try:
@@ -524,6 +553,7 @@ class HarnessRuntime:
                         environment=payload["environment"],
                         agent_name=agent_name,
                         agent_version_id=agent_version_id,
+                        capability_version_id=capability_version_id,
                         run_id=run_id,
                         step_id=step_id,
                     ),
@@ -544,6 +574,7 @@ class HarnessRuntime:
                 step_id,
                 StepStatus.COMPLETED,
                 output_ref=str(result.evidence_id),
+                capability_version_id=result.capability_version_id,
             )
         elif result.status == GatewayStatus.WAITING_APPROVAL:
             async with self.database.sessions() as wait_session, wait_session.begin():
@@ -556,6 +587,7 @@ class HarnessRuntime:
                     wait_run.lease_owner = None
                     wait_run.lease_expires_at = None
                     wait_step.status = StepStatus.WAITING_APPROVAL
+                    wait_step.capability_version_id = result.capability_version_id
         else:
             await self._finish_step(
                 organization_id,
@@ -563,6 +595,7 @@ class HarnessRuntime:
                 step_id,
                 StepStatus.FAILED,
                 error_code=result.error_code,
+                capability_version_id=result.capability_version_id,
             )
         return result.status
 
@@ -575,6 +608,7 @@ class HarnessRuntime:
         *,
         output_ref: str | None = None,
         error_code: str | None = None,
+        capability_version_id: UUID | None = None,
     ) -> None:
         async with self.database.sessions() as session, session.begin():
             step = await session.scalar(
@@ -591,6 +625,7 @@ class HarnessRuntime:
             step.status = status
             step.output_ref = output_ref
             step.error_code = error_code
+            step.capability_version_id = capability_version_id or step.capability_version_id
             step.completed_at = utc_now()
 
     async def _respond(self, organization_id: UUID, run_id: UUID) -> None:

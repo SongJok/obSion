@@ -33,6 +33,7 @@ jobs:
       - run: npm ci
       - run: uv run ruff check .
       - run: uv run mypy services/control-plane/src packages/sdk-python/src
+      - run: uv run obsion validate-evaluations
       - run: uv run pytest --cov=obsion --cov-report=term-missing --cov-report=xml
       - run: npm run lint
       - run: npm run typecheck
@@ -81,8 +82,7 @@ jobs:
       - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini upgrade head
       - run: >-
           uv run pytest
-          services/control-plane/tests/integration/test_postgres_automation.py
-          services/control-plane/tests/integration/test_postgres_actions.py
+          services/control-plane/tests/integration
       - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
 
   containers:

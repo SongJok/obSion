@@ -84,7 +84,7 @@ requirement, not an incomplete implementation.
 | Workspace lifecycle | Workspace, Thread, Turn, Run, Step, Event and artifacts | State-machine and repository tests |
 | Thread lifecycle | Create, resume, fork, archive and inspect | API integration tests |
 | Run lifecycle | Pending, running, waiting, replanning, terminal states | Transition property tests |
-| Replayability | Immutable inputs, pinned versions, events, evidence and outputs | Replay determinism tests |
+| Replayability | Immutable inputs, pinned versions, events, evidence and outputs; playback never re-invokes a connector or model | Snapshot fingerprint, version pinning, remapped lineage and no-external-boundary tests |
 | Event protocol | Append-only, ordered per aggregate, correlation and causation | Transaction/concurrency tests |
 | Agent contracts | Immutable AgentSpec versions with risk and budgets | Schema and registry tests |
 | Skills | Versioned procedure, capability and evidence requirements | Schema and promotion tests |
@@ -107,7 +107,7 @@ requirement, not an incomplete implementation.
 | Automation | Immutable DAG versions, cron/IANA schedules, idempotent background executions, leases and concurrency policy | Automation API, worker and PostgreSQL invariant tests |
 | Operational ownership | Scheduled work re-authorizes the current owner; human review and notification are durable and audited | Permission-revocation, review and delivery tests |
 | Administration | Users, roles, models, agents, skills, capabilities, connectors, policies, approvals, audits, evaluations, costs, prompts, knowledge and secrets metadata | Admin API/UI tests |
-| Evaluation | Version-pinned datasets, cases, runs and regression metrics | Evaluation test suite |
+| Evaluation | Explicit Golden Dataset evaluators, real terminal-Run observations, full configuration snapshots, immutable case evidence, score gates and exact-snapshot baseline comparison | Manifest validation, API/SDK tests, regression tests and PostgreSQL immutability tests |
 | Observability | OpenTelemetry-compatible run, model, tool and policy telemetry | Span/metric assertions |
 | Open-source quality | License, governance, contribution, security, CI and reproducible deployment | Repository quality checks |
 
