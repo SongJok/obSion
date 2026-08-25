@@ -1,0 +1,12 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: knowledge-research
+spec:
+  instructions:
+    - retrieve only authorized sources
+    - cite source and version
+    - separate unsupported statements
+  capabilities: [knowledge.search, document.read]
+  requiredEvidence: [DOCUMENT]
+  verification: [citation coverage, ACL retained]

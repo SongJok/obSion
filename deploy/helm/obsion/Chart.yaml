@@ -1,0 +1,12 @@
+apiVersion: v2
+name: obsion
+description: Governed enterprise agent runtime and intelligence workspace
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial control-plane and Workbench deployment.

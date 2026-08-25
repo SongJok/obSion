@@ -1,0 +1,11 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-knowledge-index
+spec:
+  type: knowledge-index
+  environment: internal
+  transport: INTERNAL
+  grants: [knowledge.read]
+  allowedEgress: []
+  capabilities: [knowledge.search]

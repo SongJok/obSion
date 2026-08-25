@@ -1,0 +1,27 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: engineering-metadata-gateway
+spec:
+  type: http-json
+  environment: production
+  transport: HTTP
+  baseUrl: https://engineering-metadata.internal
+  credentialRef: secret://engineering-metadata-reader
+  grants: [code.read, deployment.read, config.read, runtime.read]
+  allowedEgress: [engineering-metadata.internal:443]
+  tlsRequired: true
+  configuration:
+    rate_limit_per_minute: 180
+  capabilities:
+    - code.search
+    - code.symbol
+    - code.reference
+    - git.commit
+    - git.diff
+    - git.blame
+    - git.history
+    - deployment.commit
+    - config.get
+    - config.diff
+    - k8s.status

@@ -1,0 +1,42 @@
+{
+  "name": "v1-routing-and-safety",
+  "description": "Deterministic routing and SQL safety regressions for the V1 boundary.",
+  "domain": "cross-domain",
+  "cases": [
+    {
+      "external_id": "route-knowledge-001",
+      "version": 1,
+      "input_payload": {"question": "公司的差旅报销政策是什么？"},
+      "expected": {"route": "KNOWLEDGE"},
+      "fixtures": {}
+    },
+    {
+      "external_id": "route-incident-001",
+      "version": 1,
+      "input_payload": {"question": "生产环境 p99 latency 异常的根因是什么？"},
+      "expected": {"route": "INCIDENT"},
+      "fixtures": {}
+    },
+    {
+      "external_id": "sql-read-001",
+      "version": 1,
+      "input_payload": {"sql": "SELECT service, count(*) FROM incidents GROUP BY service", "dialect": "postgres"},
+      "expected": {"sql_allowed": true},
+      "fixtures": {"allowed_tables": ["incidents"], "allowed_columns": ["service"]}
+    },
+    {
+      "external_id": "sql-write-denied-001",
+      "version": 1,
+      "input_payload": {"sql": "UPDATE incidents SET status = 'closed'", "dialect": "postgres"},
+      "expected": {"sql_allowed": false},
+      "fixtures": {"allowed_tables": ["incidents"], "allowed_columns": ["status"]}
+    },
+    {
+      "external_id": "answer-citation-001",
+      "version": 1,
+      "input_payload": {"question": "Summarize the policy with evidence."},
+      "expected": {"contains": ["[1]", "confidence"]},
+      "fixtures": {"actual": "The policy applies to all employees [1]. Confidence: high."}
+    }
+  ]
+}

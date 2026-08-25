@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible Obsion problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please report security issues privately according to SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: v0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Workbench, Harness, Capability, Evidence, Data, Control, Deployment, SDK]
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description and reproduction
+      description: Include expected behavior, actual behavior, and minimal reproduction steps.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Include redacted logs, request IDs, browser, database, and deployment details.

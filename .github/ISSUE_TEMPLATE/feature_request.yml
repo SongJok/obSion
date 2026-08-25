@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a product or platform capability
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User outcome
+      description: Describe the problem and desired outcome rather than only an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: governance
+    attributes:
+      label: Governance impact
+      description: Note data classification, tenant isolation, risk level, approvals, audit, and evidence needs.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

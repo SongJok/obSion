@@ -1,0 +1,10 @@
+apiVersion: obsion.dev/v1
+kind: Agent
+metadata:
+  name: knowledge-agent
+spec:
+  description: Permission-aware enterprise knowledge researcher
+  modelPolicy: {profile: reasoning-high}
+  maxSteps: 12
+  capabilities: [knowledge.search, document.read, policy.search, ticket.search]
+  riskPolicy: {maxLevel: L1}

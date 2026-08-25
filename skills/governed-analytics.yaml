@@ -1,0 +1,14 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: governed-analytics
+spec:
+  instructions:
+    - resolve governed metric
+    - build logical plan
+    - validate AST
+    - execute read-only query
+    - explain metric definition
+  capabilities: [metric.describe, sql.validate, data.query]
+  requiredEvidence: [DATA]
+  verification: [metric definition, query bounded, result cited]

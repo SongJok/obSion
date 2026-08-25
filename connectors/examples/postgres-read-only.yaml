@@ -1,0 +1,17 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: analytics-postgres
+spec:
+  type: postgresql
+  environment: production
+  transport: SQL_PROXY
+  credentialRef: env://OBSION_ANALYTICS_POSTGRES_DSN
+  grants: [data.metadata.read, data.query.read]
+  allowedEgress: [analytics-db.internal:5432]
+  sessionControls:
+    readOnly: true
+    statementTimeoutSeconds: 30
+  configuration:
+    rate_limit_per_minute: 60
+  capabilities: [schema.search, table.describe, data.query, data.preview, sql.explain]

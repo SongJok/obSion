@@ -1,0 +1,10 @@
+apiVersion: obsion.dev/v1
+kind: Agent
+metadata:
+  name: analytics-agent
+spec:
+  description: Business metric analysis and insight agent
+  modelPolicy: {profile: reasoning-high}
+  maxSteps: 18
+  capabilities: [metric.describe, metric.query, metric.compare, metric.dimension, data.query]
+  riskPolicy: {maxLevel: L2}

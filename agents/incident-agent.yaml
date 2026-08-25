@@ -1,0 +1,22 @@
+apiVersion: obsion.dev/v1
+kind: Agent
+metadata:
+  name: incident-agent
+spec:
+  description: Production incident investigator
+  modelPolicy: {profile: reasoning-high}
+  maxSteps: 30
+  capabilities:
+    - metric.query
+    - metric.compare
+    - metric.anomaly
+    - metric.dimension
+    - log.aggregate
+    - log.search
+    - trace.search
+    - deployment.list
+    - deployment.commit
+    - git.diff
+    - config.diff
+    - k8s.status
+  riskPolicy: {maxLevel: L2}

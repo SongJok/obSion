@@ -1,0 +1,13 @@
+{
+  "name": "obsion",
+  "private": true,
+  "workspaces": ["apps/*", "packages/sdk-ts"],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev:web": "npm run dev --workspace @obsion/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {"node": ">=22"}
+}

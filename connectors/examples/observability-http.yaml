@@ -1,0 +1,25 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: observability-api
+spec:
+  type: http-json
+  environment: production
+  transport: HTTP
+  baseUrl: https://observability.internal
+  credentialRef: env://OBSION_OBSERVABILITY_API_TOKEN
+  grants: [logs.read, metrics.read, traces.read, deployment.read]
+  allowedEgress: [observability.internal:443]
+  tlsRequired: true
+  configuration:
+    rate_limit_per_minute: 240
+  capabilities:
+    - log.search
+    - log.aggregate
+    - metric.query
+    - metric.compare
+    - metric.anomaly
+    - metric.dimension
+    - trace.search
+    - trace.timeline
+    - deployment.list

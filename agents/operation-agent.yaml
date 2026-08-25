@@ -1,0 +1,17 @@
+apiVersion: obsion.dev/v1
+kind: Agent
+metadata:
+  name: operation-agent
+spec:
+  description: Read-only runtime and delivery operations analyst
+  modelPolicy: {profile: reasoning-high}
+  maxSteps: 24
+  capabilities:
+    - deployment.list
+    - deployment.commit
+    - config.get
+    - config.diff
+    - k8s.status
+    - log.search
+    - metric.query
+  riskPolicy: {maxLevel: L2}

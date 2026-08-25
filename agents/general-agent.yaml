@@ -1,0 +1,46 @@
+apiVersion: obsion.dev/v1
+kind: Agent
+metadata:
+  name: general-agent
+spec:
+  description: Primary enterprise assistant and internal route coordinator
+  modelPolicy: {profile: reasoning-high}
+  maxSteps: 30
+  timeout: 300
+  skills: [knowledge-research, governed-analytics, incident-investigation]
+  capabilities:
+    - code.search
+    - code.symbol
+    - code.reference
+    - git.commit
+    - git.diff
+    - git.blame
+    - git.history
+    - deployment.commit
+    - log.search
+    - log.error
+    - log.aggregate
+    - trace.search
+    - trace.timeline
+    - metric.query
+    - metric.compare
+    - metric.anomaly
+    - metric.dimension
+    - schema.search
+    - table.describe
+    - metric.describe
+    - data.query
+    - data.preview
+    - sql.validate
+    - sql.explain
+    - knowledge.search
+    - document.read
+    - policy.search
+    - ticket.search
+    - deployment.list
+    - config.get
+    - config.diff
+    - k8s.status
+  riskPolicy: {maxLevel: L2}
+  memory: {session: true, workspace: true}
+  sandbox: {enabled: true, network: gateway-only}

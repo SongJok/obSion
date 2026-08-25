@@ -1,0 +1,128 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+api:
+  replicaCount: 2
+  image:
+    repository: obsion/control-plane
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  service:
+    port: 8080
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  podAnnotations: {}
+  extraEnv: []
+
+web:
+  replicaCount: 2
+  image:
+    repository: obsion/web
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  service:
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+  podAnnotations: {}
+
+config:
+  environment: production
+  logLevel: INFO
+  publicApiUrl: http://localhost:8080
+  allowedOrigins:
+    - http://localhost:3000
+  auth:
+    mode: oidc
+    oidcIssuer: ""
+    oidcAudience: ""
+    oidcJwksUrl: ""
+  redisUrl: redis://redis:6379/0
+  capabilityRateLimitPerMinute: 120
+  rateLimitFailClosed: true
+  modelAllowedHosts: []
+  knowledgeEmbeddingProfile: ""
+  knowledgeEmbeddingBatchSize: 64
+  runMaxInputTokens: 120000
+  runMaxOutputTokens: 16000
+  runMaxCostAmount: "10"
+  automation:
+    enabled: true
+    workerConcurrency: 4
+    pollIntervalSeconds: 0.5
+    leaseSeconds: 30
+  actions:
+    enabled: true
+    workerConcurrency: 2
+    pollIntervalSeconds: 0.5
+    leaseSeconds: 30
+  objectStoreEndpoint: http://minio:9000
+  objectStoreBucket: obsion-artifacts
+  telemetry:
+    enabled: true
+    serviceName: obsion-control-plane
+    otlpEndpoint: ""
+    traceSampleRatio: 1.0
+
+database:
+  existingSecret: obsion-database
+  urlKey: url
+
+objectStore:
+  existingSecret: obsion-object-store
+  accessKeyKey: access-key
+  secretKeyKey: secret-key
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: obsion.local
+      paths:
+        web: /
+        api: /api
+        health: /health
+  tls: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

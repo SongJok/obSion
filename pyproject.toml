@@ -1,0 +1,43 @@
+[tool.uv.workspace]
+members = [
+  "services/control-plane",
+  "packages/sdk-python",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["services/control-plane/src", "packages/sdk-python/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "S"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S106"]
+"services/control-plane/src/obsion/api/*.py" = ["B008"]
+"services/control-plane/src/obsion/security/auth.py" = ["B008"]
+"services/control-plane/src/obsion/config.py" = ["S104"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["services/control-plane/tests", "packages/sdk-python/tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+
+[[tool.mypy.overrides]]
+module = ["obsion.db.models", "obsion.api.admin"]
+disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+module = ["asyncpg", "croniter", "openpyxl", "jsonschema", "jsonschema.*"]
+ignore_missing_imports = true

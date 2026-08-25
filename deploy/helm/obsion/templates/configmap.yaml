@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "obsion.fullname" . }}
+  labels:
+    {{- include "obsion.labels" . | nindent 4 }}
+data:
+  OBSION_ENVIRONMENT: {{ .Values.config.environment | quote }}
+  OBSION_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  OBSION_API_PUBLIC_URL: {{ .Values.config.publicApiUrl | quote }}
+  OBSION_ALLOWED_ORIGINS: {{ .Values.config.allowedOrigins | toJson | quote }}
+  OBSION_AUTH_MODE: {{ .Values.config.auth.mode | quote }}
+  OBSION_OIDC_ISSUER: {{ .Values.config.auth.oidcIssuer | quote }}
+  OBSION_OIDC_AUDIENCE: {{ .Values.config.auth.oidcAudience | quote }}
+  OBSION_OIDC_JWKS_URL: {{ .Values.config.auth.oidcJwksUrl | quote }}
+  OBSION_REDIS_URL: {{ .Values.config.redisUrl | quote }}
+  OBSION_CAPABILITY_RATE_LIMIT_PER_MINUTE: {{ .Values.config.capabilityRateLimitPerMinute | quote }}
+  OBSION_RATE_LIMIT_FAIL_CLOSED: {{ .Values.config.rateLimitFailClosed | quote }}
+  OBSION_MODEL_ALLOWED_HOSTS: {{ .Values.config.modelAllowedHosts | toJson | quote }}
+  OBSION_KNOWLEDGE_EMBEDDING_PROFILE: {{ .Values.config.knowledgeEmbeddingProfile | quote }}
+  OBSION_KNOWLEDGE_EMBEDDING_BATCH_SIZE: {{ .Values.config.knowledgeEmbeddingBatchSize | quote }}
+  OBSION_RUN_MAX_INPUT_TOKENS: {{ .Values.config.runMaxInputTokens | quote }}
+  OBSION_RUN_MAX_OUTPUT_TOKENS: {{ .Values.config.runMaxOutputTokens | quote }}
+  OBSION_RUN_MAX_COST_AMOUNT: {{ .Values.config.runMaxCostAmount | quote }}
+  OBSION_AUTOMATION_ENABLED: {{ .Values.config.automation.enabled | quote }}
+  OBSION_AUTOMATION_WORKER_CONCURRENCY: {{ .Values.config.automation.workerConcurrency | quote }}
+  OBSION_AUTOMATION_POLL_INTERVAL_SECONDS: {{ .Values.config.automation.pollIntervalSeconds | quote }}
+  OBSION_AUTOMATION_LEASE_SECONDS: {{ .Values.config.automation.leaseSeconds | quote }}
+  OBSION_ACTIONS_ENABLED: {{ .Values.config.actions.enabled | quote }}
+  OBSION_ACTION_WORKER_CONCURRENCY: {{ .Values.config.actions.workerConcurrency | quote }}
+  OBSION_ACTION_POLL_INTERVAL_SECONDS: {{ .Values.config.actions.pollIntervalSeconds | quote }}
+  OBSION_ACTION_LEASE_SECONDS: {{ .Values.config.actions.leaseSeconds | quote }}
+  OBSION_OBJECT_STORE_ENDPOINT: {{ .Values.config.objectStoreEndpoint | quote }}
+  OBSION_OBJECT_STORE_BUCKET: {{ .Values.config.objectStoreBucket | quote }}
+  OBSION_OTEL_ENABLED: {{ .Values.config.telemetry.enabled | quote }}
+  OBSION_OTEL_SERVICE_NAME: {{ .Values.config.telemetry.serviceName | quote }}
+  OBSION_OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.telemetry.otlpEndpoint | quote }}
+  OBSION_OTEL_TRACE_SAMPLE_RATIO: {{ .Values.config.telemetry.traceSampleRatio | quote }}

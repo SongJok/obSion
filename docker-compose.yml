@@ -1,0 +1,145 @@
+name: obsion
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
+    environment:
+      POSTGRES_DB: ${OBSION_POSTGRES_DB:-obsion}
+      POSTGRES_USER: ${OBSION_POSTGRES_USER:-obsion}
+      POSTGRES_PASSWORD: ${OBSION_POSTGRES_PASSWORD:-obsion}
+    ports:
+      - "${OBSION_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${OBSION_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${OBSION_OBJECT_STORE_ACCESS_KEY:-obsion}
+      MINIO_ROOT_PASSWORD: ${OBSION_OBJECT_STORE_SECRET_KEY:-change-this-local-secret}
+    ports:
+      - "${OBSION_MINIO_API_PORT:-9000}:9000"
+      - "${OBSION_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >-
+      /bin/sh -c "mc alias set local http://minio:9000
+      $${OBSION_OBJECT_STORE_ACCESS_KEY} $${OBSION_OBJECT_STORE_SECRET_KEY}
+      && mc mb --ignore-existing local/$${OBSION_OBJECT_STORE_BUCKET}"
+    environment:
+      OBSION_OBJECT_STORE_ACCESS_KEY: ${OBSION_OBJECT_STORE_ACCESS_KEY:-obsion}
+      OBSION_OBJECT_STORE_SECRET_KEY: ${OBSION_OBJECT_STORE_SECRET_KEY:-change-this-local-secret}
+      OBSION_OBJECT_STORE_BUCKET: ${OBSION_OBJECT_STORE_BUCKET:-obsion-artifacts}
+    restart: "no"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/docker/control-plane.Dockerfile
+    environment: &api-environment
+      OBSION_ENVIRONMENT: ${OBSION_ENVIRONMENT:-development}
+      OBSION_DATABASE_URL: postgresql+asyncpg://${OBSION_POSTGRES_USER:-obsion}:${OBSION_POSTGRES_PASSWORD:-obsion}@postgres:5432/${OBSION_POSTGRES_DB:-obsion}
+      OBSION_REDIS_URL: redis://redis:6379/0
+      OBSION_OBJECT_STORE_ENDPOINT: http://minio:9000
+      OBSION_OBJECT_STORE_ACCESS_KEY: ${OBSION_OBJECT_STORE_ACCESS_KEY:-obsion}
+      OBSION_OBJECT_STORE_SECRET_KEY: ${OBSION_OBJECT_STORE_SECRET_KEY:-change-this-local-secret}
+      OBSION_OBJECT_STORE_BUCKET: ${OBSION_OBJECT_STORE_BUCKET:-obsion-artifacts}
+      OBSION_AUTH_MODE: ${OBSION_AUTH_MODE:-development}
+      OBSION_OIDC_ISSUER: ${OBSION_OIDC_ISSUER:-}
+      OBSION_OIDC_AUDIENCE: ${OBSION_OIDC_AUDIENCE:-}
+      OBSION_OIDC_JWKS_URL: ${OBSION_OIDC_JWKS_URL:-}
+      OBSION_ALLOWED_ORIGINS: '["http://localhost:${OBSION_WEB_PORT:-3000}"]'
+      OBSION_MODEL_ALLOWED_HOSTS: ${OBSION_MODEL_ALLOWED_HOSTS:-[]}
+      OBSION_KNOWLEDGE_EMBEDDING_PROFILE: ${OBSION_KNOWLEDGE_EMBEDDING_PROFILE:-}
+      OBSION_KNOWLEDGE_EMBEDDING_BATCH_SIZE: ${OBSION_KNOWLEDGE_EMBEDDING_BATCH_SIZE:-64}
+      OBSION_RUN_MAX_INPUT_TOKENS: ${OBSION_RUN_MAX_INPUT_TOKENS:-120000}
+      OBSION_RUN_MAX_OUTPUT_TOKENS: ${OBSION_RUN_MAX_OUTPUT_TOKENS:-16000}
+      OBSION_RUN_MAX_COST_AMOUNT: ${OBSION_RUN_MAX_COST_AMOUNT:-10}
+      OBSION_AUTOMATION_ENABLED: ${OBSION_AUTOMATION_ENABLED:-true}
+      OBSION_AUTOMATION_WORKER_CONCURRENCY: ${OBSION_AUTOMATION_WORKER_CONCURRENCY:-4}
+      OBSION_AUTOMATION_POLL_INTERVAL_SECONDS: ${OBSION_AUTOMATION_POLL_INTERVAL_SECONDS:-0.5}
+      OBSION_AUTOMATION_LEASE_SECONDS: ${OBSION_AUTOMATION_LEASE_SECONDS:-30}
+      OBSION_ACTIONS_ENABLED: ${OBSION_ACTIONS_ENABLED:-true}
+      OBSION_ACTION_WORKER_CONCURRENCY: ${OBSION_ACTION_WORKER_CONCURRENCY:-2}
+      OBSION_ACTION_POLL_INTERVAL_SECONDS: ${OBSION_ACTION_POLL_INTERVAL_SECONDS:-0.5}
+      OBSION_ACTION_LEASE_SECONDS: ${OBSION_ACTION_LEASE_SECONDS:-30}
+      OBSION_OTEL_EXPORTER_OTLP_ENDPOINT: ${OBSION_OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    command:
+      - alembic
+      - -c
+      - services/control-plane/alembic.ini
+      - upgrade
+      - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/docker/control-plane.Dockerfile
+    environment: *api-environment
+    ports:
+      - "${OBSION_API_PORT:-8080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_OBSION_API_URL: ${NEXT_PUBLIC_OBSION_API_URL:-http://localhost:8080/api/v1}
+    environment:
+      PORT: 3000
+    ports:
+      - "${OBSION_WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

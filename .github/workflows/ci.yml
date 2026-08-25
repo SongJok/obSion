@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.16"
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+      - run: uv sync --locked --all-packages --all-extras
+      - run: npm ci
+      - run: uv run ruff check .
+      - run: uv run mypy services/control-plane/src packages/sdk-python/src
+      - run: uv run pytest --cov=obsion --cov-report=term-missing --cov-report=xml
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  migrations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17-bookworm
+        env:
+          POSTGRES_DB: obsion
+          POSTGRES_USER: obsion
+          POSTGRES_PASSWORD: obsion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U obsion -d obsion"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OBSION_DATABASE_URL: postgresql+asyncpg://obsion:obsion@localhost:5432/obsion
+      OBSION_ENVIRONMENT: test
+      OBSION_AUTH_MODE: development
+      OBSION_RUN_POSTGRES_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.16"
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+      - run: uv sync --locked --all-packages --all-extras
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini upgrade head
+      - run: >-
+          uv run pytest
+          services/control-plane/tests/integration/test_postgres_automation.py
+          services/control-plane/tests/integration/test_postgres_actions.py
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
+
+  containers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [quality, migrations]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/control-plane.Dockerfile
+          push: false
+          tags: obsion/control-plane:ci
+          cache-from: type=gha,scope=control-plane
+          cache-to: type=gha,mode=max,scope=control-plane
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/web.Dockerfile
+          push: false
+          tags: obsion/web:ci
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  helm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - run: >-
+          docker run --rm -v "$PWD:/workspace" alpine/helm:3.18.4
+          lint /workspace/deploy/helm/obsion
+      - run: >-
+          docker run --rm -v "$PWD:/workspace" alpine/helm:3.18.4
+          template obsion /workspace/deploy/helm/obsion
+          --set database.existingSecret=obsion-database
+          --set objectStore.existingSecret=obsion-object-store
+          >/dev/null

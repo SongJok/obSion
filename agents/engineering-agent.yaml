@@ -1,0 +1,10 @@
+apiVersion: obsion.dev/v1
+kind: Agent
+metadata:
+  name: engineering-agent
+spec:
+  description: Code and system analysis agent
+  modelPolicy: {profile: coding-high}
+  maxSteps: 24
+  capabilities: [code.search, code.symbol, code.reference, git.diff, git.history]
+  riskPolicy: {maxLevel: L2}
