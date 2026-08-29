@@ -1,0 +1,30 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/turn.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "input": {
+      "type": "string"
+    },
+    "ordinal": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "thread_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "turn_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "turn_id",
+    "thread_id",
+    "ordinal",
+    "input"
+  ],
+  "title": "turn.created payload v1",
+  "type": "object"
+}

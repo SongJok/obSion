@@ -1,12 +1,20 @@
 import type {
   Artifact,
   Claim,
+  ConversationSnapshot,
   Evidence,
+  FeedbackSummary,
   Metric,
+  MetricLineage,
+  MemorySnapshot,
+  RunFeedback,
+  RunFeedbackRating,
   Run,
   RunEvent,
   RunStep,
+  SessionPrincipal,
   Thread,
+  ThreadEvent,
   Turn,
   Workspace,
   AutomationExecution,
@@ -19,9 +27,15 @@ import type {
   Workflow,
   WorkflowSchedule,
   WorkflowVersion,
+  WorkspaceDecision,
+  WorkspaceDecisionVersion,
+  WorkspaceTask,
+  WorkspaceTaskStatus,
 } from "./types";
+import { notifyAuthenticationRequired } from "./auth-events";
 
-const API_URL = process.env.NEXT_PUBLIC_OBSION_API_URL ?? "http://localhost:8080/api/v1";
+export const API_URL =
+  process.env.NEXT_PUBLIC_OBSION_API_URL ?? "http://localhost:8080/api/v1";
 
 export class ApiError extends Error {
   constructor(
@@ -34,7 +48,21 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+interface RequestOptions {
+  notifyAuthenticationFailure?: boolean;
+}
+
+const SESSION_ERROR_CODES = new Set([
+  "authentication_required",
+  "invalid_token",
+  "unknown_principal",
+]);
+
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  options?: RequestOptions,
+): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     cache: "no-store",
@@ -47,8 +75,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as Record<string, string>;
+    const code = body.code ?? "request_failed";
+    if (
+      options?.notifyAuthenticationFailure !== false &&
+      SESSION_ERROR_CODES.has(code)
+    ) {
+      notifyAuthenticationRequired();
+    }
     throw new ApiError(
-      body.code ?? "request_failed",
+      code,
       body.message ?? "请求未能完成",
       body.correlation_id,
     );
@@ -58,19 +93,57 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  createSession: (accessToken: string) =>
+    request<SessionPrincipal>(
+      "/auth/session",
+      {
+        method: "POST",
+        body: JSON.stringify({ access_token: accessToken }),
+      },
+      { notifyAuthenticationFailure: false },
+    ),
+  getSession: () =>
+    request<SessionPrincipal>(
+      "/auth/session",
+      undefined,
+      { notifyAuthenticationFailure: false },
+    ),
+  deleteSession: () =>
+    request<void>(
+      "/auth/session",
+      { method: "DELETE" },
+      { notifyAuthenticationFailure: false },
+    ),
   listWorkspaces: () => request<Workspace[]>("/workspaces"),
   createWorkspace: (name: string, description: string) =>
     request<Workspace>("/workspaces", {
       method: "POST",
       body: JSON.stringify({ name, description }),
     }),
-  listThreads: (workspaceId: string) =>
-    request<Thread[]>(`/workspaces/${workspaceId}/threads`),
+  listThreads: (workspaceId: string, includeArchived = false) =>
+    request<Thread[]>(
+      `/workspaces/${workspaceId}/threads?include_archived=${includeArchived}`,
+    ),
   createThread: (workspaceId: string, title: string) =>
     request<Thread>("/threads", {
       method: "POST",
       body: JSON.stringify({ workspace_id: workspaceId, title }),
     }),
+  archiveThread: (threadId: string) =>
+    request<Thread>(`/threads/${threadId}/archive`, { method: "POST" }),
+  resumeThread: (threadId: string) =>
+    request<Thread>(`/threads/${threadId}/resume`, { method: "POST" }),
+  forkThread: (
+    threadId: string,
+    input: { title: string; from_turn_id?: string },
+  ) => request<Thread>(`/threads/${threadId}/fork`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
+  listThreadEvents: (threadId: string, afterSequence = 0) =>
+    request<ThreadEvent[]>(
+      `/threads/${threadId}/events?after_sequence=${afterSequence}&limit=200`,
+    ),
   listTurns: (threadId: string) => request<Turn[]>(`/threads/${threadId}/turns`),
   listThreadRuns: (threadId: string) => request<Run[]>(`/threads/${threadId}/runs`),
   createTurn: (threadId: string, input: string, attachmentRefs: Array<Record<string, unknown>> = []) =>
@@ -81,10 +154,22 @@ export const api = {
   getRun: (runId: string) => request<Run>(`/runs/${runId}`),
   cancelRun: (runId: string) => request<Run>(`/runs/${runId}/cancel`, { method: "POST" }),
   replayRun: (runId: string) => request<Run>(`/runs/${runId}/replay`, { method: "POST" }),
+  getRunFeedback: (runId: string) => request<RunFeedback | null>(`/runs/${runId}/feedback`),
+  recordRunFeedback: (
+    runId: string,
+    input: { rating: RunFeedbackRating; reason?: string; expected_version?: number },
+  ) => request<RunFeedback>(`/runs/${runId}/feedback`, {
+    method: "PUT",
+    body: JSON.stringify({ reason: "", ...input }),
+  }),
   listEvents: (runId: string, after = 0) =>
     request<RunEvent[]>(`/runs/${runId}/events?after=${after}`),
   listSteps: (runId: string) => request<RunStep[]>(`/runs/${runId}/steps`),
   listEvidence: (runId: string) => request<Evidence[]>(`/runs/${runId}/evidence`),
+  listRunMemories: (runId: string) =>
+    request<MemorySnapshot[]>(`/runs/${runId}/memories`),
+  listRunConversation: (runId: string) =>
+    request<ConversationSnapshot[]>(`/runs/${runId}/conversation`),
   listClaims: (runId: string) => request<Claim[]>(`/runs/${runId}/claims`),
   listArtifacts: (runId: string) => request<Artifact[]>(`/runs/${runId}/artifacts`),
   listWorkspaceArtifacts: (workspaceId: string) =>
@@ -102,6 +187,7 @@ export const api = {
     });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as Record<string, string>;
+      if (SESSION_ERROR_CODES.has(body.code ?? "")) notifyAuthenticationRequired();
       throw new ApiError(
         body.code ?? "artifact_download_failed",
         body.message ?? "产物下载失败",
@@ -111,6 +197,8 @@ export const api = {
     return response.blob();
   },
   listMetrics: () => request<Metric[]>("/data/metrics"),
+  getMetricLineage: (metricId: string) =>
+    request<MetricLineage>(`/data/lineage/${metricId}`),
   uploadDocument: (form: FormData) =>
     request<{ document: { id: string; title: string }; chunk_count: number }>(
       "/knowledge/documents",
@@ -121,6 +209,41 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ query, limit: 12 }),
     }),
+  collaboration: {
+    listTasks: (workspaceId: string, status?: WorkspaceTaskStatus) =>
+      request<WorkspaceTask[]>(
+        `/workspaces/${workspaceId}/tasks?limit=500${status ? `&status=${status}` : ""}`,
+      ),
+    createTask: (workspaceId: string, definition: Record<string, unknown>) =>
+      request<WorkspaceTask>(`/workspaces/${workspaceId}/tasks`, {
+        method: "POST",
+        body: JSON.stringify(definition),
+      }),
+    updateTask: (taskId: string, definition: Record<string, unknown>) =>
+      request<WorkspaceTask>(`/workspace-tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify(definition),
+      }),
+    listDecisions: (workspaceId: string) =>
+      request<WorkspaceDecision[]>(`/workspaces/${workspaceId}/decisions?limit=500`),
+    createDecision: (workspaceId: string, definition: Record<string, unknown>) =>
+      request<WorkspaceDecision>(`/workspaces/${workspaceId}/decisions`, {
+        method: "POST",
+        body: JSON.stringify(definition),
+      }),
+    reviseDecision: (decisionId: string, definition: Record<string, unknown>) =>
+      request<WorkspaceDecision>(`/workspace-decisions/${decisionId}`, {
+        method: "PATCH",
+        body: JSON.stringify(definition),
+      }),
+    decide: (decisionId: string, approve: boolean, expectedVersion: number) =>
+      request<WorkspaceDecision>(
+        `/workspace-decisions/${decisionId}/${approve ? "accept" : "reject"}`,
+        { method: "POST", body: JSON.stringify({ expected_version: expectedVersion }) },
+      ),
+    versions: (decisionId: string) =>
+      request<WorkspaceDecisionVersion[]>(`/workspace-decisions/${decisionId}/versions`),
+  },
   automation: {
     listWorkflows: (workspaceId: string) =>
       request<Workflow[]>(`/workspaces/${workspaceId}/workflows`),
@@ -226,6 +349,7 @@ export const api = {
     approvals: () => request<Array<Record<string, unknown>>>("/approvals"),
     evaluations: () => request<Array<Record<string, unknown>>>("/admin/evaluations/runs"),
     costs: () => request<Array<Record<string, unknown>>>("/admin/costs"),
+    feedbackSummary: () => request<FeedbackSummary>("/admin/feedback/summary"),
     prompts: () => request<Array<Record<string, unknown>>>("/admin/prompts"),
     knowledge: () => request<Array<Record<string, unknown>>>("/admin/knowledge"),
     secrets: () => request<Array<Record<string, unknown>>>("/admin/secrets"),

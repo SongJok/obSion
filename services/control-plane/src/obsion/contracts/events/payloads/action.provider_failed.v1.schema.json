@@ -1,0 +1,27 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.provider_failed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attempt_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "error_code": {
+      "type": "string"
+    },
+    "purpose": {
+      "enum": [
+        "EXECUTE",
+        "ROLLBACK"
+      ]
+    }
+  },
+  "required": [
+    "attempt_id",
+    "purpose",
+    "error_code"
+  ],
+  "title": "action.provider_failed payload v1",
+  "type": "object"
+}

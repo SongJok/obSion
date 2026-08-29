@@ -13,17 +13,22 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.admin_schemas import (
+    CreateBusinessRuleRequest,
     CreateCapabilityBindingRequest,
     CreateColumnRequest,
     CreateConnectorRequest,
     CreateDataSourceRequest,
+    CreateDepartmentRequest,
     CreateDimensionRequest,
     CreateMetricRequest,
     CreateModelEndpointRequest,
+    CreateModelProfileRequest,
     CreatePolicyRequest,
     CreatePromptVersionRequest,
     CreateRoleRequest,
     CreateSecretReferenceRequest,
+    CreateSemanticEntityRequest,
+    CreateSemanticRelationRequest,
     CreateSemanticSynonymRequest,
     CreateTableRequest,
     CreateTimeDefinitionRequest,
@@ -47,6 +52,7 @@ from obsion.db.models import (
     DataColumn,
     DataSource,
     DataTable,
+    Department,
     Dimension,
     Document,
     Metric,
@@ -58,6 +64,7 @@ from obsion.db.models import (
     PromptDefinition,
     PromptVersion,
     Role,
+    RunFeedback,
     SecretReference,
     SemanticEntity,
     SemanticRelation,
@@ -75,6 +82,8 @@ from obsion.domain.enums import (
     RiskLevel,
     SideEffect,
 )
+from obsion.feedback.schemas import FeedbackSummaryView
+from obsion.model_gateway.providers import OPENAI_COMPATIBLE_PROVIDERS
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.security.auth import get_app_settings, get_principal, get_session
 from obsion.security.egress import validate_model_endpoint
@@ -82,7 +91,10 @@ from obsion.security.identity import Principal
 from obsion.security.redaction import redact_text
 
 router = APIRouter(prefix="/admin", tags=["administration"])
-_SENSITIVE_KEY = re.compile(r"password|passwd|secret|token|api[_-]?key|access[_-]?key", re.I)
+_SENSITIVE_KEY = re.compile(
+    r"(?:^|[_-])(?:password|passwd|secret|token|api[_-]?key|access[_-]?key)(?:$|[_-])",
+    re.I,
+)
 
 
 def _require_admin(principal: Principal, permission: str = "admin.read") -> None:
@@ -142,8 +154,13 @@ async def list_users(
     principal: Principal = Depends(get_principal),
 ) -> list[dict]:
     _require_admin(principal)
-    users = await session.scalars(
-        select(User)
+    rows = await session.execute(
+        select(User, Department)
+        .outerjoin(
+            Department,
+            (Department.organization_id == User.organization_id)
+            & (Department.id == User.department_id),
+        )
         .where(User.organization_id == principal.organization_id)
         .order_by(User.display_name)
     )
@@ -152,10 +169,11 @@ async def list_users(
             "id": str(user.id),
             "email": user.email,
             "display_name": user.display_name,
-            "department": user.department,
+            "department_id": str(department.id) if department is not None else None,
+            "department": department.name if department is not None else None,
             "active": user.active,
         }
-        for user in users
+        for user, department in rows
     ]
 
 
@@ -167,19 +185,76 @@ async def list_departments(
     _require_admin(principal)
     rows = (
         await session.execute(
-            select(User.department, func.count(User.id))
-            .where(
-                User.organization_id == principal.organization_id,
-                User.active.is_(True),
-                User.department.is_not(None),
+            select(Department, func.count(User.id))
+            .outerjoin(
+                User,
+                (User.organization_id == Department.organization_id)
+                & (User.department_id == Department.id)
+                & User.active.is_(True),
             )
-            .group_by(User.department)
-            .order_by(User.department)
+            .where(Department.organization_id == principal.organization_id)
+            .group_by(
+                Department.id,
+                Department.organization_id,
+                Department.name,
+                Department.description,
+                Department.parent_id,
+                Department.active,
+                Department.created_at,
+                Department.updated_at,
+            )
+            .order_by(Department.name)
         )
     ).all()
     return [
-        {"name": department, "active_user_count": count} for department, count in rows if department
+        {
+            "id": str(department.id),
+            "name": department.name,
+            "description": department.description,
+            "parent_id": str(department.parent_id) if department.parent_id else None,
+            "active": department.active,
+            "active_user_count": count,
+        }
+        for department, count in rows
     ]
+
+
+@router.post("/departments", status_code=status.HTTP_201_CREATED)
+async def create_department(
+    request: CreateDepartmentRequest,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, str]:
+    _require_admin(principal, "identity.write")
+    async with session.begin():
+        if request.parent_id is not None:
+            parent = await session.scalar(
+                select(Department.id).where(
+                    Department.id == request.parent_id,
+                    Department.organization_id == principal.organization_id,
+                    Department.active.is_(True),
+                )
+            )
+            if parent is None:
+                raise NotFoundError("Department", request.parent_id)
+        department = Department(
+            organization_id=principal.organization_id,
+            name=request.name.strip(),
+            description=request.description.strip(),
+            parent_id=request.parent_id,
+            active=True,
+        )
+        session.add(department)
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "department_exists", "A department with this name already exists"
+            ) from exc
+        await _audit_admin(
+            session, principal, "identity.department.create", "department", department.id
+        )
+    return {"id": str(department.id)}
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
@@ -190,12 +265,22 @@ async def create_user(
 ) -> dict:
     _require_admin(principal, "identity.write")
     async with session.begin():
+        if request.department_id is not None:
+            department = await session.scalar(
+                select(Department.id).where(
+                    Department.id == request.department_id,
+                    Department.organization_id == principal.organization_id,
+                    Department.active.is_(True),
+                )
+            )
+            if department is None:
+                raise NotFoundError("Department", request.department_id)
         user = User(
             organization_id=principal.organization_id,
             external_id=request.external_id,
             email=str(request.email),
             display_name=request.display_name,
-            department=request.department,
+            department_id=request.department_id,
             active=True,
             attributes=request.attributes,
         )
@@ -220,7 +305,14 @@ async def list_roles(
         select(Role).where(Role.organization_id == principal.organization_id).order_by(Role.name)
     )
     return [
-        {"id": str(role.id), "name": role.name, "permissions": role.permissions} for role in roles
+        {
+            "id": str(role.id),
+            "name": role.name,
+            "description": role.description,
+            "permissions": role.permissions,
+            "system": role.system,
+        }
+        for role in roles
     ]
 
 
@@ -240,7 +332,10 @@ async def create_role(
             system=False,
         )
         session.add(role)
-        await session.flush()
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            raise ConflictError("role_exists", "A role with this name already exists") from exc
         await _audit_admin(session, principal, "identity.role.create", "role", role.id)
     return {"id": str(role.id)}
 
@@ -298,7 +393,8 @@ async def list_connectors(
             "type": item.connector_type,
             "status": item.status,
             "environment": item.environment,
-            "endpoint": item.endpoint,
+            # Endpoint and connector configuration are gateway-only; the
+            # browser receives health metadata rather than network targets.
             "has_credential": bool(item.credential_ref),
             "health": item.last_health,
         }
@@ -397,6 +493,11 @@ async def bind_capability(
         if row is None or connector is None:
             raise NotFoundError("Capability or connector", capability_id)
         definition, version = row._tuple()
+        if connector.environment != request.environment:
+            raise ValidationError(
+                "connector_environment_mismatch",
+                "The connector and capability binding environments must match",
+            )
         if version.side_effect != SideEffect.NONE:
             _require_admin(principal, "actions.configure")
             if (
@@ -415,11 +516,6 @@ async def bind_capability(
                 raise ValidationError(
                     "v1_action_binding_boundary",
                     "V1 only binds approved L3 idempotent PR and ticket action capabilities",
-                )
-            if connector.environment != request.environment:
-                raise ValidationError(
-                    "connector_environment_mismatch",
-                    "The connector and capability binding environments must match",
                 )
             if version.permission_action not in connector.declared_grants:
                 raise ValidationError(
@@ -440,6 +536,53 @@ async def bind_capability(
     return {"id": str(binding.id)}
 
 
+@router.post("/models/profiles", status_code=status.HTTP_201_CREATED)
+async def create_model_profile(
+    request: CreateModelProfileRequest,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, str]:
+    _require_admin(principal, "models.write")
+    requirements = request.requirements.model_dump(mode="json")
+    routing_policy = request.routing_policy.model_dump(mode="json")
+    _safe_configuration(requirements, "requirements")
+    _safe_configuration(routing_policy, "routing_policy")
+    unsupported = {
+        provider.casefold()
+        for provider in request.requirements.providers
+        if provider.casefold() not in OPENAI_COMPATIBLE_PROVIDERS
+    }
+    if unsupported:
+        raise ValidationError(
+            "model_endpoint_invalid",
+            "Model profile references an unsupported provider protocol",
+            providers=sorted(unsupported),
+        )
+    async with session.begin():
+        profile = ModelProfile(
+            organization_id=principal.organization_id,
+            name=request.name,
+            requirements=requirements,
+            routing_policy=routing_policy,
+            enabled=request.enabled,
+        )
+        session.add(profile)
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "model_profile_exists", "A model profile with this name already exists"
+            ) from exc
+        await _audit_admin(
+            session,
+            principal,
+            "model.profile.create",
+            "model_profile",
+            profile.id,
+        )
+    return {"id": str(profile.id), "name": profile.name}
+
+
 @router.get("/models/profiles")
 async def list_model_profiles(
     session: AsyncSession = Depends(get_session),
@@ -451,7 +594,49 @@ async def list_model_profiles(
         .where(ModelProfile.organization_id == principal.organization_id)
         .order_by(ModelProfile.name)
     )
-    return [{"id": str(item.id), "name": item.name, "enabled": item.enabled} for item in profiles]
+    return [
+        {
+            "id": str(item.id),
+            "name": item.name,
+            "requirements": item.requirements,
+            "routing_policy": item.routing_policy,
+            "enabled": item.enabled,
+        }
+        for item in profiles
+    ]
+
+
+@router.get("/models/endpoints")
+async def list_model_endpoints(
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> list[dict[str, Any]]:
+    _require_admin(principal)
+    endpoints = await session.scalars(
+        select(ModelEndpoint)
+        .where(ModelEndpoint.organization_id == principal.organization_id)
+        .order_by(ModelEndpoint.name)
+    )
+    return [
+        {
+            "id": str(item.id),
+            "name": item.name,
+            "provider": item.provider,
+            "model_id": item.model_id,
+            # The egress base URL is intentionally omitted from browser-facing
+            # administration responses; it is resolved only by ModelGateway.
+            # Credential references are gateway-only configuration.  The admin
+            # list exposes presence, never the reference value, so a browser
+            # cannot turn this endpoint into a secret/configuration oracle.
+            "has_credential": bool(item.credential_ref),
+            "region": item.region,
+            "classifications": item.classifications,
+            "capabilities": item.capabilities,
+            "limits": item.limits,
+            "enabled": item.enabled,
+        }
+        for item in endpoints
+    ]
 
 
 @router.post("/models/endpoints", status_code=status.HTTP_201_CREATED)
@@ -463,6 +648,13 @@ async def create_model_endpoint(
 ) -> dict:
     _require_admin(principal, "models.write")
     _safe_endpoint(request.base_url)
+    provider = request.provider.casefold()
+    if provider not in OPENAI_COMPATIBLE_PROVIDERS:
+        raise ValidationError(
+            "model_endpoint_invalid",
+            "Model endpoint provider protocol is not supported",
+            provider=provider,
+        )
     validate_model_endpoint(
         request.base_url,
         settings.model_allowed_hosts,
@@ -473,7 +665,7 @@ async def create_model_endpoint(
         endpoint = ModelEndpoint(
             organization_id=principal.organization_id,
             name=request.name,
-            provider=request.provider,
+            provider=provider,
             base_url=request.base_url,
             model_id=request.model_id,
             credential_ref=request.credential_ref,
@@ -484,7 +676,12 @@ async def create_model_endpoint(
             enabled=request.enabled,
         )
         session.add(endpoint)
-        await session.flush()
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "model_endpoint_exists", "A model endpoint with this name already exists"
+            ) from exc
         await _audit_admin(
             session, principal, "model.endpoint.create", "model_endpoint", endpoint.id
         )
@@ -520,6 +717,13 @@ async def bind_model_endpoint(
             priority=request.priority,
         )
         session.add(binding)
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "model_profile_binding_exists",
+                "This model endpoint is already bound to the profile",
+            ) from exc
         await _audit_admin(session, principal, "model.profile.bind", "model_profile", profile.id)
     return {"profile_id": str(profile.id), "endpoint_id": str(endpoint.id)}
 
@@ -778,6 +982,100 @@ async def create_dimension(
     return {"id": str(dimension.id), "version": version}
 
 
+@router.post("/data/entities", status_code=status.HTTP_201_CREATED)
+async def create_semantic_entity(
+    request: CreateSemanticEntityRequest,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    _require_admin(principal, "data.catalog.write")
+    async with session.begin():
+        table = await session.scalar(
+            select(DataTable).where(
+                DataTable.id == request.source_table_id,
+                DataTable.organization_id == principal.organization_id,
+            )
+        )
+        if table is None:
+            raise NotFoundError("Data table", request.source_table_id)
+        version = (
+            await session.scalar(
+                select(func.max(SemanticEntity.version)).where(
+                    SemanticEntity.organization_id == principal.organization_id,
+                    SemanticEntity.name == request.name,
+                )
+            )
+            or 0
+        ) + 1
+        entity = SemanticEntity(
+            organization_id=principal.organization_id,
+            version=version,
+            **request.model_dump(),
+        )
+        session.add(entity)
+        await session.flush()
+        await _audit_admin(session, principal, "data.entity.create", "semantic_entity", entity.id)
+    return {"id": str(entity.id), "version": version}
+
+
+@router.post("/data/relations", status_code=status.HTTP_201_CREATED)
+async def create_semantic_relation(
+    request: CreateSemanticRelationRequest,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    _require_admin(principal, "data.catalog.write")
+    async with session.begin():
+        entities = list(
+            await session.scalars(
+                select(SemanticEntity).where(
+                    SemanticEntity.organization_id == principal.organization_id,
+                    SemanticEntity.id.in_([request.source_entity_id, request.target_entity_id]),
+                )
+            )
+        )
+        if len(entities) != len({request.source_entity_id, request.target_entity_id}):
+            raise NotFoundError("Semantic entity", request.source_entity_id)
+        relation = SemanticRelation(
+            organization_id=principal.organization_id,
+            **request.model_dump(),
+        )
+        session.add(relation)
+        await session.flush()
+        await _audit_admin(
+            session, principal, "data.relation.create", "semantic_relation", relation.id
+        )
+    return {"id": str(relation.id)}
+
+
+@router.post("/data/rules", status_code=status.HTTP_201_CREATED)
+async def create_business_rule(
+    request: CreateBusinessRuleRequest,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    _require_admin(principal, "data.catalog.write")
+    async with session.begin():
+        version = (
+            await session.scalar(
+                select(func.max(BusinessRule.version)).where(
+                    BusinessRule.organization_id == principal.organization_id,
+                    BusinessRule.name == request.name,
+                )
+            )
+            or 0
+        ) + 1
+        rule = BusinessRule(
+            organization_id=principal.organization_id,
+            version=version,
+            **request.model_dump(),
+        )
+        session.add(rule)
+        await session.flush()
+        await _audit_admin(session, principal, "data.rule.create", "business_rule", rule.id)
+    return {"id": str(rule.id), "version": version}
+
+
 @router.post("/data/time-definitions", status_code=status.HTTP_201_CREATED)
 async def create_time_definition(
     request: CreateTimeDefinitionRequest,
@@ -944,6 +1242,31 @@ async def list_costs(
         }
         for operation, calls, input_tokens, output_tokens, cost_amount in rows
     ]
+
+
+@router.get("/feedback/summary", response_model=FeedbackSummaryView)
+async def summarize_run_feedback(
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> FeedbackSummaryView:
+    _require_admin(principal, "audit.read")
+    rows = (
+        await session.execute(
+            select(RunFeedback.rating, func.count(RunFeedback.id))
+            .where(RunFeedback.organization_id == principal.organization_id)
+            .group_by(RunFeedback.rating)
+        )
+    ).all()
+    counts = {str(rating): count for rating, count in rows}
+    helpful = counts.get("HELPFUL", 0)
+    needs_improvement = counts.get("NEEDS_IMPROVEMENT", 0)
+    total = helpful + needs_improvement
+    return FeedbackSummaryView(
+        total=total,
+        helpful=helpful,
+        needs_improvement=needs_improvement,
+        helpful_rate=helpful / total if total else None,
+    )
 
 
 @router.get("/prompts")
@@ -1151,13 +1474,20 @@ async def list_audit(
     return [
         {
             "id": str(item.id),
+            "correlation_id": str(item.correlation_id),
+            "actor_type": item.actor_type,
             "actor_id": str(item.actor_id) if item.actor_id else None,
             "action": item.action,
             "resource_type": item.resource_type,
             "resource_id": item.resource_id,
             "outcome": item.outcome,
             "risk_level": item.risk_level,
+            "policy_decision_id": (
+                str(item.policy_decision_id) if item.policy_decision_id else None
+            ),
+            "approval_id": str(item.approval_id) if item.approval_id else None,
             "metadata": item.redacted_metadata,
+            "latency_ms": item.latency_ms,
             "created_at": item.created_at,
         }
         for item in records

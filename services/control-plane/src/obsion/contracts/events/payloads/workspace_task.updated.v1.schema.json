@@ -1,0 +1,55 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/workspace_task.updated.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "changed_fields": {
+      "items": {
+        "enum": [
+          "title",
+          "description",
+          "priority",
+          "assignee_id",
+          "due_at",
+          "status",
+          "completed_at"
+        ]
+      },
+      "type": "array"
+    },
+    "previous_status": {
+      "enum": [
+        "OPEN",
+        "IN_PROGRESS",
+        "BLOCKED",
+        "COMPLETED",
+        "CANCELLED"
+      ]
+    },
+    "status": {
+      "enum": [
+        "OPEN",
+        "IN_PROGRESS",
+        "BLOCKED",
+        "COMPLETED",
+        "CANCELLED"
+      ]
+    },
+    "version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "workspace_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "changed_fields",
+    "version",
+    "status"
+  ],
+  "title": "workspace_task.updated payload v1",
+  "type": "object"
+}

@@ -1,0 +1,34 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/workspace_task.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "priority": {
+      "enum": [
+        "LOW",
+        "NORMAL",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "status": {
+      "const": "OPEN"
+    },
+    "version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "workspace_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "status",
+    "priority",
+    "version"
+  ],
+  "title": "workspace_task.created payload v1",
+  "type": "object"
+}

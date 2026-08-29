@@ -2,10 +2,13 @@ from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.schemas import CreateTurnRequest, CreateWorkspaceRequest
+from obsion.application.conversation_context import ConversationContextService
+from obsion.application.run_lifecycle import cancel_active_run_steps
+from obsion.application.thread_history import ThreadHistoryResolver
 from obsion.common.errors import (
     AuthorizationError,
     ConflictError,
@@ -19,6 +22,7 @@ from obsion.db.models import (
     AgentDefinition,
     AgentVersion,
     Artifact,
+    Event,
     ModelProfile,
     Run,
     Thread,
@@ -31,6 +35,7 @@ from obsion.domain.enums import ActorType, RegistryStatus, RunStatus, ThreadStat
 from obsion.domain.run_state import is_terminal, validate_run_transition
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
+from obsion.registry.agent_spec import AgentSpec
 from obsion.security.identity import Principal
 from obsion.security.redaction import redact_text
 from obsion.security.workspace_access import (
@@ -51,6 +56,8 @@ class WorkspaceService:
         self.settings = settings
         self.events = event_store or EventStore()
         self.audit = audit or AuditWriter()
+        self.history = ThreadHistoryResolver()
+        self.conversation_context = ConversationContextService(settings)
 
     async def _workspace(
         self,
@@ -166,6 +173,20 @@ class WorkspaceService:
                 payload={"workspace_id": str(workspace_id), "title": thread.title},
             ),
         )
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=principal.organization_id,
+                correlation_id=correlation_id,
+                actor_type=actor_type,
+                actor_id=principal.id,
+                action="thread.create",
+                resource_type="thread",
+                resource_id=str(thread.id),
+                outcome="SUCCESS",
+                metadata={"workspace_id": str(workspace_id)},
+            ),
+        )
         return thread
 
     async def list_threads(
@@ -184,6 +205,21 @@ class WorkspaceService:
             statement = statement.where(Thread.status == ThreadStatus.ACTIVE)
         result = await session.scalars(statement.order_by(Thread.updated_at.desc()).limit(500))
         return list(result)
+
+    async def _effective_turns(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        thread: Thread,
+        *,
+        lineage: frozenset[UUID] = frozenset(),
+    ) -> list[Turn]:
+        return await self.history.effective_turns(
+            session,
+            principal,
+            thread,
+            lineage=lineage,
+        )
 
     async def add_member(
         self,
@@ -304,8 +340,25 @@ class WorkspaceService:
         thread = await self._thread(session, principal, thread_id, for_update=True)
         if thread.status == ThreadStatus.ARCHIVED:
             return thread
+        active_run_id = await session.scalar(
+            select(Run.id)
+            .join(Turn, Turn.id == Run.turn_id)
+            .where(
+                Turn.thread_id == thread.id,
+                Turn.organization_id == principal.organization_id,
+                Run.organization_id == principal.organization_id,
+                Run.status.not_in([RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED]),
+            )
+            .limit(1)
+        )
+        if active_run_id is not None:
+            raise ConflictError(
+                "thread_has_active_run",
+                "A thread with an active run must finish or be cancelled before archiving",
+            )
         thread.status = ThreadStatus.ARCHIVED
         thread.archived_at = utc_now()
+        correlation_id = new_id()
         await self.events.append(
             session,
             EventDraft(
@@ -313,10 +366,23 @@ class WorkspaceService:
                 aggregate_type="thread",
                 aggregate_id=thread.id,
                 organization_id=principal.organization_id,
-                correlation_id=new_id(),
+                correlation_id=correlation_id,
                 actor_type=ActorType.USER,
                 actor_id=principal.id,
                 payload={},
+            ),
+        )
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=principal.organization_id,
+                correlation_id=correlation_id,
+                actor_type=ActorType.USER,
+                actor_id=principal.id,
+                action="thread.archive",
+                resource_type="thread",
+                resource_id=str(thread.id),
+                outcome="SUCCESS",
             ),
         )
         return thread
@@ -329,6 +395,7 @@ class WorkspaceService:
             return thread
         thread.status = ThreadStatus.ACTIVE
         thread.archived_at = None
+        correlation_id = new_id()
         await self.events.append(
             session,
             EventDraft(
@@ -336,10 +403,23 @@ class WorkspaceService:
                 aggregate_type="thread",
                 aggregate_id=thread.id,
                 organization_id=principal.organization_id,
-                correlation_id=new_id(),
+                correlation_id=correlation_id,
                 actor_type=ActorType.USER,
                 actor_id=principal.id,
                 payload={},
+            ),
+        )
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=principal.organization_id,
+                correlation_id=correlation_id,
+                actor_type=ActorType.USER,
+                actor_id=principal.id,
+                action="thread.resume",
+                resource_type="thread",
+                resource_id=str(thread.id),
+                outcome="SUCCESS",
             ),
         )
         return thread
@@ -353,16 +433,12 @@ class WorkspaceService:
         title: str | None,
     ) -> Thread:
         parent = await self._thread(session, principal, thread_id, for_update=True)
-        if from_turn_id is not None:
-            turn_exists = await session.scalar(
-                select(Turn.id).where(
-                    Turn.id == from_turn_id,
-                    Turn.thread_id == parent.id,
-                    Turn.organization_id == principal.organization_id,
-                )
-            )
-            if turn_exists is None:
-                raise NotFoundError("Turn", from_turn_id)
+        parent_turns = await self._effective_turns(session, principal, parent)
+        resolved_fork_turn_id = from_turn_id or (parent_turns[-1].id if parent_turns else None)
+        if resolved_fork_turn_id is not None and not any(
+            item.id == resolved_fork_turn_id for item in parent_turns
+        ):
+            raise NotFoundError("Turn", resolved_fork_turn_id)
         thread = Thread(
             organization_id=principal.organization_id,
             workspace_id=parent.workspace_id,
@@ -370,10 +446,41 @@ class WorkspaceService:
             status=ThreadStatus.ACTIVE,
             created_by=principal.id,
             parent_thread_id=parent.id,
-            forked_from_turn_id=from_turn_id,
+            forked_from_turn_id=resolved_fork_turn_id,
         )
         session.add(thread)
         await session.flush()
+        correlation_id = new_id()
+        if parent.status == ThreadStatus.ACTIVE:
+            parent.status = ThreadStatus.ARCHIVED
+            parent.archived_at = utc_now()
+            await self.events.append(
+                session,
+                EventDraft(
+                    name="thread.archived",
+                    aggregate_type="thread",
+                    aggregate_id=parent.id,
+                    organization_id=principal.organization_id,
+                    correlation_id=correlation_id,
+                    actor_type=ActorType.USER,
+                    actor_id=principal.id,
+                    payload={},
+                ),
+            )
+            await self.audit.write(
+                session,
+                AuditDraft(
+                    organization_id=principal.organization_id,
+                    correlation_id=correlation_id,
+                    actor_type=ActorType.USER,
+                    actor_id=principal.id,
+                    action="thread.archive",
+                    resource_type="thread",
+                    resource_id=str(parent.id),
+                    outcome="SUCCESS",
+                    metadata={"reason": "fork", "fork_thread_id": str(thread.id)},
+                ),
+            )
         await self.events.append(
             session,
             EventDraft(
@@ -381,16 +488,56 @@ class WorkspaceService:
                 aggregate_type="thread",
                 aggregate_id=thread.id,
                 organization_id=principal.organization_id,
-                correlation_id=new_id(),
+                correlation_id=correlation_id,
                 actor_type=ActorType.USER,
                 actor_id=principal.id,
                 payload={
                     "parent_thread_id": str(parent.id),
-                    "forked_from_turn_id": str(from_turn_id) if from_turn_id else None,
+                    "forked_from_turn_id": (
+                        str(resolved_fork_turn_id) if resolved_fork_turn_id else None
+                    ),
+                },
+            ),
+        )
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=principal.organization_id,
+                correlation_id=correlation_id,
+                actor_type=ActorType.USER,
+                actor_id=principal.id,
+                action="thread.fork",
+                resource_type="thread",
+                resource_id=str(thread.id),
+                outcome="SUCCESS",
+                metadata={
+                    "parent_thread_id": str(parent.id),
+                    "forked_from_turn_id": (
+                        str(resolved_fork_turn_id) if resolved_fork_turn_id else None
+                    ),
                 },
             ),
         )
         return thread
+
+    async def list_thread_events(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        thread_id: UUID,
+        *,
+        after_sequence: int = 0,
+        limit: int = 200,
+    ) -> list[Event]:
+        await self._thread(session, principal, thread_id)
+        return await self.events.list_aggregate(
+            session,
+            principal.organization_id,
+            "thread",
+            thread_id,
+            after_sequence=after_sequence,
+            limit=limit,
+        )
 
     async def create_turn(
         self,
@@ -404,10 +551,8 @@ class WorkspaceService:
         thread = await self._thread(session, principal, thread_id, for_update=True)
         if thread.status != ThreadStatus.ACTIVE:
             raise ConflictError("thread_archived", "An archived thread must be resumed first")
-        ordinal = (
-            await session.scalar(select(func.max(Turn.ordinal)).where(Turn.thread_id == thread.id))
-            or 0
-        ) + 1
+        effective_turns = await self._effective_turns(session, principal, thread)
+        ordinal = (effective_turns[-1].ordinal if effective_turns else 0) + 1
         now = utc_now()
         agent_version = await session.scalar(
             select(AgentVersion)
@@ -422,7 +567,9 @@ class WorkspaceService:
         )
         if agent_version is None:
             raise NotFoundError("Active GeneralAgent", "general-agent")
-        profile_name = request.model_profile or "reasoning-high"
+        agent_spec = AgentSpec.from_dict(agent_version.spec, source="GeneralAgent")
+        timeout_seconds = min(self.settings.run_timeout_seconds, agent_spec.timeout_seconds)
+        profile_name = request.model_profile or agent_spec.model_profile
         model_profile = await session.scalar(
             select(ModelProfile).where(
                 ModelProfile.organization_id == principal.organization_id,
@@ -432,13 +579,16 @@ class WorkspaceService:
         )
         if model_profile is None:
             raise NotFoundError("Model profile", profile_name)
+        sanitized_input = redact_text(request.input)
         turn = Turn(
             organization_id=principal.organization_id,
             thread_id=thread.id,
             ordinal=ordinal,
             created_by=principal.id,
-            input_text=request.input,
-            sanitized_input=redact_text(request.input),
+            # The raw request never enters durable storage.  Both legacy fields
+            # remain populated for API compatibility, but carry the same safe text.
+            input_text=sanitized_input,
+            sanitized_input=sanitized_input,
             context_refs=request.context_refs,
             attachment_refs=await self._validate_attachments(
                 session,
@@ -456,15 +606,23 @@ class WorkspaceService:
             status=RunStatus.PENDING,
             agent_version_id=agent_version.id,
             model_profile_id=model_profile.id,
-            max_steps=self.settings.run_max_steps,
-            timeout_seconds=self.settings.run_timeout_seconds,
+            max_steps=min(self.settings.run_max_steps, agent_spec.max_steps),
+            timeout_seconds=timeout_seconds,
             max_input_tokens=self.settings.run_max_input_tokens,
             max_output_tokens=self.settings.run_max_output_tokens,
             max_cost_amount=self.settings.run_max_cost_amount,
-            deadline_at=now + timedelta(seconds=self.settings.run_timeout_seconds),
+            deadline_at=now + timedelta(seconds=timeout_seconds),
         )
         session.add(run)
         await session.flush()
+        conversation_snapshots = await self.conversation_context.capture(
+            session,
+            principal,
+            run,
+            turn,
+            thread,
+            effective_turns,
+        )
         correlation_id = run.id
         await self.events.append(
             session,
@@ -496,7 +654,11 @@ class WorkspaceService:
                 actor_type=ActorType.SYSTEM,
                 actor_id=None,
                 run_id=run.id,
-                payload={"turn_id": str(turn.id), "status": run.status},
+                payload={
+                    "turn_id": str(turn.id),
+                    "status": run.status,
+                    "conversation_snapshot_count": len(conversation_snapshots),
+                },
             ),
         )
         return turn, run
@@ -544,32 +706,30 @@ class WorkspaceService:
     async def list_turns(
         self, session: AsyncSession, principal: Principal, thread_id: UUID
     ) -> list[Turn]:
-        await self._thread(session, principal, thread_id)
-        result = await session.scalars(
-            select(Turn)
-            .where(
-                Turn.organization_id == principal.organization_id,
-                Turn.thread_id == thread_id,
-            )
-            .order_by(Turn.ordinal)
-        )
-        return list(result)
+        thread = await self._thread(session, principal, thread_id)
+        return await self._effective_turns(session, principal, thread)
 
     async def list_thread_runs(
         self, session: AsyncSession, principal: Principal, thread_id: UUID
     ) -> list[Run]:
-        await self._thread(session, principal, thread_id)
-        result = await session.scalars(
-            select(Run)
-            .join(Turn, Turn.id == Run.turn_id)
-            .where(
-                Run.organization_id == principal.organization_id,
-                Turn.organization_id == principal.organization_id,
-                Turn.thread_id == thread_id,
+        thread = await self._thread(session, principal, thread_id)
+        turns = await self._effective_turns(session, principal, thread)
+        if not turns:
+            return []
+        runs = list(
+            await session.scalars(
+                select(Run)
+                .where(
+                    Run.organization_id == principal.organization_id,
+                    Run.turn_id.in_([item.id for item in turns]),
+                )
+                .order_by(Run.created_at)
             )
-            .order_by(Turn.ordinal, Run.created_at)
         )
-        return list(result)
+        runs_by_turn: dict[UUID, list[Run]] = {}
+        for run in runs:
+            runs_by_turn.setdefault(run.turn_id, []).append(run)
+        return [run for turn in turns for run in runs_by_turn.get(turn.id, [])]
 
     async def get_run(self, session: AsyncSession, principal: Principal, run_id: UUID) -> Run:
         return await require_run_access(session, principal, run_id)
@@ -579,11 +739,19 @@ class WorkspaceService:
         if is_terminal(run.status):
             return run
         now = utc_now()
+        previous_status = run.status
         run.cancellation_requested_at = now
-        if run.status == RunStatus.PENDING:
-            validate_run_transition(run.status, RunStatus.CANCELLED)
-            run.status = RunStatus.CANCELLED
-            run.completed_at = now
+        validate_run_transition(run.status, RunStatus.CANCELLED)
+        run.status = RunStatus.CANCELLED
+        run.completed_at = now
+        run.lease_owner = None
+        run.lease_expires_at = None
+        cancelled_steps = await cancel_active_run_steps(
+            session,
+            principal.organization_id,
+            run.id,
+            completed_at=now,
+        )
         await self.events.append(
             session,
             EventDraft(
@@ -595,7 +763,38 @@ class WorkspaceService:
                 actor_type=ActorType.USER,
                 actor_id=principal.id,
                 run_id=run.id,
-                payload={"status": run.status},
+                payload={"status": previous_status},
+            ),
+        )
+        await self.events.append(
+            session,
+            EventDraft(
+                name="run.cancelled",
+                aggregate_type="run",
+                aggregate_id=run.id,
+                organization_id=principal.organization_id,
+                correlation_id=run.id,
+                actor_type=ActorType.USER,
+                actor_id=principal.id,
+                run_id=run.id,
+                payload={},
+            ),
+        )
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=principal.organization_id,
+                correlation_id=run.id,
+                actor_type=ActorType.USER,
+                actor_id=principal.id,
+                action="run.cancel",
+                resource_type="run",
+                resource_id=str(run.id),
+                outcome="SUCCESS",
+                metadata={
+                    "previous_status": previous_status,
+                    "cancelled_steps": cancelled_steps,
+                },
             ),
         )
         return run

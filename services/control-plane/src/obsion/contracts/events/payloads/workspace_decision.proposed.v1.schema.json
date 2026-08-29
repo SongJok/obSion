@@ -1,0 +1,38 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/workspace_decision.proposed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "checksum_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "supersedes_decision_id": {
+      "oneOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "workspace_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "version",
+    "checksum_sha256",
+    "supersedes_decision_id"
+  ],
+  "title": "workspace_decision.proposed payload v1",
+  "type": "object"
+}

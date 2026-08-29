@@ -98,3 +98,17 @@ def test_data_evidence_produces_sql_table_and_chart_artifacts() -> None:
     chart_values = artifacts[2].inline_content["data"]["values"]
     assert chart_values[0]["revenue"] == 42.5
     assert chart_values[1]["revenue"] == 31.25
+    assert artifacts[1].inline_content["metric"]["display_name"] == "Revenue"
+
+
+def test_data_chart_contract_uses_line_for_temporal_dimensions() -> None:
+    chart = HarnessRuntime._chart_contract(
+        ["business_date", "paid_users"],
+        [
+            {"business_date": "2026-08-01", "paid_users": 10},
+            {"business_date": "2026-08-02", "paid_users": 14},
+        ],
+    )
+    assert chart is not None
+    assert chart["mark"] == {"type": "line", "tooltip": True, "point": True}
+    assert chart["encoding"]["x"]["type"] == "temporal"

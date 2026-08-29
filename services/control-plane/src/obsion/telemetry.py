@@ -31,9 +31,14 @@ model_counter = meter.create_counter("obsion.model.calls", unit="call")
 automation_counter = meter.create_counter("obsion.automation.executions", unit="execution")
 action_counter = meter.create_counter("obsion.action.attempts", unit="attempt")
 evaluation_counter = meter.create_counter("obsion.evaluation.runs", unit="evaluation")
-evaluation_case_duration = meter.create_histogram(
-    "obsion.evaluation.case.duration", unit="ms"
+evaluation_case_duration = meter.create_histogram("obsion.evaluation.case.duration", unit="ms")
+memory_context_counter = meter.create_counter("obsion.memory.context", unit="memory")
+conversation_context_counter = meter.create_counter("obsion.conversation.context", unit="turn")
+app_server_connection_counter = meter.create_counter(
+    "obsion.app_server.connections", unit="connection"
 )
+app_server_request_counter = meter.create_counter("obsion.app_server.requests", unit="request")
+app_server_event_counter = meter.create_counter("obsion.app_server.events", unit="event")
 
 
 def configure_telemetry(app: FastAPI, settings: Settings) -> None:

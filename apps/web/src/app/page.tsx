@@ -1,5 +1,5 @@
-import { Workbench } from "@/components/workbench";
+import { SessionGate } from "@/components/session-gate";
 
 export default function Home() {
-  return <Workbench />;
+  return <SessionGate />;
 }

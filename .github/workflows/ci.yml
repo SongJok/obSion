@@ -32,9 +32,20 @@ jobs:
       - run: uv sync --locked --all-packages --all-extras
       - run: npm ci
       - run: uv run ruff check .
+      - run: uv run ruff format --check .
       - run: uv run mypy services/control-plane/src packages/sdk-python/src
+      - run: uv run obsion validate-contracts
       - run: uv run obsion validate-evaluations
-      - run: uv run pytest --cov=obsion --cov-report=term-missing --cov-report=xml
+      - run: >-
+          uv run pytest
+          services/control-plane/tests/test_contract_distribution.py
+          --no-cov
+      - run: >-
+          uv run pytest
+          --ignore=services/control-plane/tests/test_contract_distribution.py
+          --cov=obsion
+          --cov-report=term-missing
+          --cov-report=xml
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -83,12 +94,91 @@ jobs:
       - run: >-
           uv run pytest
           services/control-plane/tests/integration
+          --ignore=services/control-plane/tests/integration/test_postgres_audit_log_migration.py
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
+
+  # This job owns a disposable database because the test deliberately performs
+  # upgrade/downgrade/re-upgrade and leaves immutable sentinel rows behind.
+  audit-log-migration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17-bookworm
+        env:
+          POSTGRES_DB: obsion_audit_migration
+          POSTGRES_USER: obsion
+          POSTGRES_PASSWORD: obsion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U obsion -d obsion_audit_migration"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OBSION_DATABASE_URL: postgresql+asyncpg://obsion:obsion@localhost:5432/obsion_audit_migration
+      OBSION_ENVIRONMENT: test
+      OBSION_AUTH_MODE: development
+      OBSION_RUN_AUDIT_MIGRATION_TEST: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.16"
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+      - run: uv sync --locked --all-packages --all-extras
+      - run: >-
+          uv run pytest
+          services/control-plane/tests/integration/test_postgres_audit_log_migration.py
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
+
+  # Phase 2 owns a separate disposable database because it exercises the breaking
+  # department backfill plus tenant-FK upgrade/downgrade/re-upgrade path.
+  phase2-identity-migration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17-bookworm
+        env:
+          POSTGRES_DB: obsion_phase2_identity
+          POSTGRES_USER: obsion
+          POSTGRES_PASSWORD: obsion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U obsion -d obsion_phase2_identity"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OBSION_DATABASE_URL: postgresql+asyncpg://obsion:obsion@localhost:5432/obsion_phase2_identity
+      OBSION_ENVIRONMENT: test
+      OBSION_AUTH_MODE: development
+      OBSION_RUN_PHASE2_MIGRATION_TEST: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.16"
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+      - run: uv sync --locked --all-packages --all-extras
+      - run: >-
+          uv run pytest
+          services/control-plane/tests/integration/test_postgres_phase2_identity_migration.py
       - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
 
   containers:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    needs: [quality, migrations]
+    needs: [quality, migrations, audit-log-migration, phase2-identity-migration]
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3

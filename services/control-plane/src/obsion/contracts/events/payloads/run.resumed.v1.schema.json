@@ -1,0 +1,15 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.resumed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "worker": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "worker"
+  ],
+  "title": "run.resumed payload v1",
+  "type": "object"
+}

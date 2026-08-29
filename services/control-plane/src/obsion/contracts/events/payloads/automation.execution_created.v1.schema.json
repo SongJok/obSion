@@ -1,0 +1,32 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/automation.execution_created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error_code": {
+      "type": "null"
+    },
+    "trigger": {
+      "enum": [
+        "MANUAL",
+        "SCHEDULE"
+      ]
+    },
+    "workflow_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "workflow_version": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "workflow_id",
+    "workflow_version",
+    "trigger",
+    "error_code"
+  ],
+  "title": "automation.execution_created payload v1",
+  "type": "object"
+}

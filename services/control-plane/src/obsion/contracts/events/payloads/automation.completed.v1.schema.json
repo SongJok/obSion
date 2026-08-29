@@ -1,0 +1,95 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/automation.completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "output_refs": {
+      "items": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "artifact_id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "TEXT",
+                  "TABLE",
+                  "CHART",
+                  "SQL",
+                  "CODE",
+                  "DIFF",
+                  "REPORT",
+                  "DASHBOARD",
+                  "FILE",
+                  "DIAGRAM"
+                ]
+              },
+              "type": {
+                "const": "artifact"
+              }
+            },
+            "required": [
+              "type",
+              "artifact_id",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "notification_id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "type": {
+                "const": "notification"
+              }
+            },
+            "required": [
+              "type",
+              "notification_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "type": "array"
+    },
+    "run_ids": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "step_counts": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "propertyNames": {
+        "enum": [
+          "PENDING",
+          "RUNNING",
+          "WAITING_REVIEW",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED",
+          "SKIPPED"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "step_counts",
+    "run_ids",
+    "output_refs"
+  ],
+  "title": "automation.completed payload v1",
+  "type": "object"
+}

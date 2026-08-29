@@ -1,0 +1,24 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/workspace.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "CONFIDENTIAL",
+        "RESTRICTED"
+      ]
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "classification"
+  ],
+  "title": "workspace.created payload v1",
+  "type": "object"
+}

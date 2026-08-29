@@ -1,0 +1,19 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/answer.delta.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "delta": {
+      "type": "string"
+    },
+    "final": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "delta",
+    "final"
+  ],
+  "title": "answer.delta payload v1",
+  "type": "object"
+}

@@ -1,0 +1,25 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversation_snapshot_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "status": {
+      "const": "PENDING"
+    },
+    "turn_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "turn_id",
+    "status",
+    "conversation_snapshot_count"
+  ],
+  "title": "run.created payload v1",
+  "type": "object"
+}

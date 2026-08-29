@@ -1,0 +1,9 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.rollback_requested.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {},
+  "required": [],
+  "title": "action.rollback_requested payload v1",
+  "type": "object"
+}

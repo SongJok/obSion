@@ -1,0 +1,25 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/memory.expired.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "memory_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "scope": {
+      "enum": [
+        "TURN",
+        "SESSION",
+        "WORKSPACE",
+        "USER_PREFERENCE"
+      ]
+    }
+  },
+  "required": [
+    "memory_id",
+    "scope"
+  ],
+  "title": "memory.expired payload v1",
+  "type": "object"
+}

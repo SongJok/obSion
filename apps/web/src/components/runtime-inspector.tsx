@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BrainCircuit,
   Check,
   ChevronRight,
   Circle,
@@ -10,6 +11,7 @@ import {
   FileCheck2,
   Files,
   Gauge,
+  MessagesSquare,
   PanelRightClose,
   RotateCcw,
   ShieldCheck,
@@ -18,7 +20,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import type { Artifact, Claim, Evidence, Run, RunEvent, RunStep } from "@/lib/types";
+import type { Artifact, Claim, ConversationSnapshot, Evidence, MemorySnapshot, Run, RunEvent, RunStep } from "@/lib/types";
 
 interface RuntimeInspectorProps {
   open: boolean;
@@ -30,11 +32,13 @@ interface RuntimeInspectorProps {
   events: RunEvent[];
   steps: RunStep[];
   evidence: Evidence[];
+  memories: MemorySnapshot[];
+  conversation: ConversationSnapshot[];
   claims: Claim[];
   artifacts: Artifact[];
 }
 
-type Tab = "runtime" | "evidence" | "claims" | "artifacts";
+type Tab = "runtime" | "context" | "evidence" | "memory" | "claims" | "artifacts";
 
 export function RuntimeInspector({
   open,
@@ -46,6 +50,8 @@ export function RuntimeInspector({
   events,
   steps,
   evidence,
+  memories,
+  conversation,
   claims,
   artifacts,
 }: RuntimeInspectorProps) {
@@ -83,15 +89,21 @@ export function RuntimeInspector({
         <StatusBadge status={run?.status ?? "IDLE"} />
         <span>{run?.plan.route ? routeName(run.plan.route) : "等待任务"}</span>
         {run?.replay_of_run_id && <span className="replay-chip">历史快照</span>}
-        {run?.cost_amount && <small>¥ / ${Number(run.cost_amount).toFixed(4)}</small>}
+        {run?.cost_amount && <small>成本 ${Number(run.cost_amount).toFixed(4)}</small>}
       </div>
 
       <div className="inspector-tabs" role="tablist">
         <button className={tab === "runtime" ? "active" : ""} onClick={() => setTab("runtime")}>
           轨迹
         </button>
+        <button className={tab === "context" ? "active" : ""} onClick={() => setTab("context")}>
+          上下文 <span>{conversation.length}</span>
+        </button>
         <button className={tab === "evidence" ? "active" : ""} onClick={() => setTab("evidence")}>
           证据 <span>{evidence.length}</span>
+        </button>
+        <button className={tab === "memory" ? "active" : ""} onClick={() => setTab("memory")}>
+          记忆 <span>{memories.length}</span>
         </button>
         <button className={tab === "claims" ? "active" : ""} onClick={() => setTab("claims")}>
           结论 <span>{claims.length}</span>
@@ -105,10 +117,22 @@ export function RuntimeInspector({
         {tab === "runtime" && (
           <RuntimeTimeline run={run} steps={steps} events={events} />
         )}
+        {tab === "context" && <ConversationContextList snapshots={conversation} />}
         {tab === "evidence" && (
           <EvidenceList evidence={evidence} onSelect={(item) => { setSelectedArtifact(undefined); setSelectedEvidence(item); }} />
         )}
-        {tab === "claims" && <ClaimList claims={claims} evidence={evidence} />}
+        {tab === "memory" && <MemoryList memories={memories} />}
+        {tab === "claims" && (
+          <ClaimList
+            claims={claims}
+            evidence={evidence}
+            onSelectEvidence={(item) => {
+              setSelectedArtifact(undefined);
+              setSelectedEvidence(item);
+              setTab("evidence");
+            }}
+          />
+        )}
         {tab === "artifacts" && (
           <ArtifactList artifacts={artifacts} onSelect={(item) => { setSelectedEvidence(undefined); setSelectedArtifact(item); }} />
         )}
@@ -121,7 +145,11 @@ export function RuntimeInspector({
               <span className="evidence-kind">{selectedEvidence.evidence_type}</span>
               <strong>{selectedEvidence.source}</strong>
             </div>
-            <button className="icon-button" onClick={() => setSelectedEvidence(undefined)}>
+            <button
+              className="icon-button"
+              onClick={() => setSelectedEvidence(undefined)}
+              aria-label="关闭证据详情"
+            >
               <X size={17} />
             </button>
           </div>
@@ -154,6 +182,73 @@ export function RuntimeInspector({
       )}
     </aside>
   );
+}
+
+function ConversationContextList({ snapshots }: { snapshots: ConversationSnapshot[] }) {
+  if (!snapshots.length) {
+    return <InspectorEmpty icon={<MessagesSquare size={22} />} text="首轮运行没有此前对话上下文" />;
+  }
+  return (
+    <div className="conversation-snapshot-list">
+      <p className="conversation-context-note">
+        这是运行创建时冻结的历史。它帮助理解追问，但不能替代本次运行的证据。
+      </p>
+      {snapshots.map((item) => (
+        <article key={item.id}>
+          <header>
+            <span>历史轮次 {item.ordinal}</span>
+            <small>{item.classification}</small>
+          </header>
+          <div className="conversation-snapshot-message user">
+            <b>用户</b>
+            <p>{item.user_content}</p>
+          </div>
+          {item.assistant_content && (
+            <div className="conversation-snapshot-message assistant">
+              <b>Obsion</b>
+              <p>{item.assistant_content}</p>
+            </div>
+          )}
+          <footer>
+            <span title={item.source_turn_id}>来源 {item.source_turn_id.slice(0, 10)}</span>
+            <span title={item.content_fingerprint}>指纹 {item.content_fingerprint.slice(0, 10)}</span>
+          </footer>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function MemoryList({ memories }: { memories: MemorySnapshot[] }) {
+  if (!memories.length) {
+    return <InspectorEmpty icon={<BrainCircuit size={22} />} text="此运行没有使用已批准的记忆快照" />;
+  }
+  return (
+    <div className="memory-snapshot-list">
+      {memories.map((item) => (
+        <article key={item.id}>
+          <header>
+            <span>{memoryScopeName(item.scope)}</span>
+            <small>{item.sensitivity}</small>
+          </header>
+          <pre>{JSON.stringify(item.content, null, 2)}</pre>
+          <footer>
+            <span title={item.content_fingerprint}>指纹 {item.content_fingerprint.slice(0, 10)}</span>
+            <time dateTime={item.captured_at}>{new Date(item.captured_at).toLocaleString("zh-CN")}</time>
+          </footer>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function memoryScopeName(scope: MemorySnapshot["scope"]) {
+  return {
+    TURN: "本轮记忆",
+    SESSION: "任务记忆",
+    WORKSPACE: "工作空间记忆",
+    USER_PREFERENCE: "个人偏好",
+  }[scope];
 }
 
 function ArtifactList({ artifacts, onSelect }: { artifacts: Artifact[]; onSelect: (item: Artifact) => void }) {
@@ -231,7 +326,15 @@ function EvidenceList({ evidence, onSelect }: { evidence: Evidence[]; onSelect: 
   );
 }
 
-function ClaimList({ claims, evidence }: { claims: Claim[]; evidence: Evidence[] }) {
+function ClaimList({
+  claims,
+  evidence,
+  onSelectEvidence,
+}: {
+  claims: Claim[];
+  evidence: Evidence[];
+  onSelectEvidence: (item: Evidence) => void;
+}) {
   if (!claims.length) {
     return <InspectorEmpty icon={<ShieldCheck size={22} />} text="经过 Critic 验证的结论会显示在这里" />;
   }
@@ -248,10 +351,21 @@ function ClaimList({ claims, evidence }: { claims: Claim[]; evidence: Evidence[]
             </span>
             <small>{claim.evidence_ids.length} 项证据</small>
           </div>
-          <ul>
+          <ul aria-label={`结论 C${index + 1} 的关联证据`}>
             {claim.evidence_ids.map((id) => {
               const item = evidence.find((entry) => entry.id === id);
-              return item ? <li key={id}>{item.evidence_type} · {item.source}</li> : null;
+              return item ? (
+                <li key={id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectEvidence(item)}
+                    aria-label={`查看证据：${item.source}`}
+                  >
+                    <span>{item.evidence_type} · {item.source}</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </li>
+              ) : null;
             })}
           </ul>
         </article>

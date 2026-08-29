@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from obsion.registry.agent_spec import AgentSpec
 from obsion.registry.manifests import (
     RegistryManifestError,
     load_registry_specs,
@@ -24,9 +25,15 @@ kind: Agent
 metadata:
   name: research-agent
 spec:
+  description: Research agent
+  modelPolicy: {profile: reasoning-high}
   maxSteps: 9
+  timeout: 120
+  skills: [research]
   riskPolicy: {maxLevel: L1}
   capabilities: [knowledge.search]
+  memory: {session: true}
+  sandbox: {enabled: true, network: gateway-only}
 """,
         encoding="utf-8",
     )
@@ -61,9 +68,15 @@ spec:
 
     assert loaded_agents == {
         "research-agent": {
+            "description": "Research agent",
+            "modelPolicy": {"profile": "reasoning-high"},
             "maxSteps": 9,
+            "timeout": 120,
+            "skills": ["research"],
             "riskPolicy": {"maxLevel": "L1"},
             "capabilities": ["knowledge.search"],
+            "memory": {"session": True},
+            "sandbox": {"enabled": True, "network": "gateway-only"},
         }
     }
     assert loaded_skills == {"research": {"capabilities": ["knowledge.search"]}}
@@ -80,3 +93,61 @@ def test_invalid_registry_manifest_fails_closed(
 
     with pytest.raises(RegistryManifestError):
         load_registry_specs({}, {})
+
+
+def test_agent_spec_binds_model_profile_not_provider_details() -> None:
+    parsed = AgentSpec.from_dict(
+        {
+            "description": "Primary coordinator",
+            "modelPolicy": {"profile": "reasoning-high"},
+            "maxSteps": 30,
+            "timeout": 300,
+            "skills": ["knowledge-research"],
+            "capabilities": ["knowledge.search"],
+            "riskPolicy": {"maxLevel": "L2"},
+            "memory": {"session": True, "workspace": True},
+            "sandbox": {"enabled": True, "network": "gateway-only"},
+        }
+    )
+
+    assert parsed.model_profile == "reasoning-high"
+    assert parsed.max_steps == 30
+    assert parsed.timeout_seconds == 300
+    assert parsed.capabilities == ("knowledge.search",)
+
+    with pytest.raises(RegistryManifestError, match="ModelProfile"):
+        AgentSpec.from_dict(
+            {
+                "description": "Unsafe coordinator",
+                "modelPolicy": {"profile": "reasoning-high", "model": "vendor-model"},
+                "maxSteps": 30,
+                "capabilities": ["knowledge.search"],
+                "riskPolicy": {"maxLevel": "L2"},
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "unsafe_fragment",
+    [
+        {"databaseUrl": "postgresql://agent:password@production/db"},
+        {"memory": {"dsn": "mysql://production/app"}},
+        {"sandbox": {"network": "gateway-only", "token": "inline-secret"}},
+        {"description": "Connect with password=production-secret"},
+    ],
+)
+def test_agent_spec_rejects_direct_database_and_credential_configuration(
+    unsafe_fragment: dict,
+) -> None:
+    spec = {
+        "description": "Safe coordinator",
+        "modelPolicy": {"profile": "reasoning-high"},
+        "maxSteps": 30,
+        "capabilities": ["knowledge.search"],
+        "riskPolicy": {"maxLevel": "L2"},
+        "sandbox": {"network": "gateway-only"},
+    }
+    spec.update(unsafe_fragment)
+
+    with pytest.raises(RegistryManifestError, match="runtime connection|endpoint"):
+        AgentSpec.from_dict(spec)

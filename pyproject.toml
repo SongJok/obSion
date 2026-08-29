@@ -8,6 +8,7 @@ members = [
 line-length = 100
 target-version = "py312"
 src = ["services/control-plane/src", "packages/sdk-python/src"]
+extend-exclude = [".claude"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "S"]

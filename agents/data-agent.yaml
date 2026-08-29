@@ -6,5 +6,6 @@ spec:
   description: Governed semantic analytics agent
   modelPolicy: {profile: reasoning-high}
   maxSteps: 18
-  capabilities: [metric.describe, schema.search, sql.validate, data.query, data.preview]
+  skills: [governed-analytics]
+  capabilities: [metric.describe, schema.search, sql.validate, sql.explain, data.query, data.preview]
   riskPolicy: {maxLevel: L2}

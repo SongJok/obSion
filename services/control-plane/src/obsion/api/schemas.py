@@ -3,17 +3,22 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasPath, BaseModel, ConfigDict, Field, field_validator
 
+from obsion.contracts.errors import validate_error_code
 from obsion.domain.enums import (
+    ActorType,
     ApprovalStatus,
     ArtifactKind,
+    CapabilityTransport,
     Classification,
     EvaluationResultStatus,
     EvaluationTarget,
     MemoryScope,
     MemoryStatus,
+    RiskLevel,
     RunStatus,
+    SideEffect,
     StepKind,
     StepStatus,
     ThreadStatus,
@@ -29,7 +34,25 @@ class ErrorBody(APIModel):
     code: str
     message: str
     correlation_id: str
-    details: dict[str, Any] = Field(default_factory=dict)
+    details: dict[str, Any]
+
+    @field_validator("code")
+    @classmethod
+    def validate_registered_error_code(cls, value: str) -> str:
+        validate_error_code(value)
+        return value
+
+
+class CreateAuthSessionRequest(APIModel):
+    access_token: str = Field(min_length=16, max_length=16_384)
+
+
+class AuthSessionView(APIModel):
+    principal_id: UUID
+    organization_id: UUID
+    display_name: str
+    department: str | None
+    roles: list[str]
 
 
 class CreateWorkspaceRequest(APIModel):
@@ -155,11 +178,18 @@ class TurnCreatedView(APIModel):
 
 class EventView(APIModel):
     id: UUID
+    event_id: UUID = Field(validation_alias=AliasPath("id"))
+    organization_id: UUID
+    aggregate_type: str
+    aggregate_id: UUID
     sequence: int
     name: str
     run_id: UUID | None
+    run_sequence: int | None
     causation_id: UUID | None
     correlation_id: UUID
+    actor_type: ActorType
+    actor_id: UUID | None
     schema_version: int
     classification: Classification
     payload: dict[str, Any]
@@ -236,6 +266,7 @@ class CapabilityInvokeRequest(APIModel):
     environment: str = Field(default="development", min_length=1, max_length=80)
     agent_name: str = Field(default="external-client", min_length=1, max_length=160)
     capability_version: int | None = Field(default=None, ge=1)
+    capability_version_id: UUID | None = None
 
 
 class CapabilityInvokeView(APIModel):
@@ -248,6 +279,24 @@ class CapabilityInvokeView(APIModel):
     error_message: str | None = None
     capability_version_id: UUID | None = None
     connector_id: UUID | None = None
+
+
+class CapabilityDescriptorView(APIModel):
+    id: UUID
+    version_id: UUID
+    name: str
+    display_name: str
+    description: str
+    version: int
+    transport: CapabilityTransport
+    risk: RiskLevel
+    side_effect: SideEffect
+    permission: str
+    timeout_seconds: int
+    input_schema: dict[str, Any]
+    output_schema: dict[str, Any]
+    output: dict[str, Any]
+    data_classification: Classification
 
 
 class CreateMemoryRequest(APIModel):
@@ -270,9 +319,42 @@ class MemoryView(APIModel):
     dedupe_key: str
     sensitivity: Classification
     status: MemoryStatus
+    policy_decision_id: UUID | None
     expires_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class RunMemorySnapshotView(APIModel):
+    id: UUID
+    run_id: UUID
+    memory_id: UUID
+    principal_id: UUID
+    ordinal: int
+    scope: MemoryScope
+    owner_ref: str
+    content: dict[str, Any]
+    content_fingerprint: str
+    sensitivity: Classification
+    policy_decision_id: UUID
+    memory_updated_at: datetime
+    captured_at: datetime
+
+
+class RunConversationSnapshotView(APIModel):
+    id: UUID
+    run_id: UUID
+    source_thread_id: UUID
+    source_turn_id: UUID
+    source_run_id: UUID | None
+    source_artifact_id: UUID | None
+    source_principal_id: UUID
+    ordinal: int
+    user_content: str
+    assistant_content: str | None
+    content_fingerprint: str
+    classification: Classification
+    captured_at: datetime
 
 
 class CreateEvaluationDatasetRequest(APIModel):
@@ -441,6 +523,13 @@ class SqlValidationView(APIModel):
     columns: list[str] | tuple[str, ...]
     applied_limit: int
     warnings: list[str] | tuple[str, ...]
+    statement_type: str = "SELECT"
+    estimated_scan_cost: int = 0
+
+
+class SqlExplainView(SqlValidationView):
+    plan: dict[str, Any]
+    audit_id: UUID
 
 
 class CompiledQueryView(APIModel):
@@ -451,6 +540,7 @@ class CompiledQueryView(APIModel):
     dimensions: list[dict[str, Any]]
     lineage: dict[str, Any]
     validation: SqlValidationView
+    column_masks: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class ValidateSqlRequest(APIModel):

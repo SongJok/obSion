@@ -39,6 +39,9 @@ _EXPECTED_KEYS: dict[EvaluationTarget, set[str]] = {
         "minimum_evidence_coverage",
         "minimum_citation_precision",
         "minimum_answer_faithfulness",
+        "minimum_incident_candidates",
+        "minimum_cross_type_claims",
+        "incident_top1_evidence_types",
     },
 }
 
@@ -73,9 +76,7 @@ def validate_case_request(
             fields=unsupported,
         )
     if evaluator == EvaluationTarget.ROUTING and not request.input_payload.get("question"):
-        raise ValidationError(
-            "evaluation_question_required", "A routing case requires a question"
-        )
+        raise ValidationError("evaluation_question_required", "A routing case requires a question")
     if evaluator == EvaluationTarget.SQL_POLICY and (
         not request.input_payload.get("sql") or "sql_allowed" not in request.expected
     ):

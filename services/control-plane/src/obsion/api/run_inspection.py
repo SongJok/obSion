@@ -4,9 +4,24 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from obsion.api.schemas import ArtifactView, ClaimView, EvidenceView, RunStepView
+from obsion.api.schemas import (
+    ArtifactView,
+    ClaimView,
+    EvidenceView,
+    RunConversationSnapshotView,
+    RunMemorySnapshotView,
+    RunStepView,
+)
 from obsion.common.errors import NotFoundError
-from obsion.db.models import Artifact, Claim, ClaimEvidence, Evidence, RunStep
+from obsion.db.models import (
+    Artifact,
+    Claim,
+    ClaimEvidence,
+    Evidence,
+    RunConversationSnapshot,
+    RunMemorySnapshot,
+    RunStep,
+)
 from obsion.security.auth import get_principal, get_session
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_run_access, require_workspace_access
@@ -116,6 +131,45 @@ async def list_artifacts(
         .order_by(Artifact.created_at)
     )
     return [ArtifactView.model_validate(item) for item in artifacts]
+
+
+@router.get("/runs/{run_id}/memories", response_model=list[RunMemorySnapshotView])
+async def list_run_memories(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> list[RunMemorySnapshotView]:
+    await _require_run(session, principal, run_id)
+    snapshots = await session.scalars(
+        select(RunMemorySnapshot)
+        .where(
+            RunMemorySnapshot.organization_id == principal.organization_id,
+            RunMemorySnapshot.run_id == run_id,
+        )
+        .order_by(RunMemorySnapshot.ordinal)
+    )
+    return [RunMemorySnapshotView.model_validate(item) for item in snapshots]
+
+
+@router.get(
+    "/runs/{run_id}/conversation",
+    response_model=list[RunConversationSnapshotView],
+)
+async def list_run_conversation(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> list[RunConversationSnapshotView]:
+    await _require_run(session, principal, run_id)
+    snapshots = await session.scalars(
+        select(RunConversationSnapshot)
+        .where(
+            RunConversationSnapshot.organization_id == principal.organization_id,
+            RunConversationSnapshot.run_id == run_id,
+        )
+        .order_by(RunConversationSnapshot.ordinal)
+    )
+    return [RunConversationSnapshotView.model_validate(item) for item in snapshots]
 
 
 @router.get("/artifacts/{artifact_id}", response_model=ArtifactView)

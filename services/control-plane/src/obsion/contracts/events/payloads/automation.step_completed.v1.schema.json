@@ -1,0 +1,21 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/automation.step_completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "step_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "step_id",
+    "run_id"
+  ],
+  "title": "automation.step_completed payload v1",
+  "type": "object"
+}

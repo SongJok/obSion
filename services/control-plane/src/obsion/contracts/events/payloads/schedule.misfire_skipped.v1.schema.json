@@ -1,0 +1,21 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/schedule.misfire_skipped.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "schedule_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "scheduled_for": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schedule_id",
+    "scheduled_for"
+  ],
+  "title": "schedule.misfire_skipped payload v1",
+  "type": "object"
+}

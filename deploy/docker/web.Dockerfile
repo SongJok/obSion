@@ -13,7 +13,8 @@ ARG NEXT_PUBLIC_OBSION_API_URL=http://localhost:8080/api/v1
 ENV NEXT_PUBLIC_OBSION_API_URL=$NEXT_PUBLIC_OBSION_API_URL
 COPY apps/web/ apps/web/
 COPY packages/sdk-ts/ packages/sdk-ts/
-RUN npm run build --workspace @obsion/web
+RUN npm run build --workspace @obsion/sdk \
+    && npm run build --workspace @obsion/web
 
 FROM node:22.22.0-alpine AS runtime
 RUN addgroup --system --gid 10001 obsion \

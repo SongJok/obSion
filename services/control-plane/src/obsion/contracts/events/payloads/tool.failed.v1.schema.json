@@ -1,0 +1,22 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/tool.failed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability": {
+      "type": "string"
+    },
+    "error_code": {
+      "enum": [
+        "capability_timeout",
+        "capability_failed"
+      ]
+    }
+  },
+  "required": [
+    "capability",
+    "error_code"
+  ],
+  "title": "tool.failed payload v1",
+  "type": "object"
+}

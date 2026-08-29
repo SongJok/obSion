@@ -14,6 +14,39 @@ development identity. Keep database, connector, model, and object-store secrets 
 Helm values and inject them through Kubernetes Secrets backed by the organization's
 secret manager.
 
+Configure an exact HTTPS `OBSION_ALLOWED_ORIGINS` list for every Workbench origin;
+production refuses `*`. Set `OBSION_AUTH_SESSION_COOKIE_NAME` only before initial
+rollout or as a coordinated cutover, and size `OBSION_AUTH_SESSION_TTL_SECONDS` to the
+organization’s interactive-session policy (default eight hours, maximum seven days).
+`OBSION_AUTH_SESSION_RETENTION_DAYS` keeps expired/revoked metadata for operational
+review before opportunistic deletion during a later login (default 30 days).
+Staging and production sessions are Secure, HttpOnly, SameSite=Strict, opaque, and
+server-revocable. TLS must terminate before any browser can establish one.
+
+For local development, set a non-production-only `OBSION_DEV_BEARER_TOKEN`. Paste it
+into the local Workbench login page for a one-time exchange, or send it as the Bearer
+credential from REST/SDK/App Server clients. The checked-in example value is
+intentionally public and must never be reused in a shared or remote environment. A
+missing token or session does not resolve the seeded user.
+
+Configure model egress with exact authorities in `OBSION_MODEL_ALLOWED_HOSTS`; HTTP is
+accepted only for loopback development/test endpoints.
+`OBSION_MODEL_REQUEST_TIMEOUT_SECONDS` is the per-attempt deadline. Keep
+`OBSION_MODEL_FORCE_PRIVATE_FOR_SENSITIVE=true` unless an approved deployment policy
+explicitly replaces that control, and bind `OBSION_MODEL_PRIVATE_PROFILE_NAME` only to
+endpoints whose limits declare `private=true`. `CONFIDENTIAL` or `RESTRICTED` calls
+fail closed when that Profile or endpoint is absent. Store provider secrets behind
+`credential_ref`; never put them in Helm values, endpoint limits, Profile requirements,
+or frontend configuration.
+
+Create the logical `fast`, `reasoning-high`, and `private` profiles independently of
+provider model IDs. An endpoint must declare every capability it actually supports:
+`chat`, plus `json_mode` and/or `tool_call` where applicable. Pricing belongs in
+`limits.pricing_per_million`; validate it against provider billing before enabling the
+endpoint. Enable Profile fallback only across endpoints with equivalent classification,
+region, private, context, and tool contracts. Every failed and successful attempt is
+retained separately in `model_calls` for cost and incident review.
+
 Set `OBSION_KNOWLEDGE_EMBEDDING_PROFILE` to a logical model profile whose bound
 OpenAI-compatible endpoint declares the `embeddings` capability, supports the document
 classification, and returns 1,536-dimensional vectors. If it is unset, the authorized
@@ -40,17 +73,79 @@ only `action.pr.create/close` and `action.ticket.create/close` in development or
 staging. Production targets and config/restart/deploy capabilities cannot be enabled
 through roles, policies, connector configuration, or environment variables.
 
+Set memory retention and context budgets explicitly for the organization's policy.
+`OBSION_MEMORY_DEFAULT_TTL_DAYS` supplies omitted expiry values,
+`OBSION_MEMORY_MAX_TTL_DAYS` is the hard retention ceiling, and
+`OBSION_MEMORY_MAX_CONTEXT_ITEMS` plus `OBSION_MEMORY_MAX_CONTEXT_CHARS` bound the
+approved snapshots entering any Run. Defaults are 365 days, 3,650 days, 40 items, and
+24,000 canonical JSON characters. Lowering a value affects future writes or capture;
+it does not rewrite historical Run snapshots.
+
+Set conversation budgets independently. `OBSION_CONVERSATION_CONTEXT_MAX_TURNS`
+limits prior effective Turns, `OBSION_CONVERSATION_CONTEXT_MAX_CHARS` limits their
+combined stored content, and `OBSION_CONVERSATION_CONTEXT_MAX_CHARS_PER_MESSAGE`
+prevents one user or assistant message from consuming the entire budget. These
+settings affect newly created Runs only; existing snapshots and replays are unchanged.
+
+Expose `/api/v1/app-server` through a reverse proxy that supports WebSocket upgrade,
+preserves `Sec-WebSocket-Protocol`, and disables response buffering. The server
+requires `obsion.jsonrpc.v1`, validates browser `Origin` against
+`OBSION_ALLOWED_ORIGINS`, and closes connections that exceed the initialization or
+message-size boundary. Size `OBSION_APP_SERVER_MAX_SUBSCRIPTIONS` together with the
+database pool: one connection multiplexes its subscriptions, but every active Run is
+reauthorized on each poll. The default idempotency retention is 24 hours; it must
+exceed the longest client reconnect/retry window. Expired keys are safely removed when
+reused and may also be purged by routine database retention after `expires_at`; the
+database trigger rejects early deletion or completed-outcome mutation.
+
+Clients must checkpoint the last successfully processed `run_sequence`, not merely the
+last received frame. A WebSocket reconnect sends it as `after_sequence`; an SSE
+reconnect sends it as `Last-Event-ID` (or `after`). Delivery is at least once, so
+consumers also deduplicate by immutable Event ID. A reconnect that starts from an
+aggregate-local `sequence` is an operational defect.
+
+Run cancellation is terminal and database-backed. A successful cancel response means
+the Run lease was cleared, active Steps were moved to `CANCELLED`, ordered request and
+terminal events were committed, and no dependent Step may begin. An already-started
+provider call may return later; monitor it for honest latency/cost accounting, but any
+answer, `run.completed`, new Step, or transition out of `CANCELLED` is an invariant
+violation.
+
 ## Install and upgrade
 
 1. Back up PostgreSQL and verify the last restore test.
 2. Review `CHANGELOG.md`, migration SQL, policy changes, and Agent/Skill checksums.
+   Classify every migration as backward compatible or maintenance-window-only before
+   deployment. A table or column rename is not compatible with the old application
+   unless that release ships an explicitly reviewed expand/contract bridge.
 3. Build or pull images by immutable digest and scan/sign them in the deployment
    registry.
-4. Run `alembic upgrade head` once as a deployment job. The Helm chart creates a
-   pre-install/pre-upgrade migration Job and blocks rollout if it fails.
-5. Roll out the API, then the Workbench. Readiness must pass before traffic shifts.
-6. Verify a knowledge run, an authorization denial, evidence/claims, audit search, an
-   event-stream reconnect, and a manual notification-only automation run. If a staging
+4. For a backward-compatible migration, run `alembic upgrade head` once as a deployment
+   job. The Helm chart creates a pre-install/pre-upgrade migration Job and blocks rollout
+   if it fails.
+5. Revision `f7a1b2c3d4e5` renames `audit_records` to `audit_logs` and therefore requires
+   a maintenance window. Before installing a release that crosses this revision, remove
+   API endpoints from ingress, stop every worker, scale the old API Deployment to zero,
+   and verify that no old process retains a database session. Run the migration only
+   after quiescence; then start only the new image and restore traffic after readiness
+   and audit read/write checks pass. The default Helm pre-upgrade hook does not quiesce
+   old Pods and must not be used by itself for this revision. Do not create a second
+   audit table or dual-write as a workaround.
+6. Revision `8d3f2a1c7b90` replaces free-form user department text and single-column
+   identity foreign keys. Treat it as maintenance-window-only with the same quiescence
+   procedure: it rejects any pre-existing cross-organization binding instead of
+   silently repairing it, then drops the legacy department column after backfill.
+7. Revision `19c6b2e4a7d1` additively creates `auth_sessions`. It is compatible with the
+   previous application, but the new Workbench must not receive traffic until the table
+   exists. After rollout, verify that rows contain only 64-character digests, expiry,
+   tenant/user binding, and revocation metadata; never query or log browser cookie
+   values.
+8. Roll out the API, then the Workbench. Readiness must pass before traffic shifts.
+9. Verify login, safe session inspection, logout/revocation, a knowledge run, an
+   authorization denial, evidence/claims, audit search, an
+   JSON-RPC initialization, Run subscription reconnect from its last `run_sequence`,
+   mutation retry with the same client request ID, and a manual notification-only
+   automation run. If a staging
    action provider is configured, verify preflight with a non-destructive test target,
    independent approval, provider idempotency, separate rollback approval, and both
    action audit records.
@@ -68,7 +163,15 @@ application version at it after validating tenant and audit integrity.
 - Counters include `obsion.runs`, `obsion.capability.invocations`,
   `obsion.policy.decisions`, `obsion.model.calls`, and
   `obsion.automation.executions`; governed attempts add `obsion.action.attempts` by
-  action type, purpose, and outcome.
+  action type, purpose, and outcome. Memory context capture emits
+  `obsion.memory.context` with scope and selected/skipped outcomes. App Server
+  connections, requests, and delivered events emit `obsion.app_server.connections`,
+  `obsion.app_server.requests`, and `obsion.app_server.events` with bounded attributes.
+
+User satisfaction is projected from current `run_feedback` records through the admin
+summary. Monitor both response volume and helpful rate; do not compare percentages
+across periods with materially different response counts or treat feedback as factual
+answer verification.
 
 Alert on readiness failure, run failure/cancellation rate, worker lease age, capability
 timeouts, policy/rate-limit safety-service failure, approval backlog/expiry, model
@@ -91,9 +194,13 @@ Quarterly restore tests must verify organizations, memberships, runs, ordered ev
 policy decisions, approvals, audits, evidence, claims, registry versions, semantic
 objects, document versions, workflow versions, schedules, automation executions,
 review decisions, action requests, immutable action plans, execute/rollback approvals,
-attempts, policy decisions, and notification deliveries. Restore tests must confirm
-that the action-plan mutation trigger is present. Never restore production data into
-an environment with development authentication.
+attempts, policy decisions, memory candidates, immutable Run memory snapshots,
+  notification deliveries, App Server request outcomes and Run event cursors,
+  workspace tasks, decision headers, and every immutable
+  decision revision, plus versioned Run feedback. Restore tests must confirm that the
+  action-plan, memory, workspace-task, workspace-decision, decision-version, and
+  run-feedback, App Server request, and Event mutation guards are present.
+Never restore production data into an environment with development authentication.
 
 ## Incident procedures
 
@@ -108,6 +215,15 @@ workers. Do not manually mark partially executed runs complete.
 With `OBSION_RATE_LIMIT_FAIL_CLOSED=true`, new capability executions fail safely while
 workspace reads continue. Restore Redis, confirm authentication and key expiry, then
 replay failed runs explicitly; do not disable fail-closed behavior in production.
+
+### Cancelled Run continues
+
+Remove the affected worker from service and preserve its logs. Confirm the Run is
+`CANCELLED`, its lease fields are empty, active Steps are `CANCELLED`, and the final
+Run events are `run.cancellation_requested` followed by `run.cancelled`. Do not edit
+rows or append compensating events manually. If a later Step, answer, or completion
+event exists, treat it as a runtime consistency incident, retain the event/audit
+history, and replay only after the implementation defect is corrected.
 
 ### Connector or model provider degraded
 
@@ -147,10 +263,18 @@ manually; use a manual idempotent trigger when an occurrence must be replayed.
 
 ## Routine maintenance
 
-- Review expired approvals and memory candidates weekly.
+- Review expired approvals and memory candidates weekly. Investigate L3 memory-write
+  denials, stale candidates, approaching retention limits, and unusual context-volume
+  telemetry; never bypass expiry by editing a Run snapshot.
 - Review pending action approvals, failed/rollback-failed actions, and provider
   idempotency retention weekly; retention must exceed the longest action recovery and
   audit window.
+- Review blocked and overdue workspace tasks plus old proposed decisions weekly.
+  Resolve them through normal lifecycle endpoints; never repair collaboration state
+  with direct SQL or rewrite a decision version.
+- Review needs-improvement reasons and response volume weekly. Handle revisions
+  through the feedback endpoint; never edit or delete feedback directly, and never
+  use a rating to override Evidence or Critic results.
 - Review policy denials, rate-limit changes, connector health, and cost anomalies daily.
 - Re-run version-pinned evaluations before promoting agents, skills, prompts, models,
   semantic definitions, or capability schemas. Bind every Golden Dataset `run_ref` to

@@ -1,0 +1,63 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/critic.completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "checks": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_links": {
+          "type": "boolean"
+        },
+        "duplicate_evidence": {
+          "type": "boolean"
+        },
+        "required_evidence": {
+          "type": "boolean"
+        },
+        "source_diversity": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "required_evidence",
+        "claim_links",
+        "source_diversity",
+        "duplicate_evidence"
+      ],
+      "type": "object"
+    },
+    "confidence": {
+      "type": "number"
+    },
+    "conflicts": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "coverage": {
+      "type": "number"
+    },
+    "missing_evidence": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "verified": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "verified",
+    "confidence",
+    "coverage",
+    "missing_evidence",
+    "conflicts",
+    "checks"
+  ],
+  "title": "critic.completed payload v1",
+  "type": "object"
+}

@@ -1,15 +1,20 @@
 "use client";
 
-import { BadgeCheck, Database, GitBranch, Search, Sigma, TableProperties } from "lucide-react";
+import { ArrowRight, BadgeCheck, Database, GitBranch, Search, Sigma, TableProperties, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/lib/api";
-import type { Metric } from "@/lib/types";
+import type { Metric, MetricLineage } from "@/lib/types";
 
 export function DataView() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState<Metric>();
+  const [detailMode, setDetailMode] = useState<"definition" | "lineage">("definition");
+  const [lineage, setLineage] = useState<MetricLineage>();
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   useEffect(() => {
     api.listMetrics().then(setMetrics).catch((caught: unknown) => {
@@ -27,6 +32,27 @@ export function DataView() {
         .includes(term),
     );
   }, [metrics, query]);
+
+  const showDefinition = (metric: Metric) => {
+    setSelected(metric);
+    setDetailMode("definition");
+    setDetailError("");
+  };
+
+  const showLineage = async (metric: Metric) => {
+    setSelected(metric);
+    setDetailMode("lineage");
+    setLineage(undefined);
+    setDetailLoading(true);
+    setDetailError("");
+    try {
+      setLineage(await api.getMetricLineage(metric.id));
+    } catch (caught) {
+      setDetailError(caught instanceof Error ? caught.message : "无法读取指标血缘");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   return (
     <main className="feature-page">
@@ -59,11 +85,55 @@ export function DataView() {
               <h3>{metric.display_name}</h3>
               <code>{metric.name}</code>
               <div className="metric-meta"><span>v{metric.version}</span><span>{metric.owner}</span></div>
-              <footer><button><GitBranch size={15} /> 查看血缘</button><button><TableProperties size={15} /> 查看定义</button></footer>
+              <footer><button type="button" onClick={() => void showLineage(metric)}><GitBranch size={15} /> 查看血缘</button><button type="button" onClick={() => showDefinition(metric)}><TableProperties size={15} /> 查看定义</button></footer>
             </article>
           ))}
         </div>
       )}
+
+      {selected && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="workspace-modal metric-detail-modal" role="dialog" aria-modal="true" aria-label={`${selected.display_name} 指标详情`}>
+            <header>
+              <span className="modal-icon">{detailMode === "lineage" ? <GitBranch size={19} /> : <TableProperties size={19} />}</span>
+              <div><h2>{selected.display_name}</h2><p>{selected.name} · v{selected.version} · {selected.owner}</p></div>
+              <button type="button" className="icon-button" onClick={() => setSelected(undefined)} aria-label="关闭指标详情"><X size={18} /></button>
+            </header>
+            <div className="metric-detail-tabs" role="tablist">
+              <button type="button" className={detailMode === "definition" ? "active" : ""} onClick={() => setDetailMode("definition")}>指标定义</button>
+              <button type="button" className={detailMode === "lineage" ? "active" : ""} onClick={() => void showLineage(selected)}>数据血缘</button>
+            </div>
+            {detailMode === "definition" ? (
+              <div className="metric-definition">
+                <dl>
+                  <div><dt>表达式</dt><dd><code>{selected.expression}</code></dd></div>
+                  <div><dt>时间列</dt><dd><code>{selected.time_column}</code></dd></div>
+                  <div><dt>负责人</dt><dd>{selected.owner}</dd></div>
+                  <div><dt>验证状态</dt><dd>{selected.validated ? "已验证" : "未验证"}</dd></div>
+                  <div><dt>同义词</dt><dd>{selected.synonyms.length ? selected.synonyms.join("、") : "—"}</dd></div>
+                  <div><dt>固定筛选</dt><dd><code>{JSON.stringify(selected.filters)}</code></dd></div>
+                </dl>
+              </div>
+            ) : detailLoading ? (
+              <div className="metric-detail-loading"><i /><span>正在解析受控血缘…</span></div>
+            ) : detailError ? (
+              <div className="notice error"><Database size={16} />{detailError}</div>
+            ) : lineage && (
+              <div className="metric-lineage-flow" aria-label="指标数据血缘">
+                <LineageNode icon={<Database size={17} />} label="只读数据源" name={lineage.data_source.name} meta={`${lineage.data_source.environment} · ${lineage.data_source.read_only ? "只读" : "非只读"}`} />
+                <ArrowRight size={18} />
+                <LineageNode icon={<TableProperties size={17} />} label="来源表" name={lineage.table.name} meta={`负责人 ${lineage.table.owner}`} />
+                <ArrowRight size={18} />
+                <LineageNode icon={<Sigma size={17} />} label="业务指标" name={lineage.metric.name} meta={`版本 ${lineage.metric.version}`} />
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
+}
+
+function LineageNode({ icon, label, name, meta }: { icon: React.ReactNode; label: string; name: string; meta: string }) {
+  return <article><span>{icon}</span><small>{label}</small><strong>{name}</strong><p>{meta}</p></article>;
 }

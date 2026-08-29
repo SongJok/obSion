@@ -64,3 +64,11 @@ def test_critic_never_verifies_an_empty_retrieval_or_empty_claim_set() -> None:
     assert not result.verified
     assert result.missing_evidence == ("DOCUMENT",)
     assert not result.checks["claim_links"]
+
+
+def test_critic_can_verify_non_factual_responses_without_claims() -> None:
+    result = Critic().verify([], required_types=(), claims=[], claims_required=False)
+
+    assert result.verified
+    assert result.coverage == 1.0
+    assert result.checks["claim_links"]

@@ -7,6 +7,7 @@ class TrustLevel(StrEnum):
     AGENT = "AGENT"
     SKILL = "SKILL"
     USER = "USER"
+    ASSISTANT = "ASSISTANT"
     UNTRUSTED_DATA = "UNTRUSTED_DATA"
 
 
@@ -15,6 +16,7 @@ _TRUST_ORDER = {
     TrustLevel.AGENT: 4,
     TrustLevel.SKILL: 3,
     TrustLevel.USER: 2,
+    TrustLevel.ASSISTANT: 2,
     TrustLevel.UNTRUSTED_DATA: 1,
 }
 
@@ -25,6 +27,7 @@ class ContextSegment:
     content: str
     source: str
     priority: int = 100
+    order: int | None = None
 
 
 class ContextBuilder:
@@ -32,20 +35,37 @@ class ContextBuilder:
         self.character_budget = character_budget
 
     def build(self, segments: list[ContextSegment]) -> list[dict[str, str]]:
-        ordered = sorted(
-            segments,
-            key=lambda item: (-item.priority, -_TRUST_ORDER[item.trust]),
+        ranked = sorted(
+            enumerate(segments),
+            key=lambda item: (
+                -item[1].priority,
+                -_TRUST_ORDER[item[1].trust],
+                item[0],
+            ),
         )
         remaining = self.character_budget
-        messages: list[dict[str, str]] = []
-        for segment in ordered:
+        selected: list[tuple[int, ContextSegment, str]] = []
+        for index, segment in ranked:
             if remaining <= 0:
                 break
             content = segment.content[:remaining]
             remaining -= len(content)
+            selected.append((index, segment, content))
+
+        selected.sort(
+            key=lambda item: (
+                item[1].order if item[1].order is not None else 1000 - _TRUST_ORDER[item[1].trust],
+                item[0],
+            )
+        )
+        messages: list[dict[str, str]] = []
+        for _, segment, content in selected:
             if segment.trust in {TrustLevel.SYSTEM, TrustLevel.AGENT, TrustLevel.SKILL}:
                 role = "system"
                 body = f"[{segment.trust.value}:{segment.source}]\n{content}"
+            elif segment.trust == TrustLevel.ASSISTANT:
+                role = "assistant"
+                body = content
             elif segment.trust == TrustLevel.USER:
                 role = "user"
                 body = content

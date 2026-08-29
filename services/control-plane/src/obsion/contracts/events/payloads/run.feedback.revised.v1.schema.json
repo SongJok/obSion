@@ -1,0 +1,27 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.feedback.revised.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "feedback_version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "rating": {
+      "enum": [
+        "HELPFUL",
+        "NEEDS_IMPROVEMENT"
+      ]
+    },
+    "reason_provided": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "rating",
+    "reason_provided",
+    "feedback_version"
+  ],
+  "title": "run.feedback.revised payload v1",
+  "type": "object"
+}

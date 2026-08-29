@@ -6,6 +6,7 @@ spec:
   description: Production incident investigator
   modelPolicy: {profile: reasoning-high}
   maxSteps: 30
+  skills: [incident-investigation]
   capabilities:
     - metric.query
     - metric.compare

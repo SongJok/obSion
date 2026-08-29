@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from obsion.contracts.errors.catalog import get_error_code
+
 
 @dataclass(slots=True)
 class ObsionError(Exception):
@@ -8,6 +10,14 @@ class ObsionError(Exception):
     message: str
     status_code: int = 400
     details: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        definition = get_error_code(self.code)
+        if definition.http_status is not None and definition.http_status != self.status_code:
+            raise ValueError(
+                f"Error code {self.code!r} requires HTTP status "
+                f"{definition.http_status}, not {self.status_code}"
+            )
 
     def __str__(self) -> str:
         return self.message

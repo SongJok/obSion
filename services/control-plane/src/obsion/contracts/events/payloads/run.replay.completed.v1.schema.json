@@ -1,0 +1,57 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.replay.completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "type": "integer"
+    },
+    "claims": {
+      "type": "integer"
+    },
+    "conversation": {
+      "type": "integer"
+    },
+    "events": {
+      "type": "integer"
+    },
+    "evidence": {
+      "type": "integer"
+    },
+    "memories": {
+      "type": "integer"
+    },
+    "snapshot_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_run_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "source_status": {
+      "enum": [
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "steps": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "source_run_id",
+    "source_status",
+    "snapshot_sha256",
+    "steps",
+    "evidence",
+    "claims",
+    "artifacts",
+    "memories",
+    "conversation",
+    "events"
+  ],
+  "title": "run.replay.completed payload v1",
+  "type": "object"
+}

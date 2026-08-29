@@ -27,6 +27,8 @@ from obsion.domain.enums import (
     RiskLevel,
     SideEffect,
 )
+from obsion.registry.agent_spec import AgentSpec
+from obsion.registry.capability_descriptor import CapabilityDescriptor
 from obsion.registry.manifests import load_registry_specs
 
 
@@ -138,33 +140,283 @@ _PROJECT_PROPERTY = {
 }
 
 
+def _observability_input_schema(operation: str, *, query_required: bool = False) -> dict[str, Any]:
+    properties: dict[str, Any] = {
+        "operation": {"const": operation},
+        "service": {"type": "string", "minLength": 1, "maxLength": 240},
+        "environment": {"type": "string", "minLength": 1, "maxLength": 80},
+        "metric": {"type": "string", "minLength": 1, "maxLength": 500},
+        "query": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "start_time": {"type": "string", "format": "date-time"},
+        "end_time": {"type": "string", "format": "date-time"},
+        "compare_start_time": {"type": "string", "format": "date-time"},
+        "compare_end_time": {"type": "string", "format": "date-time"},
+        "time_range": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "start": {"type": "string", "format": "date-time"},
+                "end": {"type": "string", "format": "date-time"},
+                "timezone": {"type": "string", "minLength": 1, "maxLength": 80},
+            },
+        },
+        "filters": {"type": "object"},
+        "group_by": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {"type": "string", "minLength": 1, "maxLength": 120},
+        },
+        "step_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "threshold": {"type": "number", "minimum": 0},
+    }
+    required = ["operation", "service", "start_time", "end_time"]
+    if query_required:
+        required.append("query")
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": properties,
+    }
+
+
+def _observability_output_schema(operation: str) -> dict[str, Any]:
+    nullable_string = {"type": ["string", "null"]}
+    event = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "timestamp",
+            "service",
+            "environment",
+            "trace_id",
+            "request_id",
+            "user_id_hash",
+            "order_id_hash",
+            "deployment_id",
+            "commit_id",
+            "host",
+            "pod",
+            "severity",
+            "attributes",
+        ],
+        "properties": {
+            "timestamp": {"type": "string", "minLength": 1},
+            "service": {"type": "string", "minLength": 1},
+            "environment": {"type": "string", "minLength": 1},
+            "trace_id": nullable_string,
+            "request_id": nullable_string,
+            "user_id_hash": nullable_string,
+            "order_id_hash": nullable_string,
+            "deployment_id": nullable_string,
+            "commit_id": nullable_string,
+            "host": nullable_string,
+            "pod": nullable_string,
+            "severity": nullable_string,
+            "attributes": {"type": "object"},
+        },
+    }
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["operation", "events", "count", "next_cursor"],
+        "properties": {
+            "operation": {"const": operation},
+            "events": {"type": "array", "items": event},
+            "count": {"type": "integer", "minimum": 0},
+            "next_cursor": {"type": ["string", "null"]},
+        },
+    }
+
+
+def _engineering_input_schema(operation: str) -> dict[str, Any]:
+    properties: dict[str, Any] = {
+        "operation": {"const": operation},
+        "repository": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240,
+            "pattern": r"^(?:\*|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$",
+        },
+        "service": {"type": "string", "minLength": 1, "maxLength": 240},
+        "environment": {"type": "string", "minLength": 1, "maxLength": 80},
+        "query": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "commit_id": {"type": "string", "minLength": 7, "maxLength": 200},
+        "deployment_id": {"type": "string", "minLength": 1, "maxLength": 240},
+        "start_time": {"type": "string", "format": "date-time"},
+        "end_time": {"type": "string", "format": "date-time"},
+        "time_range": {"type": "object"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 10000},
+    }
+    required = ["operation", "repository"]
+    if operation == "code.search":
+        required.append("query")
+    elif operation == "git.commit":
+        required.append("commit_id")
+    elif operation == "deployment.commit":
+        required.append("deployment_id")
+    elif operation in {"git.diff", "git.history"}:
+        required.extend(["start_time", "end_time"])
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": properties,
+    }
+
+
+def _engineering_output_schema(operation: str) -> dict[str, Any]:
+    nullable_string = {"type": ["string", "null"]}
+    item = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "timestamp",
+            "repository",
+            "commit_id",
+            "deployment_id",
+            "service",
+            "environment",
+            "author_hash",
+            "title",
+            "status",
+            "attributes",
+        ],
+        "properties": {
+            "timestamp": {"type": "string", "minLength": 1},
+            "repository": {"type": "string", "minLength": 1},
+            "commit_id": nullable_string,
+            "deployment_id": nullable_string,
+            "service": nullable_string,
+            "environment": nullable_string,
+            "author_hash": nullable_string,
+            "title": nullable_string,
+            "status": nullable_string,
+            "attributes": {"type": "object"},
+        },
+    }
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["operation", "items", "count", "next_cursor"],
+        "properties": {
+            "operation": {"const": operation},
+            "items": {"type": "array", "items": item},
+            "count": {"type": "integer", "minimum": 0},
+            "next_cursor": {"type": ["string", "null"]},
+        },
+    }
+
+
 _CAPABILITIES = [
-    CapabilitySeed("code.search", "Search indexed source code", "code.read", "CODE"),
+    CapabilitySeed(
+        "code.search",
+        "Search indexed source code",
+        "code.read",
+        "CODE",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_engineering_input_schema("code.search"),
+        output_schema=_engineering_output_schema("code.search"),
+    ),
     CapabilitySeed("code.symbol", "Resolve a source symbol", "code.read", "CODE"),
     CapabilitySeed("code.reference", "Find symbol references", "code.read", "CODE"),
-    CapabilitySeed("git.commit", "Read commit metadata", "code.read", "CODE"),
-    CapabilitySeed("git.diff", "Read an immutable Git diff", "code.read", "CODE"),
+    CapabilitySeed(
+        "git.commit",
+        "Read commit metadata",
+        "code.read",
+        "CODE",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_engineering_input_schema("git.commit"),
+        output_schema=_engineering_output_schema("git.commit"),
+    ),
+    CapabilitySeed(
+        "git.diff",
+        "Read an immutable Git diff",
+        "code.read",
+        "CODE",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_engineering_input_schema("git.diff"),
+        output_schema=_engineering_output_schema("git.diff"),
+    ),
     CapabilitySeed("git.blame", "Read Git blame attribution", "code.read", "CODE"),
-    CapabilitySeed("git.history", "Read repository history", "code.read", "CODE"),
+    CapabilitySeed(
+        "git.history",
+        "Read repository history",
+        "code.read",
+        "CODE",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_engineering_input_schema("git.history"),
+        output_schema=_engineering_output_schema("git.history"),
+    ),
     CapabilitySeed(
         "deployment.commit",
         "Resolve deployed commit lineage",
         "deployment.read",
         "DEPLOYMENT",
         RiskLevel.L2,
+        CapabilityTransport.HTTP,
+        _engineering_input_schema("deployment.commit"),
+        _engineering_output_schema("deployment.commit"),
     ),
-    CapabilitySeed("log.search", "Search authorized logs", "logs.read", "LOG", RiskLevel.L2),
+    CapabilitySeed(
+        "log.search",
+        "Search authorized logs",
+        "logs.read",
+        "LOG",
+        RiskLevel.L2,
+        CapabilityTransport.HTTP,
+        _observability_input_schema("log.search", query_required=True),
+        _observability_output_schema("log.search"),
+    ),
     CapabilitySeed("log.error", "Search error events", "logs.read", "LOG", RiskLevel.L2),
-    CapabilitySeed("log.aggregate", "Aggregate log events", "logs.read", "LOG", RiskLevel.L2),
+    CapabilitySeed(
+        "log.aggregate",
+        "Aggregate log events",
+        "logs.read",
+        "LOG",
+        RiskLevel.L2,
+        CapabilityTransport.HTTP,
+        _observability_input_schema("log.aggregate", query_required=True),
+        _observability_output_schema("log.aggregate"),
+    ),
     CapabilitySeed(
         "trace.search", "Search distributed traces", "traces.read", "TRACE", RiskLevel.L2
     ),
     CapabilitySeed(
         "trace.timeline", "Build a trace timeline", "traces.read", "TRACE", RiskLevel.L2
     ),
-    CapabilitySeed("metric.query", "Query a governed metric", "metrics.read", "METRIC"),
-    CapabilitySeed("metric.compare", "Compare metric periods", "metrics.read", "METRIC"),
-    CapabilitySeed("metric.anomaly", "Detect metric anomalies", "metrics.read", "METRIC"),
+    CapabilitySeed(
+        "metric.query",
+        "Query a governed metric",
+        "metrics.read",
+        "METRIC",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_observability_input_schema("metric.query"),
+        output_schema=_observability_output_schema("metric.query"),
+    ),
+    CapabilitySeed(
+        "metric.compare",
+        "Compare metric periods",
+        "metrics.read",
+        "METRIC",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_observability_input_schema("metric.compare"),
+        output_schema=_observability_output_schema("metric.compare"),
+    ),
+    CapabilitySeed(
+        "metric.anomaly",
+        "Detect metric anomalies",
+        "metrics.read",
+        "METRIC",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_observability_input_schema("metric.anomaly"),
+        output_schema=_observability_output_schema("metric.anomaly"),
+    ),
     CapabilitySeed("metric.dimension", "Drill down metric dimensions", "metrics.read", "METRIC"),
     CapabilitySeed("schema.search", "Search authorized schemas", "data.metadata.read", "DATA"),
     CapabilitySeed("table.describe", "Describe an authorized table", "data.metadata.read", "DATA"),
@@ -191,6 +443,9 @@ _CAPABILITIES = [
                     "items": {"type": "string", "enum": ["scalar", "datetime"]},
                 },
                 "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 300},
+                "scan_budget": {"type": "integer", "minimum": 1, "maximum": 1000000000},
+                "row_policy": {"type": "object"},
+                "column_masks": {"type": "object"},
             },
         },
         {
@@ -227,6 +482,31 @@ _CAPABILITIES = [
         "DATA",
         RiskLevel.L2,
         CapabilityTransport.SQL_PROXY,
+        {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["sql", "parameters", "parameter_types"],
+            "properties": {
+                "sql": {"type": "string", "minLength": 1, "maxLength": 100000},
+                "parameters": {"type": "array", "maxItems": 1000},
+                "parameter_types": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {"type": "string", "enum": ["scalar", "datetime"]},
+                },
+                "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 300},
+                "explain": {"type": "boolean"},
+            },
+        },
+        {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["plan", "validation"],
+            "properties": {
+                "plan": {"type": "object"},
+                "validation": {"type": "object"},
+            },
+        },
     ),
     CapabilitySeed(
         "knowledge.search",
@@ -262,7 +542,14 @@ _CAPABILITIES = [
     ),
     CapabilitySeed("ticket.search", "Search authorized tickets", "tickets.read", "DOCUMENT"),
     CapabilitySeed(
-        "deployment.list", "List deployments", "deployment.read", "DEPLOYMENT", RiskLevel.L2
+        "deployment.list",
+        "List deployments",
+        "deployment.read",
+        "DEPLOYMENT",
+        RiskLevel.L2,
+        CapabilityTransport.HTTP,
+        _observability_input_schema("deployment.list"),
+        _observability_output_schema("deployment.list"),
     ),
     CapabilitySeed(
         "config.get", "Read effective configuration", "config.read", "CONFIG", RiskLevel.L2
@@ -380,17 +667,20 @@ _AGENTS: dict[str, dict[str, Any]] = {
         "description": "Permission-aware enterprise knowledge researcher",
         "modelPolicy": {"profile": "reasoning-high"},
         "maxSteps": 12,
-        "capabilities": ["knowledge.search", "document.read", "policy.search", "ticket.search"],
+        "skills": ["knowledge-qa"],
+        "capabilities": ["knowledge.search", "document.read"],
         "riskPolicy": {"maxLevel": "L1"},
     },
     "data-agent": {
         "description": "Governed semantic analytics agent",
         "modelPolicy": {"profile": "reasoning-high"},
         "maxSteps": 18,
+        "skills": ["governed-analytics"],
         "capabilities": [
             "metric.describe",
             "schema.search",
             "sql.validate",
+            "sql.explain",
             "data.query",
             "data.preview",
         ],
@@ -400,6 +690,7 @@ _AGENTS: dict[str, dict[str, Any]] = {
         "description": "Production incident investigator",
         "modelPolicy": {"profile": "reasoning-high"},
         "maxSteps": 30,
+        "skills": ["incident-investigation"],
         "capabilities": [
             "metric.query",
             "metric.compare",
@@ -467,6 +758,18 @@ _AGENTS: dict[str, dict[str, Any]] = {
 }
 
 _SKILLS: dict[str, dict[str, Any]] = {
+    "knowledge-qa": {
+        "instructions": [
+            "use only DOCUMENT Evidence collected by the current Run",
+            "answer only what the authorized evidence supports",
+            "attach a citation to every factual claim and preserve document version and chunk",
+            "if authorized evidence is missing or insufficient, say unknown and do not guess",
+            "never query metrics, SQL, logs, traces, code, tickets, or production resources",
+        ],
+        "capabilities": ["knowledge.search", "document.read"],
+        "requiredEvidence": ["DOCUMENT"],
+        "verification": ["citation coverage", "ACL retained", "unknown-safe"],
+    },
     "knowledge-research": {
         "instructions": [
             "retrieve only authorized sources",
@@ -483,22 +786,30 @@ _SKILLS: dict[str, dict[str, Any]] = {
             "build logical plan",
             "validate AST",
             "execute read-only query",
+            "produce a table or trend chart artifact from DATA Evidence",
+            "for decline questions, segment only by governed dimensions and never "
+            "inspect logs or traces",
             "explain metric definition",
         ],
-        "capabilities": ["metric.describe", "sql.validate", "data.query"],
+        "capabilities": ["metric.describe", "sql.validate", "sql.explain", "data.query"],
         "requiredEvidence": ["DATA"],
         "verification": ["metric definition", "query bounded", "result cited"],
     },
     "incident-investigation": {
         "instructions": [
-            "establish baseline",
-            "locate anomaly",
-            "segment",
-            "correlate changes",
-            "inspect logs and traces",
-            "test alternatives",
+            "establish a metric baseline before making any causal statement",
+            "locate the bounded anomaly window",
+            "drill down only through authorized metric dimensions",
+            "correlate deployments and commits inside the same time window",
+            "inspect authorized logs and traces after the change correlation",
+            "produce ranked candidate root causes, never an automatic conclusion",
+            "bind every candidate claim to at least two distinct Evidence types",
+            "test alternatives and preserve unresolved conflicts",
+            "never repair, restart, reconfigure, or write to production",
         ],
         "capabilities": [
+            "metric.query",
+            "metric.compare",
             "metric.anomaly",
             "metric.dimension",
             "log.aggregate",
@@ -509,7 +820,12 @@ _SKILLS: dict[str, dict[str, Any]] = {
         ],
         "requiredEvidence": ["METRIC", "DEPLOYMENT", "LOG"],
         "optionalEvidence": ["TRACE", "CODE", "CONFIG"],
-        "verification": ["temporal consistency", "conflicting causes", "evidence coverage"],
+        "verification": [
+            "temporal consistency",
+            "cross-type evidence",
+            "conflicting causes",
+            "evidence coverage",
+        ],
     },
 }
 
@@ -519,7 +835,14 @@ async def bootstrap_builtin_registry(
 ) -> None:
     now = utc_now()
     agent_specs, skill_specs = load_registry_specs(_AGENTS, _SKILLS)
-    for name in ["reasoning-high", "coding-high", "fast", "private", "vision"]:
+    profile_requirements = {
+        "reasoning-high": {"profile": "reasoning-high", "capabilities": ["chat"]},
+        "coding-high": {"profile": "coding-high", "capabilities": ["chat"]},
+        "fast": {"profile": "fast", "capabilities": ["chat"]},
+        "private": {"profile": "private", "capabilities": ["chat"], "private": True},
+        "vision": {"profile": "vision", "capabilities": ["chat", "vision"]},
+    }
+    for name, requirements in profile_requirements.items():
         existing = await session.scalar(
             select(ModelProfile).where(
                 ModelProfile.organization_id == organization_id,
@@ -531,8 +854,8 @@ async def bootstrap_builtin_registry(
                 ModelProfile(
                     organization_id=organization_id,
                     name=name,
-                    requirements={"profile": name},
-                    routing_policy={"fallback": False},
+                    requirements=requirements,
+                    routing_policy={"fallback": True},
                     enabled=True,
                 )
             )
@@ -617,6 +940,7 @@ async def bootstrap_builtin_registry(
             )
             session.add(version)
             await session.flush()
+        CapabilityDescriptor.from_models(definition, version)
         if seed.name == "knowledge.search":
             binding = await session.scalar(
                 select(CapabilityBinding).where(
@@ -638,6 +962,7 @@ async def bootstrap_builtin_registry(
                 )
 
     for name, spec in agent_specs.items():
+        AgentSpec.from_dict(spec, source=f"builtin Agent {name}")
         agent_definition = await session.scalar(
             select(AgentDefinition).where(
                 AgentDefinition.organization_id == organization_id,

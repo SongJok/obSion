@@ -43,6 +43,7 @@ class CompiledQuery:
     dimensions: list[dict[str, Any]]
     lineage: dict[str, Any]
     validation: SqlValidationResult
+    column_masks: dict[str, dict[str, Any]]
 
 
 class DataIntelligenceService:
@@ -58,22 +59,32 @@ class DataIntelligenceService:
     ) -> Understanding:
         metrics = list(
             await session.scalars(
-                select(Metric).where(
+                select(Metric)
+                .where(
                     Metric.organization_id == principal.organization_id,
                     Metric.validated.is_(True),
                 )
+                .order_by(Metric.name, Metric.version.desc(), Metric.id)
             )
         )
         dimensions = list(
             await session.scalars(
-                select(Dimension).where(Dimension.organization_id == principal.organization_id)
+                select(Dimension)
+                .where(Dimension.organization_id == principal.organization_id)
+                .order_by(Dimension.name, Dimension.version.desc(), Dimension.id)
             )
         )
         semantic_synonyms = list(
             await session.scalars(
-                select(SemanticSynonym).where(
+                select(SemanticSynonym)
+                .where(
                     SemanticSynonym.organization_id == principal.organization_id,
                     SemanticSynonym.target_type.in_(["METRIC", "DIMENSION"]),
+                )
+                .order_by(
+                    SemanticSynonym.term,
+                    SemanticSynonym.target_type,
+                    SemanticSynonym.target_id,
                 )
             )
         )
@@ -97,6 +108,10 @@ class DataIntelligenceService:
                 for term in [metric.name, metric.display_name, *metric.synonyms]
             )
         ]
+        latest_metrics: dict[str, Metric] = {}
+        for metric in matched_metrics:
+            latest_metrics.setdefault(metric.name, metric)
+        matched_metrics = [latest_metrics[name] for name in sorted(latest_metrics)]
         matched_dimensions = [
             dimension
             for dimension in dimensions
@@ -106,6 +121,10 @@ class DataIntelligenceService:
                 for term in [dimension.name, dimension.display_name, *dimension.synonyms]
             )
         ]
+        latest_dimensions: dict[str, Dimension] = {}
+        for dimension in matched_dimensions:
+            latest_dimensions.setdefault(dimension.name, dimension)
+        matched_dimensions = [latest_dimensions[name] for name in sorted(latest_dimensions)]
         time_range = self._time_range(question)
         comparison = None
         if any(term in normalized for term in ["同比", "year over year", "yoy"]):
@@ -193,6 +212,10 @@ class DataIntelligenceService:
         if metric_row is None:
             raise NotFoundError("Validated metric", metric_id)
         metric, table, data_source = metric_row._tuple()
+        if len(dimension_ids) != len(set(dimension_ids)):
+            raise ValidationError(
+                "dimension_scope_invalid", "A logical plan cannot repeat a dimension"
+            )
         dimensions = list(
             await session.scalars(
                 select(Dimension).where(
@@ -206,6 +229,8 @@ class DataIntelligenceService:
             raise ValidationError(
                 "dimension_scope_invalid", "Every dimension must belong to the metric source table"
             )
+        dimensions_by_id = {dimension.id: dimension for dimension in dimensions}
+        dimensions = [dimensions_by_id[dimension_id] for dimension_id in dimension_ids]
         columns = list(
             await session.scalars(
                 select(DataColumn).where(
@@ -215,13 +240,18 @@ class DataIntelligenceService:
             )
         )
         allowed_column_names = {column.name for column in columns}
+        column_masks = {
+            column.name: column.mask_policy
+            for column in columns
+            if isinstance(column.mask_policy, dict) and column.mask_policy
+        }
         parameters: list[Any] = [start, end]
         parameter_types = ["datetime", "datetime"]
         select_parts = [f'{dimension.expression} AS "{dimension.name}"' for dimension in dimensions]
         select_parts.append(f'{metric.expression} AS "{metric.name}"')
         qualified_table = f'"{table.schema_name}"."{table.table_name}"'
         predicates = [f'"{metric.time_column}" >= $1', f'"{metric.time_column}" < $2']
-        for key, value in metric.filters.items():
+        for key, value in sorted(metric.filters.items()):
             if key not in allowed_column_names:
                 raise ValidationError(
                     "metric_filter_invalid", "Metric definition uses an unknown column"
@@ -230,6 +260,8 @@ class DataIntelligenceService:
             parameter_types.append("scalar")
             predicates.append(f'"{key}" = ${len(parameters)}')
         for item in plan.get("filters", []):
+            if not isinstance(item, dict):
+                raise ValidationError("query_filter_invalid", "Query filter is not allowed")
             column = item.get("column")
             operator = str(item.get("operator", "=")).upper()
             if column not in allowed_column_names or operator not in {
@@ -244,6 +276,13 @@ class DataIntelligenceService:
             parameters.append(item.get("value"))
             parameter_types.append("scalar")
             predicates.append(f'"{column}" {operator} ${len(parameters)}')
+        self._append_row_policy(
+            table.row_policy,
+            allowed_column_names=allowed_column_names,
+            predicates=predicates,
+            parameters=parameters,
+            parameter_types=parameter_types,
+        )
         group_by = ", ".join(dimension.expression for dimension in dimensions)
         sql = (  # noqa: S608 -- governed identifiers are parsed and allowlisted below
             f"SELECT {', '.join(select_parts)} FROM {qualified_table} "  # noqa: S608
@@ -252,11 +291,30 @@ class DataIntelligenceService:
         if group_by:
             sql = f"{sql} GROUP BY {group_by}"
         allowed_table = f"{table.schema_name}.{table.table_name}".lower()
-        validation = self.validator.validate(
+        query_policy = (
+            data_source.query_policy if isinstance(data_source.query_policy, dict) else {}
+        )
+        configured_max_rows = query_policy.get("max_rows")
+        max_limit = (
+            min(self.settings.sql_max_limit, configured_max_rows)
+            if isinstance(configured_max_rows, int)
+            and not isinstance(configured_max_rows, bool)
+            and configured_max_rows > 0
+            else self.settings.sql_max_limit
+        )
+        default_limit = min(self.settings.sql_default_limit, max_limit)
+        configured_budget = query_policy.get("scan_budget", self.settings.sql_scan_budget)
+        scan_budget = (
+            configured_budget
+            if isinstance(configured_budget, int) and not isinstance(configured_budget, bool)
+            else self.settings.sql_scan_budget
+        )
+        validation = SqlPolicyValidator(default_limit=default_limit, max_limit=max_limit).validate(
             sql,
             dialect=data_source.dialect,
             allowed_tables={allowed_table},
             allowed_columns=allowed_column_names,
+            scan_budget=scan_budget,
         )
         return CompiledQuery(
             sql=validation.normalized_sql,
@@ -280,7 +338,46 @@ class DataIntelligenceService:
                 "connector_id": str(data_source.connector_id),
             },
             validation=validation,
+            column_masks=column_masks,
         )
+
+    @staticmethod
+    def _append_row_policy(
+        row_policy: Any,
+        *,
+        allowed_column_names: set[str],
+        predicates: list[str],
+        parameters: list[Any],
+        parameter_types: list[str],
+    ) -> None:
+        if not isinstance(row_policy, dict) or not row_policy:
+            return
+        if "column" in row_policy and "allowed_values" in row_policy:
+            filters_value: Any = {row_policy.get("column"): row_policy.get("allowed_values")}
+        else:
+            filters_value = row_policy.get("filters", row_policy)
+        if not isinstance(filters_value, dict):
+            return
+        filters: dict[Any, Any] = filters_value
+        for column, raw_value in sorted(filters.items()):
+            if column in {"column", "allowed_values", "filters", "description"}:
+                continue
+            if column not in allowed_column_names:
+                raise ValidationError(
+                    "sql_row_policy_invalid", "Row policy references an unknown column"
+                )
+            values = raw_value if isinstance(raw_value, list) else [raw_value]
+            if not values:
+                raise ValidationError("sql_row_policy_invalid", "Row policy values cannot be empty")
+            placeholders: list[str] = []
+            for value in values:
+                parameters.append(value)
+                parameter_types.append("scalar")
+                placeholders.append(f"${len(parameters)}")
+            if len(placeholders) == 1:
+                predicates.append(f'"{column}" = {placeholders[0]}')
+            else:
+                predicates.append(f'"{column}" IN ({", ".join(placeholders)})')
 
     def _time_range(self, question: str) -> dict[str, str]:
         zone = ZoneInfo("Asia/Shanghai")

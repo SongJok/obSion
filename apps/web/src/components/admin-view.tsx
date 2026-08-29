@@ -16,6 +16,7 @@ import {
   MessageSquareCode,
   RefreshCw,
   ShieldCheck,
+  ThumbsUp,
   UserRoundCog,
   UsersRound,
   Workflow,
@@ -23,6 +24,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
+import type { FeedbackSummary } from "@/lib/types";
 
 type Items = Array<Record<string, unknown>>;
 
@@ -45,30 +47,32 @@ interface AdminData {
   knowledge: Items;
   secrets: Items;
   audit: Items;
+  feedback: FeedbackSummary;
 }
 
 const EMPTY: AdminData = {
   users: [], roles: [], departments: [], connectors: [], capabilities: [], profiles: [],
   agents: [], skills: [], dataSources: [], dataCatalog: {}, policies: [], approvals: [],
   evaluations: [], costs: [], prompts: [], knowledge: [], secrets: [], audit: [],
+  feedback: { total: 0, helpful: 0, needs_improvement: 0, helpful_rate: null },
 };
 
 async function loadControlPlane(): Promise<AdminData> {
   const [
     users, roles, departments, connectors, capabilities, profiles, agents, skills,
     dataSources, dataCatalog, policies, approvals, evaluations, costs, prompts,
-    knowledge, secrets, audit,
+    knowledge, secrets, audit, feedback,
   ] = await Promise.all([
     api.admin.users(), api.admin.roles(), api.admin.departments(), api.admin.connectors(),
     api.admin.capabilities(), api.admin.modelProfiles(), api.admin.agents(), api.admin.skills(),
     api.admin.dataSources(), api.admin.dataCatalog(), api.admin.policies(), api.admin.approvals(),
     api.admin.evaluations(), api.admin.costs(), api.admin.prompts(), api.admin.knowledge(),
-    api.admin.secrets(), api.admin.audit(),
+    api.admin.secrets(), api.admin.audit(), api.admin.feedbackSummary(),
   ]);
   return {
     users, roles, departments, connectors, capabilities, profiles, agents, skills,
     dataSources, dataCatalog, policies, approvals, evaluations, costs, prompts,
-    knowledge, secrets, audit,
+    knowledge, secrets, audit, feedback,
   };
 }
 
@@ -103,6 +107,9 @@ export function AdminView() {
   const totalCost = data.costs.reduce((sum, item) => sum + Number(item.cost_amount ?? 0), 0);
   const pendingApprovals = data.approvals.filter((item) => item.status === "PENDING").length;
   const semanticObjects = Object.values(data.dataCatalog).reduce((sum, count) => sum + count, 0);
+  const helpfulRate = data.feedback.helpful_rate === null
+    ? "—"
+    : `${Math.round(data.feedback.helpful_rate * 100)}%`;
 
   return (
     <main className="feature-page admin-page">
@@ -117,6 +124,7 @@ export function AdminView() {
         <Stat icon={<Boxes />} label="能力版本" value={data.capabilities.length} sub={`${data.connectors.filter((item) => item.status === "ACTIVE").length} 个连接器已启用`} />
         <Stat icon={<Database />} label="语义对象" value={semanticObjects} sub={`${data.dataSources.length} 个只读数据源`} />
         <Stat icon={<CircleDollarSign />} label="模型成本" value={totalCost.toFixed(4)} sub={`${pendingApprovals} 项审批待处理`} />
+        <Stat icon={<ThumbsUp />} label="用户满意度" value={helpfulRate} sub={`${data.feedback.total} 份反馈 · ${data.feedback.needs_improvement} 份待改进`} />
       </div>
 
       <section className="governance-catalog" aria-label="治理目录">

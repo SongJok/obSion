@@ -1,0 +1,32 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "artifact_ids": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "confidence": {
+      "type": "number"
+    },
+    "verified": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "artifact_id",
+    "artifact_ids",
+    "verified",
+    "confidence"
+  ],
+  "title": "run.completed payload v1",
+  "type": "object"
+}

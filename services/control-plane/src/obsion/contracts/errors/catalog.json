@@ -1,0 +1,1577 @@
+{
+  "catalog_version": 1,
+  "codes": [
+    {
+      "category": "conflict",
+      "code": "action_approval_already_decided",
+      "description": "Indicates the stable conflict condition `action_approval_already_decided` (action approval already decided). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "action_approval_expired",
+      "description": "Indicates the stable conflict condition `action_approval_expired` (action approval expired). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "action_approval_invalid",
+      "description": "Indicates the stable validation condition `action_approval_invalid` (action approval invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "action_approval_read_denied",
+      "description": "Indicates the stable authorization condition `action_approval_read_denied` (action approval read denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "action_attempt_mismatch",
+      "description": "Indicates the stable validation condition `action_attempt_mismatch` (action attempt mismatch). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "action_cancel_denied",
+      "description": "Indicates the stable authorization condition `action_cancel_denied` (action cancel denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "action_idempotency_conflict",
+      "description": "Indicates the stable conflict condition `action_idempotency_conflict` (action idempotency conflict). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "action_inline_secret_denied",
+      "description": "Indicates the stable validation condition `action_inline_secret_denied` (action inline secret denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "execution",
+      "code": "action_input_invalid",
+      "description": "Indicates the stable execution condition `action_input_invalid` (action input invalid).",
+      "http_status": null
+    },
+    {
+      "category": "conflict",
+      "code": "action_not_cancellable",
+      "description": "Indicates the stable conflict condition `action_not_cancellable` (action not cancellable). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "action_not_preflightable",
+      "description": "Indicates the stable conflict condition `action_not_preflightable` (action not preflightable). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "action_not_rollbackable",
+      "description": "Indicates the stable conflict condition `action_not_rollbackable` (action not rollbackable). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "action_output_invalid",
+      "description": "Indicates the stable validation condition `action_output_invalid` (action output invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "action_owner_assignment_denied",
+      "description": "Indicates the stable authorization condition `action_owner_assignment_denied` (action owner assignment denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "action_owner_permission_missing",
+      "description": "Indicates the stable validation condition `action_owner_permission_missing` (action owner permission missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "action_permission_denied",
+      "description": "Indicates the stable authorization condition `action_permission_denied` (action permission denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "action_permission_missing",
+      "description": "Indicates the stable validation condition `action_permission_missing` (action permission missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "action_plan_changed",
+      "description": "Indicates the stable conflict condition `action_plan_changed` (action plan changed). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "action_plan_exists",
+      "description": "Indicates the stable conflict condition `action_plan_exists` (action plan exists). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "action_plan_invalid",
+      "description": "Indicates the stable validation condition `action_plan_invalid` (action plan invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "action_plan_missing",
+      "description": "Indicates the stable conflict condition `action_plan_missing` (action plan missing). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "execution",
+      "code": "action_policy_denied",
+      "description": "Indicates the stable execution condition `action_policy_denied` (action policy denied).",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "action_provider_failed",
+      "description": "Indicates the stable dependency condition `action_provider_failed` (action provider failed).",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "action_provider_timeout",
+      "description": "Indicates the stable dependency condition `action_provider_timeout` (action provider timeout).",
+      "http_status": null
+    },
+    {
+      "category": "rate_limit",
+      "code": "action_rate_limited",
+      "description": "Indicates the stable rate_limit condition `action_rate_limited` (action rate limited).",
+      "http_status": null
+    },
+    {
+      "category": "execution",
+      "code": "action_rejected",
+      "description": "Indicates the stable execution condition `action_rejected` (action rejected).",
+      "http_status": null
+    },
+    {
+      "category": "validation",
+      "code": "action_response_too_large",
+      "description": "Indicates the stable validation condition `action_response_too_large` (action response too large). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "action_rollback_denied",
+      "description": "Indicates the stable authorization condition `action_rollback_denied` (action rollback denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "execution",
+      "code": "action_rollback_rejected",
+      "description": "Indicates the stable execution condition `action_rollback_rejected` (action rollback rejected).",
+      "http_status": null
+    },
+    {
+      "category": "authorization",
+      "code": "action_self_approval_denied",
+      "description": "Indicates the stable authorization condition `action_self_approval_denied` (action self approval denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "dependency",
+      "code": "action_timeout",
+      "description": "An approved Action exceeded its sealed execution deadline.",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "action_worker_failed",
+      "description": "Indicates the stable dependency condition `action_worker_failed` (action worker failed).",
+      "http_status": null
+    },
+    {
+      "category": "authorization",
+      "code": "admin_access_denied",
+      "description": "Indicates the stable authorization condition `admin_access_denied` (admin access denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "approval_already_decided",
+      "description": "Indicates the stable conflict condition `approval_already_decided` (approval already decided). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "approval_decide_denied",
+      "description": "Indicates the stable authorization condition `approval_decide_denied` (approval decide denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "approval_expired",
+      "description": "Indicates the stable conflict condition `approval_expired` (approval expired). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "approval_read_denied",
+      "description": "Indicates the stable authorization condition `approval_read_denied` (approval read denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "execution",
+      "code": "approval_rejected",
+      "description": "Indicates the stable execution condition `approval_rejected` (approval rejected).",
+      "http_status": null
+    },
+    {
+      "category": "authorization",
+      "code": "approver_constraint_failed",
+      "description": "Indicates the stable authorization condition `approver_constraint_failed` (approver constraint failed). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "not_found",
+      "code": "artifact_content_missing",
+      "description": "The requested resource is unavailable because artifact content missing. REST responses use HTTP 404.",
+      "http_status": 404
+    },
+    {
+      "category": "validation",
+      "code": "artifact_empty",
+      "description": "Indicates the stable validation condition `artifact_empty` (artifact empty). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "artifact_inline_only",
+      "description": "Indicates the stable validation condition `artifact_inline_only` (artifact inline only). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "artifact_integrity_failed",
+      "description": "Indicates the stable dependency condition `artifact_integrity_failed` (artifact integrity failed). REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "artifact_lineage_invalid",
+      "description": "Indicates the stable validation condition `artifact_lineage_invalid` (artifact lineage invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "artifact_run_workspace_mismatch",
+      "description": "Indicates the stable validation condition `artifact_run_workspace_mismatch` (artifact run workspace mismatch). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "artifact_store_unavailable",
+      "description": "Indicates the stable dependency condition `artifact_store_unavailable` (artifact store unavailable). REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "artifact_too_large",
+      "description": "Indicates the stable validation condition `artifact_too_large` (artifact too large). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "artifact_write_denied",
+      "description": "Indicates the stable authorization condition `artifact_write_denied` (artifact write denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "attachment_content_missing",
+      "description": "Indicates the stable validation condition `attachment_content_missing` (attachment content missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "attachment_reference_invalid",
+      "description": "Indicates the stable validation condition `attachment_reference_invalid` (attachment reference invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "attachment_type_unsupported",
+      "description": "Indicates the stable validation condition `attachment_type_unsupported` (attachment type unsupported). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "authentication_required",
+      "description": "Indicates the stable authorization condition `authentication_required` (authentication required). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "execution",
+      "code": "automation_cancelled",
+      "description": "Indicates the stable execution condition `automation_cancelled` (automation cancelled).",
+      "http_status": null
+    },
+    {
+      "category": "execution",
+      "code": "automation_child_run_failed",
+      "description": "A child Harness Run reached a failed or cancelled terminal state without a more specific error code.",
+      "http_status": null
+    },
+    {
+      "category": "execution",
+      "code": "automation_child_run_missing",
+      "description": "Indicates the stable execution condition `automation_child_run_missing` (automation child run missing).",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "automation_execution_failed",
+      "description": "Reserved compatibility code for a failed Automation Execution produced by an earlier contract revision; current producers emit a more specific failure code.",
+      "http_status": null
+    },
+    {
+      "category": "execution",
+      "code": "automation_execution_skipped",
+      "description": "Reserved compatibility code for an Automation Execution skipped by an earlier contract revision; current producers emit lifecycle-specific status and error data.",
+      "http_status": null
+    },
+    {
+      "category": "conflict",
+      "code": "automation_idempotency_conflict",
+      "description": "Indicates the stable conflict condition `automation_idempotency_conflict` (automation idempotency conflict). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "automation_permission_denied",
+      "description": "Indicates the stable authorization condition `automation_permission_denied` (automation permission denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "authorization",
+      "code": "automation_self_review_denied",
+      "description": "Indicates the stable authorization condition `automation_self_review_denied` (automation self review denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "execution",
+      "code": "automation_step_failed",
+      "description": "An Automation Step failed without a more specific persisted error code.",
+      "http_status": null
+    },
+    {
+      "category": "conflict",
+      "code": "automation_step_not_waiting_review",
+      "description": "Indicates the stable conflict condition `automation_step_not_waiting_review` (automation step not waiting review). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "dependency",
+      "code": "automation_timeout",
+      "description": "Indicates the stable dependency condition `automation_timeout` (automation timeout).",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "automation_worker_failed",
+      "description": "Indicates the stable dependency condition `automation_worker_failed` (automation worker failed).",
+      "http_status": null
+    },
+    {
+      "category": "rate_limit",
+      "code": "budget_exceeded",
+      "description": "Indicates the stable rate_limit condition `budget_exceeded` (budget exceeded). REST responses use HTTP 429.",
+      "http_status": 429
+    },
+    {
+      "category": "dependency",
+      "code": "capabilities_unavailable",
+      "description": "Indicates the stable dependency condition `capabilities_unavailable` (capabilities unavailable). REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "execution",
+      "code": "capability_denied",
+      "description": "Indicates the stable execution condition `capability_denied` (capability denied).",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "capability_failed",
+      "description": "Indicates the stable dependency condition `capability_failed` (capability failed).",
+      "http_status": null
+    },
+    {
+      "category": "execution",
+      "code": "capability_input_invalid",
+      "description": "Indicates the stable execution condition `capability_input_invalid` (capability input invalid).",
+      "http_status": null
+    },
+    {
+      "category": "execution",
+      "code": "capability_output_invalid",
+      "description": "Indicates the stable execution condition `capability_output_invalid` (capability output invalid).",
+      "http_status": null
+    },
+    {
+      "category": "rate_limit",
+      "code": "capability_rate_limited",
+      "description": "Indicates the stable rate_limit condition `capability_rate_limited` (capability rate limited).",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "capability_timeout",
+      "description": "Indicates the stable dependency condition `capability_timeout` (capability timeout).",
+      "http_status": null
+    },
+    {
+      "category": "dependency",
+      "code": "capability_transport_unavailable",
+      "description": "Indicates the stable dependency condition `capability_transport_unavailable` (capability transport unavailable).",
+      "http_status": null
+    },
+    {
+      "category": "validation",
+      "code": "capability_version_ambiguous",
+      "description": "Indicates the stable validation condition `capability_version_ambiguous` (capability version ambiguous). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "connection_already_initialized",
+      "description": "Indicates the stable conflict condition `connection_already_initialized` (connection already initialized). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "connector_egress_denied",
+      "description": "Indicates the stable validation condition `connector_egress_denied` (connector egress denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "connector_egress_invalid",
+      "description": "Indicates the stable validation condition `connector_egress_invalid` (connector egress invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "connector_endpoint_missing",
+      "description": "Indicates the stable validation condition `connector_endpoint_missing` (connector endpoint missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "connector_environment_mismatch",
+      "description": "Indicates the stable validation condition `connector_environment_mismatch` (connector environment mismatch). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "connector_grant_missing",
+      "description": "Indicates the stable validation condition `connector_grant_missing` (connector grant missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "connector_handler_missing",
+      "description": "Indicates the stable validation condition `connector_handler_missing` (connector handler missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "connector_tls_required",
+      "description": "Indicates the stable validation condition `connector_tls_required` (connector tls required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "credential_context_missing",
+      "description": "Indicates the stable validation condition `credential_context_missing` (credential context missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "credential_provider_unsupported",
+      "description": "Indicates the stable validation condition `credential_provider_unsupported` (credential provider unsupported). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "credential_unavailable",
+      "description": "Indicates the stable validation condition `credential_unavailable` (credential unavailable). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "data_evidence_invalid",
+      "description": "Indicates the stable validation condition `data_evidence_invalid` (data evidence invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "department_exists",
+      "description": "A department with the same organization-scoped name already exists. REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "dependency",
+      "code": "dependency_failed",
+      "description": "Indicates the stable dependency condition `dependency_failed` (dependency failed).",
+      "http_status": null
+    },
+    {
+      "category": "validation",
+      "code": "dimension_scope_invalid",
+      "description": "Indicates the stable validation condition `dimension_scope_invalid` (dimension scope invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "document_acl_invalid",
+      "description": "Indicates the stable validation condition `document_acl_invalid` (document acl invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "document_acl_required",
+      "description": "Indicates the stable validation condition `document_acl_required` (document acl required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "document_empty",
+      "description": "Indicates the stable validation condition `document_empty` (document empty). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "document_integrity_failed",
+      "description": "Indicates the stable dependency condition `document_integrity_failed` (document integrity failed). REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "document_parse_failed",
+      "description": "Indicates the stable validation condition `document_parse_failed` (document parse failed). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "document_too_large",
+      "description": "Indicates the stable validation condition `document_too_large` (document too large). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "document_type_unsupported",
+      "description": "Indicates the stable validation condition `document_type_unsupported` (document type unsupported). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "engineering_operation_invalid",
+      "description": "Indicates the stable validation condition `engineering_operation_invalid` (engineering operation invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "engineering_repository_denied",
+      "description": "The requested repository is outside the engineering connector allowlist. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "engineering_response_invalid",
+      "description": "The read-only engineering provider returned a payload outside the normalized change contract. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "dependency",
+      "code": "engineering_unavailable",
+      "description": "The configured read-only engineering provider is unavailable. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "conflict",
+      "code": "evaluation_agent_version_mismatch",
+      "description": "Indicates the stable conflict condition `evaluation_agent_version_mismatch` (evaluation agent version mismatch). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "evaluation_baseline_not_completed",
+      "description": "Indicates the stable conflict condition `evaluation_baseline_not_completed` (evaluation baseline not completed). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "evaluation_baseline_snapshot_mismatch",
+      "description": "Indicates the stable conflict condition `evaluation_baseline_snapshot_mismatch` (evaluation baseline snapshot mismatch). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_dataset_empty",
+      "description": "Indicates the stable validation condition `evaluation_dataset_empty` (evaluation dataset empty). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "evaluation_executor_failed",
+      "description": "Indicates the stable dependency condition `evaluation_executor_failed` (evaluation executor failed).",
+      "http_status": null
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_expectation_unsupported",
+      "description": "Indicates the stable validation condition `evaluation_expectation_unsupported` (evaluation expectation unsupported). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_expected_required",
+      "description": "Indicates the stable validation condition `evaluation_expected_required` (evaluation expected required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "evaluation_model_profile_mismatch",
+      "description": "Indicates the stable conflict condition `evaluation_model_profile_mismatch` (evaluation model profile mismatch). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_question_required",
+      "description": "Indicates the stable validation condition `evaluation_question_required` (evaluation question required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "evaluation_read_denied",
+      "description": "Indicates the stable authorization condition `evaluation_read_denied` (evaluation read denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "evaluation_registry_dependency_unresolved",
+      "description": "Indicates the stable conflict condition `evaluation_registry_dependency_unresolved` (evaluation registry dependency unresolved). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_run_binding_invalid",
+      "description": "Indicates the stable validation condition `evaluation_run_binding_invalid` (evaluation run binding invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_run_binding_required",
+      "description": "Indicates the stable validation condition `evaluation_run_binding_required` (evaluation run binding required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_run_id_required",
+      "description": "Indicates the stable validation condition `evaluation_run_id_required` (evaluation run id required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "evaluation_run_not_terminal",
+      "description": "Indicates the stable conflict condition `evaluation_run_not_terminal` (evaluation run not terminal). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_score_expectation_invalid",
+      "description": "Indicates the stable validation condition `evaluation_score_expectation_invalid` (evaluation score expectation invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_score_threshold_invalid",
+      "description": "Indicates the stable validation condition `evaluation_score_threshold_invalid` (evaluation score threshold invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_sql_contract_required",
+      "description": "Indicates the stable validation condition `evaluation_sql_contract_required` (evaluation sql contract required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_sql_required",
+      "description": "Indicates the stable validation condition `evaluation_sql_required` (evaluation sql required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_target_required",
+      "description": "Indicates the stable validation condition `evaluation_target_required` (evaluation target required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_target_unsupported",
+      "description": "Indicates the stable validation condition `evaluation_target_unsupported` (evaluation target unsupported). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "evaluation_understanding_invalid",
+      "description": "Indicates the stable validation condition `evaluation_understanding_invalid` (evaluation understanding invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "evaluation_write_denied",
+      "description": "Indicates the stable authorization condition `evaluation_write_denied` (evaluation write denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "event_envelope_schema_invalid",
+      "description": "The Event envelope does not satisfy the registered envelope schema.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "event_name_unregistered",
+      "description": "The Event name is absent from the versioned Event registry.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "event_payload_not_json_safe",
+      "description": "An Event payload value cannot be represented as canonical JSON without ambiguity or loss.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "event_payload_not_object",
+      "description": "The canonical, redacted Event payload is not a JSON object.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "event_payload_schema_invalid",
+      "description": "The canonical, redacted Event payload does not satisfy its registered versioned schema.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "event_run_missing",
+      "description": "Indicates the stable conflict condition `event_run_missing` (event run missing). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "event_schema_version_unsupported",
+      "description": "The requested Event schema version is not registered for the Event name.",
+      "http_status": 422
+    },
+    {
+      "category": "execution",
+      "code": "human_review_rejected",
+      "description": "Indicates the stable execution condition `human_review_rejected` (human review rejected).",
+      "http_status": null
+    },
+    {
+      "category": "conflict",
+      "code": "idempotency_already_completed",
+      "description": "Indicates the stable conflict condition `idempotency_already_completed` (idempotency already completed). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "idempotency_claim_lost",
+      "description": "Indicates the stable conflict condition `idempotency_claim_lost` (idempotency claim lost). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "idempotency_key_reused",
+      "description": "Indicates the stable conflict condition `idempotency_key_reused` (idempotency key reused). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "idempotency_request_in_progress",
+      "description": "Indicates the stable conflict condition `idempotency_request_in_progress` (idempotency request in progress). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "inline_secret_denied",
+      "description": "Indicates the stable validation condition `inline_secret_denied` (inline secret denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "internal",
+      "code": "internal_error",
+      "description": "The server encountered an unexpected internal failure. REST responses use HTTP 500.",
+      "http_status": 500
+    },
+    {
+      "category": "validation",
+      "code": "invalid_credential_reference",
+      "description": "Indicates the stable validation condition `invalid_credential_reference` (invalid credential reference). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "invalid_query_parameters",
+      "description": "Indicates the stable validation condition `invalid_query_parameters` (invalid query parameters). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "invalid_query_payload",
+      "description": "Indicates the stable validation condition `invalid_query_payload` (invalid query payload). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "invalid_run_transition",
+      "description": "Indicates the stable conflict condition `invalid_run_transition` (invalid run transition). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "invalid_token",
+      "description": "Indicates the stable authorization condition `invalid_token` (invalid token). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "knowledge_query_empty",
+      "description": "Indicates the stable validation condition `knowledge_query_empty` (knowledge query empty). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "knowledge_write_denied",
+      "description": "Indicates the stable authorization condition `knowledge_write_denied` (knowledge write denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "logical_plan_invalid",
+      "description": "Indicates the stable validation condition `logical_plan_invalid` (logical plan invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "memory_already_decided",
+      "description": "Indicates the stable conflict condition `memory_already_decided` (memory already decided). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "memory_approval_denied",
+      "description": "Indicates the stable authorization condition `memory_approval_denied` (memory approval denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "memory_content_too_large",
+      "description": "Indicates the stable validation condition `memory_content_too_large` (memory content too large). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "memory_duplicate_classification_conflict",
+      "description": "Indicates the stable conflict condition `memory_duplicate_classification_conflict` (memory duplicate classification conflict). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "memory_expiry_exceeds_policy",
+      "description": "Indicates the stable validation condition `memory_expiry_exceeds_policy` (memory expiry exceeds policy). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "memory_expiry_invalid",
+      "description": "Indicates the stable validation condition `memory_expiry_invalid` (memory expiry invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "memory_owner_denied",
+      "description": "Indicates the stable authorization condition `memory_owner_denied` (memory owner denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "memory_owner_invalid",
+      "description": "Indicates the stable validation condition `memory_owner_invalid` (memory owner invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "memory_policy_denied",
+      "description": "Indicates the stable authorization condition `memory_policy_denied` (memory policy denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "authorization",
+      "code": "memory_read_denied",
+      "description": "Indicates the stable authorization condition `memory_read_denied` (memory read denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "memory_scope_required",
+      "description": "Indicates the stable validation condition `memory_scope_required` (memory scope required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "memory_write_denied",
+      "description": "Indicates the stable authorization condition `memory_write_denied` (memory write denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "method_not_allowed",
+      "description": "The HTTP method is not allowed for the matched API route. REST responses use HTTP 405.",
+      "http_status": 405
+    },
+    {
+      "category": "validation",
+      "code": "metric_filter_invalid",
+      "description": "Indicates the stable validation condition `metric_filter_invalid` (metric filter invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "metric_not_resolved",
+      "description": "Indicates the stable validation condition `metric_not_resolved` (metric not resolved). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "model_endpoint_allowlist_invalid",
+      "description": "Indicates the stable validation condition `model_endpoint_allowlist_invalid` (model endpoint allowlist invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "model_endpoint_egress_denied",
+      "description": "Indicates the stable validation condition `model_endpoint_egress_denied` (model endpoint egress denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "model_endpoint_exists",
+      "description": "A model endpoint with the same organization-scoped name already exists.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "model_endpoint_invalid",
+      "description": "Indicates the stable validation condition `model_endpoint_invalid` (model endpoint invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "model_endpoint_tls_required",
+      "description": "Indicates the stable validation condition `model_endpoint_tls_required` (model endpoint tls required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "model_profile_binding_exists",
+      "description": "The model endpoint is already bound to the selected profile.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "model_profile_exists",
+      "description": "A model profile with the same organization-scoped name already exists.",
+      "http_status": 409
+    },
+    {
+      "category": "dependency",
+      "code": "model_unavailable",
+      "description": "No eligible Model Gateway endpoint is available or the selected endpoint failed.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "observability_operation_invalid",
+      "description": "Indicates the stable validation condition `observability_operation_invalid` (observability operation invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "observability_response_invalid",
+      "description": "The read-only observability provider returned a payload outside the normalized event contract. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "dependency",
+      "code": "observability_unavailable",
+      "description": "The configured read-only observability provider is unavailable. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "authorization",
+      "code": "oidc_not_configured",
+      "description": "Indicates the stable authorization condition `oidc_not_configured` (oidc not configured). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "authorization",
+      "code": "organization_claim_missing",
+      "description": "Indicates the stable authorization condition `organization_claim_missing` (organization claim missing). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "plan_dependency_deadlock",
+      "description": "Indicates the stable validation condition `plan_dependency_deadlock` (plan dependency deadlock). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "prompt_secret_denied",
+      "description": "Indicates the stable validation condition `prompt_secret_denied` (prompt secret denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "prompt_variables_schema_invalid",
+      "description": "Indicates the stable validation condition `prompt_variables_schema_invalid` (prompt variables schema invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "query_filter_invalid",
+      "description": "Indicates the stable validation condition `query_filter_invalid` (query filter invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "rate_limit",
+      "code": "rate_limit_unavailable",
+      "description": "Indicates the stable rate_limit condition `rate_limit_unavailable` (rate limit unavailable).",
+      "http_status": null
+    },
+    {
+      "category": "conflict",
+      "code": "replay_run_not_running",
+      "description": "Indicates the stable conflict condition `replay_run_not_running` (replay run not running). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "request_origin_denied",
+      "description": "A cookie-authenticated browser request came from an origin outside the configured allowlist. REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "request_validation_failed",
+      "description": "The HTTP request does not satisfy the declared API input contract. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "not_found",
+      "code": "resource_not_found",
+      "description": "The requested domain resource or HTTP route was not found. REST responses use HTTP 404.",
+      "http_status": 404
+    },
+    {
+      "category": "conflict",
+      "code": "role_exists",
+      "description": "A role with the same organization-scoped name already exists. REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "run_feedback_run_active",
+      "description": "Indicates the stable conflict condition `run_feedback_run_active` (run feedback run active). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "run_feedback_version_conflict",
+      "description": "Indicates the stable conflict condition `run_feedback_version_conflict` (run feedback version conflict). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "run_feedback_workspace_missing",
+      "description": "Indicates the stable conflict condition `run_feedback_workspace_missing` (run feedback workspace missing). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "run_not_invocable",
+      "description": "Indicates the stable conflict condition `run_not_invocable` (run not invocable). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "run_not_replay",
+      "description": "Indicates the stable validation condition `run_not_replay` (run not replay). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "run_not_replayable",
+      "description": "Indicates the stable conflict condition `run_not_replayable` (run not replayable). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "dependency",
+      "code": "run_timeout",
+      "description": "Indicates the stable dependency condition `run_timeout` (run timeout).",
+      "http_status": null
+    },
+    {
+      "category": "validation",
+      "code": "schedule_cron_invalid",
+      "description": "Indicates the stable validation condition `schedule_cron_invalid` (schedule cron invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "execution",
+      "code": "schedule_misfire_skipped",
+      "description": "Indicates the stable execution condition `schedule_misfire_skipped` (schedule misfire skipped).",
+      "http_status": null
+    },
+    {
+      "category": "conflict",
+      "code": "schedule_name_exists",
+      "description": "Indicates the stable conflict condition `schedule_name_exists` (schedule name exists). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "schedule_timezone_invalid",
+      "description": "Indicates the stable validation condition `schedule_timezone_invalid` (schedule timezone invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "secret_reference_exists",
+      "description": "Indicates the stable conflict condition `secret_reference_exists` (secret reference exists). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "self_approval_denied",
+      "description": "Indicates the stable authorization condition `self_approval_denied` (self approval denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "sql_column_denied",
+      "description": "Indicates the stable validation condition `sql_column_denied` (sql column denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_explain_execution_denied",
+      "description": "Indicates the stable validation condition `sql_explain_execution_denied` (sql explain execution denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_function_denied",
+      "description": "Indicates the stable validation condition `sql_function_denied` (sql function denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_limit_required",
+      "description": "Indicates the stable validation condition `sql_limit_required` (sql limit required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_multiple_statements",
+      "description": "Indicates the stable validation condition `sql_multiple_statements` (sql multiple statements). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_mutation_denied",
+      "description": "Indicates the stable validation condition `sql_mutation_denied` (sql mutation denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_parse_failed",
+      "description": "Indicates the stable validation condition `sql_parse_failed` (sql parse failed). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_primary_source_denied",
+      "description": "Indicates the stable validation condition `sql_primary_source_denied` (sql primary source denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_read_only_required",
+      "description": "Indicates the stable validation condition `sql_read_only_required` (sql read only required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_row_policy_invalid",
+      "description": "Indicates the stable validation condition `sql_row_policy_invalid` (sql row policy invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_scan_budget_exceeded",
+      "description": "Indicates the stable validation condition `sql_scan_budget_exceeded` (sql scan budget exceeded). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_scan_budget_invalid",
+      "description": "Indicates the stable validation condition `sql_scan_budget_invalid` (sql scan budget invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_scan_budget_unavailable",
+      "description": "Indicates the stable validation condition `sql_scan_budget_unavailable` (sql scan budget unavailable). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_select_into_denied",
+      "description": "Indicates the stable validation condition `sql_select_into_denied` (sql select into denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_table_denied",
+      "description": "Indicates the stable validation condition `sql_table_denied` (sql table denied). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "sql_table_required",
+      "description": "Indicates the stable validation condition `sql_table_required` (sql table required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "subscription_limit_reached",
+      "description": "Indicates the stable conflict condition `subscription_limit_reached` (subscription limit reached). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "thread_archived",
+      "description": "Indicates the stable conflict condition `thread_archived` (thread archived). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "thread_fork_point_missing",
+      "description": "Indicates the stable conflict condition `thread_fork_point_missing` (thread fork point missing). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "thread_has_active_run",
+      "description": "Indicates the stable conflict condition `thread_has_active_run` (thread has active run). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "thread_lineage_invalid",
+      "description": "Indicates the stable conflict condition `thread_lineage_invalid` (thread lineage invalid). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "time_range_invalid",
+      "description": "Indicates the stable validation condition `time_range_invalid` (time range invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "unknown_principal",
+      "description": "Indicates the stable authorization condition `unknown_principal` (unknown principal). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "user_exists",
+      "description": "Indicates the stable conflict condition `user_exists` (user exists). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "v1_action_binding_boundary",
+      "description": "Indicates the stable validation condition `v1_action_binding_boundary` (v1 action binding boundary). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "v1_action_capability_boundary",
+      "description": "Indicates the stable validation condition `v1_action_capability_boundary` (v1 action capability boundary). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "v1_action_type_boundary",
+      "description": "Indicates the stable validation condition `v1_action_type_boundary` (v1 action type boundary). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "v1_production_action_boundary",
+      "description": "Indicates the stable validation condition `v1_production_action_boundary` (v1 production action boundary). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "execution",
+      "code": "workflow_concurrency_forbidden",
+      "description": "Indicates the stable execution condition `workflow_concurrency_forbidden` (workflow concurrency forbidden).",
+      "http_status": null
+    },
+    {
+      "category": "validation",
+      "code": "workflow_concurrency_invalid",
+      "description": "Indicates the stable validation condition `workflow_concurrency_invalid` (workflow concurrency invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "execution",
+      "code": "workflow_concurrency_limit",
+      "description": "Indicates the stable execution condition `workflow_concurrency_limit` (workflow concurrency limit).",
+      "http_status": null
+    },
+    {
+      "category": "conflict",
+      "code": "workflow_name_exists",
+      "description": "Indicates the stable conflict condition `workflow_name_exists` (workflow name exists). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "workflow_not_active",
+      "description": "Indicates the stable conflict condition `workflow_not_active` (workflow not active). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "execution",
+      "code": "workflow_not_found",
+      "description": "Indicates the stable execution condition `workflow_not_found` (workflow not found).",
+      "http_status": null
+    },
+    {
+      "category": "authorization",
+      "code": "workflow_owner_assignment_denied",
+      "description": "Indicates the stable authorization condition `workflow_owner_assignment_denied` (workflow owner assignment denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "authorization",
+      "code": "workflow_owner_inactive",
+      "description": "Indicates the stable authorization condition `workflow_owner_inactive` (workflow owner inactive). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "workflow_owner_permission_missing",
+      "description": "Indicates the stable validation condition `workflow_owner_permission_missing` (workflow owner permission missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "workflow_owner_required",
+      "description": "Indicates the stable authorization condition `workflow_owner_required` (workflow owner required). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "workflow_retired",
+      "description": "Indicates the stable conflict condition `workflow_retired` (workflow retired). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "workflow_status_invalid",
+      "description": "Indicates the stable validation condition `workflow_status_invalid` (workflow status invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workflow_step_invalid",
+      "description": "Indicates the stable validation condition `workflow_step_invalid` (workflow step invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workflow_template_invalid",
+      "description": "Indicates the stable validation condition `workflow_template_invalid` (workflow template invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workflow_template_value_invalid",
+      "description": "Indicates the stable validation condition `workflow_template_value_invalid` (workflow template value invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workflow_template_value_missing",
+      "description": "Indicates the stable validation condition `workflow_template_value_missing` (workflow template value missing). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "workflow_unpublished",
+      "description": "Indicates the stable conflict condition `workflow_unpublished` (workflow unpublished). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "workflow_version_unavailable",
+      "description": "Indicates the stable validation condition `workflow_version_unavailable` (workflow version unavailable). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_decision_no_changes",
+      "description": "Indicates the stable conflict condition `workspace_decision_no_changes` (workspace decision no changes). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_decision_revision_closed",
+      "description": "Indicates the stable conflict condition `workspace_decision_revision_closed` (workspace decision revision closed). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_decision_supersedes_not_accepted",
+      "description": "Indicates the stable conflict condition `workspace_decision_supersedes_not_accepted` (workspace decision supersedes not accepted). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "workspace_decision_supersedes_workspace_mismatch",
+      "description": "Indicates the stable validation condition `workspace_decision_supersedes_workspace_mismatch` (workspace decision supersedes workspace mismatch). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workspace_decision_target_invalid",
+      "description": "Indicates the stable validation condition `workspace_decision_target_invalid` (workspace decision target invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_decision_transition_invalid",
+      "description": "Indicates the stable conflict condition `workspace_decision_transition_invalid` (workspace decision transition invalid). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_decision_version_conflict",
+      "description": "The Workspace Decision changed after the caller loaded its expected version.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_decision_version_missing",
+      "description": "Indicates the stable conflict condition `workspace_decision_version_missing` (workspace decision version missing). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "workspace_membership_denied",
+      "description": "Indicates the stable authorization condition `workspace_membership_denied` (workspace membership denied). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "workspace_permissions_invalid",
+      "description": "Indicates the stable validation condition `workspace_permissions_invalid` (workspace permissions invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workspace_source_run_mismatch",
+      "description": "Indicates the stable validation condition `workspace_source_run_mismatch` (workspace source run mismatch). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workspace_task_assignee_invalid",
+      "description": "Indicates the stable validation condition `workspace_task_assignee_invalid` (workspace task assignee invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workspace_task_description_required",
+      "description": "Indicates the stable validation condition `workspace_task_description_required` (workspace task description required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_task_no_changes",
+      "description": "Indicates the stable conflict condition `workspace_task_no_changes` (workspace task no changes). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "workspace_task_priority_required",
+      "description": "Indicates the stable validation condition `workspace_task_priority_required` (workspace task priority required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workspace_task_status_required",
+      "description": "Indicates the stable validation condition `workspace_task_status_required` (workspace task status required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "workspace_task_title_required",
+      "description": "Indicates the stable validation condition `workspace_task_title_required` (workspace task title required). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_task_transition_invalid",
+      "description": "Indicates the stable conflict condition `workspace_task_transition_invalid` (workspace task transition invalid). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "workspace_task_version_conflict",
+      "description": "The Workspace Task changed after the caller loaded its expected version.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "workspace_write_denied",
+      "description": "Indicates the stable authorization condition `workspace_write_denied` (workspace write denied). REST responses use HTTP 403.",
+      "http_status": 403
+    }
+  ]
+}

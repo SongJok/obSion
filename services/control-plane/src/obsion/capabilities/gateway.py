@@ -1,8 +1,7 @@
 import asyncio
 import hashlib
-import json
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
 from time import perf_counter
@@ -20,9 +19,11 @@ from obsion.capabilities.rate_limit import (
     InMemoryFixedWindowRateLimiter,
     RateLimitUnavailable,
 )
-from obsion.common.errors import NotFoundError, ValidationError
+from obsion.common.errors import NotFoundError, ObsionError, ValidationError
 from obsion.common.time import utc_now
+from obsion.contracts.errors import validate_error_code
 from obsion.db.models import (
+    AgentVersion,
     Approval,
     CapabilityBinding,
     CapabilityDefinition,
@@ -39,6 +40,7 @@ from obsion.domain.enums import (
     EvidenceType,
     RegistryStatus,
 )
+from obsion.domains.evidence.fabric import EvidenceFabric, EvidenceInput
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
 from obsion.security.identity import Principal
@@ -66,8 +68,10 @@ class GatewayRequest:
     run_id: UUID
     step_id: UUID | None = None
     agent_version_id: UUID | None = None
+    model_profile_id: UUID | None = None
     capability_version: int | None = None
     capability_version_id: UUID | None = None
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +85,9 @@ class GatewayResult:
     error_message: str | None = None
     capability_version_id: UUID | None = None
     connector_id: UUID | None = None
+
+    def __post_init__(self) -> None:
+        validate_error_code(self.error_code)
 
 
 class CapabilityGateway:
@@ -100,6 +107,7 @@ class CapabilityGateway:
         self.events = events or EventStore()
         self.audit = audit or AuditWriter()
         self.rate_limiter = rate_limiter or InMemoryFixedWindowRateLimiter(120)
+        self.evidence = EvidenceFabric()
 
     async def invoke(self, session: AsyncSession, request: GatewayRequest) -> GatewayResult:
         with tracer.start_as_current_span("obsion.capability.invoke") as span:
@@ -115,6 +123,9 @@ class CapabilityGateway:
 
     async def _invoke(self, session: AsyncSession, request: GatewayRequest) -> GatewayResult:
         definition, version, connector = await self._resolve(session, request)
+        agent_capability_allowed = await self._agent_capability_allowed(
+            session, request, definition.name, version
+        )
         await self.events.append(
             session,
             EventDraft(
@@ -140,13 +151,56 @@ class CapabilityGateway:
                 capability=version,
                 action=version.permission_action,
                 resource=request.resource,
-                context={"environment": request.environment},
+                context={**request.context, "environment": request.environment},
                 agent_name=request.agent_name,
                 agent_version_id=request.agent_version_id,
+                agent_capability_allowed=agent_capability_allowed,
                 run_id=request.run_id,
             ),
         )
         await self._policy_event(session, request, decision)
+        if decision.effect == DecisionEffect.DENY:
+            await self._audit(
+                session,
+                request,
+                version,
+                decision,
+                "DENIED",
+                metadata={"reasons": decision.reason_codes},
+            )
+            return GatewayResult(
+                status=GatewayStatus.DENIED,
+                policy_decision_id=decision.id,
+                error_code="capability_denied",
+                error_message="The capability request was denied by policy",
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        repository_denied = self._engineering_repository_denied(connector, request)
+        if not self._connector_grant_allows(connector, version) or repository_denied:
+            error_code = (
+                "engineering_repository_denied" if repository_denied else "connector_grant_missing"
+            )
+            await self._audit(
+                session,
+                request,
+                version,
+                decision,
+                "DENIED",
+                metadata={"error_code": error_code},
+            )
+            return GatewayResult(
+                status=GatewayStatus.DENIED,
+                policy_decision_id=decision.id,
+                error_code=error_code,
+                error_message=(
+                    "The repository is not allowed by the engineering connector"
+                    if repository_denied
+                    else "The connector is not granted this capability"
+                ),
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
         try:
             self._validate(version.input_schema, request.payload, "capability_input_invalid")
         except ValidationError as exc:
@@ -167,24 +221,6 @@ class CapabilityGateway:
                 capability_version_id=version.id,
                 connector_id=connector.id,
             )
-        if decision.effect == DecisionEffect.DENY:
-            await self._audit(
-                session,
-                request,
-                version,
-                decision,
-                "DENIED",
-                metadata={"reasons": decision.reason_codes},
-            )
-            return GatewayResult(
-                status=GatewayStatus.DENIED,
-                policy_decision_id=decision.id,
-                error_code="capability_denied",
-                error_message="The capability request was denied by policy",
-                capability_version_id=version.id,
-                connector_id=connector.id,
-            )
-
         if decision.effect == DecisionEffect.ASK:
             approved = await self._find_approval(session, request, decision)
             if approved is None:
@@ -277,6 +313,7 @@ class CapabilityGateway:
                 payload={"capability": definition.name, "connector": connector.name},
             ),
         )
+        credential: str | None = None
         try:
             credential = await self.credentials.resolve(
                 connector.credential_ref,
@@ -296,7 +333,6 @@ class CapabilityGateway:
                 ),
                 timeout=version.timeout_seconds,
             )
-            del credential
             self._validate(version.output_schema, result.data, "capability_output_invalid")
             output = apply_obligations(result.data, decision.obligations)
             evidence = await self._evidence(
@@ -349,9 +385,18 @@ class CapabilityGateway:
             )
         except Exception as exc:
             latency_ms = int((perf_counter() - started) * 1000)
-            error_code = (
+            event_error_code = (
                 "capability_timeout" if isinstance(exc, TimeoutError) else "capability_failed"
             )
+            if isinstance(exc, TimeoutError):
+                error_code = "capability_timeout"
+                error_message = "The connector exceeded the capability timeout"
+            elif isinstance(exc, ObsionError):
+                error_code = exc.code
+                error_message = exc.message
+            else:
+                error_code = "capability_failed"
+                error_message = "The connector could not complete the request"
             await self.events.append(
                 session,
                 EventDraft(
@@ -363,7 +408,7 @@ class CapabilityGateway:
                     actor_type=ActorType.AGENT,
                     actor_id=request.agent_version_id,
                     run_id=request.run_id,
-                    payload={"capability": definition.name, "error_code": error_code},
+                    payload={"capability": definition.name, "error_code": event_error_code},
                 ),
             )
             await self._audit(
@@ -379,10 +424,12 @@ class CapabilityGateway:
                 status=GatewayStatus.FAILED,
                 policy_decision_id=decision.id,
                 error_code=error_code,
-                error_message="The connector could not complete the request",
+                error_message=error_message,
                 capability_version_id=version.id,
                 connector_id=connector.id,
             )
+        finally:
+            credential = None
 
     async def _resolve(
         self, session: AsyncSession, request: GatewayRequest
@@ -404,10 +451,12 @@ class CapabilityGateway:
                 CapabilityDefinition.organization_id == request.principal.organization_id,
                 CapabilityDefinition.name == request.capability_name,
                 CapabilityDefinition.status == RegistryStatus.ACTIVE,
+                CapabilityVersion.organization_id == request.principal.organization_id,
                 CapabilityBinding.organization_id == request.principal.organization_id,
                 CapabilityBinding.environment == request.environment,
                 CapabilityBinding.enabled.is_(True),
                 Connector.organization_id == request.principal.organization_id,
+                Connector.environment == request.environment,
                 Connector.status == ConnectorStatus.ACTIVE,
             )
             .order_by(CapabilityVersion.version.desc())
@@ -431,6 +480,41 @@ class CapabilityGateway:
         return definition, version, connector
 
     @staticmethod
+    async def _agent_capability_allowed(
+        session: AsyncSession,
+        request: GatewayRequest,
+        capability_name: str,
+        version: CapabilityVersion,
+    ) -> bool | None:
+        """Re-check the pinned AgentSpec at the execution boundary.
+
+        Planner filtering is necessary but not sufficient: a persisted plan or a
+        direct caller must not turn a capability outside the pinned AgentSpec's
+        capability and risk budget into an executable request.
+        """
+        if request.agent_version_id is None:
+            return None
+        agent_version = await session.scalar(
+            select(AgentVersion).where(
+                AgentVersion.id == request.agent_version_id,
+                AgentVersion.organization_id == request.principal.organization_id,
+            )
+        )
+        if agent_version is None or not isinstance(agent_version.spec, dict):
+            return False
+        capabilities = agent_version.spec.get("capabilities")
+        risk_policy = agent_version.spec.get("riskPolicy")
+        max_level = risk_policy.get("maxLevel") if isinstance(risk_policy, dict) else None
+        if not isinstance(capabilities, list) or capability_name not in capabilities:
+            return False
+        if not isinstance(max_level, str) or not max_level.startswith("L"):
+            return False
+        try:
+            return version.risk_level.ordinal <= int(max_level[1:])
+        except ValueError:
+            return False
+
+    @staticmethod
     def _selector_matches(selector: dict[str, Any], resource: dict[str, Any]) -> bool:
         for key, expected in selector.items():
             current: Any = resource
@@ -441,6 +525,21 @@ class CapabilityGateway:
             if current != expected:
                 return False
         return True
+
+    @staticmethod
+    def _connector_grant_allows(connector: Connector, version: CapabilityVersion) -> bool:
+        grants = connector.declared_grants
+        return "*" in grants or version.permission_action in grants
+
+    @staticmethod
+    def _engineering_repository_denied(connector: Connector, request: GatewayRequest) -> bool:
+        allowed = connector.configuration.get("allowed_repositories")
+        if not isinstance(allowed, list) or not allowed:
+            return False
+        repository = request.resource.get("repository")
+        if not isinstance(repository, str):
+            repository = request.payload.get("repository")
+        return not isinstance(repository, str) or repository not in allowed
 
     @staticmethod
     def _validate(schema: dict[str, Any], payload: dict[str, Any], code: str) -> None:
@@ -562,34 +661,33 @@ class CapabilityGateway:
         resource: str,
         observed_at: datetime | None,
     ) -> Evidence:
-        serialized = json.dumps(output, sort_keys=True, separators=(",", ":"), default=str)
         mapping_type = version.evidence_mapping.get("type", "TOOL")
         try:
             evidence_type = EvidenceType(mapping_type)
         except ValueError:
             evidence_type = EvidenceType.TOOL
-        evidence = Evidence(
-            organization_id=request.principal.organization_id,
-            run_id=request.run_id,
-            step_id=request.step_id,
-            evidence_type=evidence_type,
-            source=source,
-            resource=resource,
-            observed_at=observed_at or utc_now(),
-            ingested_at=utc_now(),
-            content=redact(output),
-            content_fingerprint=hashlib.sha256(serialized.encode()).hexdigest(),
-            confidence=version.evidence_mapping.get("confidence", 1.0),
-            classification=version.data_classification,
-            permissions=[version.permission_action],
-            lineage={
-                "capability_version_id": str(version.id),
-                "connector_id": str(connector.id),
-                "policy_decision_id": str(policy_decision_id),
-            },
+        evidence = await self.evidence.persist(
+            session,
+            EvidenceInput(
+                organization_id=request.principal.organization_id,
+                run_id=request.run_id,
+                step_id=request.step_id,
+                evidence_type=evidence_type,
+                source=source,
+                resource=resource,
+                observed_at=observed_at or utc_now(),
+                content=output,
+                confidence=version.evidence_mapping.get("confidence", 1.0),
+                classification=version.data_classification,
+                permissions=(version.permission_action,),
+                lineage={
+                    "capability_version_id": str(version.id),
+                    "connector_id": str(connector.id),
+                    "policy_decision_id": str(policy_decision_id),
+                    "request_resource": redact(request.resource),
+                },
+            ),
         )
-        session.add(evidence)
-        await session.flush()
         await self.events.append(
             session,
             EventDraft(
@@ -632,5 +730,10 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 metadata=metadata or {},
                 latency_ms=latency_ms,
+                agent_version_id=request.agent_version_id,
+                model_profile_id=request.model_profile_id,
+                capability_version_id=version.id,
+                resource=request.resource,
+                result_classification=version.data_classification,
             ),
         )

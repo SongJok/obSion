@@ -1,0 +1,16 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/workspace.member_removed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "user_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id"
+  ],
+  "title": "workspace.member_removed payload v1",
+  "type": "object"
+}

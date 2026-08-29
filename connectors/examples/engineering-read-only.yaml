@@ -12,6 +12,7 @@ spec:
   allowedEgress: [engineering-metadata.internal:443]
   tlsRequired: true
   configuration:
+    protocol: engineering.v1
     rate_limit_per_minute: 180
   capabilities:
     - code.search

@@ -71,10 +71,16 @@ class AsyncObsionClient:
             ),
         )
 
-    async def list_threads(self, workspace_id: str) -> list[dict[str, Any]]:
+    async def list_threads(
+        self, workspace_id: str, *, include_archived: bool = False
+    ) -> list[dict[str, Any]]:
         return cast(
             list[dict[str, Any]],
-            await self._request("GET", f"/api/v1/workspaces/{workspace_id}/threads"),
+            await self._request(
+                "GET",
+                f"/api/v1/workspaces/{workspace_id}/threads",
+                params={"include_archived": include_archived},
+            ),
         )
 
     async def list_turns(self, thread_id: str) -> list[dict[str, Any]]:
@@ -101,10 +107,33 @@ class AsyncObsionClient:
             await self._request("POST", f"/api/v1/threads/{thread_id}/resume"),
         )
 
-    async def fork_thread(self, thread_id: str, title: str | None = None) -> dict[str, Any]:
+    async def fork_thread(
+        self,
+        thread_id: str,
+        title: str | None = None,
+        *,
+        from_turn_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        if from_turn_id is not None:
+            payload["from_turn_id"] = from_turn_id
         return cast(
             dict[str, Any],
-            await self._request("POST", f"/api/v1/threads/{thread_id}/fork", json={"title": title}),
+            await self._request("POST", f"/api/v1/threads/{thread_id}/fork", json=payload),
+        )
+
+    async def list_thread_events(
+        self, thread_id: str, *, after_sequence: int = 0, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET",
+                f"/api/v1/threads/{thread_id}/events",
+                params={"after_sequence": after_sequence, "limit": limit},
+            ),
         )
 
     async def create_turn(
@@ -136,6 +165,34 @@ class AsyncObsionClient:
 
     async def replay_run(self, run_id: str) -> dict[str, Any]:
         return cast(dict[str, Any], await self._request("POST", f"/api/v1/runs/{run_id}/replay"))
+
+    async def get_run_feedback(self, run_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            await self._request("GET", f"/api/v1/runs/{run_id}/feedback"),
+        )
+
+    async def record_run_feedback(
+        self,
+        run_id: str,
+        *,
+        rating: str,
+        reason: str = "",
+        expected_version: int | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"rating": rating, "reason": reason}
+        if expected_version is not None:
+            payload["expected_version"] = expected_version
+        return cast(
+            dict[str, Any],
+            await self._request("PUT", f"/api/v1/runs/{run_id}/feedback", json=payload),
+        )
+
+    async def get_feedback_summary(self) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("GET", "/api/v1/admin/feedback/summary"),
+        )
 
     async def list_events(self, run_id: str, *, after: int = 0) -> list[dict[str, Any]]:
         return cast(
@@ -279,6 +336,155 @@ class AsyncObsionClient:
             ),
         )
 
+    async def list_memories(
+        self,
+        *,
+        scope: str | None = None,
+        owner_ref: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params = {
+            key: value
+            for key, value in {
+                "scope": scope,
+                "owner_ref": owner_ref,
+                "status": status,
+            }.items()
+            if value is not None
+        }
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/memories", params=params),
+        )
+
+    async def list_run_memories(self, run_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/runs/{run_id}/memories"),
+        )
+
+    async def list_run_conversation(self, run_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/runs/{run_id}/conversation"),
+        )
+
+    async def create_workspace_task(
+        self, workspace_id: str, request: dict[str, Any]
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/workspaces/{workspace_id}/tasks", json=request),
+        )
+
+    async def list_workspace_tasks(
+        self,
+        workspace_id: str,
+        *,
+        status: str | None = None,
+        assignee_id: str | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        params = {
+            key: value
+            for key, value in {
+                "status": status,
+                "assignee_id": assignee_id,
+                "limit": limit,
+            }.items()
+            if value is not None
+        }
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/workspaces/{workspace_id}/tasks", params=params),
+        )
+
+    async def update_workspace_task(self, task_id: str, request: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("PATCH", f"/api/v1/workspace-tasks/{task_id}", json=request),
+        )
+
+    async def list_workspace_task_events(
+        self, task_id: str, *, after_sequence: int = 0, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET",
+                f"/api/v1/workspace-tasks/{task_id}/events",
+                params={"after_sequence": after_sequence, "limit": limit},
+            ),
+        )
+
+    async def create_workspace_decision(
+        self, workspace_id: str, request: dict[str, Any]
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST", f"/api/v1/workspaces/{workspace_id}/decisions", json=request
+            ),
+        )
+
+    async def list_workspace_decisions(
+        self,
+        workspace_id: str,
+        *,
+        status: str | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if status is not None:
+            params["status"] = status
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET", f"/api/v1/workspaces/{workspace_id}/decisions", params=params
+            ),
+        )
+
+    async def revise_workspace_decision(
+        self, decision_id: str, request: dict[str, Any]
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "PATCH", f"/api/v1/workspace-decisions/{decision_id}", json=request
+            ),
+        )
+
+    async def decide_workspace_decision(
+        self, decision_id: str, *, approve: bool, expected_version: int
+    ) -> dict[str, Any]:
+        action = "accept" if approve else "reject"
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/workspace-decisions/{decision_id}/{action}",
+                json={"expected_version": expected_version},
+            ),
+        )
+
+    async def list_workspace_decision_versions(self, decision_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/workspace-decisions/{decision_id}/versions"),
+        )
+
+    async def list_workspace_decision_events(
+        self, decision_id: str, *, after_sequence: int = 0, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET",
+                f"/api/v1/workspace-decisions/{decision_id}/events",
+                params={"after_sequence": after_sequence, "limit": limit},
+            ),
+        )
+
     async def query_data(
         self,
         thread_id: str,
@@ -292,6 +498,86 @@ class AsyncObsionClient:
         return cast(
             dict[str, Any],
             await self._request("POST", "/api/v1/data/query", json=payload),
+        )
+
+    async def list_metrics(self) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/data/metrics"),
+        )
+
+    async def get_metric_lineage(self, metric_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("GET", f"/api/v1/data/lineage/{metric_id}"),
+        )
+
+    async def validate_sql(self, sql: str, data_source_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/data/sql/validate",
+                json={"sql": sql, "data_source_id": data_source_id},
+            ),
+        )
+
+    async def explain_sql(self, sql: str, data_source_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/data/sql/explain",
+                json={"sql": sql, "data_source_id": data_source_id},
+            ),
+        )
+
+    async def get_data_catalog(self) -> dict[str, int]:
+        return cast(
+            dict[str, int],
+            await self._request("GET", "/api/v1/admin/data/catalog"),
+        )
+
+    async def create_metric(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/data/metrics", json=definition),
+        )
+
+    async def create_dimension(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/data/dimensions", json=definition),
+        )
+
+    async def create_entity(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/data/entities", json=definition),
+        )
+
+    async def create_relation(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/data/relations", json=definition),
+        )
+
+    async def create_business_rule(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/data/rules", json=definition),
+        )
+
+    async def create_time_definition(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/data/time-definitions", json=definition),
+        )
+
+    async def create_semantic_synonym(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/data/synonyms", json=definition),
         )
 
     async def search_knowledge(
@@ -325,9 +611,7 @@ class AsyncObsionClient:
             ),
         )
 
-    async def add_evaluation_case(
-        self, dataset_id: str, case: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def add_evaluation_case(self, dataset_id: str, case: dict[str, Any]) -> dict[str, Any]:
         return cast(
             dict[str, Any],
             await self._request(
@@ -335,9 +619,7 @@ class AsyncObsionClient:
             ),
         )
 
-    async def run_evaluation(
-        self, dataset_id: str, request: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def run_evaluation(self, dataset_id: str, request: dict[str, Any]) -> dict[str, Any]:
         return cast(
             dict[str, Any],
             await self._request(
@@ -345,9 +627,7 @@ class AsyncObsionClient:
             ),
         )
 
-    async def list_evaluation_runs(
-        self, *, dataset_id: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def list_evaluation_runs(self, *, dataset_id: str | None = None) -> list[dict[str, Any]]:
         params = {"dataset_id": dataset_id} if dataset_id else None
         return cast(
             list[dict[str, Any]],
@@ -363,9 +643,7 @@ class AsyncObsionClient:
     async def list_evaluation_results(self, run_id: str) -> list[dict[str, Any]]:
         return cast(
             list[dict[str, Any]],
-            await self._request(
-                "GET", f"/api/v1/admin/evaluations/runs/{run_id}/results"
-            ),
+            await self._request("GET", f"/api/v1/admin/evaluations/runs/{run_id}/results"),
         )
 
     async def create_workflow(

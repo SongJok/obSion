@@ -1,0 +1,15 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/automation.failed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "error_code"
+  ],
+  "title": "automation.failed payload v1",
+  "type": "object"
+}

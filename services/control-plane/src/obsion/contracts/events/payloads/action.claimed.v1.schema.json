@@ -1,0 +1,22 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.claimed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "purpose": {
+      "enum": [
+        "EXECUTE",
+        "ROLLBACK"
+      ]
+    },
+    "worker": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "purpose",
+    "worker"
+  ],
+  "title": "action.claimed payload v1",
+  "type": "object"
+}

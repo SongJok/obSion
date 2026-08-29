@@ -1,8 +1,9 @@
 import asyncio
+import hashlib
 import json
 import os
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Protocol
@@ -14,6 +15,18 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obsion.capabilities.engineering import (
+    ENGINEERING_OPERATIONS,
+    EngineeringResponseError,
+    EngineeringUnavailableError,
+)
+from obsion.capabilities.engineering import normalize_response as normalize_engineering_response
+from obsion.capabilities.observability import (
+    OBSERVABILITY_OPERATIONS,
+    ObservabilityResponseError,
+    ObservabilityUnavailableError,
+    normalize_response,
+)
 from obsion.common.errors import ValidationError
 from obsion.config import Settings
 from obsion.data_intelligence.sql_policy import SqlPolicyValidator
@@ -91,8 +104,11 @@ class CredentialBroker:
 
 
 class HttpJsonExecutor:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None
+    ) -> None:
         self.timeout = settings.model_request_timeout_seconds
+        self.transport = transport
 
     async def invoke(
         self,
@@ -101,6 +117,14 @@ class HttpJsonExecutor:
         credential: str | None,
         context: ConnectorContext,
     ) -> ConnectorResult:
+        if _is_observability_connector(connector) and (
+            payload.get("operation") in OBSERVABILITY_OPERATIONS
+        ):
+            return await self._invoke_observability(connector, payload, credential, context)
+        if _is_engineering_connector(connector) and (
+            payload.get("operation") in ENGINEERING_OPERATIONS
+        ):
+            return await self._invoke_engineering(connector, payload, credential, context)
         del context
         if not connector.endpoint:
             raise ValidationError("connector_endpoint_missing", "HTTP connector has no endpoint")
@@ -134,7 +158,9 @@ class HttpJsonExecutor:
             headers["Authorization"] = f"Bearer {credential}"
         configured_timeout = int(connector.configuration.get("timeout_seconds", self.timeout))
         async with httpx.AsyncClient(
-            timeout=min(configured_timeout, self.timeout), follow_redirects=False
+            timeout=min(configured_timeout, self.timeout),
+            follow_redirects=False,
+            transport=self.transport,
         ) as client:
             response = await client.post(connector.endpoint, json=payload, headers=headers)
             response.raise_for_status()
@@ -148,6 +174,209 @@ class HttpJsonExecutor:
             observed_at=datetime.now().astimezone(),
         )
 
+    async def _invoke_observability(
+        self,
+        connector: Connector,
+        payload: dict[str, Any],
+        credential: str | None,
+        context: ConnectorContext,
+    ) -> ConnectorResult:
+        del context
+        operation = payload.get("operation")
+        if not isinstance(operation, str) or operation not in OBSERVABILITY_OPERATIONS:
+            raise ValidationError(
+                "observability_operation_invalid",
+                "The observability operation is not part of the read-only contract",
+            )
+        if not connector.endpoint:
+            raise ValidationError("connector_endpoint_missing", "HTTP connector has no endpoint")
+        endpoint_url = connector.endpoint
+        paths = connector.configuration.get("operation_paths")
+        if isinstance(paths, dict) and isinstance(paths.get(operation), str):
+            path = paths[operation].strip()
+            if path.startswith("/"):
+                endpoint_url = connector.endpoint.rstrip("/") + path
+            elif path:
+                endpoint_url = connector.endpoint.rstrip("/") + "/" + path
+        endpoint = urlparse(endpoint_url)
+        try:
+            endpoint_authority = _endpoint_authority(endpoint_url)
+            allowed_authorities = {
+                _endpoint_authority(item, default_scheme=endpoint.scheme)
+                for item in connector.allowed_egress
+                if isinstance(item, str)
+            }
+        except ValueError as exc:
+            raise ValidationError(
+                "connector_egress_invalid", "Connector egress configuration is invalid"
+            ) from exc
+        if (
+            endpoint.scheme not in {"https", "http"}
+            or endpoint.username is not None
+            or endpoint.password is not None
+            or endpoint_authority not in allowed_authorities
+        ):
+            raise ValidationError(
+                "connector_egress_denied", "Connector endpoint is outside its egress allowlist"
+            )
+        if endpoint.scheme == "http" and connector.environment != "development":
+            raise ValidationError(
+                "connector_tls_required", "Non-development HTTP connectors must use TLS"
+            )
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if credential:
+            headers["Authorization"] = f"Bearer {credential}"
+        configured_timeout = int(connector.configuration.get("timeout_seconds", self.timeout))
+        try:
+            async with httpx.AsyncClient(
+                timeout=min(configured_timeout, self.timeout),
+                follow_redirects=False,
+                transport=self.transport,
+            ) as client:
+                response = await client.post(endpoint_url, json=payload, headers=headers)
+        except httpx.TimeoutException as exc:
+            raise ObservabilityUnavailableError("The observability connector timed out") from exc
+        except httpx.HTTPError as exc:
+            raise ObservabilityUnavailableError() from exc
+        if response.is_error:
+            raise ObservabilityUnavailableError(
+                "The observability connector returned an upstream error"
+            )
+        try:
+            response_payload = response.json()
+        except ValueError as exc:
+            raise ObservabilityResponseError() from exc
+        if isinstance(response_payload, Mapping) and response_payload.get("error"):
+            raise ObservabilityResponseError()
+        try:
+            normalized = normalize_response(
+                response_payload,
+                operation=operation,
+                default_service=_payload_string(
+                    payload.get("service"),
+                    connector.configuration.get("default_service"),
+                    "*",
+                ),
+                default_environment=_payload_string(
+                    payload.get("environment"), connector.environment
+                ),
+            )
+        except (TypeError, ValueError) as exc:
+            raise ObservabilityResponseError() from exc
+        return ConnectorResult(
+            data=normalized,
+            source=connector.name,
+            resource=f"{endpoint_url}#{operation}",
+            observed_at=datetime.now().astimezone(),
+        )
+
+    async def _invoke_engineering(
+        self,
+        connector: Connector,
+        payload: dict[str, Any],
+        credential: str | None,
+        context: ConnectorContext,
+    ) -> ConnectorResult:
+        del context
+        operation = payload.get("operation")
+        if not isinstance(operation, str) or operation not in ENGINEERING_OPERATIONS:
+            raise ValidationError(
+                "engineering_operation_invalid",
+                "The engineering operation is not part of the read-only contract",
+            )
+        if not connector.endpoint:
+            raise ValidationError("connector_endpoint_missing", "HTTP connector has no endpoint")
+        endpoint_url = connector.endpoint
+        paths = connector.configuration.get("operation_paths")
+        if isinstance(paths, dict) and isinstance(paths.get(operation), str):
+            path = paths[operation].strip()
+            if path.startswith("/"):
+                endpoint_url = connector.endpoint.rstrip("/") + path
+            elif path:
+                endpoint_url = connector.endpoint.rstrip("/") + "/" + path
+        endpoint = urlparse(endpoint_url)
+        try:
+            endpoint_authority = _endpoint_authority(endpoint_url)
+            allowed_authorities = {
+                _endpoint_authority(item, default_scheme=endpoint.scheme)
+                for item in connector.allowed_egress
+                if isinstance(item, str)
+            }
+        except ValueError as exc:
+            raise ValidationError(
+                "connector_egress_invalid", "Connector egress configuration is invalid"
+            ) from exc
+        if (
+            endpoint.scheme not in {"https", "http"}
+            or endpoint.username is not None
+            or endpoint.password is not None
+            or endpoint_authority not in allowed_authorities
+        ):
+            raise ValidationError(
+                "connector_egress_denied", "Connector endpoint is outside its egress allowlist"
+            )
+        if endpoint.scheme == "http" and connector.environment != "development":
+            raise ValidationError(
+                "connector_tls_required", "Non-development HTTP connectors must use TLS"
+            )
+        allowed_repositories = connector.configuration.get("allowed_repositories")
+        repository = payload.get("repository")
+        if (
+            isinstance(allowed_repositories, list)
+            and allowed_repositories
+            and (not isinstance(repository, str) or repository not in allowed_repositories)
+        ):
+            raise ValidationError(
+                "engineering_repository_denied",
+                "The repository is not allowed by the engineering connector",
+            )
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if credential:
+            headers["Authorization"] = f"Bearer {credential}"
+        configured_timeout = int(connector.configuration.get("timeout_seconds", self.timeout))
+        try:
+            async with httpx.AsyncClient(
+                timeout=min(configured_timeout, self.timeout),
+                follow_redirects=False,
+                transport=self.transport,
+            ) as client:
+                response = await client.post(endpoint_url, json=payload, headers=headers)
+        except httpx.TimeoutException as exc:
+            raise EngineeringUnavailableError("The engineering connector timed out") from exc
+        except httpx.HTTPError as exc:
+            raise EngineeringUnavailableError() from exc
+        if response.is_error:
+            raise EngineeringUnavailableError(
+                "The engineering connector returned an upstream error"
+            )
+        try:
+            response_payload = response.json()
+        except ValueError as exc:
+            raise EngineeringResponseError() from exc
+        if isinstance(response_payload, Mapping) and response_payload.get("error"):
+            raise EngineeringResponseError()
+        try:
+            normalized = normalize_engineering_response(
+                response_payload,
+                operation=operation,
+                default_repository=_payload_string(
+                    payload.get("repository"),
+                    connector.configuration.get("default_repository"),
+                    "*",
+                ),
+                default_environment=_payload_string(
+                    payload.get("environment"), connector.environment
+                ),
+            )
+        except (TypeError, ValueError) as exc:
+            raise EngineeringResponseError() from exc
+        return ConnectorResult(
+            data=normalized,
+            source=connector.name,
+            resource=f"{endpoint_url}#{operation}",
+            observed_at=datetime.now().astimezone(),
+        )
+
 
 def _endpoint_authority(value: str, *, default_scheme: str = "https") -> tuple[str, int]:
     candidate = value if "://" in value else f"{default_scheme}://{value}"
@@ -156,6 +385,29 @@ def _endpoint_authority(value: str, *, default_scheme: str = "https") -> tuple[s
         raise ValueError("invalid HTTP authority")
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
     return parsed.hostname.casefold(), port
+
+
+def _is_observability_connector(connector: Connector) -> bool:
+    connector_type = connector.connector_type.casefold()
+    protocol = connector.configuration.get("protocol")
+    return connector_type in {"observability", "observability-http", "http-observability"} or (
+        isinstance(protocol, str) and protocol.casefold() == "observability.v1"
+    )
+
+
+def _is_engineering_connector(connector: Connector) -> bool:
+    connector_type = connector.connector_type.casefold()
+    protocol = connector.configuration.get("protocol")
+    return connector_type in {"engineering", "engineering-http", "http-engineering"} or (
+        isinstance(protocol, str) and protocol.casefold() == "engineering.v1"
+    )
+
+
+def _payload_string(*values: Any) -> str:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return "*"
 
 
 def _json_value(value: Any) -> Any:
@@ -175,6 +427,7 @@ def _json_value(value: Any) -> Any:
 class PostgresReadOnlyExecutor:
     def __init__(self, settings: Settings) -> None:
         self.max_rows = settings.sql_max_limit
+        self.scan_budget = settings.sql_scan_budget
         self.timeout_seconds = settings.sql_timeout_seconds
         self.validator = SqlPolicyValidator(
             default_limit=settings.sql_default_limit,
@@ -192,6 +445,14 @@ class PostgresReadOnlyExecutor:
         dsn = credential or connector.endpoint
         if not dsn:
             raise ValidationError("connector_endpoint_missing", "PostgreSQL connector has no DSN")
+        if (
+            connector.configuration.get("role") != "read_replica"
+            or connector.configuration.get("read_only") is False
+        ):
+            raise ValidationError(
+                "sql_primary_source_denied",
+                "SQL execution is only available through a read-only replica",
+            )
         query = payload.get("sql")
         parameters = payload.get("parameters", [])
         parameter_types = payload.get("parameter_types", ["scalar"] * len(parameters))
@@ -207,13 +468,23 @@ class PostgresReadOnlyExecutor:
         ]
         allowed_tables = connector.configuration.get("allowed_tables")
         allowed_columns = connector.configuration.get("allowed_columns")
+        configured_budget = connector.configuration.get("scan_budget", self.scan_budget)
+        scan_budget = (
+            configured_budget
+            if isinstance(configured_budget, int) and not isinstance(configured_budget, bool)
+            else self.scan_budget
+        )
+        require_limit = connector.configuration.get("require_explicit_limit", True)
         validation = self.validator.validate(
             query,
             dialect=str(connector.configuration.get("dialect", "postgres")),
             allowed_tables=set(allowed_tables) if isinstance(allowed_tables, list) else set(),
             allowed_columns=set(allowed_columns) if isinstance(allowed_columns, list) else None,
+            require_limit=bool(require_limit),
+            scan_budget=scan_budget,
         )
         query = validation.normalized_sql
+        explain_only = payload.get("explain") is True
         connection = await asyncpg.connect(dsn=dsn, statement_cache_size=0, timeout=10)
         try:
             async with connection.transaction(readonly=True):
@@ -225,22 +496,111 @@ class PostgresReadOnlyExecutor:
                     * 1000
                 )
                 await connection.execute(f"SET LOCAL statement_timeout = {timeout_ms:d}")
+                estimated_scan_cost = validation.estimated_scan_cost
+                if validation.statement_type != "EXPLAIN":
+                    estimated_scan_cost = await self._explain_scan_cost(
+                        connection,
+                        validation.normalized_sql,
+                        parameters,
+                        dialect=str(connector.configuration.get("dialect", "postgres")),
+                    )
+                if estimated_scan_cost > scan_budget:
+                    raise ValidationError(
+                        "sql_scan_budget_exceeded",
+                        "The query exceeds the configured scan budget",
+                        estimated_scan_cost=estimated_scan_cost,
+                        scan_budget=scan_budget,
+                    )
+                if explain_only and validation.statement_type != "EXPLAIN":
+                    query = "EXPLAIN (FORMAT JSON) " + query
                 records = await asyncio.wait_for(
                     connection.fetch(query, *parameters), timeout=self.timeout_seconds
                 )
         finally:
             await connection.close(timeout=5)
+        columns = list(records[0].keys()) if records else []
+        masks = payload.get("column_masks", {})
         rows = [
-            {key: _json_value(value) for key, value in record.items()}
+            {
+                key: _json_value(_mask_column_value(value, masks.get(key)))
+                for key, value in record.items()
+            }
             for record in records[: self.max_rows]
         ]
-        columns = list(records[0].keys()) if records else []
+        if explain_only:
+            return ConnectorResult(
+                data={
+                    "plan": {"columns": columns, "rows": rows, "row_count": len(rows)},
+                    "validation": _validation_payload(validation, estimated_scan_cost),
+                },
+                source=connector.name,
+                resource=connector.configuration.get("resource_name", connector.name),
+                observed_at=datetime.now().astimezone(),
+            )
         return ConnectorResult(
             data={"columns": columns, "rows": rows, "row_count": len(rows)},
             source=connector.name,
             resource=connector.configuration.get("resource_name", connector.name),
             observed_at=datetime.now().astimezone(),
         )
+
+    async def _explain_scan_cost(
+        self,
+        connection: asyncpg.Connection,
+        query: str,
+        parameters: list[Any],
+        *,
+        dialect: str,
+    ) -> int:
+        if dialect.casefold() not in {"postgres", "postgresql"}:
+            return 0
+        try:
+            rows = await connection.fetch("EXPLAIN (FORMAT JSON) " + query, *parameters)
+        except Exception as exc:
+            raise ValidationError(
+                "sql_scan_budget_unavailable", "The database could not produce a scan estimate"
+            ) from exc
+        if not rows:
+            return 0
+        document = rows[0][0]
+        return _plan_scan_cost(document)
+
+
+def _plan_scan_cost(value: Any) -> int:
+    """Extract a conservative integer scan estimate from PostgreSQL EXPLAIN JSON."""
+    if isinstance(value, list):
+        return max((_plan_scan_cost(item) for item in value), default=0)
+    if isinstance(value, dict):
+        own_rows = value.get("Plan Rows")
+        own_cost = value.get("Total Cost")
+        candidates = [_plan_scan_cost(item) for item in value.values()]
+        estimate = 0
+        if isinstance(own_rows, (int, float)) and own_rows >= 0:
+            estimate = max(estimate, int(own_rows))
+        if isinstance(own_cost, (int, float)) and own_cost >= 0:
+            estimate = max(estimate, int(own_cost))
+        return max([estimate, *candidates], default=0)
+    return 0
+
+
+def _validation_payload(validation: Any, estimated_scan_cost: int) -> dict[str, Any]:
+    payload = asdict(validation)
+    payload["tables"] = list(validation.tables)
+    payload["columns"] = list(validation.columns)
+    payload["warnings"] = list(validation.warnings)
+    payload["estimated_scan_cost"] = estimated_scan_cost
+    return payload
+
+
+def _mask_column_value(value: Any, policy: Any) -> Any:
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return value
+    mode = str(policy.get("mode", "mask")).casefold()
+    if mode == "hash":
+        return hashlib.sha256(str(value).encode()).hexdigest()[:16]
+    if mode in {"mask", "redact", "hidden"}:
+        return str(policy.get("replacement", "***"))
+    return value
 
 
 InternalHandler = Callable[

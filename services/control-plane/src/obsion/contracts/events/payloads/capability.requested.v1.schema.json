@@ -1,0 +1,25 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/capability.requested.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability": {
+      "type": "string"
+    },
+    "resource": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "version": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "capability",
+    "version",
+    "resource"
+  ],
+  "title": "capability.requested payload v1",
+  "type": "object"
+}

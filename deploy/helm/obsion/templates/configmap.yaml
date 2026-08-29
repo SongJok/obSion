@@ -13,15 +13,31 @@ data:
   OBSION_OIDC_ISSUER: {{ .Values.config.auth.oidcIssuer | quote }}
   OBSION_OIDC_AUDIENCE: {{ .Values.config.auth.oidcAudience | quote }}
   OBSION_OIDC_JWKS_URL: {{ .Values.config.auth.oidcJwksUrl | quote }}
+  OBSION_AUTH_SESSION_COOKIE_NAME: {{ .Values.config.auth.sessionCookieName | quote }}
+  OBSION_AUTH_SESSION_TTL_SECONDS: {{ .Values.config.auth.sessionTtlSeconds | quote }}
+  OBSION_AUTH_SESSION_RETENTION_DAYS: {{ .Values.config.auth.sessionRetentionDays | quote }}
   OBSION_REDIS_URL: {{ .Values.config.redisUrl | quote }}
   OBSION_CAPABILITY_RATE_LIMIT_PER_MINUTE: {{ .Values.config.capabilityRateLimitPerMinute | quote }}
   OBSION_RATE_LIMIT_FAIL_CLOSED: {{ .Values.config.rateLimitFailClosed | quote }}
+  OBSION_MODEL_REQUEST_TIMEOUT_SECONDS: {{ .Values.config.modelRequestTimeoutSeconds | quote }}
   OBSION_MODEL_ALLOWED_HOSTS: {{ .Values.config.modelAllowedHosts | toJson | quote }}
+  OBSION_MODEL_FORCE_PRIVATE_FOR_SENSITIVE: {{ .Values.config.modelForcePrivateForSensitive | quote }}
+  OBSION_MODEL_PRIVATE_PROFILE_NAME: {{ .Values.config.modelPrivateProfileName | quote }}
   OBSION_KNOWLEDGE_EMBEDDING_PROFILE: {{ .Values.config.knowledgeEmbeddingProfile | quote }}
   OBSION_KNOWLEDGE_EMBEDDING_BATCH_SIZE: {{ .Values.config.knowledgeEmbeddingBatchSize | quote }}
   OBSION_RUN_MAX_INPUT_TOKENS: {{ .Values.config.runMaxInputTokens | quote }}
   OBSION_RUN_MAX_OUTPUT_TOKENS: {{ .Values.config.runMaxOutputTokens | quote }}
   OBSION_RUN_MAX_COST_AMOUNT: {{ .Values.config.runMaxCostAmount | quote }}
+  OBSION_SQL_DEFAULT_LIMIT: {{ .Values.config.sqlDefaultLimit | quote }}
+  OBSION_SQL_MAX_LIMIT: {{ .Values.config.sqlMaxLimit | quote }}
+  OBSION_SQL_SCAN_BUDGET: {{ .Values.config.sqlScanBudget | quote }}
+  OBSION_SQL_REQUIRE_EXPLICIT_LIMIT: {{ .Values.config.sqlRequireExplicitLimit | quote }}
+  OBSION_SQL_TIMEOUT_SECONDS: {{ .Values.config.sqlTimeoutSeconds | quote }}
+  OBSION_APP_SERVER_INITIALIZE_TIMEOUT_SECONDS: {{ .Values.config.appServer.initializeTimeoutSeconds | quote }}
+  OBSION_APP_SERVER_MAX_MESSAGE_BYTES: {{ .Values.config.appServer.maxMessageBytes | quote }}
+  OBSION_APP_SERVER_MAX_SUBSCRIPTIONS: {{ .Values.config.appServer.maxSubscriptions | quote }}
+  OBSION_APP_SERVER_EVENT_POLL_INTERVAL_SECONDS: {{ .Values.config.appServer.eventPollIntervalSeconds | quote }}
+  OBSION_APP_SERVER_IDEMPOTENCY_RETENTION_HOURS: {{ .Values.config.appServer.idempotencyRetentionHours | quote }}
   OBSION_AUTOMATION_ENABLED: {{ .Values.config.automation.enabled | quote }}
   OBSION_AUTOMATION_WORKER_CONCURRENCY: {{ .Values.config.automation.workerConcurrency | quote }}
   OBSION_AUTOMATION_POLL_INTERVAL_SECONDS: {{ .Values.config.automation.pollIntervalSeconds | quote }}

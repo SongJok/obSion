@@ -1,0 +1,16 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.replay_requested.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "source_run_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_run_id"
+  ],
+  "title": "run.replay_requested payload v1",
+  "type": "object"
+}

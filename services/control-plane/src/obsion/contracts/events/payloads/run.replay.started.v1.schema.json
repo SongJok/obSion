@@ -1,0 +1,29 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.replay.started.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "snapshot_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_run_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "source_status": {
+      "enum": [
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    }
+  },
+  "required": [
+    "source_run_id",
+    "source_status",
+    "snapshot_sha256"
+  ],
+  "title": "run.replay.started payload v1",
+  "type": "object"
+}

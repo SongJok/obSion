@@ -1,0 +1,28 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/thread.forked.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "forked_from_turn_id": {
+      "oneOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "parent_thread_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "parent_thread_id",
+    "forked_from_turn_id"
+  ],
+  "title": "thread.forked payload v1",
+  "type": "object"
+}

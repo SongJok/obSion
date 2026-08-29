@@ -3,7 +3,7 @@ import json
 from collections.abc import AsyncIterator
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +37,7 @@ async def stream_run_events(
     request: Request,
     run_id: UUID,
     after: int = Query(default=0, ge=0),
+    last_event_id: int | None = Header(default=None, alias="Last-Event-ID", ge=0),
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
     settings: Settings = Depends(get_app_settings),
@@ -45,7 +46,7 @@ async def stream_run_events(
     database = request.app.state.database
 
     async def generate() -> AsyncIterator[str]:
-        cursor = after
+        cursor = max(after, last_event_id or 0)
         idle_seconds = 0.0
         poll_seconds = 0.5
         while True:
@@ -63,7 +64,8 @@ async def stream_run_events(
             if events:
                 idle_seconds = 0.0
                 for event in events:
-                    cursor = max(cursor, event.sequence)
+                    assert event.run_sequence is not None
+                    cursor = max(cursor, event.run_sequence)
                     body = EventView.model_validate(event).model_dump(mode="json")
                     yield f"id: {cursor}\nevent: {event.name}\ndata: {json.dumps(body)}\n\n"
             else:

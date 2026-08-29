@@ -1,0 +1,26 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/workspace_decision.superseded.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "superseded_by_decision_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "workspace_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "superseded_by_decision_id",
+    "version"
+  ],
+  "title": "workspace_decision.superseded payload v1",
+  "type": "object"
+}

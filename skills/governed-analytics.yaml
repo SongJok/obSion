@@ -8,7 +8,9 @@ spec:
     - build logical plan
     - validate AST
     - execute read-only query
+    - produce a table or trend chart artifact from DATA Evidence
+    - for decline questions, segment only by governed dimensions and never inspect logs or traces
     - explain metric definition
-  capabilities: [metric.describe, sql.validate, data.query]
+  capabilities: [metric.describe, sql.validate, sql.explain, data.query]
   requiredEvidence: [DATA]
   verification: [metric definition, query bounded, result cited]

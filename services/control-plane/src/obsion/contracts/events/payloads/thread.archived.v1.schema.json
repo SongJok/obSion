@@ -1,0 +1,9 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/thread.archived.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {},
+  "required": [],
+  "title": "thread.archived payload v1",
+  "type": "object"
+}

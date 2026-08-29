@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -13,7 +13,7 @@ from obsion.domain.enums import (
     SideEffect,
 )
 from obsion.security.identity import Principal
-from obsion.security.policy import PolicyEngine, PolicyInput
+from obsion.security.policy import PolicyEngine, PolicyInput, ResourcePolicyInput
 
 
 def capability(*, risk: RiskLevel, side_effect: SideEffect = SideEffect.NONE) -> CapabilityVersion:
@@ -128,3 +128,97 @@ async def test_explicit_deny_wins_over_allow() -> None:
     assert effect == DecisionEffect.DENY
     assert reasons == ["policy:deny-production:v1"]
     assert ids == [deny.id]
+
+
+async def test_admin_wildcard_satisfies_policy_permission_conditions() -> None:
+    organization_id = uuid4()
+    principal = Principal(
+        id=uuid4(),
+        organization_id=organization_id,
+        external_id="admin",
+        display_name="Admin",
+        permissions=frozenset({"*"}),
+    )
+    now = datetime.now(UTC)
+    allow = Policy(
+        id=uuid4(),
+        organization_id=organization_id,
+        name="permission-bound",
+        version=1,
+        priority=100,
+        effect=DecisionEffect.ALLOW,
+        enabled=True,
+        conditions={
+            "actions": ["knowledge.read.internal"],
+            "permissions_all": ["knowledge.read.internal"],
+        },
+        obligations=[],
+        reason="Admin wildcard satisfies the permission condition",
+        created_by=principal.id,
+        created_at=now,
+        updated_at=now,
+    )
+    session = AsyncMock()
+    session.scalars.return_value = [allow]
+    session.add = MagicMock()
+
+    decision = await PolicyEngine().evaluate_resource(
+        session,
+        ResourcePolicyInput(
+            principal=principal,
+            action="knowledge.read.internal",
+            resource={"classification": "INTERNAL"},
+            context={},
+            risk_level=RiskLevel.L1,
+            resource_type="document",
+        ),
+    )
+
+    assert decision.effect == DecisionEffect.ALLOW
+    assert decision.reason_codes == ("policy:permission-bound:v1",)
+
+
+async def test_generic_resource_policy_cannot_override_l3_boundary() -> None:
+    organization_id = uuid4()
+    principal = Principal(
+        id=uuid4(),
+        organization_id=organization_id,
+        external_id="admin",
+        display_name="Admin",
+        permissions=frozenset({"*"}),
+    )
+    now = datetime.now(UTC)
+    allow = Policy(
+        id=uuid4(),
+        organization_id=organization_id,
+        name="allow-all-memory",
+        version=1,
+        priority=100,
+        effect=DecisionEffect.ALLOW,
+        enabled=True,
+        conditions={"actions": ["memory.write"]},
+        obligations=[],
+        reason="Must not override L3",
+        created_by=principal.id,
+        created_at=now,
+        updated_at=now,
+    )
+    session = AsyncMock()
+    session.scalars.return_value = [allow]
+    session.add = MagicMock()
+    decision = await PolicyEngine().evaluate_resource(
+        session,
+        ResourcePolicyInput(
+            principal=principal,
+            action="memory.write",
+            resource={"classification": "RESTRICTED"},
+            context={"environment": "production"},
+            risk_level=RiskLevel.L3,
+            resource_type="memory",
+        ),
+    )
+    assert decision.effect == DecisionEffect.DENY
+    assert decision.reason_codes == ("high_risk_resource_mutation_denied",)
+    persisted = session.add.call_args.args[0]
+    assert persisted.capability_version_id is None
+    assert persisted.effect == DecisionEffect.DENY

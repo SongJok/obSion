@@ -1,0 +1,23 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/automation.review_decided.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "enum": [
+        "APPROVE",
+        "REJECT"
+      ]
+    },
+    "step_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "step_id",
+    "decision"
+  ],
+  "title": "automation.review_decided payload v1",
+  "type": "object"
+}

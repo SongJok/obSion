@@ -1367,7 +1367,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.13,<5" },
     { name = "croniter", specifier = ">=6,<7" },
     { name = "email-validator", specifier = ">=2.2,<3" },
-    { name = "fastapi", specifier = ">=0.116,<1" },
+    { name = "fastapi", specifier = ">=0.128,<1" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "httpx2", marker = "extra == 'dev'", specifier = ">=2.12,<3" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.135,<7" },
@@ -1413,6 +1413,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+app-server = [
+    { name = "websockets" },
+]
 dev = [
     { name = "mypy" },
     { name = "pytest" },
@@ -1428,8 +1431,9 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4,<9" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1,<2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12,<1" },
+    { name = "websockets", marker = "extra == 'app-server'", specifier = ">=15,<18" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["app-server", "dev"]
 
 [[package]]
 name = "openpyxl"

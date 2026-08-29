@@ -1,0 +1,37 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/plan.updated.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "replan": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "reason": {
+          "const": "transient_read_only_failure"
+        },
+        "step_ordinals": {
+          "items": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "attempt",
+        "reason",
+        "step_ordinals"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "replan"
+  ],
+  "title": "plan.updated payload v1",
+  "type": "object"
+}

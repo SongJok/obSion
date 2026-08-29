@@ -74,18 +74,13 @@ def _validate_spec(kind: str, spec: dict[str, Any], filename: str) -> None:
             f"Registry manifest {filename} requires non-empty string capabilities"
         )
     if kind == "Agent":
-        max_steps = spec.get("maxSteps")
-        risk_policy = spec.get("riskPolicy")
-        if not isinstance(max_steps, int) or not 1 <= max_steps <= 200:
-            raise RegistryManifestError(f"Agent manifest {filename} has an invalid maxSteps")
-        if not isinstance(risk_policy, dict) or risk_policy.get("maxLevel") not in {
-            "L0",
-            "L1",
-            "L2",
-        }:
-            raise RegistryManifestError(
-                f"Agent manifest {filename} must declare a V1 riskPolicy.maxLevel"
-            )
+        from obsion.registry.agent_spec import AgentSpec
+
+        AgentSpec.from_dict(spec, source=f"Agent manifest {filename}")
+    if kind == "Skill":
+        from obsion.registry.agent_spec import validate_model_context_configuration
+
+        validate_model_context_configuration(spec, source=f"Skill manifest {filename}")
     if kind == "Connector":
         required_strings = ("type", "environment", "transport")
         if any(

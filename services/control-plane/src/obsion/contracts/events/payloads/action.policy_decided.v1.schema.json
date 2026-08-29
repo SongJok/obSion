@@ -1,0 +1,39 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.policy_decided.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "decision_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "effect": {
+      "enum": [
+        "ALLOW",
+        "MASK",
+        "ASK",
+        "DENY"
+      ]
+    },
+    "purpose": {
+      "enum": [
+        "EXECUTE",
+        "ROLLBACK"
+      ]
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "decision_id",
+    "effect",
+    "reasons",
+    "purpose"
+  ],
+  "title": "action.policy_decided payload v1",
+  "type": "object"
+}

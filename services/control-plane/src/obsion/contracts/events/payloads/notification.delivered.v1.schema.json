@@ -1,0 +1,45 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/notification.delivered.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "not": {
+        "required": [
+          "recipient_id"
+        ]
+      },
+      "required": [
+        "event"
+      ]
+    },
+    {
+      "not": {
+        "required": [
+          "event"
+        ]
+      },
+      "required": [
+        "recipient_id"
+      ]
+    }
+  ],
+  "properties": {
+    "event": {
+      "type": "string"
+    },
+    "notification_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "recipient_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "notification_id"
+  ],
+  "title": "notification.delivered payload v1",
+  "type": "object"
+}

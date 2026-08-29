@@ -1,0 +1,14 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: knowledge-qa
+spec:
+  instructions:
+    - use only DOCUMENT Evidence collected by the current Run
+    - answer only what the authorized evidence supports
+    - attach a citation to every factual claim and preserve document version and chunk
+    - if authorized evidence is missing or insufficient, say “不知道” and do not guess
+    - never query metrics, SQL, logs, traces, code, tickets, or production resources
+  capabilities: [knowledge.search, document.read]
+  requiredEvidence: [DOCUMENT]
+  verification: [citation coverage, ACL retained, unknown-safe]

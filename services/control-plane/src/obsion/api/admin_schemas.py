@@ -1,31 +1,60 @@
+import re
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from obsion.domain.enums import (
     Classification,
     ConnectorStatus,
     DecisionEffect,
+    SystemRole,
 )
 
 
 class AdminModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class CreateUserRequest(AdminModel):
     external_id: str = Field(min_length=1, max_length=255)
     email: EmailStr
     display_name: str = Field(min_length=1, max_length=200)
-    department: str | None = Field(default=None, max_length=200)
+    department_id: UUID | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateDepartmentRequest(AdminModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=4000)
+    parent_id: UUID | None = None
 
 
 class CreateRoleRequest(AdminModel):
     name: str = Field(min_length=1, max_length=120)
     description: str = Field(default="", max_length=4000)
     permissions: list[str] = Field(default_factory=list, max_length=500)
+
+    @field_validator("name")
+    @classmethod
+    def custom_role_name_cannot_shadow_system_role(cls, value: str) -> str:
+        normalized = value.strip()
+        if normalized in {role.value for role in SystemRole}:
+            raise ValueError("system role names are reserved")
+        return normalized
+
+    @field_validator("permissions")
+    @classmethod
+    def custom_role_permissions_are_explicit(cls, values: list[str]) -> list[str]:
+        normalized = sorted({value.strip() for value in values})
+        if "*" in normalized:
+            raise ValueError("the wildcard permission is reserved for the admin system role")
+        if any(
+            not re.fullmatch(r"[a-z][a-z0-9]*(?:[._:-][a-z0-9*]+)*", value) for value in normalized
+        ):
+            raise ValueError("permissions must be stable lowercase action identifiers")
+        return normalized
 
 
 class RoleBindingRequest(AdminModel):
@@ -62,6 +91,88 @@ class CreateModelEndpointRequest(AdminModel):
     capabilities: list[str] = Field(default_factory=list)
     limits: dict[str, Any] = Field(default_factory=dict)
     enabled: bool = False
+
+    @field_validator("provider")
+    @classmethod
+    def normalize_provider(cls, value: str) -> str:
+        return value.strip().casefold()
+
+    @field_validator("capabilities")
+    @classmethod
+    def normalize_model_capabilities(cls, values: list[str]) -> list[str]:
+        normalized = sorted({value.strip().casefold() for value in values})
+        if any(not re.fullmatch(r"[a-z][a-z0-9_-]*", value) for value in normalized):
+            raise ValueError("model capabilities must be stable lowercase identifiers")
+        return normalized
+
+    @field_validator("limits")
+    @classmethod
+    def validate_model_limits(cls, limits: dict[str, Any]) -> dict[str, Any]:
+        for field in ("context_window", "max_output_tokens"):
+            value = limits.get(field)
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value <= 0
+            ):
+                raise ValueError(f"{field} must be a positive integer")
+        if (
+            isinstance(limits.get("context_window"), int)
+            and isinstance(limits.get("max_output_tokens"), int)
+            and limits["max_output_tokens"] > limits["context_window"]
+        ):
+            raise ValueError("max_output_tokens cannot exceed context_window")
+        if "private" in limits and not isinstance(limits["private"], bool):
+            raise ValueError("private must be a boolean")
+        pricing = limits.get("pricing_per_million")
+        if pricing is not None:
+            if not isinstance(pricing, dict):
+                raise ValueError("pricing_per_million must be an object")
+            for operation, value in pricing.items():
+                if operation not in {"input", "output", "embedding"}:
+                    raise ValueError("pricing_per_million contains an unsupported operation")
+                try:
+                    amount = Decimal(str(value))
+                except (InvalidOperation, ValueError) as exc:
+                    raise ValueError("pricing values must be finite non-negative decimals") from exc
+                if not amount.is_finite() or amount < 0:
+                    raise ValueError("pricing values must be finite non-negative decimals")
+        return limits
+
+    @model_validator(mode="after")
+    def enabled_endpoint_must_be_routable(self) -> "CreateModelEndpointRequest":
+        if self.enabled and (not self.classifications or not self.capabilities):
+            raise ValueError("enabled model endpoints require classifications and capabilities")
+        return self
+
+
+class ModelProfileRequirements(AdminModel):
+    capabilities: list[str] = Field(default_factory=lambda: ["chat"], max_length=32)
+    providers: list[str] = Field(default_factory=list, max_length=32)
+    region: str | None = Field(default=None, max_length=120)
+    min_context_window: int = Field(default=0, ge=0, le=10_000_000)
+    private: bool = False
+
+    @field_validator("capabilities", "providers")
+    @classmethod
+    def normalize_requirements(cls, values: list[str]) -> list[str]:
+        normalized = sorted({value.strip().casefold() for value in values})
+        if any(not re.fullmatch(r"[a-z][a-z0-9_-]*", value) for value in normalized):
+            raise ValueError("profile requirements must be stable lowercase identifiers")
+        return normalized
+
+
+class ModelRoutingPolicy(AdminModel):
+    fallback: bool = True
+
+
+class CreateModelProfileRequest(AdminModel):
+    name: str = Field(
+        min_length=1,
+        max_length=120,
+        pattern=r"^[a-z0-9][a-z0-9-]*$",
+    )
+    requirements: ModelProfileRequirements = Field(default_factory=ModelProfileRequirements)
+    routing_policy: ModelRoutingPolicy = Field(default_factory=ModelRoutingPolicy)
+    enabled: bool = True
 
 
 class ModelProfileBindingRequest(AdminModel):
@@ -126,6 +237,29 @@ class CreateDimensionRequest(AdminModel):
     source_table_id: UUID
     owner: str = Field(min_length=1, max_length=200)
     synonyms: list[str] = Field(default_factory=list)
+
+
+class CreateSemanticEntityRequest(AdminModel):
+    name: str = Field(min_length=1, max_length=200)
+    display_name: str = Field(min_length=1, max_length=240)
+    primary_key_expression: str = Field(min_length=1, max_length=4000)
+    source_table_id: UUID
+    owner: str = Field(min_length=1, max_length=200)
+
+
+class CreateSemanticRelationRequest(AdminModel):
+    source_entity_id: UUID
+    target_entity_id: UUID
+    relation_type: str = Field(min_length=1, max_length=80)
+    join_expression: str = Field(min_length=1, max_length=4000)
+    cardinality: str = Field(min_length=1, max_length=80)
+
+
+class CreateBusinessRuleRequest(AdminModel):
+    name: str = Field(min_length=1, max_length=200)
+    expression: dict[str, Any] = Field(min_length=1)
+    owner: str = Field(min_length=1, max_length=200)
+    enabled: bool = True
 
 
 class CreateTimeDefinitionRequest(AdminModel):

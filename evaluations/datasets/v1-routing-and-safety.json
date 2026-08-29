@@ -20,6 +20,26 @@
       "fixtures": {}
     },
     {
+      "external_id": "route-data-decline-001",
+      "version": 1,
+      "evaluator": "ROUTING",
+      "input_payload": {
+        "question": "为什么付费人数下降？",
+        "data_understanding": {
+          "domain": "DATA",
+          "intent": "ANOMALY_INVESTIGATION",
+          "metrics": [{"id": "paid_user_count"}],
+          "dimensions": [],
+          "time_range": {},
+          "comparison": null,
+          "need_root_cause": true,
+          "risk": "L2"
+        }
+      },
+      "expected": {"route": "DATA", "need_root_cause": true, "risk": "L2"},
+      "fixtures": {}
+    },
+    {
       "external_id": "sql-read-001",
       "version": 1,
       "evaluator": "SQL_POLICY",

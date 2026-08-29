@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.common.errors import ConflictError, NotFoundError, ObsionError, ValidationError
 from obsion.config import Settings
+from obsion.contracts.errors import validate_error_code
 from obsion.data_intelligence.sql_policy import SqlPolicyValidator
 from obsion.db.models import (
     Artifact,
@@ -42,6 +43,9 @@ class CaseEvaluation:
     duration_ms: int
     error_code: str | None = None
     error_message: str | None = None
+
+    def __post_init__(self) -> None:
+        validate_error_code(self.error_code)
 
 
 def canonical_sha256(value: Any) -> str:
@@ -315,12 +319,36 @@ class EvaluationEngine:
             and isinstance(item.inline_content.get("markdown"), str)
         ]
         answer = "\n".join(answers)
+        incident_fusion: dict[str, Any] = {}
+        for artifact in artifacts:
+            if artifact.kind != ArtifactKind.TEXT or not isinstance(artifact.inline_content, dict):
+                continue
+            candidate_fusion = artifact.inline_content.get("incident_fusion")
+            if isinstance(candidate_fusion, dict):
+                incident_fusion = candidate_fusion
+                break
+        top1 = incident_fusion.get("top1", {})
+        top1_types = self._string_list(
+            top1.get("evidence_types", []) if isinstance(top1, dict) else []
+        )
         evidence_ids = {item.id for item in evidence}
         valid_links = [
             (claim_id, evidence_id)
             for claim_id, evidence_id in links
             if evidence_id in evidence_ids
         ]
+        claim_evidence_types: dict[UUID, set[str]] = {}
+        evidence_by_id = {item.id: item for item in evidence}
+        for claim_id, evidence_id in valid_links:
+            evidence_item = evidence_by_id.get(evidence_id)
+            if evidence_item is not None:
+                claim_evidence_types.setdefault(claim_id, set()).add(
+                    evidence_item.evidence_type.value
+                )
+        cross_type_claims: int = sum(
+            1 for types in claim_evidence_types.values() if len(types) >= 2
+        )
+        incident_candidate_count = int(incident_fusion.get("candidate_count", 0))
         linked_claim_ids = {claim_id for claim_id, _ in valid_links}
         citation_precision = len(valid_links) / len(links) if links else 0.0
         evidence_coverage = len(linked_claim_ids) / len(claims) if claims else 0.0
@@ -342,6 +370,9 @@ class EvaluationEngine:
             "evidence_coverage": round(evidence_coverage, 4),
             "citation_precision": round(citation_precision, 4),
             "answer_faithfulness": round(faithfulness, 4),
+            "incident_candidate_count": incident_candidate_count,
+            "incident_top1_evidence_types": top1_types,
+            "cross_type_claims": cross_type_claims,
         }
         checks: dict[str, bool] = {}
         scores: dict[str, float] = {
@@ -375,9 +406,23 @@ class EvaluationEngine:
                 scores["answer_accuracy"] = round(matched / len(required), 4) if required else 0.0
             elif key == "answer_sha256":
                 checks[key] = actual["answer_sha256"] == expected
+            elif key == "incident_top1_evidence_types":
+                required = self._string_list(expected)
+                checks[key] = bool(top1_types) and set(required).issubset(set(top1_types))
+            elif key in {"minimum_incident_candidates", "minimum_cross_type_claims"}:
+                metric: int = (
+                    incident_candidate_count
+                    if key == "minimum_incident_candidates"
+                    else cross_type_claims
+                )
+                if not isinstance(expected, int) or isinstance(expected, bool):
+                    checks[key] = False
+                else:
+                    checks[key] = metric >= expected
+                    scores[key.removeprefix("minimum_")] = float(metric)
             elif key.startswith("minimum_"):
-                metric = key.removeprefix("minimum_")
-                actual_score = actual.get(metric, 0)
+                score_name = key.removeprefix("minimum_")
+                actual_score = actual.get(score_name, 0)
                 if not isinstance(actual_score, int | float) or not isinstance(
                     expected, int | float
                 ):
@@ -405,6 +450,9 @@ class EvaluationEngine:
             "evidence_coverage": actual["evidence_coverage"],
             "citation_precision": actual["citation_precision"],
             "answer_faithfulness": actual["answer_faithfulness"],
+            "incident_candidate_count": actual["incident_candidate_count"],
+            "incident_top1_evidence_types": actual["incident_top1_evidence_types"],
+            "cross_type_claims": actual["cross_type_claims"],
         }
         evidence_refs = [
             {

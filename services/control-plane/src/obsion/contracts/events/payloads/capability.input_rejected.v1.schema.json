@@ -1,0 +1,15 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/capability.input_rejected.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "capability"
+  ],
+  "title": "capability.input_rejected payload v1",
+  "type": "object"
+}

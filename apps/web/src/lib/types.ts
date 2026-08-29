@@ -1,11 +1,20 @@
 export type ViewName =
   | "assistant"
+  | "collaboration"
   | "automation"
   | "actions"
   | "artifacts"
   | "knowledge"
   | "data"
   | "admin";
+
+export interface SessionPrincipal {
+  principal_id: string;
+  organization_id: string;
+  display_name: string;
+  department: string | null;
+  roles: string[];
+}
 
 export interface Workspace {
   id: string;
@@ -21,7 +30,21 @@ export interface Thread {
   workspace_id: string;
   title: string;
   status: "ACTIVE" | "ARCHIVED";
+  created_by: string;
+  parent_thread_id: string | null;
+  forked_from_turn_id: string | null;
+  created_at: string;
   updated_at: string;
+  archived_at: string | null;
+}
+
+export interface ThreadEvent {
+  id: string;
+  sequence: number;
+  name: string;
+  correlation_id: string;
+  payload: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface Turn {
@@ -83,8 +106,20 @@ export interface RunStep {
 
 export interface RunEvent {
   id: string;
+  event_id: string;
+  organization_id: string;
+  aggregate_type: string;
+  aggregate_id: string;
   sequence: number;
   name: string;
+  run_id: string | null;
+  run_sequence: number | null;
+  causation_id: string | null;
+  correlation_id: string;
+  actor_type: "USER" | "SERVICE" | "AGENT" | "SYSTEM";
+  actor_id: string | null;
+  schema_version: number;
+  classification: "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
   payload: Record<string, unknown>;
   created_at: string;
 }
@@ -137,6 +172,117 @@ export interface Evidence {
   lineage: Record<string, unknown>;
 }
 
+export interface MemorySnapshot {
+  id: string;
+  run_id: string;
+  memory_id: string;
+  principal_id: string;
+  ordinal: number;
+  scope: "TURN" | "SESSION" | "WORKSPACE" | "USER_PREFERENCE";
+  owner_ref: string;
+  content: Record<string, unknown>;
+  content_fingerprint: string;
+  sensitivity: string;
+  policy_decision_id: string;
+  memory_updated_at: string;
+  captured_at: string;
+}
+
+export interface ConversationSnapshot {
+  id: string;
+  run_id: string;
+  source_thread_id: string;
+  source_turn_id: string;
+  source_run_id: string | null;
+  source_artifact_id: string | null;
+  source_principal_id: string;
+  ordinal: number;
+  user_content: string;
+  assistant_content: string | null;
+  content_fingerprint: string;
+  classification: string;
+  captured_at: string;
+}
+
+export type RunFeedbackRating = "HELPFUL" | "NEEDS_IMPROVEMENT";
+
+export interface RunFeedback {
+  id: string;
+  run_id: string;
+  user_id: string;
+  rating: RunFeedbackRating;
+  reason: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedbackSummary {
+  total: number;
+  helpful: number;
+  needs_improvement: number;
+  helpful_rate: number | null;
+}
+
+export type WorkspaceTaskStatus =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "BLOCKED"
+  | "COMPLETED"
+  | "CANCELLED";
+export type WorkspaceTaskPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
+
+export interface WorkspaceTask {
+  id: string;
+  workspace_id: string;
+  title: string;
+  description: string;
+  status: WorkspaceTaskStatus;
+  priority: WorkspaceTaskPriority;
+  assignee_id: string | null;
+  created_by: string;
+  source_run_id: string | null;
+  due_at: string | null;
+  completed_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkspaceDecisionStatus = "PROPOSED" | "ACCEPTED" | "REJECTED" | "SUPERSEDED";
+
+export interface WorkspaceDecision {
+  id: string;
+  workspace_id: string;
+  status: WorkspaceDecisionStatus;
+  current_version: number;
+  created_by: string;
+  decided_by: string | null;
+  source_run_id: string | null;
+  supersedes_decision_id: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  summary: string;
+  rationale: string;
+  alternatives: string[];
+  checksum_sha256: string;
+}
+
+export interface WorkspaceDecisionVersion {
+  id: string;
+  decision_id: string;
+  version: number;
+  title: string;
+  summary: string;
+  rationale: string;
+  alternatives: string[];
+  created_by: string;
+  checksum_sha256: string;
+  created_at: string;
+}
+
 export interface Claim {
   id: string;
   statement: string;
@@ -157,10 +303,20 @@ export interface Metric {
   name: string;
   display_name: string;
   version: number;
+  expression: string;
+  filters: Record<string, unknown>;
+  time_column: string;
+  source_table_id: string;
   owner: string;
   synonyms: string[];
   validated: boolean;
   updated_at: string;
+}
+
+export interface MetricLineage {
+  metric: { id: string; name: string; version: number };
+  table: { id: string; name: string; owner: string };
+  data_source: { id: string; name: string; environment: string; read_only: boolean };
 }
 
 export type WorkflowStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "RETIRED";

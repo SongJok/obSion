@@ -1,0 +1,155 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/context.resolved.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attachment_refs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "classification": {
+            "enum": [
+              "PUBLIC",
+              "INTERNAL",
+              "CONFIDENTIAL",
+              "RESTRICTED"
+            ]
+          },
+          "media_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "const": "artifact"
+          }
+        },
+        "required": [
+          "type",
+          "artifact_id",
+          "title",
+          "media_type",
+          "classification"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "context_refs": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "conversation_snapshots": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "enum": [
+              "PUBLIC",
+              "INTERNAL",
+              "CONFIDENTIAL",
+              "RESTRICTED"
+            ]
+          },
+          "content_fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ordinal": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "source_run_id": {
+            "oneOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_thread_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "source_turn_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "source_thread_id",
+          "source_turn_id",
+          "source_run_id",
+          "content_fingerprint",
+          "classification"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "memory_snapshots": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "content_fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "TURN",
+              "SESSION",
+              "WORKSPACE",
+              "USER_PREFERENCE"
+            ]
+          },
+          "sensitivity": {
+            "enum": [
+              "PUBLIC",
+              "INTERNAL",
+              "CONFIDENTIAL",
+              "RESTRICTED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "content_fingerprint",
+          "sensitivity"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "context_refs",
+    "attachment_refs",
+    "conversation_snapshots",
+    "memory_snapshots"
+  ],
+  "title": "context.resolved payload v1",
+  "type": "object"
+}

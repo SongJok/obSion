@@ -2,7 +2,41 @@ import pytest
 
 from obsion.common.errors import ConflictError
 from obsion.domain.enums import RunStatus
-from obsion.domain.run_state import is_terminal, validate_run_transition
+from obsion.domain.run_state import (
+    allowed_run_transitions,
+    is_terminal,
+    validate_run_transition,
+)
+
+EXPECTED_TRANSITIONS = {
+    RunStatus.PENDING: {RunStatus.RUNNING, RunStatus.CANCELLED, RunStatus.FAILED},
+    RunStatus.RUNNING: {
+        RunStatus.WAITING_APPROVAL,
+        RunStatus.WAITING_USER,
+        RunStatus.REPLANNING,
+        RunStatus.COMPLETED,
+        RunStatus.FAILED,
+        RunStatus.CANCELLED,
+    },
+    RunStatus.WAITING_APPROVAL: {
+        RunStatus.RUNNING,
+        RunStatus.FAILED,
+        RunStatus.CANCELLED,
+    },
+    RunStatus.WAITING_USER: {
+        RunStatus.RUNNING,
+        RunStatus.FAILED,
+        RunStatus.CANCELLED,
+    },
+    RunStatus.REPLANNING: {
+        RunStatus.RUNNING,
+        RunStatus.FAILED,
+        RunStatus.CANCELLED,
+    },
+    RunStatus.COMPLETED: set(),
+    RunStatus.FAILED: set(),
+    RunStatus.CANCELLED: set(),
+}
 
 
 @pytest.mark.parametrize(
@@ -32,3 +66,17 @@ def test_waiting_approval_cannot_skip_to_completed() -> None:
     with pytest.raises(ConflictError) as caught:
         validate_run_transition(RunStatus.WAITING_APPROVAL, RunStatus.COMPLETED)
     assert caught.value.code == "invalid_run_transition"
+
+
+def test_run_state_machine_exactly_matches_the_phase4_contract() -> None:
+    assert set(EXPECTED_TRANSITIONS) == set(RunStatus)
+    for current in RunStatus:
+        allowed = allowed_run_transitions(current)
+        assert allowed == frozenset(EXPECTED_TRANSITIONS[current])
+        for target in RunStatus:
+            if target in allowed:
+                validate_run_transition(current, target)
+            else:
+                with pytest.raises(ConflictError) as caught:
+                    validate_run_transition(current, target)
+                assert caught.value.code == "invalid_run_transition"

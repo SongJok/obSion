@@ -25,13 +25,15 @@ api
 harness
   -> agent router -> planner -> bounded executor -> critic -> responder
   -> model_gateway (logical profile only)
+  -> registry (active, tenant-scoped, AgentSpec-filtered descriptors)
   -> capability_gateway (the only external execution boundary)
   -> event_store (transactional trajectory)
 
 capability_gateway
   -> registry -> schema validation -> policy -> approval
-  -> credential broker -> connector runtime -> DLP/masking
-  -> evidence -> audit -> telemetry
+  -> connector grants -> rate limit -> credential broker -> timeout-bounded connector
+  -> DLP/masking -> EvidenceFabric normalization
+  -> evidence -> Claim linkage -> audit -> telemetry
 
 actions
   -> preflight -> immutable plan -> independent approval -> durable worker
@@ -40,8 +42,23 @@ actions
 intelligence
   -> knowledge: ingest -> ACL -> chunk -> retrieve -> rerank -> evidence
   -> data: understand -> semantics -> logical plan -> SQL AST -> query -> evidence
-  -> incident: normalize -> correlate -> verify -> evidence
+  -> incident: normalize -> fuse -> rank candidates -> verify -> evidence
 ```
+
+The internal Knowledge route resolves the active `knowledge-agent` and pinned
+`knowledge-qa` Skill before planning. The Skill is limited to Knowledge capabilities,
+requires DOCUMENT Evidence, renders citations from substantive Claim links, and emits an
+explicit unknown answer when authorized retrieval has no supporting source.
+
+The semantic catalog is also an inspectable product surface. Validated metrics expose
+their complete versioned definition and a tenant-scoped, read-only lineage chain from
+data source to table to metric through the API, both SDKs, and the responsive
+Workbench. Inspection never opens a connector session or bypasses query policy.
+
+Incident evidence fusion is deterministic and read-only. It produces at most three
+ranked candidate root causes from the current Run's normalized Evidence. A root-cause
+Claim must link two distinct Evidence types; unresolved conflicts remain attached to
+the answer Artifact and downgrade verification rather than becoming a causal fact.
 
 ## Dependency rules
 
@@ -51,8 +68,9 @@ intelligence
    telemetry ports.
 4. API routers perform transport validation and delegate; policy cannot live only in
    routers because background runs use the same application services.
-5. Agents and skills declare capability IDs. Importing connector code from either is
-   an architecture-test failure.
+5. Agents and skills declare capability IDs. Harness resolves those IDs against the
+   active tenant Registry before planning; importing connector code from either is an
+   architecture-test failure.
 6. Events and audit records are outputs of use cases, not best-effort logging.
 
 ## Persistence and transactions
@@ -67,7 +85,46 @@ database grants. User-editable resources use version rows and soft deletion. Lar
 artifact bodies live in S3-compatible storage while checksums, classification, ACL,
 and lineage remain transactional metadata.
 
+Thread create, archive, resume, and fork mutations commit their aggregate event,
+outbox message, and redacted audit record in the same transaction. A fork records its
+parent Thread and exact source Turn without rewriting either history. Its effective
+history is a fixed read projection of the parent trajectory through that source Turn,
+followed by local Turns; later parent Turns are excluded, local ordinals continue from
+the inherited prefix, and nested forks resolve the same bounded lineage. Archived
+Threads remain inspectable but reject new Turns until explicitly resumed; a Thread
+with a non-terminal Run cannot be archived.
+
+Creating an ordinary Turn also captures the effective prior conversation in the same
+transaction as its Run. Capture works newest-first under configured Turn, total
+character, and per-message limits, then persists the selected rows chronologically.
+Only answers from Runs completed before capture are eligible. The Harness sends the
+current principal's earlier input as user history, treats other collaborators' input
+as untrusted data, propagates the highest snapshot classification to model routing,
+and continues to require current-Run Evidence for every factual Claim. Replay clones
+these rows and includes them in the deterministic snapshot fingerprint instead of
+querying live Thread history.
+
+Workspace collaboration uses optimistic versions at the API and row locks in the
+service. PostgreSQL independently enforces task status/version rules, decision
+disposition and supersession rules, immutable decision revisions, and the absence of
+direct deletion. Each accepted mutation commits its aggregate event, outbox message,
+and audit record atomically.
+
+Run satisfaction follows the same durable boundary. A principal can record one
+redacted rating per terminal Run, revisions require the exact current version, and a
+Run row lock serializes concurrent first submissions. PostgreSQL rejects identity
+changes, skipped versions, and deletion. Feedback mutation extends the existing Run
+aggregate sequence and commits its outbox and audit evidence atomically; the admin
+rate is projected from current records rather than submission-event volume.
+
 ## Harness execution
+
+Ordinary Runs persist the Harness loop as first-class RunSteps:
+`OBSERVE -> UNDERSTAND -> PLAN -> CAPABILITY* -> VERIFY -> RESPOND`. The Act phase is
+empty for non-factual conversation and is otherwise represented only by Capability
+Gateway requests. Missing Capability bindings, policy denials, schema failures, and
+connector failures terminate the evidence path explicitly; they cannot be masked by a
+model-written answer.
 
 The executor is durable and bounded. Each external boundary checks cancellation,
 deadline, step count, token budget, monetary budget, and recursion depth. Independent
@@ -77,27 +134,39 @@ attempt; the runtime enters `REPLANNING`, records `plan.updated`, restores affec
 dependent nodes, and charges every attempt against the pinned step budget. Policy
 denials and other deterministic failures are never retried.
 
-Run steps and events are persisted before and after each boundary. Waiting for an
+Run steps and events are persisted before and after each boundary. Before planning, the
+runtime resolves only currently authorized, approved, unexpired TURN, SESSION,
+WORKSPACE, and USER_PREFERENCE memories. It applies item and character budgets,
+captures immutable `RunMemorySnapshot` rows, and supplies them to the model as
+untrusted data rather than instructions. Memory cannot substantiate a factual Claim
+without Evidence.
+
+Waiting for an
 approval or user input releases the worker; resume acquires a lease and validates a
 single-use hashed resume token. Replay pins recorded agent, skill, model profile,
-capability versions, inputs, and evidence snapshots, and distinguishes replay from a
-fresh rerun.
+capability versions, inputs, memory snapshots, and evidence snapshots, and
+distinguishes replay from a fresh rerun.
 
 A replay never re-enters the Capability or Model Gateway. The worker atomically
-materializes the terminal source Run's steps, version IDs, evidence fingerprints,
-Claims, Claim-Evidence links, artifacts, usage, and safe event envelopes under new
-resource IDs. The replay records one stable SHA-256 fingerprint over the source
-snapshot, preserves source observation timestamps, and exposes replay-specific events
-so an inspector cannot confuse historical playback with a new external invocation.
+materializes the terminal source Run's steps, version IDs, memory/evidence
+fingerprints, Claims, Claim-Evidence links, artifacts, usage, and safe event envelopes
+under new resource IDs. The replay records one stable SHA-256 fingerprint over the
+source snapshot, preserves source observation and memory-capture timestamps, and
+exposes replay-specific events so an inspector cannot confuse historical playback
+with a new external invocation.
 Repeating a replay of the same immutable source produces the same snapshot fingerprint.
 
 ## Model execution
 
 Agent specifications refer to profiles such as `reasoning-high`, `fast`, `private`,
 or `coding-high`. The router selects only enabled endpoints compatible with data
-classification, region, context, tool support, latency, and budget. Provider responses
-are schema-validated and usage is recorded. External data occupies an explicitly
-untrusted context segment and cannot become system or skill instructions.
+classification, region, provider family, context, chat/tool/JSON support, private
+deployment policy, and budget. `CONFIDENTIAL` and `RESTRICTED` inputs force the
+configured private profile by default and fail before provider access when no honest
+private route exists. Provider responses and normalized tool arguments are
+schema-validated, every attempt records usage/cost, and fallback stays within the
+selected logical profile. External data occupies an explicitly untrusted context
+segment and cannot become system or skill instructions.
 
 No provider is required to boot the control plane. A run that needs a model and has no
 eligible endpoint becomes a typed, recoverable configuration failure; it never falls
@@ -135,12 +204,23 @@ destructive writes, and L4-L5 remain immutable denials.
 The Workbench keeps the prompt and answer central, like mature conversational tools,
 but makes enterprise execution visible:
 
+- the login page exchanges an access token once for a revocable opaque HttpOnly
+  session; browser code never persists or forwards the bearer, and REST/WebSocket use
+  the same provisioned Principal;
 - the left rail selects workspaces, threads, files, reports, data, and administration;
+- the task-and-decision view keeps actionable follow-up beside immutable team
+  rationale, version history, and replacement lineage;
 - the center presents conversation and rich artifacts with a persistent composer;
+- terminal responses expose working copy, deterministic playback, and versioned
+  satisfaction controls with an improvement-reason form;
+- the composer can select readable artifacts already in the workspace; selection
+  reuses the same access check, parser, redaction, Evidence normalization, immutable
+  Turn reference, and replay path as a newly uploaded attachment;
 - the right inspector presents plan, live runtime events, evidence, tool activity,
   costs, memory, and audit information;
 - a conclusion opens its evidence without navigating away;
-- responsive layouts collapse navigation and inspector into accessible drawers;
+- responsive layouts collapse navigation and inspector into accessible, dismissible
+  drawers without page-level horizontal scrolling;
 - keyboard navigation, focus states, reduced motion, contrast, and screen-reader live
   regions are first-class requirements.
 

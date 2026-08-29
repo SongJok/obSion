@@ -6,5 +6,6 @@ spec:
   description: Permission-aware enterprise knowledge researcher
   modelPolicy: {profile: reasoning-high}
   maxSteps: 12
-  capabilities: [knowledge.search, document.read, policy.search, ticket.search]
+  skills: [knowledge-qa]
+  capabilities: [knowledge.search, document.read]
   riskPolicy: {maxLevel: L1}

@@ -1,6 +1,15 @@
 from enum import StrEnum
 
 
+class SystemRole(StrEnum):
+    ADMIN = "admin"
+    ENGINEER = "engineer"
+    ANALYST = "analyst"
+    OPERATOR = "operator"
+    SUPPORT = "support"
+    VIEWER = "viewer"
+
+
 class Classification(StrEnum):
     PUBLIC = "PUBLIC"
     INTERNAL = "INTERNAL"
@@ -35,6 +44,7 @@ class StepStatus(StrEnum):
 
 
 class StepKind(StrEnum):
+    OBSERVE = "OBSERVE"
     UNDERSTAND = "UNDERSTAND"
     PLAN = "PLAN"
     MODEL = "MODEL"
@@ -121,6 +131,61 @@ class VerificationStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class VerificationOutcome(StrEnum):
+    VERIFIED = "VERIFIED"
+    PARTIAL = "PARTIAL"
+    REJECTED = "REJECTED"
+    ERROR = "ERROR"
+
+
+class VerificationRuleOutcome(StrEnum):
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    INDETERMINATE = "INDETERMINATE"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+class ObservationValueType(StrEnum):
+    TEXT = "TEXT"
+    NUMBER = "NUMBER"
+    BOOLEAN = "BOOLEAN"
+    DATETIME = "DATETIME"
+    JSON = "JSON"
+
+
+class EvidenceRelation(StrEnum):
+    SUPPORTS = "SUPPORTS"
+    CONTRADICTS = "CONTRADICTS"
+    NEUTRAL = "NEUTRAL"
+
+
+class EvidenceConflictKind(StrEnum):
+    VALUE = "VALUE"
+    TEMPORAL = "TEMPORAL"
+    DEFINITION = "DEFINITION"
+    SCOPE = "SCOPE"
+
+
+class EvidenceConflictSeverity(StrEnum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class EvidenceConflictDisposition(StrEnum):
+    UNRESOLVED = "UNRESOLVED"
+    EXPLAINED = "EXPLAINED"
+    DUPLICATE = "DUPLICATE"
+
+
+class AnswerPublicationDecision(StrEnum):
+    PUBLISH = "PUBLISH"
+    PUBLISH_MASKED = "PUBLISH_MASKED"
+    AWAIT_APPROVAL = "AWAIT_APPROVAL"
+    WITHHOLD = "WITHHOLD"
+
+
 class EvaluationTarget(StrEnum):
     ROUTING = "ROUTING"
     SQL_POLICY = "SQL_POLICY"
@@ -151,6 +216,33 @@ class MemoryStatus(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
+
+
+class WorkspaceTaskStatus(StrEnum):
+    OPEN = "OPEN"
+    IN_PROGRESS = "IN_PROGRESS"
+    BLOCKED = "BLOCKED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class WorkspaceTaskPriority(StrEnum):
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class WorkspaceDecisionStatus(StrEnum):
+    PROPOSED = "PROPOSED"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    SUPERSEDED = "SUPERSEDED"
+
+
+class RunFeedbackRating(StrEnum):
+    HELPFUL = "HELPFUL"
+    NEEDS_IMPROVEMENT = "NEEDS_IMPROVEMENT"
 
 
 class ConnectorStatus(StrEnum):

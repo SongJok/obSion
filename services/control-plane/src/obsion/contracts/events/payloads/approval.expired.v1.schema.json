@@ -1,0 +1,16 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/approval.expired.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "approval_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "approval_id"
+  ],
+  "title": "approval.expired payload v1",
+  "type": "object"
+}

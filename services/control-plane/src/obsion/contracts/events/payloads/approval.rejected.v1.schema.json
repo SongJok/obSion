@@ -1,0 +1,20 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/approval.rejected.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "approval_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "approval_id",
+    "reason"
+  ],
+  "title": "approval.rejected payload v1",
+  "type": "object"
+}

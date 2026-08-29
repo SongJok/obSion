@@ -190,9 +190,7 @@ async def test_completed_evaluation_and_case_results_are_immutable() -> None:
             await result_removal.rollback()
 
             persisted = await connection.scalar(
-                select(EvaluationCaseResult.scores).where(
-                    EvaluationCaseResult.id == result_id
-                )
+                select(EvaluationCaseResult.scores).where(EvaluationCaseResult.id == result_id)
             )
             assert persisted == {"route_accuracy": 1.0}
         finally:

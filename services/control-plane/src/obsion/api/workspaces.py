@@ -8,6 +8,7 @@ from obsion.api.schemas import (
     CreateThreadRequest,
     CreateTurnRequest,
     CreateWorkspaceRequest,
+    EventView,
     ForkThreadRequest,
     RunView,
     SetWorkspaceMemberRequest,
@@ -156,6 +157,25 @@ async def fork_thread(
             session, principal, thread_id, request.from_turn_id, request.title
         )
     return ThreadView.model_validate(thread)
+
+
+@router.get("/threads/{thread_id}/events", response_model=list[EventView])
+async def list_thread_events(
+    thread_id: UUID,
+    after_sequence: int = Query(default=0, ge=0),
+    limit: int = Query(default=200, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: WorkspaceService = Depends(get_workspace_service),
+) -> list[EventView]:
+    events = await service.list_thread_events(
+        session,
+        principal,
+        thread_id,
+        after_sequence=after_sequence,
+        limit=limit,
+    )
+    return [EventView.model_validate(event) for event in events]
 
 
 @router.post(

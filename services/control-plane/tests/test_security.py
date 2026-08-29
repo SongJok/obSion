@@ -17,6 +17,19 @@ def test_recursive_redaction_never_retains_secrets() -> None:
     assert "live-secret-token" not in redact_text("Bearer live-secret-token")
 
 
+def test_text_redaction_covers_assignments_and_private_key_blocks() -> None:
+    text = (
+        "password='do not persist' api_key: sk-live-value "
+        "-----BEGIN PRIVATE KEY-----secret material-----END PRIVATE KEY-----"
+    )
+    redacted = redact_text(text)
+    assert "do not persist" not in redacted
+    assert "sk-live-value" not in redacted
+    assert "secret material" not in redacted
+    assert "[REDACTED]" in redacted
+    assert "[REDACTED PRIVATE KEY]" in redacted
+
+
 def test_masking_is_non_mutating_and_enforces_row_limits() -> None:
     payload = {
         "customer": {"email": "person@example.com", "id": "42"},

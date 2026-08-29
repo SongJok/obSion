@@ -19,14 +19,21 @@ async def test_event_append_is_ordered_redacted_and_transactional(app_settings: 
             await store.append(
                 session,
                 EventDraft(
-                    name=f"test.event.{index}",
+                    name="capability.requested",
                     aggregate_type="test",
                     aggregate_id=aggregate_id,
                     organization_id=organization_id,
                     correlation_id=aggregate_id,
                     actor_type=ActorType.SYSTEM,
                     actor_id=None,
-                    payload={"index": index, "api_key": "never-store-this"},
+                    payload={
+                        "capability": "test.read",
+                        "version": 1,
+                        "resource": {
+                            "index": index,
+                            "api_key": "never-store-this",
+                        },
+                    },
                 ),
             )
     async with database.sessions() as session:
@@ -40,5 +47,5 @@ async def test_event_append_is_ordered_redacted_and_transactional(app_settings: 
         )
     await database.dispose()
     assert [event.sequence for event in events] == [1, 2, 3]
-    assert [event.payload["api_key"] for event in events] == ["[REDACTED]"] * 3
+    assert [event.payload["resource"]["api_key"] for event in events] == ["[REDACTED]"] * 3
     assert [message.event_id for message in outbox] == [event.id for event in events]

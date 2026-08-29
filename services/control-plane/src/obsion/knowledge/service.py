@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, exists, false, func, literal_column, or_, select
+from sqlalchemy import and_, delete, exists, false, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -265,16 +265,41 @@ class KnowledgeService:
                 )
             )
             if current is not None and current.checksum_sha256 == checksum:
-                count = len(
-                    list(
-                        await session.scalars(
-                            select(DocumentChunk.id).where(
-                                DocumentChunk.document_version_id == current.id
-                            )
+                # Re-ingesting identical bytes is still an authorization mutation:
+                # callers may tighten ACL/classification without creating a new
+                # content version. Rebuild chunk grants atomically before returning.
+                document.title = title
+                document.classification = classification
+                document.acl = acl
+                document.deleted_at = None
+                current_chunks = list(
+                    await session.scalars(
+                        select(DocumentChunk).where(
+                            DocumentChunk.organization_id == principal.organization_id,
+                            DocumentChunk.document_version_id == current.id,
                         )
                     )
                 )
-                return document, current, count
+                if current_chunks:
+                    chunk_ids = [chunk.id for chunk in current_chunks]
+                    await session.execute(
+                        delete(DocumentChunkGrant).where(
+                            DocumentChunkGrant.organization_id == principal.organization_id,
+                            DocumentChunkGrant.chunk_id.in_(chunk_ids),
+                        )
+                    )
+                    for chunk in current_chunks:
+                        chunk.classification = classification
+                        chunk.acl = acl
+                        session.add_all(
+                            _grant_rows(
+                                organization_id=principal.organization_id,
+                                chunk_id=chunk.id,
+                                acl=acl,
+                            )
+                        )
+                await session.flush()
+                return document, current, len(current_chunks)
 
         version_number = document.current_version + 1
         version_id = new_id()
@@ -305,21 +330,21 @@ class KnowledgeService:
                     session,
                     organization_id=principal.organization_id,
                     profile_name=self.settings.knowledge_embedding_profile,
-                    texts=[chunk for _, chunk in batch],
+                    texts=[chunk_text for _, chunk_text in batch],
                     classification=classification,
                 )
                 for index, vector in enumerate(result.embeddings, start=offset):
                     embeddings[index] = vector
                     embedding_refs[index] = f"model-endpoint://{result.endpoint_id}"
         chunk_rows: list[DocumentChunk] = []
-        for ordinal, (heading_path, chunk) in enumerate(chunks, start=1):
+        for ordinal, (heading_path, chunk_text) in enumerate(chunks, start=1):
             chunk_row = DocumentChunk(
                 organization_id=principal.organization_id,
                 document_version_id=version.id,
                 ordinal=ordinal,
                 heading_path=heading_path,
-                content=chunk,
-                token_count=max(1, len(chunk) // 4),
+                content=chunk_text,
+                token_count=max(1, len(chunk_text) // 4),
                 classification=classification,
                 acl=acl,
                 embedding_ref=embedding_refs[ordinal - 1],

@@ -1,0 +1,18 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.failed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error_code": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "error_code"
+  ],
+  "title": "run.failed payload v1",
+  "type": "object"
+}

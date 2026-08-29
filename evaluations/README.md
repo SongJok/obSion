@@ -13,3 +13,12 @@ Validate all committed datasets before opening a pull request:
 ```bash
 uv run obsion validate-evaluations
 ```
+
+The `v1-knowledge-qa` dataset contains 20 KnowledgeAgent cases, including explicit
+user, role, and department denial cases that require zero recall and an unknown answer.
+The routing and safety dataset also includes a metric-decline case that locks the
+DataAgent route and root-cause classification before execution.
+
+Incident RUN_OUTPUT cases may additionally assert `minimum_incident_candidates`,
+`minimum_cross_type_claims`, and `incident_top1_evidence_types`; these checks keep the
+Top1/Top3 candidate and two-Evidence-type Claim contract in regression tests.

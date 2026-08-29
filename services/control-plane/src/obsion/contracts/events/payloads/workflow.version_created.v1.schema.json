@@ -1,0 +1,16 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/workflow.version_created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "workflow.version_created payload v1",
+  "type": "object"
+}

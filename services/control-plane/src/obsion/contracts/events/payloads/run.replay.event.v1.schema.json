@@ -1,0 +1,62 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.replay.event.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "source_actor_id": {
+      "oneOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_actor_type": {
+      "enum": [
+        "USER",
+        "SERVICE",
+        "AGENT",
+        "SYSTEM"
+      ]
+    },
+    "source_created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "source_event_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "source_name": {
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "type": "string"
+    },
+    "source_payload": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "source_schema_version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "source_sequence": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "source_event_id",
+    "source_sequence",
+    "source_name",
+    "source_schema_version",
+    "source_actor_type",
+    "source_actor_id",
+    "source_created_at",
+    "source_payload"
+  ],
+  "title": "run.replay.event payload v1",
+  "type": "object"
+}

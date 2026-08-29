@@ -5,11 +5,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.dependencies import get_capability_gateway
-from obsion.api.schemas import CapabilityInvokeRequest, CapabilityInvokeView
+from obsion.api.schemas import (
+    CapabilityDescriptorView,
+    CapabilityInvokeRequest,
+    CapabilityInvokeView,
+)
 from obsion.capabilities.gateway import CapabilityGateway, GatewayRequest
 from obsion.common.errors import ConflictError, NotFoundError
 from obsion.db.models import CapabilityDefinition, CapabilityVersion
 from obsion.domain.enums import RegistryStatus, RunStatus
+from obsion.registry.capability_descriptor import CapabilityDescriptor
 from obsion.security.auth import get_principal, get_session
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_run_access
@@ -19,28 +24,17 @@ router = APIRouter(tags=["capabilities"])
 
 def _capability_view(
     definition: CapabilityDefinition, version: CapabilityVersion
-) -> dict[str, object]:
-    return {
-        "id": str(definition.id),
-        "version_id": str(version.id),
-        "name": definition.name,
-        "display_name": definition.display_name,
-        "description": definition.description,
-        "version": version.version,
-        "transport": version.transport,
-        "risk": version.risk_level,
-        "side_effect": version.side_effect,
-        "permission": version.permission_action,
-        "input_schema": version.input_schema,
-        "output_schema": version.output_schema,
-    }
+) -> CapabilityDescriptorView:
+    return CapabilityDescriptorView.model_validate(
+        CapabilityDescriptor.from_models(definition, version).as_view()
+    )
 
 
-@router.get("/capabilities")
+@router.get("/capabilities", response_model=list[CapabilityDescriptorView])
 async def list_capabilities(
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
-) -> list[dict[str, object]]:
+) -> list[CapabilityDescriptorView]:
     rows = (
         await session.execute(
             select(CapabilityDefinition, CapabilityVersion)
@@ -52,7 +46,7 @@ async def list_capabilities(
             .order_by(CapabilityDefinition.name, CapabilityVersion.version.desc())
         )
     ).all()
-    visible: list[dict[str, object]] = []
+    visible: list[CapabilityDescriptorView] = []
     seen: set[object] = set()
     for definition, version in rows:
         if definition.id in seen or not principal.can(version.permission_action):
@@ -62,12 +56,12 @@ async def list_capabilities(
     return visible
 
 
-@router.get("/capabilities/{capability_id}")
+@router.get("/capabilities/{capability_id}", response_model=CapabilityDescriptorView)
 async def get_capability(
     capability_id: UUID,
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
-) -> dict[str, object]:
+) -> CapabilityDescriptorView:
     row = (
         await session.execute(
             select(CapabilityDefinition, CapabilityVersion)
@@ -116,13 +110,16 @@ async def invoke_capability(
             GatewayRequest(
                 principal=principal,
                 capability_name=capability_name,
-                capability_version=request.capability_version,
                 payload=request.payload,
                 resource=request.resource,
                 environment=request.environment,
-                agent_name=request.agent_name,
+                # External callers cannot impersonate a registered Agent by choosing
+                # an arbitrary display name in the request body.
+                agent_name="external-client",
                 run_id=request.run_id,
                 step_id=request.step_id,
+                capability_version=request.capability_version,
+                capability_version_id=request.capability_version_id,
             ),
         )
     return CapabilityInvokeView(

@@ -1,0 +1,149 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/intent.detected.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "comparison": {
+      "oneOf": [
+        {
+          "enum": [
+            "YEAR_OVER_YEAR",
+            "PREVIOUS_PERIOD",
+            "PREVIOUS_DAY"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dimensions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_name"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "domain": {
+      "enum": [
+        "KNOWLEDGE",
+        "DATA",
+        "ENGINEERING",
+        "INCIDENT",
+        "CONVERSATION",
+        "RESOURCE_ACCESS"
+      ]
+    },
+    "intent": {
+      "enum": [
+        "ANALYTICS_QUERY",
+        "ANOMALY_INVESTIGATION",
+        "CONVERSATION",
+        "RESOURCE_ACCESS"
+      ]
+    },
+    "metrics": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_name"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "need_data": {
+      "type": "boolean"
+    },
+    "need_root_cause": {
+      "type": "boolean"
+    },
+    "question": {
+      "type": "string"
+    },
+    "risk": {
+      "enum": [
+        "L1",
+        "L2"
+      ]
+    },
+    "route": {
+      "enum": [
+        "KNOWLEDGE",
+        "DATA",
+        "ENGINEERING",
+        "INCIDENT",
+        "CONVERSATION",
+        "RESOURCE_ACCESS"
+      ]
+    },
+    "time_range": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "start": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "timezone"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "domain",
+    "intent",
+    "metrics",
+    "dimensions",
+    "time_range",
+    "comparison",
+    "need_root_cause",
+    "risk",
+    "route",
+    "question",
+    "need_data"
+  ],
+  "title": "intent.detected payload v1",
+  "type": "object"
+}

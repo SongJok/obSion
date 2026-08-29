@@ -1,0 +1,24 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.cancellation_requested.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "WAITING_APPROVAL",
+        "WAITING_USER",
+        "REPLANNING",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "run.cancellation_requested payload v1",
+  "type": "object"
+}

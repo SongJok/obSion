@@ -1,0 +1,926 @@
+{
+  "envelope_schema": "envelope.v1.schema.json",
+  "events": [
+    {
+      "name": "action.approval_decided",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.approval_decided.v1.schema.json",
+          "payload_schema_sha256": "ec5ec5f9903c1559d9bd05689243ced2a66497b6afa9ea20a7541ebb16c911ff",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.approval_expired",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.approval_expired.v1.schema.json",
+          "payload_schema_sha256": "e612c4f07e39eaddd11af8467b5a0b5d424f3a18c013a64505017c5dca68ddad",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.approval_requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.approval_requested.v1.schema.json",
+          "payload_schema_sha256": "7fd0ef9e8a1f54d15ef4c16a3ae7e0bd4c5f20addf04640379ab64b5cd5ef563",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.cancelled",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.cancelled.v1.schema.json",
+          "payload_schema_sha256": "dee37fee8c1843b70daae6c2edc959b68585e93923ad423fb29c51c15981181f",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.claimed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.claimed.v1.schema.json",
+          "payload_schema_sha256": "a5630a2e3087a3239add048a4fa24684cd572db0070c638aa5763b3f458d7a53",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.completed.v1.schema.json",
+          "payload_schema_sha256": "fb48c7b563c560f9a2e72492859e32107dc1df5df6739130731048318411e5f7",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.created.v1.schema.json",
+          "payload_schema_sha256": "bb406724713ac5c1aab9282407c0c8cc5d8cbad94c107d935bbffca242f53b3d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.failed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.failed.v1.schema.json",
+          "payload_schema_sha256": "c3bbd1f80c5fef1426b3b13021d8045555ea764fafcfab4f4be95c539e56f305",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.policy_decided",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.policy_decided.v1.schema.json",
+          "payload_schema_sha256": "68baeed52bdfded301279cbfb6771ec4991f9cca8b02d59c56f43cfe7b8d505b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.preflight_failed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.preflight_failed.v1.schema.json",
+          "payload_schema_sha256": "9896debb01bd9606008d036d0d7b26455e98807fee7eb9a2d5af727548cb5b1e",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.preflight_passed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.preflight_passed.v1.schema.json",
+          "payload_schema_sha256": "39af94f8f4211d05cd962f658ffc4c50519fa833048a67fdf140d278e54d8c14",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.provider_completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.provider_completed.v1.schema.json",
+          "payload_schema_sha256": "d4b71d5b39116f427f6cab7e80846a7c9acdf06919db91d12ec8668d5964c4af",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.provider_failed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.provider_failed.v1.schema.json",
+          "payload_schema_sha256": "e764c642cc03dfceeb5bf00cc0a20333ef101d768512ce466384be3367da4bd0",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.provider_started",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.provider_started.v1.schema.json",
+          "payload_schema_sha256": "52a25bcd7297f968ce60d2d0f7b26ffaae12b85d68471121b5883fa986c8de57",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.rollback_failed",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.rollback_failed.v1.schema.json",
+          "payload_schema_sha256": "d871d7d70eb2018ff6b15d8f025bc15d5a786990b86c953a9cff43b26fe14797",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.rollback_requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.rollback_requested.v1.schema.json",
+          "payload_schema_sha256": "70384ef4071794520243271c8cb48e0f95ce23db2a5ddf07e672d3a13364132b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "action.rolled_back",
+      "versions": [
+        {
+          "payload_schema": "payloads/action.rolled_back.v1.schema.json",
+          "payload_schema_sha256": "50aadfbafeef2022ebec5386a28520baf79cff059b3fd191b51d6a290862422b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "answer.delta",
+      "versions": [
+        {
+          "payload_schema": "payloads/answer.delta.v1.schema.json",
+          "payload_schema_sha256": "6548ddb4fe184177cfcad4a6c9378c000fa564c1e3c5c50a3f6cd56b346bfbb7",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "approval.approved",
+      "versions": [
+        {
+          "payload_schema": "payloads/approval.approved.v1.schema.json",
+          "payload_schema_sha256": "1a5918c69fbc8c3cb03b17c897992522893944d4caaba64a7ee2a1243a8afa9e",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "approval.expired",
+      "versions": [
+        {
+          "payload_schema": "payloads/approval.expired.v1.schema.json",
+          "payload_schema_sha256": "473746fb786bfbd250ce0942cb12446c9cabf28ccfa8992fa916e76a61277277",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "approval.rejected",
+      "versions": [
+        {
+          "payload_schema": "payloads/approval.rejected.v1.schema.json",
+          "payload_schema_sha256": "ca6a18d91c60f940d0b230d7196c90a2fe9edd879502665177ade88bea0fe930",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "approval.requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/approval.requested.v1.schema.json",
+          "payload_schema_sha256": "aa5923c926e10748701e376a6198a78d7abefe27511f5453b06c643fe8a82565",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "artifact.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/artifact.created.v1.schema.json",
+          "payload_schema_sha256": "191ac7f9aa13ccbb43ddc547c9aec68a9af9f704bd99809c790c182d90140c12",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.cancellation_requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.cancellation_requested.v1.schema.json",
+          "payload_schema_sha256": "2bb02f79dbc2b115db64ee84fad6e9bed71811288f383c21806d4798a68aaac7",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.cancelled",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.cancelled.v1.schema.json",
+          "payload_schema_sha256": "969f23c4b18574755d87f83e4cd0a85dd943c76540403eb242339cf5a8fe43b5",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.completed.v1.schema.json",
+          "payload_schema_sha256": "116a10e0c6a4bb567251890b71581a6be67fe9d6aeeb8b61093866ce37ca9fe1",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.execution_created",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.execution_created.v1.schema.json",
+          "payload_schema_sha256": "b63c4a792541dee8b2b32722f08a59e3afeddf29f99eaed4095b7b1b685d6b53",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.execution_skipped",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.execution_skipped.v1.schema.json",
+          "payload_schema_sha256": "5e5360b258bf13b840d1b056f45cf7abf8645ebfe0570cc87d99c5ee34447a7c",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.failed",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.failed.v1.schema.json",
+          "payload_schema_sha256": "a1714871d880a23b1d7d125c1a257e246ccba3de2cf875495b939b3a0c666e08",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.review_decided",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.review_decided.v1.schema.json",
+          "payload_schema_sha256": "45f07d15a3c45770b210ea71a72d4dc01a9506a90027d4e164008844265b351d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.review_requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.review_requested.v1.schema.json",
+          "payload_schema_sha256": "3a1adca7522af78337017ff336c52b0baedd7fdea8c329cc3173823513236b26",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.started",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.started.v1.schema.json",
+          "payload_schema_sha256": "c10e9e5ecab7b9eb67a9713f2414c32b277606f8fce5bfed98e2637131553923",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.step_completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.step_completed.v1.schema.json",
+          "payload_schema_sha256": "c799f894b70b34289714d0da6a7ac6490414ada3d06e1e5e0d498d20f58fe9b0",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "automation.step_started",
+      "versions": [
+        {
+          "payload_schema": "payloads/automation.step_started.v1.schema.json",
+          "payload_schema_sha256": "7474b9e8008cb4eb83a3e651a69477d69250efc550f6a20c513f16c985b8a88e",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "capability.input_rejected",
+      "versions": [
+        {
+          "payload_schema": "payloads/capability.input_rejected.v1.schema.json",
+          "payload_schema_sha256": "279c98a657151aca323034cb790c3c182cf14d3fa2c8b601a971b5f96733d7fc",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "capability.rate_limit_unavailable",
+      "versions": [
+        {
+          "payload_schema": "payloads/capability.rate_limit_unavailable.v1.schema.json",
+          "payload_schema_sha256": "80176c53a450e8aceb3267fcc918457766109275d728ee38ef40d512081890ce",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "capability.rate_limited",
+      "versions": [
+        {
+          "payload_schema": "payloads/capability.rate_limited.v1.schema.json",
+          "payload_schema_sha256": "2acc24faa320a93a383156a82739390c37af2dc14ab9007b6aeee01195b37035",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "capability.requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/capability.requested.v1.schema.json",
+          "payload_schema_sha256": "92d07dba5f39e16f59add91b8ea19e767dbb3a09a084a24df5c4cbc29763cf7b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "context.resolved",
+      "versions": [
+        {
+          "payload_schema": "payloads/context.resolved.v1.schema.json",
+          "payload_schema_sha256": "1e7f6795ee00a740de1b649276426ece46274519ea0f695d794dc1d88f8ceb3b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "critic.completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/critic.completed.v1.schema.json",
+          "payload_schema_sha256": "c063bf5a92673b89980c76d1ed46faec9fe2ffbf91d5d917274be21e3406681d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "evidence.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/evidence.created.v1.schema.json",
+          "payload_schema_sha256": "ef0bb25a77dd774c779ba1739d946f48a683894cbf35c7dd70cd79b41cf28560",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "intent.detected",
+      "versions": [
+        {
+          "payload_schema": "payloads/intent.detected.v1.schema.json",
+          "payload_schema_sha256": "bbe8057c90e8f87612c35b2ede4684405f54de7adf5a3ef82ce9178ef05b753d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "memory.approved",
+      "versions": [
+        {
+          "payload_schema": "payloads/memory.approved.v1.schema.json",
+          "payload_schema_sha256": "609b6c09e0699a5bf44b3772bdc5d6de6d1032c1f19b06cd30bd98a62d934157",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "memory.candidate",
+      "versions": [
+        {
+          "payload_schema": "payloads/memory.candidate.v1.schema.json",
+          "payload_schema_sha256": "1ad6a18159cc90c409d1ef95b12d435863bfdac9e91553acb0a47917ef98a2b6",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "memory.expired",
+      "versions": [
+        {
+          "payload_schema": "payloads/memory.expired.v1.schema.json",
+          "payload_schema_sha256": "554e590d134073279b58f1b2522579c47244db5a9879443c10b44843da8d8e29",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "memory.rejected",
+      "versions": [
+        {
+          "payload_schema": "payloads/memory.rejected.v1.schema.json",
+          "payload_schema_sha256": "0ce8478cab0b9ef0a08ec514bed0c8d15840f61fce14a3e1e61ac98c9247f5ee",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "notification.delivered",
+      "versions": [
+        {
+          "payload_schema": "payloads/notification.delivered.v1.schema.json",
+          "payload_schema_sha256": "58dcfbcb481150875773767131a02744388a672055115efcca54666ecfdc6036",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "plan.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/plan.created.v1.schema.json",
+          "payload_schema_sha256": "ec56f83553ce4e8925655b850421cd150cdac141360c1dad24bb23a0426d4fc5",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "plan.updated",
+      "versions": [
+        {
+          "payload_schema": "payloads/plan.updated.v1.schema.json",
+          "payload_schema_sha256": "719343c21b6adda67e07dbe5e9c4b546d900cfab8955f1468af00faa760b552d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "policy.decided",
+      "versions": [
+        {
+          "payload_schema": "payloads/policy.decided.v1.schema.json",
+          "payload_schema_sha256": "f53e532afc60e92c9045b507393363624b15746dbe7e6cb10475ccfec5811426",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.cancellation_requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.cancellation_requested.v1.schema.json",
+          "payload_schema_sha256": "767f105f31312833df68498651395f20f6032237c16ab104efd3c7d9beaeb5c8",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.cancelled",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.cancelled.v1.schema.json",
+          "payload_schema_sha256": "d325ab025d7ec3d82abff281ef64caac10ae8817efb31a01aae6ade6b6e80b83",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.completed.v1.schema.json",
+          "payload_schema_sha256": "12fcb378812fd89a31ce6d34e42f34d1fd71259f5fc85d373283df60631759cf",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.created.v1.schema.json",
+          "payload_schema_sha256": "d208261cba50564f692c32d3b389383025cfbf8485e9a298a0c796be6acf9a26",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.failed",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.failed.v1.schema.json",
+          "payload_schema_sha256": "6dd3c99d82a334616f3c3ba76d0d567dc5b9a13716856f1eec5d260542c0b62e",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.feedback.recorded",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.feedback.recorded.v1.schema.json",
+          "payload_schema_sha256": "e46465d564371e96a6dcffa1b7c74375f2008dadba804669b2f40581f100ab92",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.feedback.revised",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.feedback.revised.v1.schema.json",
+          "payload_schema_sha256": "d9ef244fd96b0f3566297958f5eda35d058b9c183b43e859d2507a20403f5b45",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.replay.completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.replay.completed.v1.schema.json",
+          "payload_schema_sha256": "2f1054dc32a465eb20fc84894c6a48d37275109ea8d3865ed5a9c797bb0dc723",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.replay.event",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.replay.event.v1.schema.json",
+          "payload_schema_sha256": "d32f192466656ee951a7a931e0fee60008eb33dc51ea46bf06f894cf443c514d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.replay.started",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.replay.started.v1.schema.json",
+          "payload_schema_sha256": "ba4e30248782d86d5bbff5918eae0831943470fc8b7395a4ff9a7080fd81d532",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.replay_requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.replay_requested.v1.schema.json",
+          "payload_schema_sha256": "a4b55cc7eb9ff95b3d05f2e65753b098622db58d1137b85ba8974b680228783b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.resumed",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.resumed.v1.schema.json",
+          "payload_schema_sha256": "0dacb0ddf5c3455c8e6d68d58a095909501a76d62c3dc5f34d4004173cc0a14d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.started",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.started.v1.schema.json",
+          "payload_schema_sha256": "a0c374d341cabd9c1f884fc498ee1ac450e3bcfb49baa7f0959a8d6cd2983b3c",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.state_changed",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.state_changed.v1.schema.json",
+          "payload_schema_sha256": "3322702d423c251fce863f60d321db2099ccd54df06556f90ae93d9e6b4d28f9",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "schedule.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/schedule.created.v1.schema.json",
+          "payload_schema_sha256": "f4a2cf7910119e062ba9a7aa93495b9f274afd773c7d1d7743ecb433f6f7ea2d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "schedule.disabled",
+      "versions": [
+        {
+          "payload_schema": "payloads/schedule.disabled.v1.schema.json",
+          "payload_schema_sha256": "aaad9a28decaf637afc6e4e48e071860c0d6fc9a0f08b8e96862138c8cf1b413",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "schedule.enabled",
+      "versions": [
+        {
+          "payload_schema": "payloads/schedule.enabled.v1.schema.json",
+          "payload_schema_sha256": "1dd2e310e17ed74847844ee44d38169b18c40521ffc85e30a321e97b9970f02b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "schedule.misfire_skipped",
+      "versions": [
+        {
+          "payload_schema": "payloads/schedule.misfire_skipped.v1.schema.json",
+          "payload_schema_sha256": "9c127201b789a4d5e162b5dac090418d8b34dc2925f3a5b11d00418329e06898",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "thread.archived",
+      "versions": [
+        {
+          "payload_schema": "payloads/thread.archived.v1.schema.json",
+          "payload_schema_sha256": "e08375426a2c3b7449e71157224d2603391753e24f1ce47f032b314f4bfaccae",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "thread.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/thread.created.v1.schema.json",
+          "payload_schema_sha256": "89307993df41114a238f8df7eadf4d626f6d31e12fc1ab271ca7aa4f592a4928",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "thread.forked",
+      "versions": [
+        {
+          "payload_schema": "payloads/thread.forked.v1.schema.json",
+          "payload_schema_sha256": "525a9c71507edb2fa7fb253bfb861138e843cae9913eddd6ae47f31819b067ec",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "thread.resumed",
+      "versions": [
+        {
+          "payload_schema": "payloads/thread.resumed.v1.schema.json",
+          "payload_schema_sha256": "9e7bf0ad0a57f8c3bb7af201ebe9159f0d85d82067e74e9797ced972119ed56d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "tool.completed",
+      "versions": [
+        {
+          "payload_schema": "payloads/tool.completed.v1.schema.json",
+          "payload_schema_sha256": "0232b1aca91a87fa53c34f0dac1acb34741b3cd5208c2f3feb4e4db72e948892",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "tool.failed",
+      "versions": [
+        {
+          "payload_schema": "payloads/tool.failed.v1.schema.json",
+          "payload_schema_sha256": "0764425f4c4f8b5653d3d9c8ca763b1a55124b7b52a073b8b20709b80c0ef489",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "tool.started",
+      "versions": [
+        {
+          "payload_schema": "payloads/tool.started.v1.schema.json",
+          "payload_schema_sha256": "0e04482daf279dacc0ea02fd52710193b7b891225eb8a3b44ff2bf0de8c1efa2",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "turn.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/turn.created.v1.schema.json",
+          "payload_schema_sha256": "8d0200a6e7561c1ba64b7afa240c362316534a8f5c2fac76562113911dcf01b8",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workflow.active",
+      "versions": [
+        {
+          "payload_schema": "payloads/workflow.active.v1.schema.json",
+          "payload_schema_sha256": "ca0ec0d3f4d6279d01c571908d25c37c0d07d04672e1fbe5a825adeb0229fd52",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workflow.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/workflow.created.v1.schema.json",
+          "payload_schema_sha256": "1a2c8b8345e3962e54bbf7b49c700e90128bc2929d9e3087586936189ea91c05",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workflow.paused",
+      "versions": [
+        {
+          "payload_schema": "payloads/workflow.paused.v1.schema.json",
+          "payload_schema_sha256": "f9db268776808bf43b3f5f6097d03d4483c9f855c2a29c653ab73bd698415613",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workflow.retired",
+      "versions": [
+        {
+          "payload_schema": "payloads/workflow.retired.v1.schema.json",
+          "payload_schema_sha256": "55104159dfac74dd9345de4a5c86ee5ba1b38e8d890673e62e37eecbf59937c1",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workflow.version_created",
+      "versions": [
+        {
+          "payload_schema": "payloads/workflow.version_created.v1.schema.json",
+          "payload_schema_sha256": "79a4418ffa915f0decc1c463ff42472a1ba4877606893fed118ed4759c8a20fd",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workflow.version_published",
+      "versions": [
+        {
+          "payload_schema": "payloads/workflow.version_published.v1.schema.json",
+          "payload_schema_sha256": "1d335c9505e65b08f832586eb49467238d1495ca807324614934817cce76d1d8",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace.created.v1.schema.json",
+          "payload_schema_sha256": "f7edc54ad7db8ceb42bb5a6d59d1153ce8c99dd5512a980790ccbac844e13bf6",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace.member_changed",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace.member_changed.v1.schema.json",
+          "payload_schema_sha256": "682f9585c52938b303544e3d56e2c357bbb03057c87e21ca0e66f1a02709adcd",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace.member_removed",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace.member_removed.v1.schema.json",
+          "payload_schema_sha256": "339897e8627bab6f3a7b0c5892c770da89985e9015248945b3d6ceb8ef0294b3",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace_decision.accepted",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace_decision.accepted.v1.schema.json",
+          "payload_schema_sha256": "22eb3b95d1830fb1290c63f4dc8b0437aee75fed7d1ad1e67ed2bc0161f9bc01",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace_decision.proposed",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace_decision.proposed.v1.schema.json",
+          "payload_schema_sha256": "45349d33b59abb606d26c992a9ad919f2d7300c2f9e326cb7612501c1a660d69",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace_decision.rejected",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace_decision.rejected.v1.schema.json",
+          "payload_schema_sha256": "cb029748c7461fe4992ce2a55e4e1a22bb266efc9707d3ba03b0cdbd0a0e1525",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace_decision.revised",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace_decision.revised.v1.schema.json",
+          "payload_schema_sha256": "91688b7db0f3d6752a7672db447b934a74e6b31a0b458cf02e7874f88b16f003",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace_decision.superseded",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace_decision.superseded.v1.schema.json",
+          "payload_schema_sha256": "7864a7055bc0e65eae4689f5b07147142e79cb4e850e226ea385a88c7f097bec",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace_task.created",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace_task.created.v1.schema.json",
+          "payload_schema_sha256": "d790eda74709928c1d1f11d0b76dc48a1ed370fa98c7e4b55d3c036d11acac5b",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace_task.updated",
+      "versions": [
+        {
+          "payload_schema": "payloads/workspace_task.updated.v1.schema.json",
+          "payload_schema_sha256": "2fc2a2f0792139e522b23dd54511c68141e5a6c1f821c8aa189ac3b3507c37dd",
+          "schema_version": 1
+        }
+      ]
+    }
+  ],
+  "registry_version": 1
+}

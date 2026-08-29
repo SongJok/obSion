@@ -25,3 +25,50 @@ def test_context_budget_is_enforced_by_priority() -> None:
     )
     assert "12345678" in messages[0]["content"]
     assert messages[1]["content"] == "abcd"
+
+
+def test_context_allocation_priority_is_separate_from_conversation_order() -> None:
+    messages = ContextBuilder(character_budget=1000).build(
+        [
+            ContextSegment(
+                TrustLevel.USER,
+                "current question",
+                "current-user",
+                priority=900,
+                order=700,
+            ),
+            ContextSegment(
+                TrustLevel.ASSISTANT,
+                "previous answer",
+                "previous-run",
+                priority=500,
+                order=301,
+            ),
+            ContextSegment(
+                TrustLevel.USER,
+                "previous question",
+                "previous-turn",
+                priority=500,
+                order=300,
+            ),
+            ContextSegment(
+                TrustLevel.SYSTEM,
+                "governed policy",
+                "policy",
+                priority=1000,
+                order=100,
+            ),
+        ]
+    )
+    assert [item["role"] for item in messages] == [
+        "system",
+        "user",
+        "assistant",
+        "user",
+    ]
+    assert [item["content"].splitlines()[-1] for item in messages] == [
+        "governed policy",
+        "previous question",
+        "previous answer",
+        "current question",
+    ]

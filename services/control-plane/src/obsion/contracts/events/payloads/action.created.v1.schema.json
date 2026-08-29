@@ -1,0 +1,25 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_type": {
+      "enum": [
+        "GENERATE_PR",
+        "CREATE_TICKET",
+        "MODIFY_CONFIG",
+        "RESTART_SERVICE",
+        "DEPLOY"
+      ]
+    },
+    "environment": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action_type",
+    "environment"
+  ],
+  "title": "action.created payload v1",
+  "type": "object"
+}

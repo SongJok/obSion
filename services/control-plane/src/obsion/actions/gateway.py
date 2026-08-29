@@ -20,6 +20,7 @@ from obsion.capabilities.rate_limit import (
 )
 from obsion.common.errors import NotFoundError, ValidationError
 from obsion.common.time import ensure_utc, utc_now
+from obsion.contracts.errors import validate_error_code
 from obsion.db.models import (
     ActionApproval,
     ActionAttempt,
@@ -93,6 +94,9 @@ class ActionGatewayResult:
     output: dict[str, Any] | None = None
     error_code: str | None = None
     error_message: str | None = None
+
+    def __post_init__(self) -> None:
+        validate_error_code(self.error_code)
 
 
 def action_provider_payload(

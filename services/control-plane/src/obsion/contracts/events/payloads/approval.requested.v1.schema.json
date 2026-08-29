@@ -1,0 +1,21 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/approval.requested.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "approval_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "approval_id",
+    "expires_at"
+  ],
+  "title": "approval.requested payload v1",
+  "type": "object"
+}

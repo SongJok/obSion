@@ -4,13 +4,18 @@ metadata:
   name: incident-investigation
 spec:
   instructions:
-    - establish baseline
-    - locate anomaly
-    - segment
-    - correlate changes
-    - inspect logs and traces
-    - test alternatives
+    - establish a metric baseline before making any causal statement
+    - locate the bounded anomaly window
+    - drill down only through authorized metric dimensions
+    - correlate deployments and commits inside the same time window
+    - inspect authorized logs and traces after the change correlation
+    - produce ranked candidate root causes, never an automatic conclusion
+    - bind every candidate claim to at least two distinct Evidence types
+    - test alternatives and preserve unresolved conflicts
+    - never repair, restart, reconfigure, or write to production
   capabilities:
+    - metric.query
+    - metric.compare
     - metric.anomaly
     - metric.dimension
     - log.aggregate
@@ -20,4 +25,4 @@ spec:
     - config.diff
   requiredEvidence: [METRIC, DEPLOYMENT, LOG]
   optionalEvidence: [TRACE, CODE, CONFIG]
-  verification: [temporal consistency, conflicting causes, evidence coverage]
+  verification: [temporal consistency, cross-type evidence, conflicting causes, evidence coverage]

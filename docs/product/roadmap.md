@@ -26,6 +26,32 @@ Strengthen evidence normalization, atomic claims, conflict detection, confidence
 
 Complete files, artifacts, reports, dashboards, code and SQL views, evidence navigation, runtime timeline, costs, memory inspection, and collaboration.
 
+Thread lifecycle is delivered through transactional create/archive/resume/fork
+events and audits, explicit parent/Turn lineage, manual active-Run archive protection,
+fork-induced source read-only behavior, explicit resume, one-Turn/multiple-Run replay,
+cursor-readable inspection, frozen fork-point history including nested forks, SDK
+contracts, and responsive Workbench controls.
+
+Conversation continuity is delivered as a bounded immutable Run input captured at
+Turn creation, with fixed fork lineage, temporal answer selection, collaborator trust
+isolation, classification propagation, deterministic replay, API/SDK contracts,
+PostgreSQL mutation guards, and a Workbench context inspector.
+
+Memory inspection is delivered through a governed four-scope lifecycle, policy and
+classification enforcement, bounded TTLs, authorized Harness context capture,
+immutable Run snapshots, deterministic replay, API/SDK contracts, and a dedicated
+Workbench inspector.
+
+Shared collaboration is delivered through versioned workspace tasks, legal status
+transitions, active-member assignment, optional Run provenance, immutable checksummed
+decision revisions, explicit accept/reject disposition, atomic supersession lineage,
+ordered events, audit records, Python/TypeScript SDKs, and a responsive Workbench view.
+
+User satisfaction is delivered as tenant-scoped, versioned terminal-Run feedback with
+redacted improvement reasons, ordered Run events, audit records, database mutation
+guards, Python/TypeScript SDKs, a current-record administration projection, and real
+copy/playback/rating controls in the responsive conversation view.
+
 ## Phase 6: Automation
 
 Add deterministic workflows, schedules, background runs, notifications, recurring analyses, concurrency policy, and operational ownership.
@@ -47,6 +73,14 @@ Configuration changes, service restarts, deployments, production targets,
 non-idempotent writes, and destructive operations remain server-side denials. They
 require separate future release gates; installing a connector or granting a role does
 not enable them.
+
+## Phase 20: Governance and production hardening
+
+Delivered as a continuation of the vertical paths: independent deterministic Critic rules,
+immutable verification assessments and conflict links, credential-safe management projections,
+approval decisions, and replay of the complete verification graph. Production write/deploy/
+restart boundaries remain fail-closed. Provider, egress, and retention sign-off remains an
+operational prerequisite and is tracked as `PENDING` without blocking development.
 
 ## Quality gates
 

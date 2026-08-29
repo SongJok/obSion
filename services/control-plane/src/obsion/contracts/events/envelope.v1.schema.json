@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://obsion.dev/contracts/events/envelope.v1.schema.json",
+  "title": "Obsion Event Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "event_id",
+    "organization_id",
+    "aggregate_type",
+    "aggregate_id",
+    "sequence",
+    "name",
+    "run_id",
+    "run_sequence",
+    "causation_id",
+    "correlation_id",
+    "actor_type",
+    "actor_id",
+    "schema_version",
+    "classification",
+    "payload",
+    "created_at"
+  ],
+  "properties": {
+    "id": {"type": "string", "format": "uuid"},
+    "event_id": {"type": "string", "format": "uuid"},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "aggregate_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "aggregate_id": {"type": "string", "format": "uuid"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 120,
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+    },
+    "run_id": {
+      "oneOf": [{"type": "string", "format": "uuid"}, {"type": "null"}]
+    },
+    "run_sequence": {
+      "oneOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]
+    },
+    "causation_id": {
+      "oneOf": [{"type": "string", "format": "uuid"}, {"type": "null"}]
+    },
+    "correlation_id": {"type": "string", "format": "uuid"},
+    "actor_type": {"enum": ["USER", "SERVICE", "AGENT", "SYSTEM"]},
+    "actor_id": {
+      "oneOf": [{"type": "string", "format": "uuid"}, {"type": "null"}]
+    },
+    "schema_version": {"type": "integer", "minimum": 1},
+    "classification": {
+      "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
+    },
+    "payload": {"type": "object"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"run_id": {"type": "null"}}, "required": ["run_id"]},
+      "then": {"properties": {"run_sequence": {"type": "null"}}},
+      "else": {"properties": {"run_sequence": {"type": "integer", "minimum": 1}}}
+    }
+  ]
+}

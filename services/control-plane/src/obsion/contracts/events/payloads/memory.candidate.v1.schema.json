@@ -1,0 +1,41 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/memory.candidate.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "memory_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "policy_effect": {
+      "enum": [
+        "ALLOW",
+        "MASK",
+        "ASK",
+        "DENY"
+      ]
+    },
+    "policy_reason_codes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "scope": {
+      "enum": [
+        "TURN",
+        "SESSION",
+        "WORKSPACE",
+        "USER_PREFERENCE"
+      ]
+    }
+  },
+  "required": [
+    "memory_id",
+    "scope",
+    "policy_effect",
+    "policy_reason_codes"
+  ],
+  "title": "memory.candidate payload v1",
+  "type": "object"
+}

@@ -163,10 +163,16 @@ def test_governed_knowledge_run_is_replayable(client: TestClient) -> None:
     assert run["status"] == "COMPLETED", run
 
     events = client.get(f"/api/v1/runs/{run_id}/events").json()
-    assert [event["sequence"] for event in events] == list(range(1, len(events) + 1))
-    assert {"policy.decided", "evidence.created", "critic.completed", "run.completed"}.issubset(
-        {event["name"] for event in events}
-    )
+    assert [event["run_sequence"] for event in events] == list(range(1, len(events) + 1))
+    assert {
+        "tool.started",
+        "tool.completed",
+        "policy.decided",
+        "evidence.created",
+        "critic.completed",
+        "answer.delta",
+        "run.completed",
+    }.issubset({event["name"] for event in events})
     source_steps = client.get(f"/api/v1/runs/{run_id}/steps").json()
     capability_steps = [item for item in source_steps if item["kind"] == "CAPABILITY"]
     assert capability_steps
@@ -199,7 +205,9 @@ def test_governed_knowledge_run_is_replayable(client: TestClient) -> None:
     assert replay_run["cost_amount"] == run["cost_amount"]
 
     replay_events = client.get(f"/api/v1/runs/{replay_id}/events").json()
-    assert [item["sequence"] for item in replay_events] == list(range(1, len(replay_events) + 1))
+    assert [item["run_sequence"] for item in replay_events] == list(
+        range(1, len(replay_events) + 1)
+    )
     replay_event_names = {item["name"] for item in replay_events}
     assert {"run.replay.started", "run.replay.event", "run.replay.completed"}.issubset(
         replay_event_names
@@ -278,6 +286,8 @@ def test_memory_requires_scope_and_redacts_candidates(client: TestClient) -> Non
     body = candidate.json()
     assert body["status"] == "CANDIDATE"
     assert body["content"]["api_key"] == "[REDACTED]"
+    assert body["policy_decision_id"]
+    assert body["expires_at"]
 
     duplicate = client.post(
         "/api/v1/memories",
@@ -290,6 +300,18 @@ def test_memory_requires_scope_and_redacts_candidates(client: TestClient) -> Non
     )
     assert duplicate.status_code == 201
     assert duplicate.json()["id"] == body["id"]
+
+    classification_upgrade = client.post(
+        "/api/v1/memories",
+        json={
+            "scope": "WORKSPACE",
+            "owner_ref": workspace["id"],
+            "content": {"preference": "Use UTC", "api_key": "another-secret"},
+            "sensitivity": "CONFIDENTIAL",
+        },
+    )
+    assert classification_upgrade.status_code == 409
+    assert classification_upgrade.json()["code"] == "memory_duplicate_classification_conflict"
 
     approved = client.post(
         f"/api/v1/memories/{body['id']}/approve",
@@ -304,6 +326,76 @@ def test_memory_requires_scope_and_redacts_candidates(client: TestClient) -> Non
     )
     assert listed.status_code == 200
     assert [item["id"] for item in listed.json()] == [body["id"]]
+
+    denied = client.post(
+        "/api/v1/memories",
+        json={
+            "scope": "WORKSPACE",
+            "owner_ref": workspace["id"],
+            "content": {"instruction": "Never persist restricted context"},
+            "sensitivity": "RESTRICTED",
+        },
+    )
+    assert denied.status_code == 403, denied.text
+    assert denied.json()["code"] == "memory_policy_denied"
+    audit = client.get("/api/v1/admin/audit?limit=100").json()
+    assert any(item["action"] == "memory.write" and item["outcome"] == "DENIED" for item in audit)
+
+    thread = client.post(
+        "/api/v1/threads",
+        json={"workspace_id": workspace["id"], "title": "Governed memory context"},
+    ).json()
+    created = client.post(
+        f"/api/v1/threads/{thread['id']}/turns",
+        json={"input": "Explain the release policy using authorized evidence"},
+    )
+    assert created.status_code == 202, created.text
+    run_id = created.json()["run"]["id"]
+    run = created.json()["run"]
+    for _ in range(80):
+        run = client.get(f"/api/v1/runs/{run_id}").json()
+        if run["status"] in {"COMPLETED", "FAILED", "CANCELLED"}:
+            break
+        time.sleep(0.05)
+    assert run["status"] == "COMPLETED", run
+
+    snapshots = client.get(f"/api/v1/runs/{run_id}/memories")
+    assert snapshots.status_code == 200, snapshots.text
+    assert len(snapshots.json()) == 1
+    snapshot = snapshots.json()[0]
+    assert snapshot["memory_id"] == body["id"]
+    assert snapshot["scope"] == "WORKSPACE"
+    assert snapshot["content"] == body["content"]
+    assert snapshot["content_fingerprint"] == body["dedupe_key"]
+    context_event = next(
+        item
+        for item in client.get(f"/api/v1/runs/{run_id}/events").json()
+        if item["name"] == "context.resolved"
+    )
+    assert (
+        context_event["payload"]["memory_snapshots"][0]["content_fingerprint"] == body["dedupe_key"]
+    )
+
+    replay = client.post(f"/api/v1/runs/{run_id}/replay")
+    assert replay.status_code == 202, replay.text
+    replay_id = replay.json()["id"]
+    replay_run = replay.json()
+    for _ in range(80):
+        replay_run = client.get(f"/api/v1/runs/{replay_id}").json()
+        if replay_run["status"] in {"COMPLETED", "FAILED", "CANCELLED"}:
+            break
+        time.sleep(0.05)
+    assert replay_run["status"] == "COMPLETED", replay_run
+    replay_snapshots = client.get(f"/api/v1/runs/{replay_id}/memories").json()
+    assert len(replay_snapshots) == 1
+    assert replay_snapshots[0]["id"] != snapshot["id"]
+    assert replay_snapshots[0]["content_fingerprint"] == snapshot["content_fingerprint"]
+    replay_completed = next(
+        item
+        for item in client.get(f"/api/v1/runs/{replay_id}/events").json()
+        if item["name"] == "run.replay.completed"
+    )
+    assert replay_completed["payload"]["memories"] == 1
 
 
 def test_workspace_attachment_becomes_untrusted_evidence(client: TestClient) -> None:
@@ -477,9 +569,7 @@ def test_version_pinned_evaluation_records_case_results(client: TestClient) -> N
     assert body["metrics"]["passed"] == 3
     assert len(body["dataset_snapshot_sha256"]) == 64
     assert len(body["snapshot_sha256"]) == 64
-    assert body["configuration_snapshot"]["agent"]["version_id"] == source_run[
-        "agent_version_id"
-    ]
+    assert body["configuration_snapshot"]["agent"]["version_id"] == source_run["agent_version_id"]
     assert body["configuration_snapshot"]["capabilities"]
     bound_run = body["configuration_snapshot"]["bound_runs"][0]
     assert bound_run["run_id"] == source_run["id"]
@@ -536,22 +626,24 @@ def test_version_pinned_evaluation_records_case_results(client: TestClient) -> N
     client.app.dependency_overrides[get_principal] = lambda: other_tenant
     try:
         assert client.get(f"/api/v1/admin/evaluations/runs/{body['id']}").status_code == 404
-        assert (
-            client.get(f"/api/v1/admin/evaluations/runs/{body['id']}/results").status_code
-            == 404
-        )
+        assert client.get(f"/api/v1/admin/evaluations/runs/{body['id']}/results").status_code == 404
     finally:
         client.app.dependency_overrides.pop(get_principal, None)
 
 
 def test_workspace_membership_is_enforced_for_runs_and_writes(client: TestClient) -> None:
+    department = client.post(
+        "/api/v1/admin/departments",
+        json={"name": "Support", "description": "Customer support organization"},
+    )
+    assert department.status_code == 201, department.text
     created_user = client.post(
         "/api/v1/admin/users",
         json={
             "external_id": "workspace-reader",
             "email": "workspace-reader@obsion.dev",
             "display_name": "Workspace Reader",
-            "department": "Support",
+            "department_id": department.json()["id"],
             "attributes": {},
         },
     )
@@ -601,6 +693,7 @@ def test_workspace_membership_is_enforced_for_runs_and_writes(client: TestClient
         assert client.get("/api/v1/workspaces").json() == []
         assert client.get(f"/api/v1/runs/{run_id}").status_code == 404
         assert client.get(f"/api/v1/runs/{run_id}/events").status_code == 404
+        assert client.get(f"/api/v1/runs/{run_id}/memories").status_code == 404
         assert client.get("/api/v1/memories").json() == []
         assert client.get(f"/api/v1/artifacts/{artifact_id}/content").status_code == 404
     finally:
@@ -616,6 +709,7 @@ def test_workspace_membership_is_enforced_for_runs_and_writes(client: TestClient
     try:
         assert [item["id"] for item in client.get("/api/v1/workspaces").json()] == [workspace["id"]]
         assert client.get(f"/api/v1/runs/{run_id}").status_code == 200
+        assert client.get(f"/api/v1/runs/{run_id}/memories").status_code == 200
         assert [item["id"] for item in client.get("/api/v1/memories").json()] == [
             memory.json()["id"]
         ]

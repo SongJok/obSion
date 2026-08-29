@@ -1,0 +1,35 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/automation.execution_skipped.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error_code": {
+      "enum": [
+        "workflow_concurrency_forbidden",
+        "workflow_concurrency_limit"
+      ]
+    },
+    "trigger": {
+      "enum": [
+        "MANUAL",
+        "SCHEDULE"
+      ]
+    },
+    "workflow_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "workflow_version": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "workflow_id",
+    "workflow_version",
+    "trigger",
+    "error_code"
+  ],
+  "title": "automation.execution_skipped payload v1",
+  "type": "object"
+}

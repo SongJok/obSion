@@ -1,0 +1,19 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/tool.started.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability": {
+      "type": "string"
+    },
+    "connector": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "capability",
+    "connector"
+  ],
+  "title": "tool.started payload v1",
+  "type": "object"
+}

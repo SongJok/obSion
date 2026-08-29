@@ -9,6 +9,7 @@ class Principal:
     organization_id: UUID
     external_id: str
     display_name: str
+    department_id: UUID | None = None
     department: str | None = None
     roles: frozenset[str] = frozenset()
     permissions: frozenset[str] = frozenset()

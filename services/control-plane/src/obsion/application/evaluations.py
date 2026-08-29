@@ -386,9 +386,7 @@ class EvaluationService:
     ) -> dict[str, Any]:
         skill_names = self._string_list(agent.spec.get("skills", []))
         capability_names = self._string_list(agent.spec.get("capabilities", []))
-        prompt_names = self._string_list(
-            agent.spec.get("prompts", agent.spec.get("prompt", []))
-        )
+        prompt_names = self._string_list(agent.spec.get("prompts", agent.spec.get("prompt", [])))
         skills = await self._latest_versions(
             session,
             SkillDefinition,
@@ -432,9 +430,7 @@ class EvaluationService:
             redact(
                 {
                     "application_revision": application_revision,
-                    "run_bindings": {
-                        name: str(run_id) for name, run_id in run_bindings.items()
-                    },
+                    "run_bindings": {name: str(run_id) for name, run_id in run_bindings.items()},
                     "bound_runs": bound_runs,
                     "agent": {
                         "definition_id": str(definition.id),
@@ -489,16 +485,16 @@ class EvaluationService:
             raise NotFoundError("Evaluation source Run", missing[0])
         steps = list(
             await session.scalars(
-                select(RunStep).where(
+                select(RunStep)
+                .where(
                     RunStep.organization_id == organization_id,
                     RunStep.run_id.in_(run_ids),
-                ).order_by(RunStep.run_id, RunStep.ordinal)
+                )
+                .order_by(RunStep.run_id, RunStep.ordinal)
             )
         )
         capability_ids = {
-            item.capability_version_id
-            for item in steps
-            if item.capability_version_id is not None
+            item.capability_version_id for item in steps if item.capability_version_id is not None
         }
         capability_rows = (
             (
@@ -566,12 +562,8 @@ class EvaluationService:
                     "run_ref": run_ref,
                     "run_id": str(run.id),
                     "status": run.status,
-                    "agent_version_id": str(run.agent_version_id)
-                    if run.agent_version_id
-                    else None,
-                    "model_profile_id": str(run.model_profile_id)
-                    if run.model_profile_id
-                    else None,
+                    "agent_version_id": str(run.agent_version_id) if run.agent_version_id else None,
+                    "model_profile_id": str(run.model_profile_id) if run.model_profile_id else None,
                     "capability_versions": versions,
                     "model_calls": sorted(
                         model_by_run.get(run.id, []), key=lambda item: item["model_call_id"]

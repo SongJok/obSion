@@ -1,0 +1,16 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/schedule.enabled.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "schedule_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schedule_id"
+  ],
+  "title": "schedule.enabled payload v1",
+  "type": "object"
+}

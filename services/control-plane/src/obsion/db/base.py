@@ -2,9 +2,10 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, MetaData, Uuid, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, validates
 
 from obsion.common.ids import new_id
+from obsion.contracts.errors import validate_error_code
 
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
@@ -18,6 +19,10 @@ NAMING_CONVENTION = {
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
     __mapper_args__ = {"eager_defaults": True}
+
+    @validates("error_code", "last_error_code")
+    def _validate_error_code_field(self, key: str, value: str | None) -> str | None:
+        return validate_error_code(value)
 
 
 class IdMixin:

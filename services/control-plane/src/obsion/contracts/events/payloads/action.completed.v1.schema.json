@@ -1,0 +1,15 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "purpose": {
+      "const": "EXECUTE"
+    }
+  },
+  "required": [
+    "purpose"
+  ],
+  "title": "action.completed payload v1",
+  "type": "object"
+}

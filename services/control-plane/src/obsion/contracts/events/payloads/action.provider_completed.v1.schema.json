@@ -1,0 +1,28 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.provider_completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attempt_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "latency_ms": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "purpose": {
+      "enum": [
+        "EXECUTE",
+        "ROLLBACK"
+      ]
+    }
+  },
+  "required": [
+    "attempt_id",
+    "purpose",
+    "latency_ms"
+  ],
+  "title": "action.provider_completed payload v1",
+  "type": "object"
+}

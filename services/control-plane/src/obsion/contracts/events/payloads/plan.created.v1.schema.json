@@ -1,0 +1,83 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/plan.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "required_evidence": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "route": {
+      "enum": [
+        "KNOWLEDGE",
+        "DATA",
+        "ENGINEERING",
+        "INCIDENT",
+        "CONVERSATION",
+        "RESOURCE_ACCESS"
+      ]
+    },
+    "steps": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "capability": {
+            "type": "string"
+          },
+          "depends_on": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ordinal": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "resource": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "ordinal",
+          "name",
+          "capability",
+          "payload",
+          "resource",
+          "environment",
+          "depends_on"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "verification": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "route",
+    "steps",
+    "required_evidence",
+    "verification"
+  ],
+  "title": "plan.created payload v1",
+  "type": "object"
+}

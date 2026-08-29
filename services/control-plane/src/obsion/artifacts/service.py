@@ -141,9 +141,9 @@ class ArtifactService:
             )
         )
 
-    async def content(
+    async def get_metadata(
         self, session: AsyncSession, principal: Principal, artifact_id: UUID
-    ) -> tuple[Artifact, StoredObject]:
+    ) -> Artifact:
         artifact = await session.scalar(
             select(Artifact).where(
                 Artifact.id == artifact_id,
@@ -153,6 +153,12 @@ class ArtifactService:
         if artifact is None:
             raise NotFoundError("Artifact", artifact_id)
         await require_workspace_access(session, principal, artifact.workspace_id)
+        return artifact
+
+    async def content(
+        self, session: AsyncSession, principal: Principal, artifact_id: UUID
+    ) -> tuple[Artifact, StoredObject]:
+        artifact = await self.get_metadata(session, principal, artifact_id)
         if artifact.storage_key is None:
             raise ValidationError(
                 "artifact_inline_only", "This artifact has no downloadable binary content"

@@ -10,6 +10,8 @@ from obsion.db.base import Base
 from obsion.db.session import Database
 from obsion.main import create_app
 
+TEST_BEARER_TOKEN = "obsion-phase2-test-bearer-token"  # noqa: S105
+
 
 async def _create_schema(settings: Settings) -> None:
     database = Database(settings)
@@ -24,6 +26,7 @@ def app_settings(tmp_path: Path) -> Settings:
         environment=Environment.TEST,
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'obsion-test.db'}",
         allowed_origins=["http://testserver"],
+        dev_bearer_token=TEST_BEARER_TOKEN,
         run_worker_concurrency=2,
         event_stream_heartbeat_seconds=5,
     )
@@ -33,5 +36,8 @@ def app_settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def client(app_settings: Settings) -> Iterator[TestClient]:
-    with TestClient(create_app(app_settings)) as test_client:
+    with TestClient(
+        create_app(app_settings),
+        headers={"Authorization": f"Bearer {TEST_BEARER_TOKEN}"},
+    ) as test_client:
         yield test_client

@@ -15,6 +15,52 @@ Authorization combines:
 
 Each decision returns `ALLOW`, `MASK`, `ASK`, or `DENY`, matched policy versions, obligations, and reason codes. The Capability Gateway enforces obligations; callers cannot downgrade them.
 
+The policy fingerprint includes the effective Principal roles, permissions, department,
+attributes, AgentVersion, capability version, resource, context, and matched policy
+revisions. A policy may restrict an already-authorized action but cannot elevate a
+Principal who lacks the capability permission. L5 is always denied, and generic L3-L5
+or side-effecting capabilities never reach a connector.
+
+## Identity and tenant boundary
+
+Every REST operation under `/api/v1` crosses one shared authentication dependency
+before the route handler runs. The App Server uses the same principal resolver during
+`server.initialize`; a WebSocket connection has no authority before that exchange
+succeeds. OIDC tokens must have a valid issuer, audience, lifetime, subject, and
+organization claim, and the subject must resolve to an active provisioned user.
+
+Development mode is not an authentication bypass. It maps one configured bearer
+credential to a deterministic local organization and user, compares the credential in
+constant time, and remains prohibited in production. Missing and invalid credentials
+fail before Workspace, Thread, Run, or administration services are entered.
+
+Browser login exchanges that development bearer or an OIDC access token once at
+`POST /api/v1/auth/session`. The server returns a random opaque session in an
+`HttpOnly`, `SameSite=Strict` cookie and persists only its SHA-256 digest, tenant-bound
+to the provisioned User. Browser code does not store or replay the access token. REST
+and App Server resolve the same revocable record; expiry, logout, user deactivation, or
+deletion removes its authority. Unsafe cookie-authenticated requests must also have an
+allowed Origin, and production refuses wildcard origins. Secure cookies are mandatory
+outside local/test development. Explicit Bearer remains the non-browser client path.
+
+The stable system roles are `admin`, `engineer`, `analyst`, `operator`, `support`, and
+`viewer`. Only `admin` has the wildcard permission. Custom roles cannot shadow a
+system-role name or receive the wildcard; permissions are explicit, normalized action
+identifiers. Department membership is an organization-owned reference, not free-form
+identity text.
+
+Tenant isolation has two independent layers:
+
+- repositories scope protected reads and writes by `Principal.organization_id` and
+  Workspace ownership or membership;
+- PostgreSQL composite foreign keys bind users, roles, departments, Workspace owners,
+  and Workspace members to the same organization, so an application defect cannot
+  persist a cross-organization identity edge.
+
+Unauthorized reads use non-disclosing not-found responses where resource existence
+would leak. Authorized same-organization users receive an explicit denial for a known
+Workspace write they cannot perform.
+
 ## Risk levels
 
 | Level | Meaning | Default |
@@ -40,6 +86,18 @@ Production query capabilities use a dedicated read-only identity and target a re
 
 Secrets are stored in an external secret manager or encrypted credential store. Agent context holds capability and connector IDs only. The execution boundary resolves a short-lived credential after authorization, passes it directly to the connector, and discards it. Secret values are redacted from logs, events, exceptions, traces, and model payloads.
 
+Model credentials follow the same rule inside the Model Gateway: only a
+`credential_ref` is persisted, the secret is resolved immediately before the provider
+request, and `model_calls` stores only a redacted request fingerprint and usage/cost
+metadata. Provider URLs are egress-allowlisted and require TLS outside local
+development/test.
+
+`CONFIDENTIAL` and `RESTRICTED` model inputs force the configured private Profile by
+default. The route must also bind an endpoint explicitly marked `private=true`; missing
+or inconsistent configuration fails before a provider request. Model tool requests
+remain untrusted data, must match a declared JSON Schema, and cannot execute or grant
+permission without the later Capability Gateway and Policy boundary.
+
 ## Prompt injection and data exfiltration
 
 - context segments have explicit trust labels and precedence;
@@ -56,6 +114,12 @@ Execution and coding agents run with CPU, memory, disk, process, filesystem, net
 ## Audit and privacy
 
 Audits record who, when, agent, model profile, capability, resource, policy, approval, result classification, risk, and latency. Sensitive query values, PII, passwords, tokens, and secrets are removed or deterministically tokenized. Audit access itself is governed and audited.
+
+Turn input is sanitized before durable storage and before context capture. Text
+credentials (`password=`, `token:`, API-key assignments, bearer values, credential
+URIs, and private-key blocks) are replaced with redaction markers; structured payloads
+use the same key-aware recursive redactor. The raw prompt is therefore not available
+through the database, replay snapshot, Event payload, or model context.
 
 ## Scheduled identity and workflow integrity
 

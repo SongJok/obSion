@@ -1,0 +1,33 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/evidence.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "evidence_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "DOCUMENT",
+        "DATA",
+        "METRIC",
+        "LOG",
+        "TRACE",
+        "DEPLOYMENT",
+        "CONFIG",
+        "CODE",
+        "TOOL"
+      ]
+    }
+  },
+  "required": [
+    "evidence_id",
+    "type"
+  ],
+  "title": "evidence.created payload v1",
+  "type": "object"
+}

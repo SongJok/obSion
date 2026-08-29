@@ -52,8 +52,12 @@ export interface Thread {
   workspace_id: string;
   title: string;
   status: "ACTIVE" | "ARCHIVED";
+  created_by: string;
+  parent_thread_id: string | null;
+  forked_from_turn_id: string | null;
   created_at: string;
   updated_at: string;
+  archived_at: string | null;
 }
 
 export interface Turn {
@@ -118,13 +122,321 @@ export interface KnowledgeHit {
   classification: string;
 }
 
+export interface Metric {
+  id: string;
+  name: string;
+  display_name: string;
+  version: number;
+  expression: string;
+  filters: Record<string, unknown>;
+  time_column: string;
+  source_table_id: string;
+  owner: string;
+  synonyms: string[];
+  validated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetricLineage {
+  metric: { id: string; name: string; version: number };
+  table: { id: string; name: string; owner: string };
+  data_source: { id: string; name: string; environment: string; read_only: boolean };
+}
+
 export interface RunEvent {
   id: string;
+  event_id: string;
+  organization_id: string;
+  aggregate_type: string;
+  aggregate_id: string;
   sequence: number;
   name: string;
-  run_id: string;
+  run_id: string | null;
+  run_sequence: number | null;
+  causation_id: string | null;
+  correlation_id: string;
+  actor_type: "USER" | "SERVICE" | "AGENT" | "SYSTEM";
+  actor_id: string | null;
+  schema_version: number;
+  classification: "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
   payload: Record<string, unknown>;
   created_at: string;
+}
+
+export const APP_SERVER_PROTOCOL_VERSION = "2026-08-26";
+export const APP_SERVER_SUBPROTOCOL = "obsion.jsonrpc.v1";
+
+export interface AppServerNotification {
+  jsonrpc: "2.0";
+  method: string;
+  params: Record<string, unknown>;
+}
+
+export interface AppServerWebSocket {
+  readonly readyState: number;
+  readonly protocol?: string;
+  onopen: ((event: unknown) => void) | null;
+  onmessage: ((event: { data: unknown }) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+  onclose: ((event: { code?: number; reason?: string }) => void) | null;
+  send(data: string): void;
+  close(code?: number, reason?: string): void;
+}
+
+export type AppServerWebSocketFactory = (
+  url: string,
+  protocols: string[],
+) => AppServerWebSocket;
+
+export class ObsionAppServerError extends Error {
+  constructor(
+    public readonly rpcCode: number,
+    message: string,
+    public readonly code?: string,
+    public readonly status?: number,
+    public readonly correlationId?: string,
+    public readonly details: Record<string, unknown> = {},
+  ) {
+    super(message);
+    this.name = "ObsionAppServerError";
+  }
+}
+
+interface PendingAppServerRequest {
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
+}
+
+export class ObsionAppServerClient {
+  private socket: AppServerWebSocket | null = null;
+  private nextId = 1;
+  private readonly pending = new Map<number, PendingAppServerRequest>();
+  private readonly notificationListeners = new Set<
+    (notification: AppServerNotification) => void
+  >();
+  private readyResolve: ((notification: AppServerNotification) => void) | null = null;
+  private readyReject: ((reason: unknown) => void) | null = null;
+
+  constructor(
+    private readonly url: string,
+    private readonly options: {
+      token?: string;
+      clientName?: string;
+      clientVersion?: string;
+      webSocketFactory?: AppServerWebSocketFactory;
+    } = {},
+  ) {}
+
+  async connect(): Promise<Record<string, unknown>> {
+    if (this.socket !== null) throw new Error("The App Server client is already connected");
+    const factory = this.options.webSocketFactory ?? defaultAppServerWebSocketFactory;
+    const ready = new Promise<AppServerNotification>((resolve, reject) => {
+      this.readyResolve = resolve;
+      this.readyReject = reject;
+    });
+    const opened = new Promise<void>((resolve, reject) => {
+      const socket = factory(this.url, [APP_SERVER_SUBPROTOCOL]);
+      this.socket = socket;
+      socket.onmessage = (event) => this.handleMessage(event.data);
+      socket.onopen = () => resolve();
+      socket.onerror = () => reject(new Error("The App Server WebSocket failed to connect"));
+      socket.onclose = (event) => {
+        const error = new Error(
+          `The App Server connection closed (${event.code ?? 1006}${
+            event.reason ? `: ${event.reason}` : ""
+          })`,
+        );
+        this.readyReject?.(error);
+        this.readyReject = null;
+        this.failPending(error);
+      };
+    });
+    try {
+      await opened;
+      await ready;
+      const params: Record<string, unknown> = {
+        protocol_version: APP_SERVER_PROTOCOL_VERSION,
+        client_name: this.options.clientName ?? "obsion-sdk-ts",
+        client_version: this.options.clientVersion ?? "0.1.0",
+      };
+      if (this.options.token) params.bearer_token = this.options.token;
+      return await this.request("server.initialize", params);
+    } catch (error) {
+      this.close();
+      throw error;
+    }
+  }
+
+  request<T = Record<string, unknown>>(
+    method: string,
+    params: Record<string, unknown> = {},
+  ): Promise<T> {
+    const socket = this.socket;
+    if (socket === null || socket.readyState !== 1) {
+      return Promise.reject(new Error("Connect the App Server client before sending requests"));
+    }
+    const id = this.nextId++;
+    const response = new Promise<T>((resolve, reject) => {
+      this.pending.set(id, {
+        resolve: (value) => resolve(value as T),
+        reject,
+      });
+    });
+    try {
+      socket.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+    } catch (error) {
+      this.pending.delete(id);
+      return Promise.reject(error);
+    }
+    return response;
+  }
+
+  onNotification(listener: (notification: AppServerNotification) => void): () => void {
+    this.notificationListeners.add(listener);
+    return () => this.notificationListeners.delete(listener);
+  }
+
+  createThread(
+    workspaceId: string,
+    title: string,
+    clientRequestId: string,
+  ): Promise<Thread> {
+    return this.request("thread.create", {
+      client_request_id: clientRequestId,
+      workspace_id: workspaceId,
+      title,
+    });
+  }
+
+  createTurn(
+    threadId: string,
+    input: string,
+    clientRequestId: string,
+    options: {
+      contextRefs?: Array<Record<string, unknown>>;
+      attachmentRefs?: Array<Record<string, unknown>>;
+      modelProfile?: string;
+    } = {},
+  ): Promise<{ turn: Turn; run: Run }> {
+    return this.request("turn.create", {
+      client_request_id: clientRequestId,
+      thread_id: threadId,
+      input,
+      context_refs: options.contextRefs ?? [],
+      attachment_refs: options.attachmentRefs ?? [],
+      ...(options.modelProfile ? { model_profile: options.modelProfile } : {}),
+    });
+  }
+
+  subscribeRun(
+    runId: string,
+    afterSequence = 0,
+  ): Promise<{
+    subscription_id: string;
+    run_id: string;
+    after_sequence: number;
+    run_status: RunStatus;
+  }> {
+    return this.request("run.subscribe", {
+      run_id: runId,
+      after_sequence: afterSequence,
+    });
+  }
+
+  unsubscribeRun(subscriptionId: string): Promise<Record<string, unknown>> {
+    return this.request("run.unsubscribe", { subscription_id: subscriptionId });
+  }
+
+  close(code = 1000, reason = "client closing"): void {
+    const socket = this.socket;
+    this.socket = null;
+    this.readyResolve = null;
+    this.readyReject = null;
+    if (socket !== null) socket.close(code, reason);
+    this.failPending(new Error("The App Server connection was closed"));
+  }
+
+  private handleMessage(raw: unknown): void {
+    if (typeof raw !== "string") {
+      this.close(1003, "text frames required");
+      return;
+    }
+    let message: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("invalid message");
+      }
+      message = parsed as Record<string, unknown>;
+    } catch {
+      this.close(1002, "invalid JSON-RPC frame");
+      return;
+    }
+    if ("id" in message) {
+      const id = message.id;
+      if (typeof id !== "number") return;
+      const pending = this.pending.get(id);
+      if (!pending) return;
+      this.pending.delete(id);
+      if (message.error) pending.reject(decodeAppServerError(message.error));
+      else pending.resolve(message.result);
+      return;
+    }
+    if (typeof message.method !== "string") return;
+    const notification = message as unknown as AppServerNotification;
+    if (notification.method === "server.ready") {
+      this.readyResolve?.(notification);
+      this.readyResolve = null;
+      this.readyReject = null;
+    }
+    for (const listener of this.notificationListeners) listener(notification);
+  }
+
+  private failPending(error: Error): void {
+    for (const pending of this.pending.values()) pending.reject(error);
+    this.pending.clear();
+  }
+}
+
+export function appServerUrlFromApiUrl(apiUrl: string): string {
+  const url = new URL(apiUrl);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/app-server`;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+function decodeAppServerError(error: unknown): ObsionAppServerError {
+  if (!error || typeof error !== "object") {
+    return new ObsionAppServerError(-32603, "Malformed App Server error");
+  }
+  const body = error as Record<string, unknown>;
+  const data =
+    body.data && typeof body.data === "object"
+      ? (body.data as Record<string, unknown>)
+      : {};
+  return new ObsionAppServerError(
+    typeof body.code === "number" ? body.code : -32603,
+    typeof body.message === "string" ? body.message : "App Server request failed",
+    typeof data.code === "string" ? data.code : undefined,
+    typeof data.status === "number" ? data.status : undefined,
+    typeof data.correlation_id === "string" ? data.correlation_id : undefined,
+    data.details && typeof data.details === "object"
+      ? (data.details as Record<string, unknown>)
+      : {},
+  );
+}
+
+function defaultAppServerWebSocketFactory(
+  url: string,
+  protocols: string[],
+): AppServerWebSocket {
+  if (typeof WebSocket === "undefined") {
+    throw new Error("A WebSocket implementation is required in this runtime");
+  }
+  return new WebSocket(url, protocols) as unknown as AppServerWebSocket;
 }
 
 export type WorkflowStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "RETIRED";
@@ -384,6 +696,133 @@ export interface EvaluationCaseResult {
   created_at: string;
 }
 
+export type MemoryScope = "TURN" | "SESSION" | "WORKSPACE" | "USER_PREFERENCE";
+
+export interface Memory {
+  id: string;
+  scope: MemoryScope;
+  owner_ref: string;
+  content: Record<string, unknown>;
+  dedupe_key: string;
+  sensitivity: string;
+  status: "CANDIDATE" | "APPROVED" | "REJECTED" | "EXPIRED";
+  policy_decision_id: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RunMemorySnapshot {
+  id: string;
+  run_id: string;
+  memory_id: string;
+  principal_id: string;
+  ordinal: number;
+  scope: MemoryScope;
+  owner_ref: string;
+  content: Record<string, unknown>;
+  content_fingerprint: string;
+  sensitivity: string;
+  policy_decision_id: string;
+  memory_updated_at: string;
+  captured_at: string;
+}
+
+export interface RunConversationSnapshot {
+  id: string;
+  run_id: string;
+  source_thread_id: string;
+  source_turn_id: string;
+  source_run_id: string | null;
+  source_artifact_id: string | null;
+  source_principal_id: string;
+  ordinal: number;
+  user_content: string;
+  assistant_content: string | null;
+  content_fingerprint: string;
+  classification: string;
+  captured_at: string;
+}
+
+export type RunFeedbackRating = "HELPFUL" | "NEEDS_IMPROVEMENT";
+
+export interface RunFeedback {
+  id: string;
+  run_id: string;
+  user_id: string;
+  rating: RunFeedbackRating;
+  reason: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedbackSummary {
+  total: number;
+  helpful: number;
+  needs_improvement: number;
+  helpful_rate: number | null;
+}
+
+export type WorkspaceTaskStatus =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "BLOCKED"
+  | "COMPLETED"
+  | "CANCELLED";
+export type WorkspaceTaskPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
+
+export interface WorkspaceTask {
+  id: string;
+  workspace_id: string;
+  title: string;
+  description: string;
+  status: WorkspaceTaskStatus;
+  priority: WorkspaceTaskPriority;
+  assignee_id: string | null;
+  created_by: string;
+  source_run_id: string | null;
+  due_at: string | null;
+  completed_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkspaceDecisionStatus = "PROPOSED" | "ACCEPTED" | "REJECTED" | "SUPERSEDED";
+
+export interface WorkspaceDecision {
+  id: string;
+  workspace_id: string;
+  status: WorkspaceDecisionStatus;
+  current_version: number;
+  created_by: string;
+  decided_by: string | null;
+  source_run_id: string | null;
+  supersedes_decision_id: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  summary: string;
+  rationale: string;
+  alternatives: string[];
+  checksum_sha256: string;
+}
+
+export interface WorkspaceDecisionVersion {
+  id: string;
+  decision_id: string;
+  version: number;
+  title: string;
+  summary: string;
+  rationale: string;
+  alternatives: string[];
+  created_by: string;
+  checksum_sha256: string;
+  created_at: string;
+}
+
 export class ObsionApiError extends Error {
   constructor(
     readonly statusCode: number,
@@ -417,8 +856,34 @@ export class ObsionClient {
     });
   }
 
-  listThreads(workspaceId: string): Promise<Thread[]> {
-    return this.request(`/api/v1/workspaces/${workspaceId}/threads`);
+  listThreads(workspaceId: string, includeArchived = false): Promise<Thread[]> {
+    return this.request(
+      `/api/v1/workspaces/${workspaceId}/threads?include_archived=${includeArchived}`,
+    );
+  }
+
+  archiveThread(threadId: string): Promise<Thread> {
+    return this.request(`/api/v1/threads/${threadId}/archive`, { method: "POST" });
+  }
+
+  resumeThread(threadId: string): Promise<Thread> {
+    return this.request(`/api/v1/threads/${threadId}/resume`, { method: "POST" });
+  }
+
+  forkThread(
+    threadId: string,
+    input: { title?: string; from_turn_id?: string } = {},
+  ): Promise<Thread> {
+    return this.request(`/api/v1/threads/${threadId}/fork`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listThreadEvents(threadId: string, afterSequence = 0, limit = 200): Promise<RunEvent[]> {
+    return this.request(
+      `/api/v1/threads/${threadId}/events?after_sequence=${afterSequence}&limit=${limit}`,
+    );
   }
 
   listTurns(threadId: string): Promise<Turn[]> {
@@ -461,6 +926,28 @@ export class ObsionClient {
     return this.request(`/api/v1/runs/${runId}/replay`, { method: "POST" });
   }
 
+  getRunFeedback(runId: string): Promise<RunFeedback | null> {
+    return this.request(`/api/v1/runs/${runId}/feedback`);
+  }
+
+  recordRunFeedback(
+    runId: string,
+    input: {
+      rating: RunFeedbackRating;
+      reason?: string;
+      expected_version?: number;
+    },
+  ): Promise<RunFeedback> {
+    return this.request(`/api/v1/runs/${runId}/feedback`, {
+      method: "PUT",
+      body: JSON.stringify({ reason: "", ...input }),
+    });
+  }
+
+  getFeedbackSummary(): Promise<FeedbackSummary> {
+    return this.request("/api/v1/admin/feedback/summary");
+  }
+
   listEvents(runId: string, after = 0): Promise<RunEvent[]> {
     return this.request(`/api/v1/runs/${runId}/events?after=${after}`);
   }
@@ -479,6 +966,178 @@ export class ObsionClient {
 
   listRunArtifacts(runId: string): Promise<Artifact[]> {
     return this.request(`/api/v1/runs/${runId}/artifacts`);
+  }
+
+  listRunMemories(runId: string): Promise<RunMemorySnapshot[]> {
+    return this.request(`/api/v1/runs/${runId}/memories`);
+  }
+
+  listRunConversation(runId: string): Promise<RunConversationSnapshot[]> {
+    return this.request(`/api/v1/runs/${runId}/conversation`);
+  }
+
+  createMemory(input: {
+    scope: MemoryScope;
+    owner_ref: string;
+    content: Record<string, unknown>;
+    sensitivity?: string;
+    expires_at?: string;
+  }): Promise<Memory> {
+    return this.request("/api/v1/memories", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listMemories(options: {
+    scope?: MemoryScope;
+    ownerRef?: string;
+    status?: Memory["status"];
+  } = {}): Promise<Memory[]> {
+    const query = new URLSearchParams();
+    if (options.scope) query.set("scope", options.scope);
+    if (options.ownerRef) query.set("owner_ref", options.ownerRef);
+    if (options.status) query.set("status", options.status);
+    const suffix = query.size ? `?${query.toString()}` : "";
+    return this.request(`/api/v1/memories${suffix}`);
+  }
+
+  decideMemory(memoryId: string, approve: boolean, reason: string): Promise<Memory> {
+    return this.request(`/api/v1/memories/${memoryId}/${approve ? "approve" : "reject"}`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  createWorkspaceTask(
+    workspaceId: string,
+    input: {
+      title: string;
+      description?: string;
+      priority?: WorkspaceTaskPriority;
+      assignee_id?: string | null;
+      source_run_id?: string | null;
+      due_at?: string | null;
+    },
+  ): Promise<WorkspaceTask> {
+    return this.request(`/api/v1/workspaces/${workspaceId}/tasks`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listWorkspaceTasks(
+    workspaceId: string,
+    options: {
+      status?: WorkspaceTaskStatus;
+      assigneeId?: string;
+      limit?: number;
+    } = {},
+  ): Promise<WorkspaceTask[]> {
+    const query = new URLSearchParams();
+    if (options.status) query.set("status", options.status);
+    if (options.assigneeId) query.set("assignee_id", options.assigneeId);
+    query.set("limit", String(options.limit ?? 200));
+    return this.request(`/api/v1/workspaces/${workspaceId}/tasks?${query.toString()}`);
+  }
+
+  updateWorkspaceTask(
+    taskId: string,
+    input: {
+      expected_version: number;
+      title?: string;
+      description?: string;
+      status?: WorkspaceTaskStatus;
+      priority?: WorkspaceTaskPriority;
+      assignee_id?: string | null;
+      due_at?: string | null;
+    },
+  ): Promise<WorkspaceTask> {
+    return this.request(`/api/v1/workspace-tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listWorkspaceTaskEvents(
+    taskId: string,
+    afterSequence = 0,
+    limit = 200,
+  ): Promise<RunEvent[]> {
+    return this.request(
+      `/api/v1/workspace-tasks/${taskId}/events?after_sequence=${afterSequence}&limit=${limit}`,
+    );
+  }
+
+  createWorkspaceDecision(
+    workspaceId: string,
+    input: {
+      title: string;
+      summary: string;
+      rationale: string;
+      alternatives?: string[];
+      source_run_id?: string | null;
+      supersedes_decision_id?: string | null;
+    },
+  ): Promise<WorkspaceDecision> {
+    return this.request(`/api/v1/workspaces/${workspaceId}/decisions`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listWorkspaceDecisions(
+    workspaceId: string,
+    options: { status?: WorkspaceDecisionStatus; limit?: number } = {},
+  ): Promise<WorkspaceDecision[]> {
+    const query = new URLSearchParams();
+    if (options.status) query.set("status", options.status);
+    query.set("limit", String(options.limit ?? 200));
+    return this.request(`/api/v1/workspaces/${workspaceId}/decisions?${query.toString()}`);
+  }
+
+  reviseWorkspaceDecision(
+    decisionId: string,
+    input: {
+      expected_version: number;
+      title: string;
+      summary: string;
+      rationale: string;
+      alternatives?: string[];
+    },
+  ): Promise<WorkspaceDecision> {
+    return this.request(`/api/v1/workspace-decisions/${decisionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  decideWorkspaceDecision(
+    decisionId: string,
+    approve: boolean,
+    expectedVersion: number,
+  ): Promise<WorkspaceDecision> {
+    return this.request(
+      `/api/v1/workspace-decisions/${decisionId}/${approve ? "accept" : "reject"}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ expected_version: expectedVersion }),
+      },
+    );
+  }
+
+  listWorkspaceDecisionVersions(decisionId: string): Promise<WorkspaceDecisionVersion[]> {
+    return this.request(`/api/v1/workspace-decisions/${decisionId}/versions`);
+  }
+
+  listWorkspaceDecisionEvents(
+    decisionId: string,
+    afterSequence = 0,
+    limit = 200,
+  ): Promise<RunEvent[]> {
+    return this.request(
+      `/api/v1/workspace-decisions/${decisionId}/events?after_sequence=${afterSequence}&limit=${limit}`,
+    );
   }
 
   getArtifact(artifactId: string): Promise<Artifact> {
@@ -557,6 +1216,81 @@ export class ObsionClient {
         question,
         ...(modelProfile ? { model_profile: modelProfile } : {}),
       }),
+    });
+  }
+
+  listMetrics(): Promise<Metric[]> {
+    return this.request("/api/v1/data/metrics");
+  }
+
+  getMetricLineage(metricId: string): Promise<MetricLineage> {
+    return this.request(`/api/v1/data/lineage/${metricId}`);
+  }
+
+  validateSql(sql: string, dataSourceId: string): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/data/sql/validate", {
+      method: "POST",
+      body: JSON.stringify({ sql, data_source_id: dataSourceId }),
+    });
+  }
+
+  explainSql(sql: string, dataSourceId: string): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/data/sql/explain", {
+      method: "POST",
+      body: JSON.stringify({ sql, data_source_id: dataSourceId }),
+    });
+  }
+
+  getDataCatalog(): Promise<Record<string, number>> {
+    return this.request("/api/v1/admin/data/catalog");
+  }
+
+  createMetric(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/data/metrics", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  }
+
+  createDimension(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/data/dimensions", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  }
+
+  createEntity(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/data/entities", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  }
+
+  createRelation(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/data/relations", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  }
+
+  createBusinessRule(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/data/rules", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  }
+
+  createTimeDefinition(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/data/time-definitions", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  }
+
+  createSemanticSynonym(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/data/synonyms", {
+      method: "POST",
+      body: JSON.stringify(definition),
     });
   }
 

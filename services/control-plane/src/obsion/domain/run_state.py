@@ -24,8 +24,12 @@ _TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
 }
 
 
+def allowed_run_transitions(status: RunStatus) -> frozenset[RunStatus]:
+    return _TRANSITIONS[status]
+
+
 def validate_run_transition(current: RunStatus, target: RunStatus) -> None:
-    if target not in _TRANSITIONS[current]:
+    if target not in allowed_run_transitions(current):
         raise ConflictError(
             "invalid_run_transition",
             f"Run cannot transition from {current} to {target}",

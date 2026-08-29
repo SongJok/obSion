@@ -1,0 +1,29 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/memory.rejected.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "memory_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "scope": {
+      "enum": [
+        "TURN",
+        "SESSION",
+        "WORKSPACE",
+        "USER_PREFERENCE"
+      ]
+    }
+  },
+  "required": [
+    "memory_id",
+    "scope",
+    "reason"
+  ],
+  "title": "memory.rejected payload v1",
+  "type": "object"
+}

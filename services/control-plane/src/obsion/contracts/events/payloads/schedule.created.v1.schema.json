@@ -1,0 +1,21 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/schedule.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "next_fire_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "schedule_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schedule_id",
+    "next_fire_at"
+  ],
+  "title": "schedule.created payload v1",
+  "type": "object"
+}

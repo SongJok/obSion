@@ -1,0 +1,20 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/automation.review_requested.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "step_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "step_key": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "step_id",
+    "step_key"
+  ],
+  "title": "automation.review_requested payload v1",
+  "type": "object"
+}

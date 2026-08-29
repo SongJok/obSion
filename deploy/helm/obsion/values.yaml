@@ -54,15 +54,32 @@ config:
     oidcIssuer: ""
     oidcAudience: ""
     oidcJwksUrl: ""
+    sessionCookieName: obsion_session
+    sessionTtlSeconds: 28800
+    sessionRetentionDays: 30
   redisUrl: redis://redis:6379/0
   capabilityRateLimitPerMinute: 120
   rateLimitFailClosed: true
+  modelRequestTimeoutSeconds: 120
   modelAllowedHosts: []
+  modelForcePrivateForSensitive: true
+  modelPrivateProfileName: private
   knowledgeEmbeddingProfile: ""
   knowledgeEmbeddingBatchSize: 64
   runMaxInputTokens: 120000
   runMaxOutputTokens: 16000
   runMaxCostAmount: "10"
+  sqlDefaultLimit: 500
+  sqlMaxLimit: 5000
+  sqlScanBudget: 1000000
+  sqlRequireExplicitLimit: true
+  sqlTimeoutSeconds: 30
+  appServer:
+    initializeTimeoutSeconds: 10
+    maxMessageBytes: 262144
+    maxSubscriptions: 32
+    eventPollIntervalSeconds: 0.25
+    idempotencyRetentionHours: 24
   automation:
     enabled: true
     workerConcurrency: 4

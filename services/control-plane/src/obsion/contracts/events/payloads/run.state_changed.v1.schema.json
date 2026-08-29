@@ -1,0 +1,41 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.state_changed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "from": {
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "WAITING_APPROVAL",
+        "WAITING_USER",
+        "REPLANNING",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "to": {
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "WAITING_APPROVAL",
+        "WAITING_USER",
+        "REPLANNING",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    }
+  },
+  "required": [
+    "from",
+    "to",
+    "reason"
+  ],
+  "title": "run.state_changed payload v1",
+  "type": "object"
+}

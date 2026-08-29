@@ -12,6 +12,7 @@ spec:
   allowedEgress: [observability.internal:443]
   tlsRequired: true
   configuration:
+    protocol: observability.v1
     rate_limit_per_minute: 240
   capabilities:
     - log.search

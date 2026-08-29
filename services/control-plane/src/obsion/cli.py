@@ -5,6 +5,7 @@ from typing import Any
 
 import uvicorn
 
+from obsion.contracts.validation import validate_contracts
 from obsion.evaluations.manifests import EvaluationManifestError, validate_evaluation_root
 from obsion.main import create_app
 from obsion.registry.manifests import RegistryManifestError, validate_registry_root
@@ -53,6 +54,21 @@ def _validate_evaluations(args: argparse.Namespace) -> None:
     print(json.dumps(summary, sort_keys=True))  # noqa: T201
 
 
+def _validate_contracts(_: argparse.Namespace) -> None:
+    summary = validate_contracts()
+    print(  # noqa: T201
+        json.dumps(
+            {
+                "error_codes": summary.error_code_count,
+                "event_registry_version": summary.event_registry_version,
+                "event_versions": summary.event_version_count,
+                "events": summary.event_count,
+            },
+            sort_keys=True,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="obsion", description="Operate the Obsion control plane")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -78,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluations.add_argument("--root", default="evaluations/datasets")
     evaluations.set_defaults(handler=_validate_evaluations)
+
+    contracts = commands.add_parser(
+        "validate-contracts",
+        help="Validate the frozen Event and domain error contracts",
+    )
+    contracts.set_defaults(handler=_validate_contracts)
     return parser
 
 

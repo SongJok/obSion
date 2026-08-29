@@ -15,11 +15,19 @@ from obsion.db.models import (
     Artifact,
     Claim,
     ClaimEvidence,
+    ClaimVerificationResult,
     Event,
     Evidence,
+    EvidenceConflict,
+    EvidenceObservation,
+    PolicyDecision,
     Run,
+    RunConversationSnapshot,
+    RunMemorySnapshot,
     RunStep,
     Turn,
+    VerificationAssessment,
+    VerificationEvidenceLink,
 )
 from obsion.domain.enums import ActorType, RunStatus
 from obsion.domain.run_state import is_terminal, validate_run_transition
@@ -35,6 +43,8 @@ class ReplaySnapshotResult:
     evidence_count: int
     claim_count: int
     artifact_count: int
+    memory_count: int
+    conversation_count: int
     event_count: int
 
 
@@ -145,6 +155,85 @@ class RunReplayService:
                 .order_by(Event.sequence)
             )
         )
+        source_memories = list(
+            await session.scalars(
+                select(RunMemorySnapshot)
+                .where(
+                    RunMemorySnapshot.organization_id == organization_id,
+                    RunMemorySnapshot.run_id == source.id,
+                )
+                .order_by(RunMemorySnapshot.ordinal)
+            )
+        )
+        source_conversation = list(
+            await session.scalars(
+                select(RunConversationSnapshot)
+                .where(
+                    RunConversationSnapshot.organization_id == organization_id,
+                    RunConversationSnapshot.run_id == source.id,
+                )
+                .order_by(RunConversationSnapshot.ordinal)
+            )
+        )
+        source_observations = list(
+            await session.scalars(
+                select(EvidenceObservation)
+                .where(
+                    EvidenceObservation.organization_id == organization_id,
+                    EvidenceObservation.run_id == source.id,
+                )
+                .order_by(EvidenceObservation.evidence_id, EvidenceObservation.ordinal)
+            )
+        )
+        source_assessments = list(
+            await session.scalars(
+                select(VerificationAssessment)
+                .where(
+                    VerificationAssessment.organization_id == organization_id,
+                    VerificationAssessment.run_id == source.id,
+                )
+                .order_by(VerificationAssessment.attempt)
+            )
+        )
+        source_assessment_ids = [item.id for item in source_assessments]
+        source_claim_results = list(
+            await session.scalars(
+                select(ClaimVerificationResult)
+                .where(ClaimVerificationResult.assessment_id.in_(source_assessment_ids))
+                .order_by(ClaimVerificationResult.ordinal)
+            )
+            if source_assessment_ids
+            else []
+        )
+        source_result_ids = [item.id for item in source_claim_results]
+        source_verification_links = list(
+            await session.scalars(
+                select(VerificationEvidenceLink)
+                .where(VerificationEvidenceLink.claim_result_id.in_(source_result_ids))
+                .order_by(VerificationEvidenceLink.created_at, VerificationEvidenceLink.id)
+            )
+            if source_result_ids
+            else []
+        )
+        source_conflicts = list(
+            await session.scalars(
+                select(EvidenceConflict)
+                .where(EvidenceConflict.assessment_id.in_(source_assessment_ids))
+                .order_by(EvidenceConflict.created_at, EvidenceConflict.id)
+            )
+            if source_assessment_ids
+            else []
+        )
+        source_policy_decisions = list(
+            await session.scalars(
+                select(PolicyDecision)
+                .where(
+                    PolicyDecision.organization_id == organization_id,
+                    PolicyDecision.run_id == source.id,
+                )
+                .order_by(PolicyDecision.created_at, PolicyDecision.id)
+            )
+        )
         source_claim_ids = [claim.id for claim in source_claims]
         source_links: list[tuple[UUID, UUID]] = (
             [
@@ -165,12 +254,28 @@ class RunReplayService:
         evidence_ids = {item.id: new_id() for item in source_evidence}
         claim_ids = {item.id: new_id() for item in source_claims}
         artifact_ids = {item.id: new_id() for item in source_artifacts}
+        memory_snapshot_ids = {item.id: new_id() for item in source_memories}
+        conversation_snapshot_ids = {item.id: new_id() for item in source_conversation}
+        observation_ids = {item.id: new_id() for item in source_observations}
+        assessment_ids = {item.id: new_id() for item in source_assessments}
+        claim_result_ids = {item.id: new_id() for item in source_claim_results}
+        verification_link_ids = {item.id: new_id() for item in source_verification_links}
+        conflict_ids = {item.id: new_id() for item in source_conflicts}
+        policy_decision_ids = {item.id: new_id() for item in source_policy_decisions}
         replacements = {
             str(source.id): str(target.id),
             **{str(old): str(new) for old, new in step_ids.items()},
             **{str(old): str(new) for old, new in evidence_ids.items()},
             **{str(old): str(new) for old, new in claim_ids.items()},
             **{str(old): str(new) for old, new in artifact_ids.items()},
+            **{str(old): str(new) for old, new in memory_snapshot_ids.items()},
+            **{str(old): str(new) for old, new in conversation_snapshot_ids.items()},
+            **{str(old): str(new) for old, new in observation_ids.items()},
+            **{str(old): str(new) for old, new in assessment_ids.items()},
+            **{str(old): str(new) for old, new in claim_result_ids.items()},
+            **{str(old): str(new) for old, new in verification_link_ids.items()},
+            **{str(old): str(new) for old, new in conflict_ids.items()},
+            **{str(old): str(new) for old, new in policy_decision_ids.items()},
         }
         snapshot_sha256 = self._snapshot_fingerprint(
             source,
@@ -180,6 +285,8 @@ class RunReplayService:
             source_links,
             source_artifacts,
             source_events,
+            source_memories,
+            source_conversation,
         )
         now = utc_now()
 
@@ -271,11 +378,43 @@ class RunReplayService:
             )
         session.add_all(cloned_evidence)
 
+        session.add_all(
+            [
+                EvidenceObservation(
+                    id=observation_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    evidence_id=evidence_ids[item.evidence_id],
+                    ordinal=item.ordinal,
+                    subject=item.subject,
+                    measure=item.measure,
+                    value_type=item.value_type,
+                    value=copy.deepcopy(item.value),
+                    unit=item.unit,
+                    environment=item.environment,
+                    scope=copy.deepcopy(item.scope),
+                    scope_fingerprint=item.scope_fingerprint,
+                    valid_from=item.valid_from,
+                    valid_to=item.valid_to,
+                    definition_version=item.definition_version,
+                    mapping_version=item.mapping_version,
+                    mapping_fingerprint=item.mapping_fingerprint,
+                    observation_fingerprint=item.observation_fingerprint,
+                    confidence=item.confidence,
+                    classification=item.classification,
+                    lineage=self._remap(item.lineage, replacements),
+                    created_at=item.created_at,
+                )
+                for item in source_observations
+            ]
+        )
+
         cloned_claims = [
             Claim(
                 id=claim_ids[item.id],
                 organization_id=organization_id,
                 run_id=target.id,
+                generation=item.generation,
                 ordinal=item.ordinal,
                 statement=item.statement,
                 confidence=item.confidence,
@@ -289,11 +428,36 @@ class RunReplayService:
         session.add_all(
             [
                 ClaimEvidence(
+                    organization_id=organization_id,
+                    run_id=target.id,
                     claim_id=claim_ids[claim_id],
                     evidence_id=evidence_ids[evidence_id],
                 )
                 for claim_id, evidence_id in source_links
                 if claim_id in claim_ids and evidence_id in evidence_ids
+            ]
+        )
+        session.add_all(
+            [
+                PolicyDecision(
+                    id=policy_decision_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    principal_id=item.principal_id,
+                    agent_version_id=item.agent_version_id,
+                    capability_version_id=item.capability_version_id,
+                    action=item.action,
+                    resource=self._remap(item.resource, replacements),
+                    context=copy.deepcopy(item.context),
+                    risk_level=item.risk_level,
+                    effect=item.effect,
+                    matched_policy_ids=copy.deepcopy(item.matched_policy_ids),
+                    obligations=copy.deepcopy(item.obligations),
+                    reason_codes=copy.deepcopy(item.reason_codes),
+                    input_fingerprint=item.input_fingerprint,
+                    created_at=item.created_at,
+                )
+                for item in source_policy_decisions
             ]
         )
 
@@ -325,8 +489,193 @@ class RunReplayService:
                     created_at=source_artifact.created_at,
                     updated_at=source_artifact.updated_at,
                 )
-            )
+        )
         session.add_all(cloned_artifacts)
+        # Flush the target Claim generation before inserting a VERIFIED
+        # assessment.  PostgreSQL's claim-generation seal trigger therefore
+        # cannot observe the assessment while the claims are being appended.
+        await session.flush()
+        # Child verification rows are copied after the target Claim, Evidence,
+        # Observation, and PolicyDecision rows are staged.  IDs are remapped so
+        # the replay remains tenant-safe and never points back to the source run.
+        session.add_all(
+            [
+                VerificationAssessment(
+                    id=assessment_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    verify_step_id=step_ids.get(item.verify_step_id, item.verify_step_id),
+                    attempt=item.attempt,
+                    claim_generation=item.claim_generation,
+                    outcome=self._replay_assessment_outcome(item.outcome),
+                    publication_decision=(
+                        item.publication_decision
+                        if str(item.outcome) != "ERROR"
+                        else "WITHHOLD"
+                    ),
+                    evaluator=item.evaluator,
+                    evaluator_version=item.evaluator_version,
+                    route=item.route,
+                    rules=copy.deepcopy(item.rules),
+                    ruleset_snapshot=self._remap(item.ruleset_snapshot, replacements),
+                    ruleset_fingerprint=item.ruleset_fingerprint,
+                    input_fingerprint=item.input_fingerprint,
+                    policy_snapshot=self._remap(item.policy_snapshot, replacements),
+                    policy_decision_id=(
+                        policy_decision_ids.get(item.policy_decision_id)
+                        if item.policy_decision_id is not None
+                        else None
+                    ),
+                    minimum_coverage=item.minimum_coverage,
+                    minimum_confidence=item.minimum_confidence,
+                    coverage=item.coverage,
+                    confidence=item.confidence,
+                    checks=copy.deepcopy(item.checks),
+                    missing_requirements=copy.deepcopy(item.missing_requirements),
+                    high_conflict_count=item.high_conflict_count,
+                    classification=item.classification,
+                    # Replay never re-issues an operational error code.
+                    error_code=None,
+                    duration_ms=item.duration_ms,
+                    replay_lineage={
+                        **self._remap(item.replay_lineage, replacements),
+                        "replay_source_assessment_id": str(item.id),
+                        "replay_source_run_id": str(source.id),
+                        "replay_snapshot_sha256": snapshot_sha256,
+                    },
+                    completed_at=item.completed_at,
+                    created_at=item.created_at,
+                )
+                for item in source_assessments
+            ]
+        )
+        session.add_all(
+            [
+                ClaimVerificationResult(
+                    id=claim_result_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    assessment_id=assessment_ids[item.assessment_id],
+                    claim_id=claim_ids[item.claim_id],
+                    claim_generation=item.claim_generation,
+                    ordinal=item.ordinal,
+                    outcome=item.outcome,
+                    coverage=item.coverage,
+                    confidence=item.confidence,
+                    checks=copy.deepcopy(item.checks),
+                    reason_codes=copy.deepcopy(item.reason_codes),
+                    material=item.material,
+                    classification=item.classification,
+                    created_at=item.created_at,
+                )
+                for item in source_claim_results
+            ]
+        )
+        session.add_all(
+            [
+                VerificationEvidenceLink(
+                    id=verification_link_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    assessment_id=assessment_ids[item.assessment_id],
+                    claim_result_id=claim_result_ids[item.claim_result_id],
+                    evidence_id=evidence_ids[item.evidence_id],
+                    observation_id=(
+                        observation_ids[item.observation_id]
+                        if item.observation_id is not None
+                        else None
+                    ),
+                    rule=item.rule,
+                    rule_outcome=item.rule_outcome,
+                    relation=item.relation,
+                    reason_codes=copy.deepcopy(item.reason_codes),
+                    source_fingerprint=item.source_fingerprint,
+                    classification=item.classification,
+                    created_at=item.created_at,
+                )
+                for item in source_verification_links
+            ]
+        )
+        session.add_all(
+            [
+                EvidenceConflict(
+                    id=conflict_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    assessment_id=assessment_ids[item.assessment_id],
+                    left_evidence_id=evidence_ids[item.left_evidence_id],
+                    right_evidence_id=evidence_ids[item.right_evidence_id],
+                    left_observation_id=(
+                        observation_ids[item.left_observation_id]
+                        if item.left_observation_id is not None
+                        else None
+                    ),
+                    right_observation_id=(
+                        observation_ids[item.right_observation_id]
+                        if item.right_observation_id is not None
+                        else None
+                    ),
+                    kind=item.kind,
+                    severity=item.severity,
+                    disposition=item.disposition,
+                    subject=item.subject,
+                    measure=item.measure,
+                    unit=item.unit,
+                    environment=item.environment,
+                    definition_version=item.definition_version,
+                    scope_fingerprint=item.scope_fingerprint,
+                    valid_from=item.valid_from,
+                    valid_to=item.valid_to,
+                    details=self._remap(item.details, replacements),
+                    conflict_fingerprint=item.conflict_fingerprint,
+                    classification=item.classification,
+                    created_at=item.created_at,
+                )
+                for item in source_conflicts
+            ]
+        )
+        session.add_all(
+            [
+                RunMemorySnapshot(
+                    id=memory_snapshot_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    memory_id=item.memory_id,
+                    principal_id=item.principal_id,
+                    ordinal=item.ordinal,
+                    scope=item.scope,
+                    owner_ref=item.owner_ref,
+                    content=copy.deepcopy(item.content),
+                    content_fingerprint=item.content_fingerprint,
+                    sensitivity=item.sensitivity,
+                    policy_decision_id=item.policy_decision_id,
+                    memory_updated_at=item.memory_updated_at,
+                    captured_at=item.captured_at,
+                )
+                for item in source_memories
+            ]
+        )
+        session.add_all(
+            [
+                RunConversationSnapshot(
+                    id=conversation_snapshot_ids[item.id],
+                    organization_id=organization_id,
+                    run_id=target.id,
+                    source_thread_id=item.source_thread_id,
+                    source_turn_id=item.source_turn_id,
+                    source_run_id=item.source_run_id,
+                    source_artifact_id=item.source_artifact_id,
+                    source_principal_id=item.source_principal_id,
+                    ordinal=item.ordinal,
+                    user_content=item.user_content,
+                    assistant_content=item.assistant_content,
+                    content_fingerprint=item.content_fingerprint,
+                    classification=item.classification,
+                    captured_at=item.captured_at,
+                )
+                for item in source_conversation
+            ]
+        )
         await session.flush()
 
         for source_event in source_events:
@@ -342,11 +691,11 @@ class RunReplayService:
                     actor_id=None,
                     run_id=target.id,
                     classification=source_event.classification,
-                    schema_version=source_event.schema_version,
                     payload={
                         "source_event_id": str(source_event.id),
                         "source_sequence": source_event.sequence,
                         "source_name": source_event.name,
+                        "source_schema_version": source_event.schema_version,
                         "source_actor_type": source_event.actor_type,
                         "source_actor_id": (
                             str(source_event.actor_id) if source_event.actor_id else None
@@ -385,6 +734,8 @@ class RunReplayService:
             evidence_count=len(source_evidence),
             claim_count=len(source_claims),
             artifact_count=len(source_artifacts),
+            memory_count=len(source_memories),
+            conversation_count=len(source_conversation),
             event_count=len(source_events),
         )
         await self.events.append(
@@ -406,6 +757,8 @@ class RunReplayService:
                     "evidence": result.evidence_count,
                     "claims": result.claim_count,
                     "artifacts": result.artifact_count,
+                    "memories": result.memory_count,
+                    "conversation": result.conversation_count,
                     "events": result.event_count,
                 },
             ),
@@ -441,6 +794,11 @@ class RunReplayService:
         return copy.deepcopy(value)
 
     @staticmethod
+    def _replay_assessment_outcome(value: Any) -> Any:
+        """Keep a replay admissible when an old assessment was an ERROR."""
+        return "PARTIAL" if str(value) == "ERROR" else value
+
+    @staticmethod
     def _capability_version_for_step(
         step: RunStep,
         evidence: list[Evidence],
@@ -463,6 +821,8 @@ class RunReplayService:
         links: list[tuple[UUID, UUID]],
         artifacts: list[Artifact],
         events: list[Event],
+        memories: list[RunMemorySnapshot],
+        conversation: list[RunConversationSnapshot],
     ) -> str:
         evidence_fingerprints = {str(item.id): item.content_fingerprint for item in evidence}
         claim_links: dict[str, list[str]] = {}
@@ -543,6 +903,38 @@ class RunReplayService:
                     "lineage": item.lineage,
                 }
                 for item in artifacts
+            ],
+            "memories": [
+                {
+                    "ordinal": item.ordinal,
+                    "memory_id": item.memory_id,
+                    "principal_id": item.principal_id,
+                    "scope": item.scope,
+                    "owner_ref": item.owner_ref,
+                    "content": item.content,
+                    "content_fingerprint": item.content_fingerprint,
+                    "sensitivity": item.sensitivity,
+                    "policy_decision_id": item.policy_decision_id,
+                    "memory_updated_at": item.memory_updated_at,
+                    "captured_at": item.captured_at,
+                }
+                for item in memories
+            ],
+            "conversation": [
+                {
+                    "ordinal": item.ordinal,
+                    "source_thread_id": item.source_thread_id,
+                    "source_turn_id": item.source_turn_id,
+                    "source_run_id": item.source_run_id,
+                    "source_artifact_id": item.source_artifact_id,
+                    "source_principal_id": item.source_principal_id,
+                    "user_content": item.user_content,
+                    "assistant_content": item.assistant_content,
+                    "content_fingerprint": item.content_fingerprint,
+                    "classification": item.classification,
+                    "captured_at": item.captured_at,
+                }
+                for item in conversation
             ],
             "events": [
                 {

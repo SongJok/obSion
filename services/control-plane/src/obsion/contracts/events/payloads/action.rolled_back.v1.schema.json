@@ -1,0 +1,15 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/action.rolled_back.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "purpose": {
+      "const": "ROLLBACK"
+    }
+  },
+  "required": [
+    "purpose"
+  ],
+  "title": "action.rolled_back payload v1",
+  "type": "object"
+}
