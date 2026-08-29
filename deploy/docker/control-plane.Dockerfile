@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM ghcr.io/astral-sh/uv:0.11.16 AS uv
 
-FROM python:3.12.10-slim-bookworm AS builder
+FROM python:3.14.7-slim-bookworm AS builder
 COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 \
@@ -12,7 +12,7 @@ COPY services/control-plane/ services/control-plane/
 COPY packages/sdk-python/ packages/sdk-python/
 RUN uv sync --frozen --no-dev --no-editable --package obsion-control-plane
 
-FROM python:3.12.10-slim-bookworm AS runtime
+FROM python:3.14.7-slim-bookworm AS runtime
 RUN groupadd --gid 10001 obsion \
     && useradd --uid 10001 --gid obsion --no-create-home --shell /usr/sbin/nologin obsion
 WORKDIR /app
