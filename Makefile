@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-feishu-live validate-feishu-browse-live evaluate-datasets scan-secrets sbom
+.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
 
 bootstrap:
 	uv sync --all-packages --all-extras
@@ -52,6 +52,12 @@ validate-eval-gates:
 validate-release-notes:
 	uv run obsion validate-release-notes
 
+validate-release-candidate-contract:
+	uv run obsion validate-release-candidate --contract-only
+
+validate-release-candidate:
+	uv run obsion validate-release-candidate --write-report
+
 validate-feishu-live:
 	@case "$${OBSION_FEISHU_LIVE:-}" in 1) ;; *) echo "OBSION_FEISHU_LIVE=1 is required"; exit 2;; esac
 	@test -n "$${OBSION_FEISHU_APP_ID:-}" || (echo "OBSION_FEISHU_APP_ID is required"; exit 2)
@@ -80,6 +86,12 @@ scan-secrets:
 sbom:
 	uv run obsion sbom --output docs/release/sbom.cdx.json
 
+release-artifacts:
+	uv run --no-sync python scripts/release_artifacts.py build
+
+validate-release-artifacts:
+	uv run --no-sync python scripts/release_artifacts.py validate --require-clean
+
 lint:
 	uv run ruff check .
 	uv run mypy services/control-plane/src packages/sdk-python/src apps/cli/src apps/im-adapter/src
@@ -87,6 +99,7 @@ lint:
 	uv run obsion validate-evaluations
 	uv run obsion validate-eval-gates
 	uv run obsion validate-release-notes
+	uv run obsion validate-release-candidate --contract-only
 	uv run obsion evaluate-datasets
 	uv run obsion scan-secrets
 	npm run lint
@@ -104,6 +117,6 @@ test:
 	npm test
 
 test-java:
-	cd packages/sdk-java && ./mvnw -B test
+	docker run --rm -v "$(CURDIR):/workspace" -w /workspace/packages/sdk-java eclipse-temurin:21-jdk ./mvnw -B clean test
 
 check: format-check lint test migration-check

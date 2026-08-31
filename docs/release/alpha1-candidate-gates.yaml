@@ -1,0 +1,184 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseCandidateGate
+metadata:
+  name: alpha1
+  releaseLine: alpha.1
+spec:
+  projectStatus: docs/project-status.yaml
+  requirementsSource: docs/product/requirements-traceability.md
+  expectedArtifacts:
+    - id: python-sdk-wheel
+      name: obsion_sdk
+      type: python-wheel
+    - id: python-sdk-sdist
+      name: obsion_sdk
+      type: python-sdist
+    - id: cli-wheel
+      name: obsion_cli
+      type: python-wheel
+    - id: cli-sdist
+      name: obsion_cli
+      type: python-sdist
+    - id: im-wheel
+      name: obsion_im
+      type: python-wheel
+    - id: im-sdist
+      name: obsion_im
+      type: python-sdist
+    - id: control-plane-wheel
+      name: obsion_control_plane
+      type: python-wheel
+    - id: control-plane-sdist
+      name: obsion_control_plane
+      type: python-sdist
+    - id: typescript-sdk
+      name: "@obsion/sdk"
+      type: node-tarball
+    - id: java-sdk
+      name: obsion-sdk-java
+      type: java-jar
+    - id: control-plane-image
+      name: obsion-control-plane
+      type: container-image
+    - id: workbench-image
+      name: obsion-web
+      type: container-image
+  requiredValidationSteps:
+    - clean-room locked dependency install
+    - clean-room wheel install
+    - clean-room dependency check
+    - clean-room import smoke
+    - clean-room obsion smoke
+    - clean-room obsion-cli smoke
+    - clean-room obsion-im smoke
+    - clean-room node install+import
+    - clean-room jar load check
+    - control-plane image import smoke
+    - web image http smoke
+  requirementCoverage:
+    - name: control-plane-harness
+      artifacts:
+        - control-plane-wheel
+        - control-plane-sdist
+        - control-plane-image
+      requirements:
+        - Identity and tenancy
+        - Workspace lifecycle
+        - Workspace collaboration
+        - Thread lifecycle
+        - Conversation continuity
+        - Run lifecycle
+        - Replayability
+        - User satisfaction
+        - Event protocol
+        - Agent contracts
+        - Skills
+        - Capability fabric
+        - Capability Gateway
+        - Operator Capability retry safety
+        - Governed actions
+        - Policy
+        - Risk
+        - Credentials
+        - Evidence
+        - Claims and Critic
+        - Knowledge
+        - Semantic data
+        - SQL safety
+        - Observability
+        - Model gateway
+        - Memory
+        - Automation
+        - Operational ownership
+        - Evaluation
+        - Platform observability
+      evidence:
+        - services/control-plane/tests/test_phase*.py
+        - services/control-plane/tests/integration/*.py
+    - name: workbench
+      artifacts:
+        - workbench-image
+      requirements:
+        - Product positioning
+        - Artifacts
+        - Administration
+      evidence:
+        - apps/web/src/components/*.tsx
+        - services/control-plane/tests/test_phase5_workbench_boundary.py
+    - name: experience-clients-and-sdks
+      artifacts:
+        - python-sdk-wheel
+        - python-sdk-sdist
+        - cli-wheel
+        - cli-sdist
+        - im-wheel
+        - im-sdist
+        - typescript-sdk
+        - java-sdk
+      requirements:
+        - Unified App Server
+        - App Server retry safety
+        - Streaming
+      evidence:
+        - apps/cli/tests/*.py
+        - apps/im-adapter/tests/*.py
+        - packages/sdk-python/tests/*.py
+        - packages/sdk-ts/tests/*.mjs
+        - packages/sdk-java/src/test/**/*.java
+    - name: open-source-distribution
+      artifacts:
+        - control-plane-image
+        - workbench-image
+        - python-sdk-wheel
+        - typescript-sdk
+        - java-sdk
+      requirements:
+        - Open-source quality
+      evidence:
+        - LICENSE
+        - CONTRIBUTING.md
+        - SECURITY.md
+        - .github/workflows/ci.yml
+  operatorGates:
+    - id: staging-deploy
+      owner: release-operator
+      status: PENDING
+      requiredEvidence:
+        - Clean-infrastructure staging deployment record
+        - Authorized and denied acceptance-flow results
+      evidence: []
+    - id: backup-restore-drill
+      owner: database-and-storage-operator
+      status: PENDING
+      requiredEvidence:
+        - Timed PostgreSQL restore record with measured RPO and RTO
+        - Timed object-storage restore record with integrity checks
+      evidence: []
+    - id: high-cve-signed-promotion
+      owner: security-release-operator
+      status: PENDING
+      requiredEvidence:
+        - Registry HIGH and CRITICAL CVE verdict
+        - Verified image signature and immutable digest record
+      evidence: []
+    - id: live-identity-secrets-replicas
+      owner: platform-operator
+      status: PENDING
+      requiredEvidence:
+        - Live OIDC acceptance record
+        - External secret-manager and read-only replica evidence
+      evidence: []
+    - id: security-data-owner-signoff
+      owner: security-and-data-owners
+      status: PENDING
+      requiredEvidence:
+        - Human security approval
+        - Data-owner approval for tenant fixtures and access boundaries
+      evidence: []
+    - id: signed-publication
+      owner: maintainer
+      status: PENDING
+      requiredEvidence:
+        - Maintainer-authorized signed tag
+        - Package and image publication receipts bound to artifact digests
+      evidence: []

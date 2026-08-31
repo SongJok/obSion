@@ -1,0 +1,65 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-release-candidate-hardening
+  version: 0.83.0-dev
+  phase: 83
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82]
+  migration:
+    database: none
+    revisions: []
+    notes: Phase 83 changes release automation and evidence contracts only; Alembic drift must remain empty and no database migration is fabricated.
+  documents:
+    - CHANGELOG.md
+    - Makefile
+    - .github/workflows/ci.yml
+    - scripts/release_artifacts.py
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/src/obsion/release/candidate.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - docs/product/requirements-traceability.md
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/alpha1-candidate-gates.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.83.0-dev.md
+    - docs/operators/deployment.md
+    - docs/operators/runbook.md
+    - docs/operators/upgrade.md
+    - docs/phases/PHASE-83-REPORT.md
+    - docs/architecture/phase-83-alpha1-candidate-gate.md
+    - docs/adr/0062-alpha1-ci-candidate-evidence.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol centered on Workspace, Thread, Turn, Run, Step, and Event.
+    - Release artifacts must be built from a clean git revision; development-only dirty builds are marked sourceClean false and can never pass candidate validation.
+    - CI builds and clean-room validates all Python, Node, Java SDK, control-plane image, and Workbench image artifacts before retaining their manifest and candidate report.
+    - Every requirements-traceability row maps exactly once to shipped artifact identities and repository test evidence; unmapped, duplicated, skipped, or hash-mismatched evidence fails closed.
+    - Staging, restore drills, HIGH/CRITICAL CVE registry policy, signing, live identity and secret infrastructure, human approvals, and publication remain separate operator gates.
+    - Generic HTTP delivery, production database writes, deploys, restarts, configuration mutation, and L4-L5 actions remain denied.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - Let the dependent CI candidate job build and validate all artifacts from that clean revision and upload dist/release/<version>/ with fourteen-day retention.
+    - Review artifact-manifest.json and release-candidate-report.json; promotionEligible must remain false while any operator gate is PENDING.
+    - Supply real, repository-auditable gate evidence and run validate-release-candidate with --require-promotion-eligible only under separately authorized Phase 84 promotion work.
+  rollback:
+    - Revert the candidate automation commit and discard the CI artifact bundle; no package, image, tag, deployment, database row, or external vendor state is created by Phase 83.
+    - Preserve prior release manifests and Runtime/Audit records as immutable history.
+    - Do not mark an operator gate SATISFIED merely to restore a green build; correct or remove invalid evidence.
+    - Re-run ordinary CI and contract-only candidate validation before attempting another clean candidate build.
+  verification:
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+    - uv run pytest --no-cov services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - CI make release-artifacts
+    - CI make validate-release-artifacts
+    - CI make validate-release-candidate
+  knownLimitations:
+    - The repository does not claim a staging deployment, UAT, timed DR drill, live OIDC or secret-manager validation, signed image, signed tag, external package, or production promotion.
+    - CI retains file artifacts and manifest evidence for fourteen days; container images are built, locally smoke-tested, and scanned on the ephemeral runner but are not pushed to a registry.
+    - Registry-side HIGH CVE policy remains operator-owned; repository Trivy continues to fail on unfixed CRITICAL findings.
+    - Package versions remain 0.1.0 while the development release line is 0.83.0-dev; external version alignment requires a separately authorized publication phase.
+    - Real DingTalk, WeCom, Confluence, and permitted Feishu tenant content remain operator-owned; release validation never reads worker.txt or ci.txt.

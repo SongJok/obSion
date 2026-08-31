@@ -354,3 +354,14 @@ unknown attempt failed. Retain both Audit trails in the incident record.
   Day-two procedures: [deployment](deployment.md), [administrator](administrator.md),
   [agents and skills](agents-and-skills.md), and [incident](incident.md).
 - Retire old versions only after retained runs no longer require replay against them.
+- Build release artifacts only from a revision where `make check` passes: run
+  `make release-artifacts`, then `make validate-release-artifacts`, and review
+  `dist/release/<version>/artifact-manifest.json` (hashes, image identifiers,
+  validation steps) before any promotion decision. Outputs stay local; external
+  publication, signing, and CVE gating are separate operator/CI-owned steps.
+- CI additionally runs `make validate-release-candidate` and retains
+  `release-candidate-report.json`. Confirm all 37 requirement rows are mapped, every
+  artifact and clean-room step is present, and the report names every pending operator
+  gate. Use `--require-promotion-eligible` only after real staging/UAT, restore,
+  signature/CVE, identity/secrets, human approval, and publication evidence has been
+  reviewed; never turn a pending gate green with placeholder files.

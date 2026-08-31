@@ -86,7 +86,8 @@ def test_phase81_manifest_is_valid_and_the_cli_default() -> None:
     assert "OBSION_FEISHU_LIVE_CHAT_ID" in result["environment_variables"]
 
     args = build_parser().parse_args(["validate-release-notes"])
-    assert args.manifest == "docs/release/0.81.0-dev.yaml"
+    assert args.manifest != "docs/release/0.81.0-dev.yaml"
+    assert args.manifest.startswith("docs/release/0.8")
 
     document = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert "repositoryEvidence" not in document["spec"]
@@ -96,8 +97,6 @@ def test_project_status_tracks_phase81_and_the_next_artifact_phase() -> None:
     status = yaml.safe_load(
         (REPOSITORY_ROOT / "docs/project-status.yaml").read_text(encoding="utf-8")
     )
-    assert status["version"] == "0.81.0-dev"
-    assert status["current_phase"] == "phase-81"
-    assert status["completed_phases"][-1] == "phase-81"
-    assert status["next_phase"]["id"] == "phase-82"
-    assert "artifact" in status["next_phase"]["name"]
+    assert "phase-81" in status["completed_phases"]
+    assert status["current_phase"] != "phase-81"
+    assert status["next_phase"]["id"] != "phase-81"

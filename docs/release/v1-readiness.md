@@ -25,8 +25,9 @@ This is an engineering checklist, not a human production approval.
 - [x] Eight concurrent greeting Runs complete within the documented SLO
 - [x] Helm termination drain and optional encryption secret interface
 - [x] Operator, administrator, developer, connector, Agent/Skill, and incident docs
-- [x] Continuous Phase 1-80 reports and matching architecture review documents
+- [x] Continuous Phase 1-83 reports and matching architecture review documents
 - [x] Repository-wide Alpha.1 manifest, exact Alembic ancestry, and matching CycloneDX version
+- [x] Clean-source CI artifact manifest, clean-room installation, exact requirements mapping, and retained candidate report
 
 ## Operator-owned (not claimed by this repository run)
 
@@ -38,4 +39,6 @@ This is an engineering checklist, not a human production approval.
 - [ ] Maintainer-authorized signed tag/package/image publication
 
 Do not set `docs/project-status.yaml` to a signed `1.0.0` until the operator-owned
-items are evidenced outside this control plane.
+items are evidenced outside this control plane. `obsion validate-release-candidate`
+reports repository readiness separately and `--require-promotion-eligible` fails while
+any item above remains represented by a `PENDING` operator gate.

@@ -41,6 +41,23 @@ pre-upgrade migration Job. See
 Staging from clean infrastructure is operator-owned. Passing CI image builds is not a
 staging deploy.
 
+## Alpha.1 promotion gate
+
+The CI candidate bundle contains `artifact-manifest.json` and
+`release-candidate-report.json`. Verify both before staging. A normal repository-ready
+report may have `promotion_eligible: false`; that is expected while operator evidence
+is pending and must never be overridden by editing CI output.
+
+To make a future promotion decision, retain repository-auditable evidence for clean
+staging/UAT, timed database and object-store restore, registry HIGH/CRITICAL CVE
+policy and image signatures, live OIDC/secret-manager/read-replica behavior, security
+and data-owner approval, and maintainer publication authority. Only then may an
+authorized operator update the candidate gate and run
+`obsion validate-release-candidate --require-promotion-eligible`. Passing that command
+does not itself deploy or publish anything. Commit only redacted attestations under
+`docs/release/evidence/alpha1/`; raw tenant data, tokens, credentials, private logs,
+and secret-manager output must remain outside the repository and model context.
+
 ## Vendor IM and Knowledge processes
 
 The chart does not create Feishu, DingTalk, or WeCom applications and does not inject

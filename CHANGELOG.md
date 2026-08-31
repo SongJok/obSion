@@ -7,6 +7,34 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 83 Alpha.1 release-candidate hardening: artifact builds now require a clean
+  git revision, mark diagnostic dirty builds as ineligible, remove stale Maven JARs,
+  and record container SHA-256 identities. A machine-validated
+  `ReleaseCandidateGate` maps all 37 V1 requirement rows to the exact twelve shipped
+  artifact identities and repository evidence, enforces eleven clean-room steps, and
+  keeps six external promotion prerequisites explicitly `PENDING`. CI now depends on
+  quality/migration/Java/Helm gates, builds and validates the complete candidate,
+  scans the exact images, and retains the artifact manifest and candidate report for
+  fourteen days without publishing. Version is `0.83.0-dev`.
+
+- Phase 82 Alpha.1 artifact build and clean-room installation: `scripts/release_artifacts.py`
+  (standard library only, fixed argument lists, bounded timeouts, no credential
+  access) builds the four Python distributions via `uv build`, the `@obsion/sdk`
+  tarball via `npm run build` + `npm pack`, the Java SDK JAR via `./mvnw package`
+  inside the pinned `eclipse-temurin:21-jdk` container, and the
+  `obsion-control-plane`/`obsion-web` images from the committed Dockerfiles. All
+  outputs land in the gitignored `dist/release/<version>/` tree with SHA-256
+  hashes, image identifiers, and the git revision recorded in
+  `artifact-manifest.json` (`externallyPublished: false`). `validate` re-verifies
+  hashes, installs the wheels into a fresh temporary venv with import/CLI smokes,
+  installs the Node tarball into a temporary npm prefix, lists the JAR's
+  `dev/obsion` classes, and smoke-runs both images locally. `make
+  release-artifacts` and `make validate-release-artifacts` expose the flow; the
+  Java SDK version aligns to `0.1.0` with the other packages; the release-notes
+  validator now permits an empty `vendors` list for artifact-only releases. The
+  `0.82.0-dev` machine/human release contracts become the CLI default. Version is
+  `0.82.0-dev`.
+
 - Phase 81 Feishu live reply validation: `FeishuClient.list_chats` adds read-only,
   single-page-bounded bot chat discovery with fail-closed item validation and
   credential redaction. `make validate-feishu-live` now runs four non-sending

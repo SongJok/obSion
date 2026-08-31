@@ -179,4 +179,18 @@ and an opt-in, single-message live send probe through the production `feishu-htt
 channel contract; the probe requires `OBSION_FEISHU_SEND_LIVE=1`, environment
 credentials, and an explicit `OBSION_FEISHU_LIVE_CHAT_ID`, never auto-discovers a
 target, and fabricates no Harness state. The Alpha.1 manifest is frozen as a static
-historical contract validated at its candidate commit.
+historical contract validated at its candidate commit. Phase 82 turns the Alpha.1
+contract into installable evidence: one stdlib-only operator tool builds all four
+Python distributions, the TypeScript SDK tarball, the Java SDK JAR (compiled inside
+the pinned JDK 21 container), and both container images from a single revision into
+the gitignored `dist/release/<version>/` tree, records SHA-256 hashes and image
+identifiers in `artifact-manifest.json`, and validates every artifact in clean
+temporary environments (fresh venv, temporary npm prefix, JAR listing, local image
+smokes). Nothing is published externally; CVE scanning stays in CI.
+Phase 83 makes that evidence release-candidate grade: builds refuse dirty source by
+default, CI reproduces all artifact hashes and clean-room checks after the ordinary
+quality/migration/Java/Helm gates, uploads a bounded candidate bundle, and validates an
+exact mapping from all V1 requirements rows to shipped artifact identities and real
+test evidence. Six staging, DR, registry/signature, live infrastructure, human
+approval, and publication gates remain explicitly operator-owned; repository readiness
+cannot be mistaken for production-promotion authority.

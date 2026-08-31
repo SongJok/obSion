@@ -1,0 +1,53 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-artifact-installation
+  version: 0.82.0-dev
+  phase: 82
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81]
+  migration:
+    database: none
+    revisions: []
+    notes: Phase 82 adds no database schema revision; run Alembic drift checks but do not fabricate a migration.
+  documents:
+    - CHANGELOG.md
+    - .gitignore
+    - Makefile
+    - scripts/release_artifacts.py
+    - docs/release/0.82.0-dev.md
+    - docs/operators/runbook.md
+    - docs/phases/PHASE-82-REPORT.md
+    - docs/architecture/phase-82-artifact-installation-gate.md
+    - docs/adr/0061-alpha1-artifact-installation.md
+  boundaries:
+    - Every artifact is built from one repository revision and written only to the gitignored dist/release/<version>/ directory; nothing is pushed, tagged, or published externally.
+    - Clean-room validation installs wheels into a temporary venv, the Node tarball into a temporary npm prefix, lists the JAR, and smoke-runs both container images locally.
+    - The Java JAR is compiled inside the pinned eclipse-temurin:21-jdk container because the host JDK may be older; no second runtime is added to the control plane.
+    - Package versions stay at 0.1.0 for this development line; the release version is recorded in the artifact manifest metadata.
+    - Image and dependency scanning beyond the committed SBOM stays in CI (Trivy); the local build never installs a scanner or weakens a Policy decision.
+    - Generic HTTP delivery, production writes, deploys, restarts, and L4-L5 actions remain denied.
+  vendors: []
+  rollout:
+    - Confirm make check passes on the release revision before building artifacts.
+    - Run make release-artifacts to build Python distributions, the Node tarball, the Java JAR, and both container images into dist/release/<version>/.
+    - Run make validate-release-artifacts to verify hashes and install or load every artifact in a clean temporary environment.
+    - Review dist/release/<version>/artifact-manifest.json for hashes, image identifiers, and validation steps before any future promotion decision.
+  rollback:
+    - Delete dist/release/<version>/ and the local obsion-control-plane/obsion-web image tags; no remote state exists to roll back.
+    - Preserve Runtime Events and audit rows; never repair them with direct SQL.
+    - No Alembic downgrade is required for this release because it has no database revision.
+    - Re-run make check before restoring normal traffic.
+  verification:
+    - make check
+    - uv run obsion validate-release-notes
+    - uv run obsion scan-secrets
+    - uv run pytest --no-cov services/control-plane/tests/test_phase82_artifact_installation.py
+    - make release-artifacts
+    - make validate-release-artifacts
+  knownLimitations:
+    - All artifacts remain repository-local; external publication, signing, and staging promotion stay operator-owned release prerequisites.
+    - Package versions remain 0.1.0 while the release line is 0.82.0-dev; version alignment is deferred to the external publication phase.
+    - The control-plane image smoke proves import and CLI startup inside the container; a full stack boot still requires the documented compose environment.
+    - Trivy image scanning runs in CI only; the local artifact manifest records hashes and image identifiers, not CVE verdicts.
+    - The artifact manifest is rebuilt on each run and is not yet reproduced inside CI.

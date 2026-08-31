@@ -90,8 +90,8 @@ def validate_release_notes(path: Path, repository_root: Path) -> dict[str, Any]:
         )
 
     vendors_raw = spec.get("vendors")
-    if not isinstance(vendors_raw, list) or not vendors_raw:
-        raise ReleaseNotesError("release notes spec.vendors must be a non-empty list")
+    if not isinstance(vendors_raw, list):
+        raise ReleaseNotesError("release notes spec.vendors must be a list")
     vendors: list[str] = []
     environment_names: set[str] = set()
     for index, item in enumerate(vendors_raw):

@@ -115,8 +115,8 @@ requirement, not an incomplete implementation.
 | Operational ownership | Scheduled work re-authorizes the current owner; human review and notification are durable and audited | Permission-revocation, review and delivery tests |
 | Administration | Users, roles, models, agents, skills, capabilities, connectors, policies, approvals, audits, evaluations, costs, prompts, knowledge and secrets metadata; credential-safe projections and approve/reject lifecycle | Admin API/UI and approval tests |
 | Evaluation | Explicit Golden Dataset evaluators, real terminal-Run observations, full configuration snapshots, immutable case evidence, score gates and exact-snapshot baseline comparison | Manifest validation, API/SDK tests, regression tests and PostgreSQL immutability tests |
-| Observability | OpenTelemetry-compatible run, model, tool and policy telemetry | Span/metric assertions |
-| Open-source quality | License, governance, contribution, security, CI and reproducible deployment | Repository quality checks |
+| Platform observability | OpenTelemetry-compatible run, model, tool and policy telemetry | Span/metric assertions |
+| Open-source quality | License, governance, contribution, security, CI, reproducible deployment, clean-source multi-artifact manifests, and machine-checked Alpha.1 traceability | Repository quality checks, clean-room artifact validation, and release-candidate gate tests |
 
 ## Non-negotiable acceptance gates
 

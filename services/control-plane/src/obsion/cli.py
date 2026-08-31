@@ -10,6 +10,7 @@ from obsion.evaluations.manifests import EvaluationManifestError, validate_evalu
 from obsion.evaluations.offline import OfflineEvaluationError, execute_offline_evaluations
 from obsion.main import create_app
 from obsion.registry.manifests import RegistryManifestError, validate_registry_root
+from obsion.release.candidate import ReleaseCandidateError, validate_release_candidate
 from obsion.release.hardening import (
     EvaluationGateError,
     cyclonedx_sbom,
@@ -132,6 +133,42 @@ def _validate_release_notes(args: argparse.Namespace) -> None:
     print(json.dumps(result, sort_keys=True))  # noqa: T201
 
 
+def _validate_release_candidate(args: argparse.Namespace) -> None:
+    root = Path(args.root).resolve()
+    contract = Path(args.contract)
+    if not contract.is_absolute():
+        contract = root / contract
+    artifact_manifest: Path | None = None
+    if not args.contract_only:
+        if args.artifact_manifest:
+            artifact_manifest = Path(args.artifact_manifest)
+            if not artifact_manifest.is_absolute():
+                artifact_manifest = root / artifact_manifest
+        else:
+            try:
+                version = read_project_version(root / "docs/project-status.yaml")
+            except ReleaseNotesError as exc:
+                raise SystemExit(str(exc)) from exc
+            artifact_manifest = root / "dist" / "release" / version / "artifact-manifest.json"
+    try:
+        result = validate_release_candidate(
+            contract,
+            artifact_manifest,
+            root,
+            contract_only=args.contract_only,
+            require_promotion_eligible=args.require_promotion_eligible,
+        )
+    except ReleaseCandidateError as exc:
+        raise SystemExit(str(exc)) from exc
+    if args.write_report:
+        if artifact_manifest is None:
+            raise SystemExit("--write-report requires full artifact validation")
+        report = artifact_manifest.parent / "release-candidate-report.json"
+        report.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        result["report"] = report.relative_to(root).as_posix()
+    print(json.dumps(result, sort_keys=True))  # noqa: T201
+
+
 def _validate_contracts(_: argparse.Namespace) -> None:
     summary = validate_contracts()
     print(  # noqa: T201
@@ -204,9 +241,24 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-release-notes",
         help="Validate the current operator release-note contract",
     )
-    release_notes.add_argument("--manifest", default="docs/release/0.81.0-dev.yaml")
+    release_notes.add_argument("--manifest", default="docs/release/0.83.0-dev.yaml")
     release_notes.add_argument("--root", default=".")
     release_notes.set_defaults(handler=_validate_release_notes)
+
+    release_candidate = commands.add_parser(
+        "validate-release-candidate",
+        help="Validate Alpha.1 requirement, artifact, and operator-gate evidence",
+    )
+    release_candidate.add_argument(
+        "--contract",
+        default="docs/release/alpha1-candidate-gates.yaml",
+    )
+    release_candidate.add_argument("--artifact-manifest")
+    release_candidate.add_argument("--root", default=".")
+    release_candidate.add_argument("--contract-only", action="store_true")
+    release_candidate.add_argument("--require-promotion-eligible", action="store_true")
+    release_candidate.add_argument("--write-report", action="store_true")
+    release_candidate.set_defaults(handler=_validate_release_candidate)
 
     sbom = commands.add_parser("sbom", help="Generate a CycloneDX SBOM from uv.lock")
     sbom.add_argument("--lockfile", default="uv.lock")
