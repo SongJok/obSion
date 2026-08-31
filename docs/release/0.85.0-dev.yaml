@@ -1,0 +1,70 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-dr-drill-evidence
+  version: 0.85.0-dev
+  phase: 85
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84]
+  migration:
+    database: alembic
+    revisions:
+      - b88f1c4d5e60
+    notes: Revision b88f1c4d5e60 replaces the verification-admission trigger body so candidate-id resolution no longer fails at plan time on verification_assessments inserts; table DDL is unchanged and the downgrade restores the historical body.
+  documents:
+    - CHANGELOG.md
+    - Makefile
+    - .env.example
+    - docker-compose.yml
+    - services/control-plane/alembic/versions/b88f1c4d5e60_fix_verification_admission_trigger.py
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/src/obsion/release/candidate.py
+    - services/control-plane/src/obsion/release/drill.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/alpha1-candidate-gates.yaml
+    - docs/release/alpha1-drill-evidence-contract.yaml
+    - docs/release/evidence/alpha1/backup-restore-drill.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.85.0-dev.md
+    - docs/operators/runbook.md
+    - docs/operators/backup-restore.md
+    - docs/phases/PHASE-85-REPORT.md
+    - docs/architecture/phase-85-dr-drill-evidence.md
+    - docs/adr/0064-alpha1-dr-drill-evidence.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol centered on Workspace, Thread, Turn, Run, Step, and Event.
+    - The drill creates only throwaway local PostgreSQL containers from the pinned pgvector/pg17 image; it never touches a deployed, staging, or production database and fabricates no Harness state outside its own source container.
+    - The drill requires OBSION_DR_DRILL=1 and docker; the Make target and CLI fail closed with exit 2 when the opt-in is absent.
+    - "A skip is never a pass: once a drill stage fails, every downstream check is recorded failed; ledgers reject failed checks, forbidden credential keys, credential-shaped values, checksum tampering, and row-count shortfalls."
+    - Drill credentials are generated per run, live only in process memory, and are never written to the ledger, the repository, or logs; the ledger records table row counts, timings, and the dump SHA-256 only.
+    - Recorded drill evidence never feeds promotion eligibility; the staging-scoped backup-restore-drill operator gate remains PENDING alongside the other five operator gates.
+    - Generic HTTP delivery, production database writes, deploys, restarts, configuration mutation, and L4-L5 actions remain denied.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - Apply b88f1c4d5e60 with the standard make migrate path; it replaces one trigger function in a single transaction and requires no table rewrite or downtime.
+    - Operators refresh drill evidence with OBSION_DR_DRILL=1 make record-drill-evidence on a docker-capable host; the drill is self-cleaning and removes both containers.
+    - "Review validate-release-candidate output: drill_evidence_ledgers and drill_evidence_checks report recorded coverage while promotionEligible remains false."
+  rollback:
+    - Revert the Phase 85 commits and remove docs/release/evidence/alpha1/backup-restore-drill.yaml together with the drillEvidence section of the candidate contract; a missing or failed ledger fails closed by design.
+    - b88f1c4d5e60 downgrades by restoring the historical trigger body; prefer rolling forward because the replaced body rejects every verification_assessments insert on PostgreSQL.
+    - Do not edit a recorded ledger to restore a green build; re-run the drill under the operator opt-in instead.
+  verification:
+    - make check
+    - make test-java
+    - make migration-check
+    - make validate-release-candidate-contract
+    - uv run pytest --no-cov services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - OBSION_DR_DRILL=1 make record-drill-evidence
+  knownLimitations:
+    - The repository does not claim a staging deployment, UAT, staging-scoped timed DR drill, live OIDC or secret-manager validation, signed image, signed tag, external package, or production promotion.
+    - Drill evidence is repository-local and point-in-time at revision d4c66502f16ddb2ce7a8a9573816bd8424deba8a; it is readiness input for the operator-owned staging backup-restore gate, not a substitute for it.
+    - The drill covers the PostgreSQL source of truth; object-storage artifact restore remains documented prose pending an operator drill with a real bucket.
+    - Package versions remain 0.1.0 while the development release line is 0.85.0-dev; external version alignment requires a separately authorized publication phase.
+    - Real DingTalk, WeCom, Confluence, and permitted Feishu tenant content remain operator-owned; release validation never reads worker.txt or ci.txt.

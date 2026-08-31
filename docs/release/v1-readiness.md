@@ -29,11 +29,12 @@ This is an engineering checklist, not a human production approval.
 - [x] Repository-wide Alpha.1 manifest, exact Alembic ancestry, and matching CycloneDX version
 - [x] Clean-source CI artifact manifest, clean-room installation, exact requirements mapping, and retained candidate report
 - [x] Recorded, redacted, checksummed Feishu live-tenant evidence ledgers validated offline by the candidate gate
+- [x] Recorded, redacted, checksummed backup/restore drill ledger (PostgreSQL 17 dump/restore parity) validated offline by the candidate gate
 
 ## Operator-owned (not claimed by this repository run)
 
 - [ ] Staging deploy from clean infrastructure
-- [ ] Backup/restore drill with timed RPO/RTO
+- [ ] Staging-scoped backup/restore drill with timed RPO/RTO (repository-local drill evidence is recorded above)
 - [ ] Registry-side HIGH CVE policy and signed production image promotion
 - [ ] Live OIDC, secret manager, and production replicas
 - [ ] Human security and data-owner sign-off

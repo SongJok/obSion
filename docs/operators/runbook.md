@@ -311,6 +311,16 @@ come only from the operator process environment and are redacted from every erro
    single-message send probe. A post-opt-in skip, a missing probe record, or a
    contract-disallowed outcome fails the recording; the candidate gate validates
    the ledgers offline and they never feed `promotion_eligible`.
+5. `make record-drill-evidence` (requires `OBSION_DR_DRILL=1` and docker) runs
+   the declared backup/restore drill: two throwaway pinned PostgreSQL 17
+   containers are migrated and seeded through the real REST API, a
+   custom-format dump is restored into the fresh target, and schema-version,
+   row-count, referential-integrity, and audit-identity parity are recorded in
+   a redacted, checksummed ledger at
+   `docs/release/evidence/alpha1/backup-restore-drill.yaml`. Drill credentials
+   are generated per run and never persisted; a failed stage fails every
+   downstream check; the ledger never feeds `promotion_eligible` and the
+   staging-scoped restore remains a separate operator gate.
 
 
 ### Vendor Knowledge sync rejected or incomplete

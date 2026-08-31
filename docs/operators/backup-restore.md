@@ -30,3 +30,15 @@ with a new revision.
 RPO is the PostgreSQL backup interval. RTO is restore time plus image rollout.
 If the secret manager is unavailable, connectors fail closed; they must not fall
 back to inline credentials.
+
+## Automated drill
+
+`OBSION_DR_DRILL=1 make record-drill-evidence` executes the repository-local
+drill declared in `docs/release/alpha1-drill-evidence-contract.yaml`: two
+throwaway containers of the pinned PostgreSQL image are migrated with Alembic
+and seeded through the real REST API, a custom-format `pg_dump` is restored
+into the fresh target, and schema-version, row-count, referential-integrity,
+and audit-identity parity are verified. The redacted, checksummed ledger lands
+at `docs/release/evidence/alpha1/backup-restore-drill.yaml` and is validated
+offline by the release-candidate gate. This drill is readiness evidence only;
+the staging-scoped timed restore remains an operator-owned promotion gate.

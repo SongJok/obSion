@@ -205,3 +205,17 @@ ungranted scopes, and one live `feishu-http` delivery into the Phase 81 ephemera
 validation chat. Recorded live evidence never feeds `promotion_eligible`;
 DingTalk, WeCom, public TLS ingress, and permitted Feishu document content remain
 operator-owned.
+
+Phase 85 turns backup/restore from runbook prose into recorded candidate
+evidence: a declared `DrillEvidenceLadder` migrates a throwaway pinned
+PostgreSQL 17 container with Alembic, seeds a governed Harness scenario through
+the real REST API, restores a custom-format `pg_dump` into a fresh target, and
+verifies schema-version, row-count, referential-integrity, and audit-identity
+parity in a redacted, checksummed ledger the candidate gate validates offline.
+The drill immediately earned its keep by surfacing a latent
+verification-admission trigger defect that failed every
+`verification_assessments` insert on real PostgreSQL; Alembic revision
+`b88f1c4d5e60` repairs the function body and the green ledger now proves a real
+governed Run completes against migrated PostgreSQL. Recorded drill evidence
+never feeds `promotion_eligible`; the staging-scoped restore, object-storage
+restore, and the remaining five operator gates stay operator-owned.

@@ -7,6 +7,21 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 85 Alpha.1 backup/restore drill evidence: a declared
+  `DrillEvidenceLadder` contract binds eight ordered checks to a real
+  dump/restore cycle, and `obsion record-drill-evidence` (plus
+  `make record-drill-evidence`) migrates a throwaway pinned PostgreSQL 17
+  container with Alembic, seeds a governed Harness scenario through the real
+  REST API, restores a custom-format `pg_dump` into a fresh target, and
+  verifies schema-version, 89-table row-count, referential-integrity, and
+  audit-identity parity in a redacted, SHA-256-checksummed
+  `DrillEvidenceLedger`. Classification is fail-closed: once a stage fails,
+  every downstream check is `failed`; drill credentials never leave process
+  memory. The candidate gate validates the new `drillEvidence` section offline
+  and recorded evidence never feeds `promotion_eligible`; the staging-scoped
+  `backup-restore-drill` operator gate remains PENDING. One real ledger was
+  recorded at revision `d4c6650` (8/8 checks passed, total 27.5s).
+
 - Phase 84 Alpha.1 live-tenant evidence ledger: a declared
   `LiveEvidenceLadder` contract binds six Feishu probes to the existing opt-in
   pytest nodes, and `obsion record-live-evidence` (plus
@@ -506,3 +521,13 @@ project follows Semantic Versioning.
   notifications, Python and TypeScript SDKs, and a Workbench action center.
 - Server-side denials for all production actions and deferred configuration, restart,
   and deployment action types; generic capability invocation remains read-only.
+
+### Fixed
+
+- Phase 85 verification-admission trigger repair (Alembic `b88f1c4d5e60`): the
+  drill discovered that `obsion_validate_verification_assessment()` resolved
+  its candidate id through one SQL CASE expression, so plpgsql validated the
+  `NEW.assessment_id` reference at plan time and every insert into
+  `verification_assessments` failed at COMMIT on real PostgreSQL. The function
+  body now resolves the id in branch statements; verification rules are
+  byte-identical and a downgrade/upgrade round trip was verified.

@@ -1,0 +1,157 @@
+apiVersion: obsion.ai/v1
+kind: DrillEvidenceLedger
+metadata:
+  name: alpha1-backup-restore
+  recordedAt: '2026-08-31T15:41:08.345112Z'
+  releaseLine: alpha.1
+  revision: d4c66502f16ddb2ce7a8a9573816bd8424deba8a
+spec:
+  alembicHead: b88f1c4d5e60
+  checks:
+  - classification: passed
+    detail: alembic head b88f1c4d5e60
+    id: source-migrated
+    recordedAt: '2026-08-31T15:40:45.592774Z'
+    surface: Alembic upgrade head completes on the drill source database
+  - classification: passed
+    detail: seeded 10 threshold tables
+    id: dataset-seeded
+    recordedAt: '2026-08-31T15:40:48.741661Z'
+    surface: Real Harness scenario seeded through the control-plane REST API meets
+      minimum row thresholds
+  - classification: passed
+    detail: size=458132 sha256=46bed557ee63
+    id: dump-created
+    recordedAt: '2026-08-31T15:40:48.894399Z'
+    surface: pg_dump custom-format backup of the source database is non-empty and
+      hashed
+  - classification: passed
+    detail: restore exited cleanly
+    id: restore-completed
+    recordedAt: '2026-08-31T15:40:52.488039Z'
+    surface: pg_restore into a fresh, empty target database exits cleanly
+  - classification: passed
+    detail: alembic head b88f1c4d5e60
+    id: schema-version-parity
+    recordedAt: '2026-08-31T15:40:52.577929Z'
+    surface: Restored alembic_version matches the migrated source head
+  - classification: passed
+    detail: 89 tables in parity
+    id: row-count-parity
+    recordedAt: '2026-08-31T15:41:06.972009Z'
+    surface: Every public table row count is identical between source and restored
+      target
+  - classification: passed
+    detail: 4 orphan probes clean
+    id: referential-integrity
+    recordedAt: '2026-08-31T15:41:07.296354Z'
+    surface: Restored target contains no orphaned steps, events, turns, or threads
+  - classification: passed
+    detail: audit identities identical (4)
+    id: audit-preserved
+    recordedAt: '2026-08-31T15:41:07.452489Z'
+    surface: Ordered audit log identities are non-empty and identical after restore
+  checksum: sha256:fe61630a9c9a584d7b92cfaa89ac47e31f34432e63ae98eb562aa7809bfde600
+  contract: docs/release/alpha1-drill-evidence-contract.yaml
+  dump:
+    format: custom
+    sha256: 46bed557ee63a83c6dbe79a6c3f6cd461f8811653989d70efdc57ffa67292b1f
+    sizeBytes: 458132
+  postgresImage: pgvector/pgvector:0.8.6-pg17-bookworm
+  rowCounts:
+    action_approvals: 0
+    action_attempts: 0
+    action_plans: 0
+    action_requests: 0
+    agent_definitions: 8
+    agent_versions: 8
+    aggregate_heads: 3
+    alembic_version: 1
+    app_server_requests: 0
+    approvals: 0
+    artifacts: 2
+    audit_logs: 4
+    auth_sessions: 0
+    automation_executions: 0
+    automation_step_executions: 0
+    business_rules: 0
+    capability_bindings: 28
+    capability_definitions: 49
+    capability_versions: 49
+    claim_evidence: 1
+    claim_verification_results: 1
+    claims: 1
+    code_graph_edges: 0
+    code_repositories: 0
+    code_repository_grants: 0
+    code_snapshots: 0
+    code_source_files: 0
+    code_symbols: 0
+    connectors: 12
+    data_columns: 0
+    data_sources: 0
+    data_tables: 0
+    departments: 1
+    dimensions: 0
+    document_chunk_grants: 1
+    document_chunks: 1
+    document_versions: 1
+    documents: 1
+    evaluation_case_results: 0
+    evaluation_cases: 0
+    evaluation_datasets: 0
+    evaluation_runs: 0
+    events: 18
+    evidence: 1
+    evidence_conflicts: 0
+    evidence_observations: 0
+    im_deliveries: 0
+    im_principal_bindings: 0
+    memories: 0
+    metrics: 0
+    model_calls: 0
+    model_endpoints: 0
+    model_profile_endpoints: 0
+    model_profiles: 5
+    notification_deliveries: 0
+    operator_capability_invocations: 0
+    organizations: 1
+    outbox_messages: 18
+    policies: 0
+    policy_decisions: 1
+    prompt_definitions: 1
+    prompt_versions: 1
+    roles: 6
+    run_conversation_snapshots: 0
+    run_feedback: 0
+    run_memory_snapshots: 0
+    run_steps: 7
+    runs: 1
+    secret_references: 0
+    semantic_entities: 0
+    semantic_relations: 0
+    semantic_synonyms: 0
+    skill_definitions: 14
+    skill_versions: 14
+    threads: 1
+    time_definitions: 0
+    turns: 1
+    user_roles: 1
+    users: 1
+    verification_assessments: 1
+    verification_evidence_links: 1
+    workflow_definitions: 0
+    workflow_schedules: 0
+    workflow_versions: 0
+    workspace_decision_versions: 0
+    workspace_decisions: 0
+    workspace_members: 0
+    workspace_tasks: 0
+    workspaces: 1
+  timings:
+    dumpSeconds: 0.152
+    migrateSeconds: 1.662
+    restoreSeconds: 0.547
+    seedSeconds: 2.329
+    totalSeconds: 27.511
+    verifySeconds: 14.964

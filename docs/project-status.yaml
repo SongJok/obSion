@@ -1,5 +1,5 @@
 project: obsion
-version: 0.84.0-dev
+version: 0.85.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -87,8 +87,9 @@ completed_phases:
   - phase-82
   - phase-83
   - phase-84
+  - phase-85
 
-current_phase: phase-84
+current_phase: phase-85
 
 tests:
   unit: passed
@@ -99,7 +100,7 @@ known_issues:
   - Alpha.1 is a repository-local, clean-snapshot-validated and CI-reproducible release candidate only; no external tag, package, image, signature, or deployment promotion was created.
   - Staging deploy, UAT, and human security sign-off were not executed in this environment.
   - CI Trivy covers unfixed CRITICAL findings; HIGH CVE policy and live OIDC remain operator-owned.
-  - Backup/restore is documented; a timed DR drill has not been run here.
+  - Backup/restore is documented; Phase 85 records a repository-local timed drill ledger (8/8 checks, 89-table parity, revision d4c6650) under docs/release/evidence/alpha1/. The staging-scoped timed restore remains operator-owned. Phase 85 also fixed the latent verification-admission trigger defect the drill discovered (Alembic b88f1c4d5e60).
   - CLI, IDE, IM, and Desktop App Server coverage against a live WebSocket cluster is operator-owned; in-process tests use REST reconciliation plus a scripted App Server transport.
   - VS Code host packaging of `@obsion/ide-extension` against a remote cluster is operator-owned.
   - Electron packaging of `@obsion/desktop` against a signed installer remains operator-owned.
@@ -111,17 +112,19 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-85
+  id: phase-86
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 84 turns Feishu live validation into recorded evidence. A declared
-    probe ladder runs under the existing opt-ins, writes redacted checksummed
-    ledgers, and the candidate gate validates union coverage offline without
-    vendor traffic. Recorded live-tenant evidence never feeds promotion
-    eligibility. Production promotion remains fail-closed while clean
-    staging/UAT, timed restore, registry HIGH/CRITICAL CVE policy, signatures,
-    live OIDC/secret-manager/read-replica evidence, security and data-owner
-    approval, and maintainer publication authority are PENDING. Phase 85 may
-    consume real operator evidence; it must not fabricate approval, publish
-    with ci.txt credentials, expand production writes, or add a second runtime
-    without explicit authority.
+  notes: Phase 85 turns backup/restore from prose into recorded evidence. A
+    declared drill ladder migrates and seeds a throwaway PostgreSQL container
+    through the real REST API, restores a custom-format dump into a fresh
+    target, and records redacted checksummed parity evidence; the drill also
+    surfaced and this phase fixed a latent verification-admission trigger
+    defect (Alembic b88f1c4d5e60). Recorded drill evidence never feeds
+    promotion eligibility. Production promotion remains fail-closed while
+    clean staging/UAT, staging-scoped timed restore, registry HIGH/CRITICAL
+    CVE policy, signatures, live OIDC/secret-manager/read-replica evidence,
+    security and data-owner approval, and maintainer publication authority
+    are PENDING. Phase 86 may consume real operator evidence; it must not
+    fabricate approval, publish with ci.txt credentials, expand production
+    writes, or add a second runtime without explicit authority.
