@@ -3159,7 +3159,7 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "main.py::_error_response#ErrorBody[1]",
-            "forward:main.py:380:exc.code",
+            "forward:main.py:388:exc.code",
         ),
     ]
 )
