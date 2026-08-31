@@ -320,6 +320,16 @@ come only from the operator process environment and are redacted from every erro
    `docs/release/evidence/alpha1/backup-restore-drill.yaml`. Drill credentials
    are generated per run and never persisted; a failed stage fails every
    downstream check; the ledger never feeds `promotion_eligible` and the
+   staging-scoped restore gate remains operator-owned.
+6. `make record-artifact-drill-evidence` (requires `OBSION_DR_DRILL=1` and
+   docker) runs the artifact-store drill: knowledge and file artifacts are
+   seeded through the real REST API into a throwaway pinned MinIO container,
+   the bucket is snapshotted into a canonical per-object SHA-256 manifest and
+   restored into a fresh bucket on a second container, and key-set,
+   content-checksum, metadata, and database-reference parity are recorded in a
+   redacted, checksummed ledger at
+   `docs/release/evidence/alpha1/artifact-store-drill.yaml`. The same
+   fail-closed, credential, and promotion-neutral rules apply, and the
    staging-scoped restore remains a separate operator gate.
 
 

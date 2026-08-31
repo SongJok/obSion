@@ -1,0 +1,72 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-artifact-drill-evidence
+  version: 0.86.0-dev
+  phase: 86
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema changes; Phase 86 adds release tooling, one explicit object-store backend setting, and candidate-contract structure only.
+  documents:
+    - CHANGELOG.md
+    - Makefile
+    - .env.example
+    - docker-compose.yml
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/src/obsion/config.py
+    - services/control-plane/src/obsion/main.py
+    - services/control-plane/src/obsion/release/artifact_drill.py
+    - services/control-plane/src/obsion/release/candidate.py
+    - services/control-plane/src/obsion/release/drill.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/alpha1-candidate-gates.yaml
+    - docs/release/alpha1-artifact-drill-evidence-contract.yaml
+    - docs/release/evidence/alpha1/artifact-store-drill.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.86.0-dev.md
+    - docs/operators/runbook.md
+    - docs/operators/backup-restore.md
+    - docs/phases/PHASE-86-REPORT.md
+    - docs/architecture/phase-86-artifact-drill-evidence.md
+    - docs/adr/0065-alpha1-artifact-drill-evidence.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol centered on Workspace, Thread, Turn, Run, Step, and Event.
+    - The artifact drill creates only throwaway local PostgreSQL and MinIO containers from the pinned compose images; it never touches a deployed, staging, or production bucket or database.
+    - The drill requires OBSION_DR_DRILL=1 and docker; the Make target and CLI fail closed with exit 2 when the opt-in is absent.
+    - "A skip is never a pass: once a drill stage fails, every downstream check is recorded failed; ledgers reject failed checks, forbidden credential keys, credential-shaped values, checksum tampering, and object-count shortfalls."
+    - Drill credentials (PostgreSQL password, MinIO root user and password, bearer token) are generated per run, live only in process memory, and are never written to the ledger, the repository, or logs; the ledger records counts, timings, and SHA-256 digests only.
+    - The object_store_backend setting selects the artifact backend explicitly; the default "auto" preserves the historical behaviour (in-memory under TEST, MinIO otherwise) and changes no existing deployment.
+    - Recorded drill evidence never feeds promotion eligibility; the staging-scoped backup-restore-drill operator gate remains PENDING alongside the other five operator gates.
+    - Generic HTTP delivery, production database writes, deploys, restarts, configuration mutation, and L4-L5 actions remain denied.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration is required; the object_store_backend setting defaults to auto and existing environments are unchanged.
+    - Operators refresh artifact drill evidence with OBSION_DR_DRILL=1 make record-artifact-drill-evidence on a docker-capable host; the drill is self-cleaning and removes all three containers plus the local snapshot directory.
+    - "Review validate-release-candidate output: drill_evidence_ledgers and drill_evidence_checks report recorded coverage across both ladders while promotionEligible remains false."
+  rollback:
+    - Revert the Phase 86 commits and remove docs/release/evidence/alpha1/artifact-store-drill.yaml together with the artifact ladder entry of the candidate contract; a missing or failed ledger fails closed by design.
+    - Do not edit a recorded ledger to restore a green build; re-run the drill under the operator opt-in instead.
+  verification:
+    - make check
+    - make test-java
+    - make migration-check
+    - make validate-release-candidate-contract
+    - uv run pytest --no-cov services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - OBSION_DR_DRILL=1 make record-artifact-drill-evidence
+  knownLimitations:
+    - The repository does not claim a staging deployment, UAT, staging-scoped timed DR drill, live OIDC or secret-manager validation, signed image, signed tag, external package, or production promotion.
+    - Drill evidence is repository-local and point-in-time; it is readiness input for the operator-owned staging backup-restore gate, not a substitute for it.
+    - The drill covers single-bucket object storage with the pinned MinIO image; cross-region replication, versioning-locked buckets, and provider-specific IAM remain operator-owned.
+    - Package versions remain 0.1.0 while the development release line is 0.86.0-dev; external version alignment requires a separately authorized publication phase.
+    - Real DingTalk, WeCom, Confluence, and permitted Feishu tenant content remain operator-owned; release validation never reads worker.txt or ci.txt.

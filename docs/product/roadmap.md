@@ -219,3 +219,20 @@ verification-admission trigger defect that failed every
 governed Run completes against migrated PostgreSQL. Recorded drill evidence
 never feeds `promotion_eligible`; the staging-scoped restore, object-storage
 restore, and the remaining five operator gates stay operator-owned.
+
+Phase 86 completes the repository-level recovery story by recording the
+object-storage half: a declared `ArtifactDrillEvidenceLadder` migrates a
+throwaway pinned PostgreSQL 17 container, seeds knowledge and file artifacts
+through the real REST API into a throwaway pinned MinIO container via the
+production `MinioObjectStore` write path, snapshots the bucket into a
+canonical per-object SHA-256 manifest, restores from snapshot bytes into a
+fresh bucket, and verifies key-set, content-checksum, metadata, and — the
+binding invariant — database-reference consistency between
+`artifacts.storage_key`/`document_versions.content_ref` rows and restored
+objects. A new `OBSION_OBJECT_STORE_BACKEND` setting selects the artifact
+backend explicitly without changing existing environments, and the candidate
+contract's `drillEvidence` section is now a `ladders` list binding both drill
+families (`drill_evidence_ledgers: 2`, `drill_evidence_checks: 16`). Recorded
+drill evidence never feeds `promotion_eligible`; the staging-scoped timed
+restore with measured RPO/RTO and the remaining five operator gates stay
+operator-owned.

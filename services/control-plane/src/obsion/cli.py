@@ -10,6 +10,7 @@ from obsion.evaluations.manifests import EvaluationManifestError, validate_evalu
 from obsion.evaluations.offline import OfflineEvaluationError, execute_offline_evaluations
 from obsion.main import create_app
 from obsion.registry.manifests import RegistryManifestError, validate_registry_root
+from obsion.release.artifact_drill import record_artifact_drill_evidence
 from obsion.release.candidate import ReleaseCandidateError, validate_release_candidate
 from obsion.release.drill import DrillError, record_drill_evidence
 from obsion.release.hardening import (
@@ -222,6 +223,25 @@ def _record_drill_evidence(args: argparse.Namespace) -> None:
         raise SystemExit("drill evidence checks failed: " + ", ".join(result["failed"]))
 
 
+def _record_artifact_drill_evidence(args: argparse.Namespace) -> None:
+    root = Path(args.root).resolve()
+    contract = Path(args.contract)
+    if not contract.is_absolute():
+        contract = root / contract
+    output = Path(args.output) if args.output else None
+    if output is None:
+        output = root / "docs" / "release" / "evidence" / "alpha1" / "artifact-store-drill.yaml"
+    elif not output.is_absolute():
+        output = root / output
+    try:
+        result = record_artifact_drill_evidence(contract, output, root)
+    except DrillError as exc:
+        raise SystemExit(str(exc)) from exc
+    print(json.dumps(result, sort_keys=True))  # noqa: T201
+    if result["failed"]:
+        raise SystemExit("artifact drill evidence checks failed: " + ", ".join(result["failed"]))
+
+
 def _validate_contracts(_: argparse.Namespace) -> None:
     summary = validate_contracts()
     print(  # noqa: T201
@@ -294,7 +314,7 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-release-notes",
         help="Validate the current operator release-note contract",
     )
-    release_notes.add_argument("--manifest", default="docs/release/0.85.0-dev.yaml")
+    release_notes.add_argument("--manifest", default="docs/release/0.86.0-dev.yaml")
     release_notes.add_argument("--root", default=".")
     release_notes.set_defaults(handler=_validate_release_notes)
 
@@ -338,6 +358,18 @@ def build_parser() -> argparse.ArgumentParser:
     drill_evidence.add_argument("--output")
     drill_evidence.add_argument("--root", default=".")
     drill_evidence.set_defaults(handler=_record_drill_evidence)
+
+    artifact_drill = commands.add_parser(
+        "record-artifact-drill-evidence",
+        help="Run the opt-in artifact-store drill and write a redacted evidence ledger",
+    )
+    artifact_drill.add_argument(
+        "--contract",
+        default="docs/release/alpha1-artifact-drill-evidence-contract.yaml",
+    )
+    artifact_drill.add_argument("--output")
+    artifact_drill.add_argument("--root", default=".")
+    artifact_drill.set_defaults(handler=_record_artifact_drill_evidence)
 
     sbom = commands.add_parser("sbom", help="Generate a CycloneDX SBOM from uv.lock")
     sbom.add_argument("--lockfile", default="uv.lock")

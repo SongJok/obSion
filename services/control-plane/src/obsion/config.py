@@ -1,6 +1,7 @@
 from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache
+from typing import Literal
 from uuid import UUID
 
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
@@ -42,6 +43,10 @@ class Settings(BaseSettings):
     object_store_access_key: SecretStr = SecretStr("obsion")
     object_store_secret_key: SecretStr = SecretStr("change-this-local-secret")
     object_store_bucket: str = "obsion-artifacts"
+    # "auto" keeps the historical behaviour (in-memory under TEST, MinIO
+    # otherwise); the explicit values select a backend in any environment so
+    # integration drills can exercise the real S3-compatible write path.
+    object_store_backend: Literal["auto", "memory", "minio"] = "auto"
     auth_mode: AuthMode = AuthMode.DEVELOPMENT
     dev_organization_id: UUID = UUID("00000000-0000-7000-8000-000000000001")
     dev_user_id: UUID = UUID("00000000-0000-7000-8000-000000000002")

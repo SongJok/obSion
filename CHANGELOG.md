@@ -7,6 +7,27 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 86 Alpha.1 artifact-store drill evidence: a declared
+  `ArtifactDrillEvidenceLadder` contract binds eight ordered checks to a real
+  bucket snapshot/restore cycle, and `obsion record-artifact-drill-evidence`
+  (plus `make record-artifact-drill-evidence`) migrates a throwaway pinned
+  PostgreSQL 17 container with Alembic, seeds knowledge and file artifacts
+  through the real REST API into a throwaway pinned MinIO container via the
+  production `MinioObjectStore` write path, snapshots the bucket into a
+  canonical per-object SHA-256 manifest, restores from snapshot bytes into a
+  fresh bucket on a second MinIO container, and verifies key-set,
+  content-checksum, metadata, and database-reference consistency in a
+  redacted, SHA-256-checksummed `ArtifactDrillEvidenceLedger`. Classification
+  is fail-closed: once a stage fails, every downstream check is `failed`;
+  drill credentials never leave process memory. A new
+  `OBSION_OBJECT_STORE_BACKEND` setting selects the artifact backend
+  explicitly (default `auto` preserves existing behaviour). The candidate
+  contract's `drillEvidence` section becomes a `ladders` list validated per
+  ladder kind (`drill_evidence_ledgers: 2`, `drill_evidence_checks: 16`), and
+  recorded evidence never feeds `promotion_eligible`; the staging-scoped
+  `backup-restore-drill` operator gate remains PENDING. One real ledger was
+  recorded (8/8 checks passed). Version is `0.86.0-dev`.
+
 - Phase 85 Alpha.1 backup/restore drill evidence: a declared
   `DrillEvidenceLadder` contract binds eight ordered checks to a real
   dump/restore cycle, and `obsion record-drill-evidence` (plus

@@ -20,6 +20,13 @@ from typing import Any
 
 import yaml
 
+from obsion.release.artifact_drill import (
+    LADDER_KIND as ARTIFACT_LADDER_KIND,
+)
+from obsion.release.artifact_drill import (
+    validate_artifact_drill_evidence,
+)
+from obsion.release.drill import LADDER_KIND as DRILL_LADDER_KIND
 from obsion.release.drill import DrillError, validate_drill_evidence
 from obsion.release.live_evidence import LiveEvidenceError, validate_live_evidence
 
@@ -295,22 +302,41 @@ def _drill_evidence(spec: dict[str, Any], root: Path) -> dict[str, int]:
         return {}
     if not isinstance(raw, dict):
         raise ReleaseCandidateError("release candidate drillEvidence must be an object")
-    contract_path = _repository_file(_string(raw, "contract"), root)
-    ledger_values = _unique_strings(raw, "ledgers")
-    ledger_paths: list[Path] = []
-    for value in ledger_values:
-        if not value.startswith("docs/release/evidence/alpha1/"):
-            raise ReleaseCandidateError(
-                "drill evidence ledgers must use docs/release/evidence/alpha1/"
-            )
-        ledger_paths.append(_repository_file(value, root))
-    try:
-        result = validate_drill_evidence(contract_path, ledger_paths, root)
-    except DrillError as exc:
-        raise ReleaseCandidateError(str(exc)) from exc
+    ladders = raw.get("ladders")
+    if not isinstance(ladders, list) or not ladders:
+        raise ReleaseCandidateError("release candidate drillEvidence ladders must be a list")
+    total_ledgers = 0
+    total_checks = 0
+    seen_contracts: set[Path] = set()
+    for index, item in enumerate(ladders):
+        if not isinstance(item, dict):
+            raise ReleaseCandidateError(f"drill evidence ladder at index {index} must be an object")
+        contract_path = _repository_file(_string(item, "contract"), root)
+        if contract_path in seen_contracts:
+            raise ReleaseCandidateError("drill evidence ladders must use unique contracts")
+        seen_contracts.add(contract_path)
+        ledger_paths: list[Path] = []
+        for value in _unique_strings(item, "ledgers"):
+            if not value.startswith("docs/release/evidence/alpha1/"):
+                raise ReleaseCandidateError(
+                    "drill evidence ledgers must use docs/release/evidence/alpha1/"
+                )
+            ledger_paths.append(_repository_file(value, root))
+        kind = _load_mapping(contract_path, "drill evidence ladder contract").get("kind")
+        try:
+            if kind == DRILL_LADDER_KIND:
+                result = validate_drill_evidence(contract_path, ledger_paths, root)
+            elif kind == ARTIFACT_LADDER_KIND:
+                result = validate_artifact_drill_evidence(contract_path, ledger_paths, root)
+            else:
+                raise ReleaseCandidateError(f"drill evidence ladder kind is unsupported: {kind}")
+        except DrillError as exc:
+            raise ReleaseCandidateError(str(exc)) from exc
+        total_ledgers += int(result["ledgers"])
+        total_checks += int(result["checks"])
     return {
-        "drill_evidence_ledgers": result["ledgers"],
-        "drill_evidence_checks": result["checks"],
+        "drill_evidence_ledgers": total_ledgers,
+        "drill_evidence_checks": total_checks,
     }
 
 

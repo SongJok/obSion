@@ -376,8 +376,8 @@ def test_recorded_drill_ledger_validates_against_contract() -> None:
 
 def test_candidate_gate_binds_drill_evidence_without_promotion() -> None:
     summary = validate_release_candidate(GATES, None, ROOT, contract_only=True)
-    assert summary["drill_evidence_ledgers"] == 1
-    assert summary["drill_evidence_checks"] == 8
+    assert summary["drill_evidence_ledgers"] == 2
+    assert summary["drill_evidence_checks"] == 16
     assert summary["live_evidence_ledgers"] == 2
     assert summary["promotion_eligible"] is False
     assert len(summary["pending_operator_gates"]) == 6
@@ -386,7 +386,7 @@ def test_candidate_gate_binds_drill_evidence_without_promotion() -> None:
 
 def test_candidate_gate_rejects_drill_evidence_outside_evidence_dir(tmp_path: Path) -> None:
     document = yaml.safe_load(GATES.read_text(encoding="utf-8"))
-    document["spec"]["drillEvidence"]["ledgers"] = ["docs/release/0.84.0-dev.yaml"]
+    document["spec"]["drillEvidence"]["ladders"][0]["ledgers"] = ["docs/release/0.84.0-dev.yaml"]
     (tmp_path / "gates.yaml").write_text(yaml.safe_dump(document), encoding="utf-8")
     with pytest.raises(ReleaseCandidateError, match="docs/release/evidence/alpha1/"):
         validate_release_candidate(tmp_path / "gates.yaml", None, ROOT, contract_only=True)
@@ -442,8 +442,8 @@ def test_release_notes_and_project_status_track_phase85() -> None:
     result = validate_release_notes(ROOT / "docs" / "release" / "0.85.0-dev.yaml", ROOT)
     assert result["version"] == "0.85.0-dev"
     status = yaml.safe_load((ROOT / "docs" / "project-status.yaml").read_text(encoding="utf-8"))
-    assert status["version"] == "0.85.0-dev"
-    assert status["current_phase"] == "phase-85"
+    assert status["version"] == "0.86.0-dev"
+    assert status["current_phase"] == "phase-86"
     assert "phase-85" in status["completed_phases"]
 
 

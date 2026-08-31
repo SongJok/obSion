@@ -145,9 +145,13 @@ spec:
       - docs/release/evidence/alpha1/feishu-readonly-live.yaml
       - docs/release/evidence/alpha1/feishu-agent-live.yaml
   drillEvidence:
-    contract: docs/release/alpha1-drill-evidence-contract.yaml
-    ledgers:
-      - docs/release/evidence/alpha1/backup-restore-drill.yaml
+    ladders:
+      - contract: docs/release/alpha1-drill-evidence-contract.yaml
+        ledgers:
+          - docs/release/evidence/alpha1/backup-restore-drill.yaml
+      - contract: docs/release/alpha1-artifact-drill-evidence-contract.yaml
+        ledgers:
+          - docs/release/evidence/alpha1/artifact-store-drill.yaml
   operatorGates:
     - id: staging-deploy
       owner: release-operator

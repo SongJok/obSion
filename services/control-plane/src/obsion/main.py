@@ -188,6 +188,14 @@ def _error_response(
     return response
 
 
+def _uses_memory_object_store(settings: Settings) -> bool:
+    if settings.object_store_backend == "memory":
+        return True
+    if settings.object_store_backend == "minio":
+        return False
+    return settings.environment == Environment.TEST
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
     _configure_logging(resolved_settings)
@@ -203,7 +211,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.im_delivery_service = ImDeliveryService()
         app.state.object_store = (
             InMemoryObjectStore()
-            if resolved_settings.environment == Environment.TEST
+            if _uses_memory_object_store(resolved_settings)
             else MinioObjectStore(resolved_settings)
         )
         app_server_artifacts = ArtifactService(

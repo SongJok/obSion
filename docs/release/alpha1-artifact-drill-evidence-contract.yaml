@@ -1,0 +1,45 @@
+apiVersion: obsion.ai/v1
+kind: ArtifactDrillEvidenceLadder
+metadata:
+  name: alpha1-artifact-store
+  releaseLine: alpha.1
+spec:
+  globalOptIn: OBSION_DR_DRILL
+  postgresImage: pgvector/pgvector:0.8.6-pg17-bookworm
+  minioImage: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+  database: obsion_drill
+  bucket: obsion-artifacts-drill
+  minimumObjects: 2
+  checks:
+    - id: source-migrated
+      surface: Throwaway PostgreSQL container migrated to the current Alembic head
+      allowed:
+        - passed
+    - id: objects-seeded
+      surface: Real REST scenario writes knowledge and file artifacts into the source bucket
+      allowed:
+        - passed
+    - id: snapshot-created
+      surface: Full-bucket snapshot captured with per-object SHA-256 and metadata manifest
+      allowed:
+        - passed
+    - id: restore-completed
+      surface: Snapshot restored into a fresh bucket on a second throwaway MinIO container
+      allowed:
+        - passed
+    - id: object-count-parity
+      surface: Restored bucket key set is identical to the snapshot manifest
+      allowed:
+        - passed
+    - id: content-checksum-parity
+      surface: Every restored object matches its snapshot SHA-256
+      allowed:
+        - passed
+    - id: metadata-parity
+      surface: Every restored object preserves content type and user metadata
+      allowed:
+        - passed
+    - id: database-consistency
+      surface: Every database-referenced storage key exists in the restored bucket with matching SHA-256
+      allowed:
+        - passed

@@ -29,7 +29,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import yaml
 
@@ -91,6 +91,23 @@ class CommandResult:
 
 CommandRunner = Callable[[tuple[str, ...], Mapping[str, str]], CommandResult]
 Seeder = Callable[[str], None]
+
+
+class _PostgresContainerSpec(Protocol):
+    """Structural surface shared by every drill contract that starts PostgreSQL."""
+
+    @property
+    def postgres_image(self) -> str: ...
+
+    @property
+    def database(self) -> str: ...
+
+
+class _CheckLadder(Protocol):
+    """Structural surface shared by every drill contract that records checks."""
+
+    @property
+    def checks(self) -> tuple[CheckSpec, ...]: ...
 
 
 def load_drill_contract(path: Path, repository_root: Path) -> DrillContract:
@@ -542,7 +559,7 @@ def _verify_audit_preserved(
 
 
 def _start_postgres(
-    contract: DrillContract,
+    contract: _PostgresContainerSpec,
     execute: CommandRunner,
     container: str,
     password: str,
@@ -701,7 +718,7 @@ def _command_runner(argv: tuple[str, ...], extra_env: Mapping[str, str]) -> Comm
     )
 
 
-def _check(contract: DrillContract, check_id: str) -> CheckSpec:
+def _check(contract: _CheckLadder, check_id: str) -> CheckSpec:
     for check in contract.checks:
         if check.check_id == check_id:
             return check
@@ -724,7 +741,7 @@ def _record(
 
 
 def _fail_remaining(
-    contract: DrillContract,
+    contract: _CheckLadder,
     recorded: dict[str, dict[str, Any]],
     detail: str,
 ) -> None:
