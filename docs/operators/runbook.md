@@ -283,6 +283,28 @@ scope, pinned origin, redacted error, and vendor request id before restoring tra
 For the full support and rollback matrix, use the
 [0.75.0-dev release notes](../release/0.75.0-dev.md).
 
+### Live Feishu validation
+
+All live probes are operator-owned, opt-in, and never run in default CI. Credentials
+come only from the operator process environment and are redacted from every error.
+
+1. `make validate-feishu-live` (requires `OBSION_FEISHU_LIVE=1` plus
+   `OBSION_FEISHU_APP_ID`/`OBSION_FEISHU_APP_SECRET`) runs four non-sending probes:
+   tenant authentication, read-only bot chat listing, nonexistent document failure
+   closure, and wiki-space read/denial. Use the chat listing to discover a
+   bot-member chat id; the listing is bounded to one vendor page.
+2. `make validate-feishu-browse-live` (requires `OBSION_FEISHU_BROWSE_LIVE=1`)
+   exercises the non-writing Capability Gateway source browse against the real
+   tenant.
+3. `make validate-feishu-send-live` (requires `OBSION_FEISHU_SEND_LIVE=1` plus
+   credentials and an explicit `OBSION_FEISHU_LIVE_CHAT_ID`) delivers exactly one
+   clearly marked probe message through the production `feishu-http` channel
+   contract and asserts the vendor message id. The probe never auto-discovers a
+   target, never sends without the explicit chat id, and is not a Harness Run; it
+   produces no Run, Event, or Evidence rows. A skipped probe is never a passed
+   validation. Unset the live environment variables after the run.
+
+
 ### Vendor Knowledge sync rejected or incomplete
 
 Confirm the active connector type, `credential_ref`, exact egress origin,

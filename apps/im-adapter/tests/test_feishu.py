@@ -9,9 +9,11 @@ import pytest
 from obsion_im.channel import OutboundMessage
 from obsion_im.config import FEISHU_HTTP_DELIVERY, FeishuCredentials, ImError
 from obsion_im.feishu import (
+    CHATS_PATH,
     MESSAGE_PATH,
     TENANT_TOKEN_PATH,
     FeishuClient,
+    FeishuDeniedError,
     FeishuHttpChannel,
 )
 
@@ -189,3 +191,247 @@ async def test_feishu_live_tenant_token_when_operator_enables_it() -> None:
     assert health["delivery"] == FEISHU_HTTP_DELIVERY
     assert health["channel"] == "feishu"
     assert int(health["expires_in_seconds"]) > 0
+
+
+def _token_then_chats_handler(
+    chats_payload: dict[str, object],
+) -> tuple[list[httpx.Request], object]:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == TENANT_TOKEN_PATH:
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "msg": "ok",
+                    "tenant_access_token": "tenant-token",
+                    "expire": 7200,
+                },
+            )
+        assert request.url.path == CHATS_PATH
+        assert request.method == "GET"
+        assert request.headers["Authorization"] == "Bearer tenant-token"
+        assert not request.content
+        return httpx.Response(200, json=chats_payload)
+
+    return requests, handler
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_lists_chats_with_bounded_page() -> None:
+    requests, handler = _token_then_chats_handler(
+        {
+            "code": 0,
+            "msg": "ok",
+            "data": {
+                "items": [
+                    {"chat_id": "oc_ops", "name": "运维群"},
+                    {"chat_id": "oc_empty"},
+                ],
+                "has_more": True,
+            },
+        }
+    )
+    client = FeishuClient(_credentials(), transport=httpx.MockTransport(handler))
+    try:
+        chats = await client.list_chats(page_size=20)
+    finally:
+        await client.aclose()
+    assert [chat.chat_id for chat in chats] == ["oc_ops", "oc_empty"]
+    assert chats[0].name == "运维群"
+    assert chats[1].name == ""
+    list_request = requests[-1]
+    assert list_request.url.params["page_size"] == "20"
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_list_chats_rejects_out_of_range_page_size() -> None:
+    client = FeishuClient(
+        _credentials(),
+        transport=httpx.MockTransport(lambda _: httpx.Response(500)),
+    )
+    try:
+        with pytest.raises(ImError, match="page size"):
+            await client.list_chats(page_size=0)
+        with pytest.raises(ImError, match="page size"):
+            await client.list_chats(page_size=101)
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_list_chats_handles_missing_items() -> None:
+    _, handler = _token_then_chats_handler({"code": 0, "msg": "ok", "data": {}})
+    client = FeishuClient(_credentials(), transport=httpx.MockTransport(handler))
+    try:
+        assert await client.list_chats() == []
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_list_chats_fails_closed_on_malformed_items() -> None:
+    _, handler = _token_then_chats_handler(
+        {"code": 0, "msg": "ok", "data": {"items": [{"name": "no-id"}]}}
+    )
+    client = FeishuClient(_credentials(), transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ImError, match="chat_id"):
+            await client.list_chats()
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_list_chats_redacts_vendor_errors() -> None:
+    _, handler = _token_then_chats_handler(
+        {"code": 230001, "msg": "app cli_test_app test-app-secret tenant-token denied"}
+    )
+    client = FeishuClient(_credentials(), transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ImError) as captured:
+            await client.list_chats()
+    finally:
+        await client.aclose()
+    message = str(captured.value)
+    assert "cli_test_app" not in message
+    assert "test-app-secret" not in message
+    assert "tenant-token" not in message
+    assert message.count("[redacted]") == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.live
+async def test_feishu_live_chat_listing_when_operator_enables_it() -> None:
+    if os.environ.get("OBSION_FEISHU_LIVE") != "1":
+        pytest.skip("Live Feishu HTTP is operator-owned")
+    app_id = (os.environ.get("OBSION_FEISHU_APP_ID") or "").strip()
+    app_secret = (os.environ.get("OBSION_FEISHU_APP_SECRET") or "").strip()
+    if not app_id or not app_secret:
+        pytest.skip("Live Feishu credentials are not configured")
+    client = FeishuClient(FeishuCredentials(app_id=app_id, app_secret=app_secret))
+    try:
+        try:
+            chats = await client.list_chats()
+        except FeishuDeniedError:
+            # The tenant has not granted an im:chat scope; fail-closed denial is a
+            # valid classified outcome for this non-sending probe.
+            return
+    finally:
+        await client.aclose()
+    assert all(chat.chat_id for chat in chats)
+
+
+@pytest.mark.asyncio
+@pytest.mark.feishu_send_live
+async def test_feishu_send_live_reply_when_operator_enables_it() -> None:
+    if os.environ.get("OBSION_FEISHU_SEND_LIVE") != "1":
+        pytest.skip("Live Feishu send is operator-owned")
+    app_id = (os.environ.get("OBSION_FEISHU_APP_ID") or "").strip()
+    app_secret = (os.environ.get("OBSION_FEISHU_APP_SECRET") or "").strip()
+    chat_id = (os.environ.get("OBSION_FEISHU_LIVE_CHAT_ID") or "").strip()
+    if not app_id or not app_secret:
+        pytest.skip("Live Feishu credentials are not configured")
+    if not chat_id:
+        pytest.skip("Live Feishu send requires an explicit OBSION_FEISHU_LIVE_CHAT_ID")
+    client = FeishuClient(FeishuCredentials(app_id=app_id, app_secret=app_secret))
+    channel = FeishuHttpChannel(client)
+    message = OutboundMessage(
+        conversation_id=chat_id,
+        text="[Obsion live validation] feishu-http operator probe; no action required.",
+        run_id="live-validation",
+        thread_id="live-validation",
+        channel="feishu",
+        delivery=FEISHU_HTTP_DELIVERY,
+    )
+    try:
+        receipt = await channel.reply(message)
+    finally:
+        await channel.aclose()
+    assert receipt.vendor_message_id
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_classifies_http400_scope_denial_from_envelope() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "msg": "ok",
+                    "tenant_access_token": "tenant-token",
+                    "expire": 7200,
+                },
+            )
+        return httpx.Response(
+            400,
+            json={
+                "code": 99991672,
+                "msg": "Access denied. scopes required cli_test_app test-app-secret",
+            },
+        )
+
+    client = FeishuClient(_credentials(), transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(FeishuDeniedError) as captured:
+            await client.list_chats()
+    finally:
+        await client.aclose()
+    message = str(captured.value)
+    assert "99991672" in message
+    assert "cli_test_app" not in message
+    assert "test-app-secret" not in message
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_classifies_http401_as_denied() -> None:
+    client = FeishuClient(
+        _credentials(),
+        transport=httpx.MockTransport(lambda _: httpx.Response(401, json={})),
+    )
+    try:
+        with pytest.raises(FeishuDeniedError):
+            await client.health()
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_feishu_client_http400_with_business_error_keeps_redacted_message() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "msg": "ok",
+                    "tenant_access_token": "tenant-token",
+                    "expire": 7200,
+                },
+            )
+        return httpx.Response(
+            400,
+            json={"code": 230002, "msg": "chat not found cli_test_app tenant-token"},
+        )
+
+    client = FeishuClient(_credentials(), transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ImError) as captured:
+            await client.send_text(chat_id="oc_ops", text="hi", idempotency_key="run-1")
+    finally:
+        await client.aclose()
+    message = str(captured.value)
+    assert "230002" in message
+    assert "cli_test_app" not in message
+    assert "tenant-token" not in message

@@ -39,7 +39,7 @@ spec:
       - e82d1b3c4a56
       - f62c1a9e4d20
       - a79c4d2e8f10
-    notes: Phase 80 adds no revision; Alpha.1 declares and verifies the complete one-base, one-head repository chain.
+    notes: Phase 80 adds no revision; Alpha.1 declares the complete one-base, one-head repository chain. The live-tree evidence binding was validated at the Alpha.1 candidate commit and this contract is now frozen as a static historical record.
   documents:
     - README.md
     - CHANGELOG.md
@@ -76,16 +76,6 @@ spec:
     - Production database writes, deploys, restarts, config mutations, generic HTTP delivery, and L4-L5 actions remain denied.
     - PostgreSQL is the V1 transactional source of truth; Kafka and ClickHouse are not introduced as a base.
     - Java remains a REST SDK client of the Python control plane and is not a second backend.
-  repositoryEvidence:
-    projectStatus: docs/project-status.yaml
-    phaseReportsDirectory: docs/phases
-    architectureDirectory: docs/architecture
-    alembicVersionsDirectory: services/control-plane/alembic/versions
-    sbom: docs/release/sbom.cdx.json
-    publication:
-      stage: alpha
-      externallyPublished: false
-      signedTag: false
   vendors:
     - id: feishu
       environmentVariables:

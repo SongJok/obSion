@@ -31,7 +31,7 @@ def test_live_validation_requires_explicit_opt_in() -> None:
     assert "app_secret" not in result.stdout.casefold()
 
 
-def test_live_validation_is_bounded_to_three_non_sending_probes() -> None:
+def test_live_validation_is_bounded_to_four_non_sending_probes() -> None:
     makefile = (REPOSITORY_ROOT / "Makefile").read_text(encoding="utf-8")
     im_tests = (REPOSITORY_ROOT / "apps/im-adapter/tests/test_feishu.py").read_text(
         encoding="utf-8"
@@ -52,6 +52,7 @@ def test_live_validation_is_bounded_to_three_non_sending_probes() -> None:
     assert "send_text" not in target
 
     assert "@pytest.mark.live\nasync def test_feishu_live_tenant_token" in im_tests
+    assert "@pytest.mark.live\nasync def test_feishu_live_chat_listing" in im_tests
     assert "@pytest.mark.live\nasync def test_feishu_docs_live_missing_document" in document_tests
     assert "@pytest.mark.live\nasync def test_feishu_wiki_live_list" in wiki_tests
 

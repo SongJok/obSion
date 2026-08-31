@@ -174,4 +174,9 @@ immutability, and content-free admin/SDK/Workbench inspection. Phase 80 freezes 
 first repository-wide Alpha.1 release contract: one machine-validated manifest,
 human release notes, reproducible verification matrix, migration/SBOM evidence, and
 explicit operator-owned boundaries. It does not open production writes or publish an
-external tag by itself.
+external tag by itself. Phase 81 adds bounded read-only Feishu bot chat discovery
+and an opt-in, single-message live send probe through the production `feishu-http`
+channel contract; the probe requires `OBSION_FEISHU_SEND_LIVE=1`, environment
+credentials, and an explicit `OBSION_FEISHU_LIVE_CHAT_ID`, never auto-discovers a
+target, and fabricates no Harness state. The Alpha.1 manifest is frozen as a static
+historical contract validated at its candidate commit.

@@ -7,6 +7,24 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 81 Feishu live reply validation: `FeishuClient.list_chats` adds read-only,
+  single-page-bounded bot chat discovery with fail-closed item validation and
+  credential redaction. `make validate-feishu-live` now runs four non-sending
+  probes. A new strict `feishu_send_live` marker and `make validate-feishu-send-live`
+  deliver exactly one explicitly marked probe message through the production
+  `feishu-http` channel contract after `OBSION_FEISHU_SEND_LIVE=1`, environment
+  credentials, and an explicit `OBSION_FEISHU_LIVE_CHAT_ID` are present. The send
+  probe never auto-discovers a target, never counts a skip as a pass, and creates
+  no Run/Event/Evidence rows. The `0.81.0-dev` machine/human release contracts
+  become the CLI default, and the `0.80.0-alpha.1` manifest is frozen as a static
+  historical contract whose live-tree evidence was validated at the Alpha.1
+  candidate commit. `FeishuClient` now parses HTTP 400 business envelopes before
+  status classification and classifies 401/403 and documented denied vendor codes
+  as `FeishuDeniedError` with bearer-token redaction. Live tenant runs validated
+  all four non-sending probes, the Gateway browse, and one operator-run
+  end-to-end delivery (vendor message id recorded in the Phase 81 report).
+  Version is `0.81.0-dev`.
+
 - Phase 80 Alpha.1 repository release contract: `0.80.0-alpha.1` binds project status,
   every Phase 1-80 report and architecture review, the exact 30-revision Alembic
   chain, CycloneDX version, vendor boundaries, rollout/rollback, and candidate-only

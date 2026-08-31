@@ -1,5 +1,5 @@
 project: obsion
-version: 0.80.0-alpha.1
+version: 0.81.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -83,8 +83,9 @@ completed_phases:
   - phase-78
   - phase-79
   - phase-80
+  - phase-81
 
-current_phase: phase-80
+current_phase: phase-81
 
 tests:
   unit: passed
@@ -107,7 +108,14 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-81
+  id: phase-82
   name: alpha1-artifact-installation
   blocked: false
-  notes: Alpha.1 now has a repository-wide machine contract, continuous Phase and architecture evidence, a linear 30-revision Alembic chain, and a matching SBOM. Phase 81 should build the Python distributions, Node package archives, Java JAR, and control-plane/Workbench container images from one isolated revision; install or load each artifact in clean temporary environments; record hashes and smoke results; scan the resulting images/artifacts; and keep all outputs local unless explicit external publication authority is provided. No production write expansion or second runtime is permitted.
+  notes: Alpha.1 has a repository-wide machine contract and Phase 81 adds bounded
+    operator-run live Feishu delivery validation. Phase 82 should build the Python
+    distributions, Node package archives, Java JAR, and control-plane/Workbench
+    container images from one isolated revision; install or load each artifact in
+    clean temporary environments; record hashes and smoke results; scan the
+    resulting images/artifacts; and keep all outputs local unless explicit external
+    publication authority is provided. No production write expansion or second
+    runtime is permitted.

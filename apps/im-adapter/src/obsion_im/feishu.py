@@ -15,17 +15,32 @@ from obsion_im.config import FEISHU_HTTP_DELIVERY, FeishuCredentials, ImError, n
 FEISHU_ORIGIN = "https://open.feishu.cn"
 TENANT_TOKEN_PATH = "/open-apis/auth/v3/tenant_access_token/internal/"  # noqa: S105
 MESSAGE_PATH = "/open-apis/im/v1/messages"
+CHATS_PATH = "/open-apis/im/v1/chats"
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_ATTEMPTS = 3
+MAX_CHAT_PAGE_SIZE = 100
 RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+# Feishu intentionally uses HTTP 400 for scope-denied and inaccessible resources;
+# the structured business code is the classification signal, never the message.
+DENIED_VENDOR_CODES = frozenset({99991663, 99991664, 99991668, 99991672})
 
 Sleep = Callable[[float], Awaitable[None]]
 Clock = Callable[[], float]
 
 
+class FeishuDeniedError(ImError):
+    """Feishu denied the request; the operator must grant scopes or membership."""
+
+
 @dataclass(frozen=True, slots=True)
 class FeishuReceipt:
     message_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class FeishuChat:
+    chat_id: str
+    name: str
 
 
 class FeishuClient:
@@ -99,6 +114,41 @@ class FeishuClient:
             raise ImError("Feishu send message response did not contain a message_id")
         return FeishuReceipt(message_id=message_id)
 
+    async def list_chats(self, *, page_size: int = MAX_CHAT_PAGE_SIZE) -> list[FeishuChat]:
+        """List chats the bot belongs to. Read-only and bounded to one vendor page."""
+
+        if not 1 <= page_size <= MAX_CHAT_PAGE_SIZE:
+            raise ImError("Feishu chat listing page size is outside the bounded range")
+        token = await self._tenant_access_token()
+        payload = await self._request_json(
+            "GET",
+            CHATS_PATH,
+            params={"page_size": str(page_size)},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        self._require_success(payload, operation="list chats", token=token)
+        data = payload.get("data")
+        items = data.get("items") if isinstance(data, Mapping) else None
+        if items is None:
+            return []
+        if not isinstance(items, list):
+            raise ImError("Feishu list chats response items must be an array")
+        chats: list[FeishuChat] = []
+        for item in items:
+            if not isinstance(item, Mapping):
+                raise ImError("Feishu list chats response items must be objects")
+            chat_id = item.get("chat_id")
+            if not isinstance(chat_id, str) or not chat_id.strip():
+                raise ImError("Feishu list chats response item did not contain a chat_id")
+            name = item.get("name")
+            chats.append(
+                FeishuChat(
+                    chat_id=chat_id.strip(),
+                    name=name.strip() if isinstance(name, str) else "",
+                )
+            )
+        return chats
+
     async def aclose(self) -> None:
         self._tenant_token = None
         self._tenant_token_expires_at = 0.0
@@ -136,7 +186,7 @@ class FeishuClient:
         *,
         params: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
-        json_body: Mapping[str, Any],
+        json_body: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         last_transport_error: httpx.TransportError | None = None
         for attempt in range(MAX_ATTEMPTS):
@@ -146,7 +196,7 @@ class FeishuClient:
                     path,
                     params=params,
                     headers=headers,
-                    json=dict(json_body),
+                    json=dict(json_body) if json_body is not None else None,
                 )
             except httpx.TransportError as exc:
                 last_transport_error = exc
@@ -157,16 +207,26 @@ class FeishuClient:
             if response.status_code in RETRYABLE_STATUS_CODES and attempt + 1 < MAX_ATTEMPTS:
                 await self._sleep(_retry_delay(response, attempt))
                 continue
-            if response.status_code < 200 or response.status_code >= 300:
-                raise ImError(f"Feishu HTTP request failed with status {response.status_code}")
             if len(response.content) > MAX_RESPONSE_BYTES:
                 raise ImError("Feishu HTTP response exceeded the size limit")
             try:
                 payload = response.json()
             except ValueError as exc:
-                raise ImError("Feishu HTTP response was not valid JSON") from exc
+                if 200 <= response.status_code < 300:
+                    raise ImError("Feishu HTTP response was not valid JSON") from exc
+                payload = {}
             if not isinstance(payload, dict):
-                raise ImError("Feishu HTTP response must be a JSON object")
+                if 200 <= response.status_code < 300:
+                    raise ImError("Feishu HTTP response must be a JSON object")
+                payload = {}
+            if response.status_code in {401, 403}:
+                raise FeishuDeniedError("Feishu denied the request")
+            if response.status_code < 200 or response.status_code >= 300:
+                # Feishu returns structured business errors with HTTP 400. Parse and
+                # classify that envelope before falling back to transport health.
+                if payload.get("code") not in {None, 0}:
+                    self._require_success(payload, operation="request", token=_bearer(headers))
+                raise ImError(f"Feishu HTTP request failed with status {response.status_code}")
             return payload
         if last_transport_error is not None:
             raise ImError(
@@ -189,6 +249,8 @@ class FeishuClient:
             raw_message,
             secrets=(self._credentials.app_id, self._credentials.app_secret, token or ""),
         )
+        if isinstance(code, int) and code in DENIED_VENDOR_CODES:
+            raise FeishuDeniedError(f"Feishu {operation} was denied (code {code})")
         safe_code = code if isinstance(code, int) else "unknown"
         raise ImError(f"Feishu {operation} failed (code {safe_code}): {safe_message}")
 
@@ -215,8 +277,20 @@ class FeishuHttpChannel:
     async def health(self) -> dict[str, Any]:
         return await self._client.health()
 
+    async def list_chats(self, *, page_size: int = MAX_CHAT_PAGE_SIZE) -> list[FeishuChat]:
+        return await self._client.list_chats(page_size=page_size)
+
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+def _bearer(headers: Mapping[str, str] | None) -> str | None:
+    if not headers:
+        return None
+    authorization = headers.get("Authorization", "")
+    if authorization.startswith("Bearer "):
+        return authorization.removeprefix("Bearer ").strip() or None
+    return None
 
 
 def _retry_delay(response: httpx.Response, attempt: int) -> float:

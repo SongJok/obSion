@@ -64,6 +64,13 @@ validate-feishu-browse-live:
 	@test -n "$${OBSION_FEISHU_APP_SECRET:-}" || (echo "OBSION_FEISHU_APP_SECRET is required"; exit 2)
 	uv run pytest --no-cov -m feishu_browse_live
 
+validate-feishu-send-live:
+	@case "$${OBSION_FEISHU_SEND_LIVE:-}" in 1) ;; *) echo "OBSION_FEISHU_SEND_LIVE=1 is required"; exit 2;; esac
+	@test -n "$${OBSION_FEISHU_APP_ID:-}" || (echo "OBSION_FEISHU_APP_ID is required"; exit 2)
+	@test -n "$${OBSION_FEISHU_APP_SECRET:-}" || (echo "OBSION_FEISHU_APP_SECRET is required"; exit 2)
+	@test -n "$${OBSION_FEISHU_LIVE_CHAT_ID:-}" || (echo "OBSION_FEISHU_LIVE_CHAT_ID is required"; exit 2)
+	uv run pytest --no-cov -m feishu_send_live
+
 evaluate-datasets:
 	uv run obsion evaluate-datasets
 

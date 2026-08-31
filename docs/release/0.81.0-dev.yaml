@@ -1,0 +1,70 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: feishu-live-reply-validation
+  version: 0.81.0-dev
+  phase: 81
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80]
+  migration:
+    database: none
+    revisions: []
+    notes: Phase 81 adds no database schema revision; run Alembic drift checks but do not fabricate a migration.
+  documents:
+    - CHANGELOG.md
+    - .env.example
+    - docs/release/0.81.0-dev.md
+    - docs/release/0.80.0-alpha.1.md
+    - docs/operators/runbook.md
+    - docs/phases/PHASE-81-REPORT.md
+    - docs/architecture/phase-81-feishu-live-reply-gate.md
+    - docs/adr/0060-feishu-live-reply-validation.md
+  boundaries:
+    - Live vendor validation stays opt-in, operator-owned, and outside default CI; no credential value enters the repository.
+    - The live send probe delivers exactly one explicitly marked message to an operator-supplied chat id through the existing feishu-http channel contract.
+    - Live probes never auto-discover a send target, never retry a successful delivery, and never fabricate Harness Runs, Policy decisions, or Evidence.
+    - IM ingress and delivery remain Experience clients of the single App Server and never host a Harness loop.
+    - Vendor credentials are process-environment inputs and are redacted from every error, log, and test assertion.
+    - Generic HTTP delivery, production writes, deploys, restarts, and L4-L5 actions remain denied.
+  vendors:
+    - id: feishu
+      environmentVariables:
+        - OBSION_FEISHU_APP_ID
+        - OBSION_FEISHU_APP_SECRET
+        - OBSION_FEISHU_LIVE_CHAT_ID
+      experience:
+        outboundTransport: feishu-http
+        outboundOrigin: https://open.feishu.cn
+        inboundSecurity:
+          - Public callbacks require TLS, exact Host allowlisting, and verified Lark signatures or configured encryption.
+          - Live send validation is disabled unless OBSION_FEISHU_SEND_LIVE=1 and an explicit chat id are present in the operator process environment.
+      knowledge:
+        connector: obsion-feishu-docs
+        origin: https://open.feishu.cn
+        operations: [knowledge.ingest, knowledge.sync, knowledge.source.containers, knowledge.source.items]
+  rollout:
+    - Confirm make check passes on the release revision before any live validation.
+    - Inject Feishu credentials through the operator process environment or secret manager; never write values into files, Helm, TOML, or connector YAML.
+    - "Run the non-sending probes first: make validate-feishu-live and make validate-feishu-browse-live."
+    - Discover a bot chat with the read-only chat listing probe and choose an operator-owned test chat.
+    - Run make validate-feishu-send-live exactly once with OBSION_FEISHU_LIVE_CHAT_ID set to that chat and confirm the marked probe message arrives.
+    - Remove live environment variables from the operator shell after validation.
+  rollback:
+    - Unset OBSION_FEISHU_SEND_LIVE and OBSION_FEISHU_LIVE_CHAT_ID; the send probe then skips without any vendor call.
+    - Preserve IM delivery receipts, Runtime Events, and audit rows; never repair them with direct SQL.
+    - No Alembic downgrade is required for this release because it has no database revision.
+    - Re-run make check before restoring normal traffic.
+  verification:
+    - make check
+    - uv run obsion validate-release-notes
+    - uv run obsion scan-secrets
+    - uv run pytest --no-cov services/control-plane/tests/test_phase81_feishu_live_reply.py
+    - make validate-feishu-live with operator process credentials
+    - make validate-feishu-browse-live with operator process credentials
+    - make validate-feishu-send-live with operator process credentials and an explicit test chat id
+  knownLimitations:
+    - Live tenant application scopes, chat membership, and vendor-side rate limits remain operator-owned.
+    - The live send probe validates the feishu-http delivery leg only; it is not a Harness Run and produces no Run, Event, or Evidence rows.
+    - A skipped live probe is never counted as a passed live validation.
+    - DingTalk and WeCom live delivery validation remains unimplemented and operator-owned.
+    - Staging deployment, external publication, and human security sign-off remain open release prerequisites.

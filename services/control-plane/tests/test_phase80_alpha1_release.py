@@ -7,7 +7,6 @@ from typing import Any
 import pytest
 import yaml
 
-from obsion.cli import build_parser
 from obsion.release.notes import ReleaseNotesError, validate_release_notes
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -27,7 +26,7 @@ def _write_manifest(tmp_path: Path, document: dict[str, Any]) -> Path:
     return path
 
 
-def test_alpha1_manifest_binds_complete_repository_evidence() -> None:
+def test_alpha1_manifest_remains_a_valid_frozen_contract() -> None:
     result = validate_release_notes(MANIFEST_PATH, REPOSITORY_ROOT)
 
     assert result["name"] == "alpha1-repository-release"
@@ -35,17 +34,12 @@ def test_alpha1_manifest_binds_complete_repository_evidence() -> None:
     assert result["phase"] == 80
     assert result["consolidates"] == list(range(1, 80))
     assert result["database_migration"] == "alembic"
-    assert result["migration_head"] == "a79c4d2e8f10"
-    assert result["migration_revisions"] == 30
-    assert result["phase_reports"] == 80
-    assert result["architecture_reviews"] == 80
-    assert result["release_stage"] == "alpha"
-    assert result["externally_published"] is False
-    assert result["signed_tag"] is False
     assert set(result["vendors"]) == {"feishu", "dingtalk", "wecom", "confluence"}
 
-    args = build_parser().parse_args(["validate-release-notes"])
-    assert args.manifest == "docs/release/0.80.0-alpha.1.yaml"
+    document = _manifest()
+    assert "repositoryEvidence" not in document["spec"]
+    notes = document["spec"]["migration"]["notes"]
+    assert "validated at the Alpha.1 candidate commit" in notes
 
 
 def test_alpha1_vendor_and_retrospective_documents_are_explicit_and_secret_free() -> None:
@@ -70,24 +64,22 @@ def test_alpha1_vendor_and_retrospective_documents_are_explicit_and_secret_free(
     "mutate, expected",
     [
         (
-            lambda document: document["metadata"].__setitem__("version", "0.80.0-alpha.2"),
-            "match project status",
+            lambda document: document["metadata"].__setitem__("version", "0.80.alpha"),
+            "must be semantic",
         ),
         (
-            lambda document: document["spec"]["migration"]["revisions"].pop(),
-            "linear repository chain",
+            lambda document: document["spec"].__setitem__("consolidates", [1, 2, 4]),
+            "must be contiguous",
         ),
         (
-            lambda document: document["spec"]["repositoryEvidence"].__setitem__(
-                "phaseReportsDirectory", "docs/missing-phase-reports"
+            lambda document: document["spec"]["documents"].append("docs/missing.md"),
+            "document does not exist",
+        ),
+        (
+            lambda document: document["spec"]["vendors"][0]["environmentVariables"].append(
+                "FEISHU_APP_SECRET"
             ),
-            "directory does not exist",
-        ),
-        (
-            lambda document: document["spec"]["repositoryEvidence"]["publication"].__setitem__(
-                "externallyPublished", True
-            ),
-            "cannot claim an external publication",
+            "environment variable names only",
         ),
         (
             lambda document: document["spec"]["vendors"][-1].pop("knowledge"),
@@ -95,7 +87,7 @@ def test_alpha1_vendor_and_retrospective_documents_are_explicit_and_secret_free(
         ),
     ],
 )
-def test_alpha1_repository_evidence_fails_closed(
+def test_alpha1_frozen_contract_fails_closed(
     tmp_path: Path,
     mutate: Any,
     expected: str,
