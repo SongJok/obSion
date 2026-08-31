@@ -17,6 +17,7 @@ from obsion.release.hardening import (
     scan_secrets,
     validate_evaluation_gate,
 )
+from obsion.release.live_evidence import LiveEvidenceError, record_live_evidence
 from obsion.release.notes import ReleaseNotesError, read_project_version, validate_release_notes
 
 
@@ -169,6 +170,38 @@ def _validate_release_candidate(args: argparse.Namespace) -> None:
     print(json.dumps(result, sort_keys=True))  # noqa: T201
 
 
+def _record_live_evidence(args: argparse.Namespace) -> None:
+    root = Path(args.root).resolve()
+    contract = Path(args.contract)
+    if not contract.is_absolute():
+        contract = root / contract
+    output = Path(args.output) if args.output else None
+    if output is None:
+        output = (
+            root
+            / "docs"
+            / "release"
+            / "evidence"
+            / "alpha1"
+            / f"feishu-{args.profile_label}-live.yaml"
+        )
+    elif not output.is_absolute():
+        output = root / output
+    try:
+        result = record_live_evidence(
+            contract,
+            output,
+            root,
+            profile_label=args.profile_label,
+            include_optional=args.include_send_probe,
+        )
+    except LiveEvidenceError as exc:
+        raise SystemExit(str(exc)) from exc
+    print(json.dumps(result, sort_keys=True))  # noqa: T201
+    if result["failed"]:
+        raise SystemExit("live evidence probes failed: " + ", ".join(result["failed"]))
+
+
 def _validate_contracts(_: argparse.Namespace) -> None:
     summary = validate_contracts()
     print(  # noqa: T201
@@ -241,7 +274,7 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-release-notes",
         help="Validate the current operator release-note contract",
     )
-    release_notes.add_argument("--manifest", default="docs/release/0.83.0-dev.yaml")
+    release_notes.add_argument("--manifest", default="docs/release/0.84.0-dev.yaml")
     release_notes.add_argument("--root", default=".")
     release_notes.set_defaults(handler=_validate_release_notes)
 
@@ -259,6 +292,20 @@ def build_parser() -> argparse.ArgumentParser:
     release_candidate.add_argument("--require-promotion-eligible", action="store_true")
     release_candidate.add_argument("--write-report", action="store_true")
     release_candidate.set_defaults(handler=_validate_release_candidate)
+
+    live_evidence = commands.add_parser(
+        "record-live-evidence",
+        help="Run the opt-in live Feishu ladder and write a redacted evidence ledger",
+    )
+    live_evidence.add_argument(
+        "--contract",
+        default="docs/release/alpha1-live-evidence-contract.yaml",
+    )
+    live_evidence.add_argument("--output")
+    live_evidence.add_argument("--root", default=".")
+    live_evidence.add_argument("--profile-label", required=True)
+    live_evidence.add_argument("--include-send-probe", action="store_true")
+    live_evidence.set_defaults(handler=_record_live_evidence)
 
     sbom = commands.add_parser("sbom", help="Generate a CycloneDX SBOM from uv.lock")
     sbom.add_argument("--lockfile", default="uv.lock")

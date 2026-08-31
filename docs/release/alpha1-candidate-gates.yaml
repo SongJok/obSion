@@ -139,6 +139,11 @@ spec:
         - CONTRIBUTING.md
         - SECURITY.md
         - .github/workflows/ci.yml
+  liveEvidence:
+    contract: docs/release/alpha1-live-evidence-contract.yaml
+    ledgers:
+      - docs/release/evidence/alpha1/feishu-readonly-live.yaml
+      - docs/release/evidence/alpha1/feishu-agent-live.yaml
   operatorGates:
     - id: staging-deploy
       owner: release-operator

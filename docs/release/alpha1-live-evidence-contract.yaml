@@ -1,0 +1,48 @@
+apiVersion: obsion.ai/v1
+kind: LiveEvidenceLadder
+metadata:
+  name: alpha1-feishu-live-ladder
+  releaseLine: alpha.1
+spec:
+  globalOptIn: OBSION_FEISHU_LIVE
+  credentialEnv:
+    - OBSION_FEISHU_APP_ID
+    - OBSION_FEISHU_APP_SECRET
+  probes:
+    - id: feishu-tenant-token
+      surface: im-auth
+      nodeId: apps/im-adapter/tests/test_feishu.py::test_feishu_live_tenant_token_when_operator_enables_it
+      allowed:
+        - passed
+    - id: feishu-chat-listing
+      surface: im-read
+      nodeId: apps/im-adapter/tests/test_feishu.py::test_feishu_live_chat_listing_when_operator_enables_it
+      allowed:
+        - passed
+        - denied
+    - id: feishu-docs-missing-denial
+      surface: knowledge-docs
+      nodeId: services/control-plane/tests/test_phase64_feishu_knowledge.py::test_feishu_docs_live_missing_document_fails_closed
+      allowed:
+        - denied
+    - id: feishu-wiki-space-list
+      surface: knowledge-wiki
+      nodeId: services/control-plane/tests/test_phase65_feishu_wiki_spaces.py::test_feishu_wiki_live_list_fails_closed_without_scope
+      allowed:
+        - passed
+        - denied
+    - id: feishu-browse-gateway
+      surface: gateway-browse
+      nodeId: services/control-plane/tests/test_phase78_vendor_knowledge_read_gateway.py::test_feishu_live_browse_traverses_operator_gateway
+      allowed:
+        - passed
+        - denied
+    - id: feishu-send-probe
+      surface: im-write-probe
+      nodeId: apps/im-adapter/tests/test_feishu.py::test_feishu_send_live_reply_when_operator_enables_it
+      optional: true
+      requiredEnv:
+        - OBSION_FEISHU_SEND_LIVE
+        - OBSION_FEISHU_LIVE_CHAT_ID
+      allowed:
+        - passed

@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
+.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live record-feishu-live-evidence evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
 
 bootstrap:
 	uv sync --all-packages --all-extras
@@ -76,6 +76,18 @@ validate-feishu-send-live:
 	@test -n "$${OBSION_FEISHU_APP_SECRET:-}" || (echo "OBSION_FEISHU_APP_SECRET is required"; exit 2)
 	@test -n "$${OBSION_FEISHU_LIVE_CHAT_ID:-}" || (echo "OBSION_FEISHU_LIVE_CHAT_ID is required"; exit 2)
 	uv run pytest --no-cov -m feishu_send_live
+
+record-feishu-live-evidence:
+	@case "$${OBSION_FEISHU_LIVE:-}" in 1) ;; *) echo "OBSION_FEISHU_LIVE=1 is required"; exit 2;; esac
+	@test -n "$${OBSION_FEISHU_APP_ID:-}" || (echo "OBSION_FEISHU_APP_ID is required"; exit 2)
+	@test -n "$${OBSION_FEISHU_APP_SECRET:-}" || (echo "OBSION_FEISHU_APP_SECRET is required"; exit 2)
+	@test -n "$${OBSION_LIVE_PROFILE:-}" || (echo "OBSION_LIVE_PROFILE is required"; exit 2)
+	@if [ "$${OBSION_FEISHU_SEND_LIVE:-}" = "1" ]; then \
+		test -n "$${OBSION_FEISHU_LIVE_CHAT_ID:-}" || (echo "OBSION_FEISHU_LIVE_CHAT_ID is required"; exit 2); \
+		uv run obsion record-live-evidence --profile-label "$${OBSION_LIVE_PROFILE}" --include-send-probe; \
+	else \
+		uv run obsion record-live-evidence --profile-label "$${OBSION_LIVE_PROFILE}"; \
+	fi
 
 evaluate-datasets:
 	uv run obsion evaluate-datasets

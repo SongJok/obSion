@@ -18,6 +18,20 @@ from obsion_im.feishu import (
 )
 
 
+def _emit_probe_result(probe: str, classification: str, detail: str) -> None:
+    """Record a live-probe outcome when the evidence recorder requests it."""
+
+    directory = os.environ.get("OBSION_LIVE_PROBE_DIR", "").strip()
+    if not directory:
+        return
+    payload = {"probe": probe, "classification": classification, "detail": detail[:240]}
+    from pathlib import Path
+
+    Path(directory, f"{probe}.json").write_text(
+        json.dumps(payload, sort_keys=True), encoding="utf-8"
+    )
+
+
 def _credentials() -> FeishuCredentials:
     return FeishuCredentials(app_id="cli_test_app", app_secret="test-app-secret")
 
@@ -191,6 +205,7 @@ async def test_feishu_live_tenant_token_when_operator_enables_it() -> None:
     assert health["delivery"] == FEISHU_HTTP_DELIVERY
     assert health["channel"] == "feishu"
     assert int(health["expires_in_seconds"]) > 0
+    _emit_probe_result("feishu-tenant-token", "passed", "tenant token authenticated")
 
 
 def _token_then_chats_handler(
@@ -318,10 +333,12 @@ async def test_feishu_live_chat_listing_when_operator_enables_it() -> None:
         except FeishuDeniedError:
             # The tenant has not granted an im:chat scope; fail-closed denial is a
             # valid classified outcome for this non-sending probe.
+            _emit_probe_result("feishu-chat-listing", "denied", "FeishuDeniedError")
             return
     finally:
         await client.aclose()
     assert all(chat.chat_id for chat in chats)
+    _emit_probe_result("feishu-chat-listing", "passed", f"chats={len(chats)}")
 
 
 @pytest.mark.asyncio
@@ -351,6 +368,7 @@ async def test_feishu_send_live_reply_when_operator_enables_it() -> None:
     finally:
         await channel.aclose()
     assert receipt.vendor_message_id
+    _emit_probe_result("feishu-send-probe", "passed", f"message_id={receipt.vendor_message_id}")
 
 
 @pytest.mark.asyncio

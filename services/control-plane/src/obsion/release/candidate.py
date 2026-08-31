@@ -20,6 +20,8 @@ from typing import Any
 
 import yaml
 
+from obsion.release.live_evidence import LiveEvidenceError, validate_live_evidence
+
 _DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 _REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 _REQUIRED_OPERATOR_GATES = frozenset(
@@ -74,6 +76,7 @@ def validate_release_candidate(
     surfaces = _coverage_surfaces(spec, root, requirement_rows, expected_artifacts)
     operator_gates, pending_gates = _operator_gates(spec, root)
     required_steps = _unique_strings(spec, "requiredValidationSteps")
+    live_evidence = _live_evidence(spec, root)
 
     summary: dict[str, Any] = {
         "release_line": "alpha.1",
@@ -86,6 +89,7 @@ def validate_release_candidate(
         "promotion_eligible": False,
         "artifact_manifest_validated": False,
     }
+    summary.update(live_evidence)
 
     if contract_only:
         if require_promotion_eligible:
@@ -255,6 +259,31 @@ def _operator_gates(spec: dict[str, Any], root: Path) -> tuple[int, list[str]]:
             "operator gates must exactly match the Alpha.1 promotion prerequisites"
         )
     return len(ids), sorted(pending)
+
+
+def _live_evidence(spec: dict[str, Any], root: Path) -> dict[str, int]:
+    raw = spec.get("liveEvidence")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ReleaseCandidateError("release candidate liveEvidence must be an object")
+    contract_path = _repository_file(_string(raw, "contract"), root)
+    ledger_values = _unique_strings(raw, "ledgers")
+    ledger_paths: list[Path] = []
+    for value in ledger_values:
+        if not value.startswith("docs/release/evidence/alpha1/"):
+            raise ReleaseCandidateError(
+                "live evidence ledgers must use docs/release/evidence/alpha1/"
+            )
+        ledger_paths.append(_repository_file(value, root))
+    try:
+        result = validate_live_evidence(contract_path, ledger_paths, root)
+    except LiveEvidenceError as exc:
+        raise ReleaseCandidateError(str(exc)) from exc
+    return {
+        "live_evidence_ledgers": result["ledgers"],
+        "live_evidence_probes": result["covered"],
+    }
 
 
 def _validate_artifact_manifest(

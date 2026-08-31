@@ -164,7 +164,7 @@ def test_phase83_release_contract_cli_ci_and_status() -> None:
     assert result["vendors"] == []
 
     args = build_parser().parse_args(["validate-release-notes"])
-    assert args.manifest == "docs/release/0.83.0-dev.yaml"
+    assert args.manifest == "docs/release/0.84.0-dev.yaml"
     candidate_args = build_parser().parse_args(["validate-release-candidate"])
     assert candidate_args.contract == "docs/release/alpha1-candidate-gates.yaml"
     assert candidate_args.contract_only is False

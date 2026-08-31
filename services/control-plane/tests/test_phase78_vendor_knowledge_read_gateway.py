@@ -12,6 +12,7 @@ from obsion.capabilities.confluence import ConfluenceSpace, ConfluenceSpacePage
 from obsion.capabilities.dingtalk_docs import DingTalkWorkspace, DingTalkWorkspaceNode
 from obsion.capabilities.feishu_docs import FeishuWikiNode, FeishuWikiSpace
 from obsion.capabilities.wecom_docs import WeComSpace, WeComSpaceNode
+from obsion.release.live_evidence import write_probe_record
 from obsion.security.auth import get_principal
 from obsion.security.identity import Principal
 
@@ -258,3 +259,9 @@ def test_feishu_live_browse_traverses_operator_gateway(client: TestClient) -> No
     assert record["metadata"]["invocation_mode"] == "operator"
     assert record["metadata"]["capability"] == "knowledge.source.containers"
     assert "evidence_id" not in record["metadata"]
+    if response.status_code == 403:
+        write_probe_record(
+            "feishu-browse-gateway", "denied", "status=403 feishu_docs_upstream_denied"
+        )
+    else:
+        write_probe_record("feishu-browse-gateway", "passed", "status=200")

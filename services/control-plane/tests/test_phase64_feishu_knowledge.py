@@ -25,6 +25,7 @@ from obsion.config import Environment, Settings
 from obsion.db.models import Connector, Document, DocumentVersion
 from obsion.domain.enums import Classification, ConnectorStatus
 from obsion.knowledge.feishu import resolve_ingest_acl
+from obsion.release.live_evidence import write_probe_record
 from obsion.security.identity import Principal
 
 WEB_ROOT = Path(__file__).resolve().parents[3] / "apps" / "web"
@@ -439,10 +440,11 @@ async def test_feishu_docs_live_missing_document_fails_closed() -> None:
     try:
         health = await client.health()
         assert health["authenticated"] is True
-        with pytest.raises((FeishuDocsDeniedError, ValidationError)):
+        with pytest.raises((FeishuDocsDeniedError, ValidationError)) as exc_info:
             await client.fetch_document(
                 document_id="doxcnPhase64DoesNotExistToken",
                 obj_type="docx",
             )
     finally:
         await client.aclose()
+    write_probe_record("feishu-docs-missing-denial", "denied", type(exc_info.value).__name__)

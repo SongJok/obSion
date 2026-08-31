@@ -23,6 +23,7 @@ from obsion.common.errors import ValidationError
 from obsion.config import Environment, Settings
 from obsion.db.models import Connector, Document, DocumentVersion
 from obsion.domain.enums import Classification, ConnectorStatus
+from obsion.release.live_evidence import write_probe_record
 from obsion.security.identity import Principal
 
 WEB_ROOT = Path(__file__).resolve().parents[3] / "apps" / "web"
@@ -390,8 +391,10 @@ async def test_feishu_wiki_live_list_fails_closed_without_scope() -> None:
         assert health["authenticated"] is True
         try:
             spaces = await client.list_spaces()
-        except (FeishuDocsDeniedError, ValidationError):
+        except (FeishuDocsDeniedError, ValidationError) as exc:
+            write_probe_record("feishu-wiki-space-list", "denied", type(exc).__name__)
             return
         assert isinstance(spaces, list)
     finally:
         await client.aclose()
+    write_probe_record("feishu-wiki-space-list", "passed", f"spaces={len(spaces)}")
