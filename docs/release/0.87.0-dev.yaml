@@ -1,0 +1,56 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-drill-ci-signal
+  version: 0.87.0-dev
+  phase: 87
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema changes; Phase 87 adds one scheduled CI workflow and documentation only.
+  documents:
+    - CHANGELOG.md
+    - .github/workflows/drill.yml
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.87.0-dev.md
+    - docs/operators/runbook.md
+    - docs/operators/backup-restore.md
+    - docs/phases/PHASE-87-REPORT.md
+    - docs/architecture/phase-87-drill-ci-signal.md
+    - docs/adr/0066-alpha1-drill-ci-signal.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol centered on Workspace, Thread, Turn, Run, Step, and Event.
+    - The drill workflow runs on schedule and manual dispatch only; it is a detection signal, never a merge gate, and external registry health cannot block a pull request.
+    - Fresh drill ledgers are written to the runner temp directory and uploaded as short-retention CI artifacts; committed operator-recorded ledgers under docs/release/evidence/alpha1/ are never overwritten by automation.
+    - The workflow carries no vendor credentials, no secrets, and no repository write permissions; drill credentials are generated per run inside the recorders and never leave process memory.
+    - "Recorder fail-closed semantics are the signal: any failed drill check exits non-zero and turns the scheduled job red."
+    - Recorded and CI-generated drill evidence never feeds promotion eligibility; the six operator gates remain PENDING.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration or environment change is required; the workflow becomes active on its next schedule tick after merge.
+    - Operators can trigger an on-demand drill from the Actions tab via workflow_dispatch on any docker-capable hosted runner.
+  rollback:
+    - Revert the Phase 87 commits and delete .github/workflows/drill.yml; committed ledgers and the candidate contract are untouched by this phase.
+  verification:
+    - make check
+    - make test-java
+    - make migration-check
+    - make validate-release-candidate-contract
+    - uv run pytest --no-cov services/control-plane/tests/test_phase87_drill_ci_signal.py
+  knownLimitations:
+    - The repository does not claim a staging deployment, UAT, staging-scoped timed DR drill, live OIDC or secret-manager validation, signed image, signed tag, external package, or production promotion.
+    - The CI drill signal runs on GitHub-hosted ubuntu runners with the pinned compose images; self-hosted runner parity is operator-owned.
+    - Package versions remain 0.1.0 while the development release line is 0.87.0-dev; external version alignment requires a separately authorized publication phase.
+    - Real DingTalk, WeCom, Confluence, and permitted Feishu tenant content remain operator-owned; release validation never reads worker.txt or ci.txt.

@@ -236,3 +236,15 @@ families (`drill_evidence_ledgers: 2`, `drill_evidence_checks: 16`). Recorded
 drill evidence never feeds `promotion_eligible`; the staging-scoped timed
 restore with measured RPO/RTO and the remaining five operator gates stay
 operator-owned.
+
+Phase 87 makes restore-path health continuously visible: a scheduled
+`drill.yml` workflow runs both ladders nightly and on manual dispatch on
+docker-capable hosted runners, writing fresh ledgers to the runner temp
+directory and uploading them as short-retention CI artifacts, so a broken
+migration, seed, dump, restore, or parity check turns red within one schedule
+tick instead of waiting for the next operator recording. The workflow is
+deliberately not a merge gate (external registry health must never block a
+pull request), carries no credentials or write permissions, and never
+overwrites the committed operator-recorded ledgers. ADR 0066 records the
+decision. CI-generated evidence never feeds `promotion_eligible`; all six
+operator gates remain PENDING.

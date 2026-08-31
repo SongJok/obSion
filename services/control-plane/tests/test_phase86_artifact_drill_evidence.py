@@ -555,12 +555,12 @@ def test_object_store_backend_selection_is_explicit() -> None:
 
 
 def test_release_notes_and_project_status_track_phase86() -> None:
-    result = validate_release_notes(ROOT / "docs" / "release" / "0.86.0-dev.yaml", ROOT)
-    assert result["version"] == "0.86.0-dev"
+    result = validate_release_notes(ROOT / "docs" / "release" / "0.87.0-dev.yaml", ROOT)
+    assert result["version"] == "0.87.0-dev"
     status = yaml.safe_load((ROOT / "docs" / "project-status.yaml").read_text(encoding="utf-8"))
-    assert status["version"] == "0.86.0-dev"
-    assert status["current_phase"] == "phase-86"
-    assert "phase-86" in status["completed_phases"]
+    assert status["version"] == "0.87.0-dev"
+    assert status["current_phase"] == "phase-87"
+    assert "phase-87" in status["completed_phases"]
 
 
 def test_env_example_documents_backend_and_drill_opt_in() -> None:

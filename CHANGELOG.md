@@ -7,6 +7,20 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 87 Alpha.1 drill CI signal: `.github/workflows/drill.yml` runs both
+  drill ladders nightly (`17 3 * * *`) and on `workflow_dispatch` on
+  docker-capable hosted runners with `OBSION_DR_DRILL=1`, writing fresh
+  ledgers to `$RUNNER_TEMP` and uploading them as the 14-day `drill-ledgers`
+  CI artifact (`if: always()`, `if-no-files-found: error`). The recorders'
+  fail-closed exit codes are the signal: any failed check among the 16 ladder
+  checks turns the job red. The workflow is deliberately not a merge gate —
+  the drills pull pinned registry images and external registry health must
+  never block a pull request — requests only `contents: read`, carries no
+  vendor credentials or secrets, and never overwrites the committed
+  operator-recorded ledgers under `docs/release/evidence/alpha1/`. ADR 0066
+  records the decision. CI-generated ledgers never feed `promotion_eligible`;
+  all six operator gates remain PENDING. Version is `0.87.0-dev`.
+
 - Phase 86 Alpha.1 artifact-store drill evidence: a declared
   `ArtifactDrillEvidenceLadder` contract binds eight ordered checks to a real
   bucket snapshot/restore cycle, and `obsion record-artifact-drill-evidence`

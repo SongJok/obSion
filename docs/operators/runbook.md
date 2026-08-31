@@ -331,6 +331,11 @@ come only from the operator process environment and are redacted from every erro
    `docs/release/evidence/alpha1/artifact-store-drill.yaml`. The same
    fail-closed, credential, and promotion-neutral rules apply, and the
    staging-scoped restore remains a separate operator gate.
+7. The scheduled `drill.yml` workflow re-runs both ladders nightly and on
+   manual dispatch, uploading fresh ledgers as 14-day CI artifacts. It is a
+   detection signal, not a merge gate, and never overwrites the committed
+   ledgers — treat a red run as a restore-path regression to investigate
+   before the next release recording.
 
 
 ### Vendor Knowledge sync rejected or incomplete

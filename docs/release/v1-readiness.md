@@ -31,6 +31,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Recorded, redacted, checksummed Feishu live-tenant evidence ledgers validated offline by the candidate gate
 - [x] Recorded, redacted, checksummed backup/restore drill ledger (PostgreSQL 17 dump/restore parity) validated offline by the candidate gate
 - [x] Recorded, redacted, checksummed artifact-store drill ledger (bucket snapshot/restore parity plus database-reference consistency) validated offline by the candidate gate
+- [x] Scheduled CI drill signal running both ladders nightly (fail-closed, credential-free, never overwriting recorded ledgers)
 
 ## Operator-owned (not claimed by this repository run)
 

@@ -58,3 +58,12 @@ redacted, checksummed ledger lands at
 Both ledgers are validated offline by the release-candidate gate. The drills
 are readiness evidence only; the staging-scoped timed restore remains an
 operator-owned promotion gate.
+
+## Continuous signal
+
+`.github/workflows/drill.yml` re-runs both ladders nightly and on manual
+dispatch, uploading fresh ledgers as short-retention CI artifacts; a failed
+check turns the scheduled job red, so restore-path regressions surface within
+one schedule tick. The workflow is a detection signal, not a merge gate, and
+never overwrites the committed operator-recorded ledgers — refreshing them
+remains an explicit operator action via the `make` targets above.

@@ -1,5 +1,5 @@
 project: obsion
-version: 0.86.0-dev
+version: 0.87.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -89,8 +89,9 @@ completed_phases:
   - phase-84
   - phase-85
   - phase-86
+  - phase-87
 
-current_phase: phase-86
+current_phase: phase-87
 
 tests:
   unit: passed
@@ -113,23 +114,22 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-87
+  id: phase-88
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 86 turns the object-storage half of backup/restore from prose into
-    recorded evidence. A declared artifact drill ladder migrates a throwaway
-    PostgreSQL container, seeds knowledge and file artifacts through the real
-    REST API into a throwaway pinned MinIO container, snapshots the bucket with
-    per-object SHA-256 manifests, restores into a fresh bucket on a second
-    container, and records redacted checksummed parity plus database-reference
-    consistency evidence; an explicit object_store_backend setting (default
-    auto) lets the drill exercise the production MinIO write path without
-    changing existing environments. The candidate drillEvidence section is now
-    a ladders list binding both drill families. Recorded drill evidence never
+  notes: Phase 87 makes restore-path health a continuous CI-detectable signal. A
+    scheduled drill workflow runs both drill ladders nightly and on manual
+    dispatch on docker-capable hosted runners, writing fresh ledgers to the
+    runner temp directory and uploading them as 14-day CI artifacts; the
+    recorders' fail-closed exit codes are the signal, so a restore-path
+    regression turns red within one schedule tick. The workflow is
+    deliberately not a merge gate, carries no credentials or repository write
+    permissions, and never overwrites the committed operator-recorded
+    ledgers; ADR 0066 records the decision. CI-generated drill evidence never
     feeds promotion eligibility. Production promotion remains fail-closed
     while clean staging/UAT, staging-scoped timed restore, registry
     HIGH/CRITICAL CVE policy, signatures, live OIDC/secret-manager/read-replica
     evidence, security and data-owner approval, and maintainer publication
-    authority are PENDING. Phase 87 may consume real operator evidence; it must
+    authority are PENDING. Phase 88 may consume real operator evidence; it must
     not fabricate approval, publish with ci.txt credentials, expand production
     writes, or add a second runtime without explicit authority.
