@@ -113,5 +113,5 @@ def test_project_status_preserves_phase82_after_phase83_completion() -> None:
         (REPOSITORY_ROOT / "docs/project-status.yaml").read_text(encoding="utf-8")
     )
     assert "phase-82" in status["completed_phases"]
-    assert status["current_phase"] == "phase-83"
-    assert status["next_phase"]["id"] == "phase-84"
+    assert status["current_phase"] == "phase-84"
+    assert status["next_phase"]["id"] == "phase-85"

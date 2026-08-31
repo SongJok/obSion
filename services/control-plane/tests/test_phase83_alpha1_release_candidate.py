@@ -37,7 +37,7 @@ def test_real_alpha1_candidate_contract_maps_every_requirement_and_artifact() ->
 
     assert result == {
         "release_line": "alpha.1",
-        "version": "0.83.0-dev",
+        "version": "0.84.0-dev",
         "requirements": 37,
         "coverage_surfaces": 4,
         "expected_artifacts": 12,
@@ -45,6 +45,8 @@ def test_real_alpha1_candidate_contract_maps_every_requirement_and_artifact() ->
         "pending_operator_gates": sorted(_OPERATOR_GATES),
         "promotion_eligible": False,
         "artifact_manifest_validated": False,
+        "live_evidence_ledgers": 2,
+        "live_evidence_probes": 6,
     }
 
 
@@ -182,10 +184,10 @@ def test_phase83_release_contract_cli_ci_and_status() -> None:
     status = yaml.safe_load(
         (REPOSITORY_ROOT / "docs/project-status.yaml").read_text(encoding="utf-8")
     )
-    assert status["current_phase"] == "phase-83"
-    assert status["completed_phases"][-1] == "phase-83"
+    assert status["current_phase"] == "phase-84"
+    assert status["completed_phases"][-1] == "phase-84"
     assert status["next_phase"] == {
-        "id": "phase-84",
+        "id": "phase-85",
         "name": "alpha1-operator-promotion",
         "blocked": True,
         "notes": status["next_phase"]["notes"],

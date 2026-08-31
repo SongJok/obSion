@@ -1,0 +1,43 @@
+apiVersion: obsion.ai/v1
+kind: LiveEvidenceLedger
+metadata:
+  appFingerprint: sha256:7760510adccb
+  name: alpha1-feishu-live-ladder
+  profile: readonly
+  recordedAt: '2026-08-31T12:02:19.013249Z'
+  releaseLine: alpha.1
+  revision: 467fe95c1b705286d9debf3c0a56132d849db412
+spec:
+  checksum: sha256:6d352dce6f31304bdccb99d8d92032dd313804eb9681df5902a0d05e5fff1606
+  contract: docs/release/alpha1-live-evidence-contract.yaml
+  probes:
+  - classification: passed
+    detail: tenant token authenticated
+    id: feishu-tenant-token
+    recordedAt: '2026-08-31T12:02:10.026983Z'
+    surface: im-auth
+  - classification: denied
+    detail: FeishuDeniedError
+    id: feishu-chat-listing
+    recordedAt: '2026-08-31T12:02:10.597596Z'
+    surface: im-read
+  - classification: denied
+    detail: FeishuDocsDeniedError
+    id: feishu-docs-missing-denial
+    recordedAt: '2026-08-31T12:02:11.451303Z'
+    surface: knowledge-docs
+  - classification: denied
+    detail: FeishuDocsDeniedError
+    id: feishu-wiki-space-list
+    recordedAt: '2026-08-31T12:02:13.442740Z'
+    surface: knowledge-wiki
+  - classification: denied
+    detail: status=403 feishu_docs_upstream_denied
+    id: feishu-browse-gateway
+    recordedAt: '2026-08-31T12:02:15.748130Z'
+    surface: gateway-browse
+  - classification: skipped
+    detail: optional probe not requested
+    id: feishu-send-probe
+    recordedAt: '2026-08-31T12:02:19.013205Z'
+    surface: im-write-probe

@@ -303,6 +303,14 @@ come only from the operator process environment and are redacted from every erro
    target, never sends without the explicit chat id, and is not a Harness Run; it
    produces no Run, Event, or Evidence rows. A skipped probe is never a passed
    validation. Unset the live environment variables after the run.
+4. `make record-feishu-live-evidence` (requires `OBSION_FEISHU_LIVE=1`,
+   credentials, and an `OBSION_LIVE_PROFILE` label) runs the declared live ladder
+   and writes a redacted, checksummed ledger to
+   `docs/release/evidence/alpha1/feishu-<profile>-live.yaml`. With
+   `OBSION_FEISHU_SEND_LIVE=1` and an explicit chat id it also records the
+   single-message send probe. A post-opt-in skip, a missing probe record, or a
+   contract-disallowed outcome fails the recording; the candidate gate validates
+   the ledgers offline and they never feed `promotion_eligible`.
 
 
 ### Vendor Knowledge sync rejected or incomplete

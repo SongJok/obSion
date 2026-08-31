@@ -28,6 +28,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Continuous Phase 1-83 reports and matching architecture review documents
 - [x] Repository-wide Alpha.1 manifest, exact Alembic ancestry, and matching CycloneDX version
 - [x] Clean-source CI artifact manifest, clean-room installation, exact requirements mapping, and retained candidate report
+- [x] Recorded, redacted, checksummed Feishu live-tenant evidence ledgers validated offline by the candidate gate
 
 ## Operator-owned (not claimed by this repository run)
 

@@ -7,6 +7,23 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 84 Alpha.1 live-tenant evidence ledger: a declared
+  `LiveEvidenceLadder` contract binds six Feishu probes to the existing opt-in
+  pytest nodes, and `obsion record-live-evidence` (plus
+  `make record-feishu-live-evidence`) runs the ladder against a real tenant and
+  writes redacted, SHA-256-checksummed `LiveEvidenceLedger` files under
+  `docs/release/evidence/alpha1/`. Classification is fail-closed: post-opt-in
+  skips, missing probe records, and contract-disallowed outcomes are `failed`;
+  credential-shaped values and forbidden keys are rejected at record and
+  validation time. The candidate gate validates the new `liveEvidence` section
+  in every mode (schema, checksum, union coverage) without vendor traffic, and
+  recorded evidence never feeds `promotion_eligible`. Two real ledgers were
+  recorded at revision `467fe95`: the read-only profile shows tenant
+  authentication passed with correct scope denials, and the agent profile adds
+  chat discovery plus a single live delivery
+  (`om_x100b666298f33ca8c2b188749811eb0`) through the production `feishu-http`
+  channel. Version is `0.84.0-dev`.
+
 - Phase 83 Alpha.1 release-candidate hardening: artifact builds now require a clean
   git revision, mark diagnostic dirty builds as ineligible, remove stale Maven JARs,
   and record container SHA-256 identities. A machine-validated

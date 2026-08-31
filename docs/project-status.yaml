@@ -1,5 +1,5 @@
 project: obsion
-version: 0.83.0-dev
+version: 0.84.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -86,8 +86,9 @@ completed_phases:
   - phase-81
   - phase-82
   - phase-83
+  - phase-84
 
-current_phase: phase-83
+current_phase: phase-84
 
 tests:
   unit: passed
@@ -102,7 +103,7 @@ known_issues:
   - CLI, IDE, IM, and Desktop App Server coverage against a live WebSocket cluster is operator-owned; in-process tests use REST reconciliation plus a scripted App Server transport.
   - VS Code host packaging of `@obsion/ide-extension` against a remote cluster is operator-owned.
   - Electron packaging of `@obsion/desktop` against a signed installer remains operator-owned.
-  - Feishu, DingTalk, and WeCom outbound HTTP, inbound signatures/AES, and public TLS ingress are implemented. Generic `--deliver http` is still rejected. Phase 76 verified Feishu tenant authentication plus non-sending document/wiki denial or read behavior with real credentials; Phases 78-79 verified real no-write Feishu browsing through the REST-to-Capability-Gateway path. A permitted live document, live message delivery, public DNS/TLS, and all DingTalk/WeCom tenants remain operator-owned. Feishu, DingTalk, WeCom, and Confluence Knowledge ingest/sync and browse are implemented with shared budgets and provenance contracts. Phases 77-78 route all vendor REST source writes and reads through the no-Run Capability Gateway with Policy, grants, schema, rate, credentials, masking, telemetry, and Audit. Phase 79 adds durable principal-scoped terminal replay, mismatch/in-progress conflict, and fail-closed UNKNOWN reconciliation for no-Run L2 idempotent writes. Workbench and all three SDKs expose content-free reconciliation metadata without inventing Evidence.
+  - Feishu, DingTalk, and WeCom outbound HTTP, inbound signatures/AES, and public TLS ingress are implemented. Generic `--deliver http` is still rejected. Phase 76 verified Feishu tenant authentication plus non-sending document/wiki denial or read behavior with real credentials; Phases 78-79 verified real no-write Feishu browsing through the REST-to-Capability-Gateway path. Phase 84 records the full Feishu live ladder as redacted, checksummed, candidate-gate-validated ledgers under `docs/release/evidence/alpha1/`: tenant authentication, chat discovery, fail-closed document/wiki/browse denial on ungranted scopes, and a single-message live delivery (vendor message id om_x100b666298f33ca8c2b188749811eb0) through the production `feishu-http` channel into the Phase 81 ephemeral validation chat. A permitted live document, public DNS/TLS, and all DingTalk/WeCom tenants remain operator-owned. Feishu, DingTalk, WeCom, and Confluence Knowledge ingest/sync and browse are implemented with shared budgets and provenance contracts. Phases 77-78 route all vendor REST source writes and reads through the no-Run Capability Gateway with Policy, grants, schema, rate, credentials, masking, telemetry, and Audit. Phase 79 adds durable principal-scoped terminal replay, mismatch/in-progress conflict, and fail-closed UNKNOWN reconciliation for no-Run L2 idempotent writes. Workbench and all three SDKs expose content-free reconciliation metadata without inventing Evidence.
   - MCP, SDK, gRPC, WORKFLOW, and AGENT are in-process adapters only. Remote MCP servers, stdio spawn, third-party SDK installs, remote gRPC channels, Temporal/Airflow engines, and nested Harness agent loops are not implemented. WORKFLOW `workflow_id` dispatch reuses AutomationService with a depth-1 recursion budget.
   - The Java SDK is a REST client of the Python control plane. It does not speak App Server WebSocket and is not a second backend. The Connector SDK SPI is Python-only (`health`/`discover`/`execute`); it does not pip-install tenant modules or load remote connectors. Plugin scan is static HMAC over the declaration, not binary/GPG provenance.
   - Agent sandbox CPU/memory/disk/process fields are declared and pinned; this control plane does not apply cgroups or start a container runtime.
@@ -110,16 +111,17 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-84
+  id: phase-85
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 83 makes every clean CI revision build and validate all Alpha.1
-    artifact classes, uploads the content-addressed manifest and candidate report,
-    and maps every requirements-traceability row to shipped artifacts and test
-    evidence. Repository readiness is complete, but production promotion remains
-    fail-closed while clean staging/UAT, timed restore, registry HIGH/CRITICAL CVE
-    policy, signatures, live OIDC/secret-manager/read-replica evidence, security
-    and data-owner approval, and maintainer publication authority are PENDING.
-    Phase 84 may consume real operator evidence; it must not fabricate approval,
-    publish with ci.txt credentials, expand production writes, or add a second
-    runtime without explicit authority.
+  notes: Phase 84 turns Feishu live validation into recorded evidence. A declared
+    probe ladder runs under the existing opt-ins, writes redacted checksummed
+    ledgers, and the candidate gate validates union coverage offline without
+    vendor traffic. Recorded live-tenant evidence never feeds promotion
+    eligibility. Production promotion remains fail-closed while clean
+    staging/UAT, timed restore, registry HIGH/CRITICAL CVE policy, signatures,
+    live OIDC/secret-manager/read-replica evidence, security and data-owner
+    approval, and maintainer publication authority are PENDING. Phase 85 may
+    consume real operator evidence; it must not fabricate approval, publish
+    with ci.txt credentials, expand production writes, or add a second runtime
+    without explicit authority.

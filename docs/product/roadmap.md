@@ -194,3 +194,14 @@ exact mapping from all V1 requirements rows to shipped artifact identities and r
 test evidence. Six staging, DR, registry/signature, live infrastructure, human
 approval, and publication gates remain explicitly operator-owned; repository readiness
 cannot be mistaken for production-promotion authority.
+Phase 84 turns operator-run Feishu live validation into durable candidate evidence:
+a declared `LiveEvidenceLadder` binds six probes to the existing opt-in pytest
+nodes, `obsion record-live-evidence` records redacted, checksummed ledgers under
+`docs/release/evidence/alpha1/` with fail-closed classification (a skip is never a
+pass), and the candidate gate validates union coverage offline without vendor
+traffic. Two real ledgers were recorded at revision `467fe95`: tenant
+authentication, chat discovery, fail-closed document/wiki/browse denial on
+ungranted scopes, and one live `feishu-http` delivery into the Phase 81 ephemeral
+validation chat. Recorded live evidence never feeds `promotion_eligible`;
+DingTalk, WeCom, public TLS ingress, and permitted Feishu document content remain
+operator-owned.
