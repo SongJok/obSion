@@ -20,6 +20,7 @@ from typing import Any
 
 import yaml
 
+from obsion.release.drill import DrillError, validate_drill_evidence
 from obsion.release.live_evidence import LiveEvidenceError, validate_live_evidence
 
 _DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -77,6 +78,7 @@ def validate_release_candidate(
     operator_gates, pending_gates = _operator_gates(spec, root)
     required_steps = _unique_strings(spec, "requiredValidationSteps")
     live_evidence = _live_evidence(spec, root)
+    drill_evidence = _drill_evidence(spec, root)
 
     summary: dict[str, Any] = {
         "release_line": "alpha.1",
@@ -90,6 +92,7 @@ def validate_release_candidate(
         "artifact_manifest_validated": False,
     }
     summary.update(live_evidence)
+    summary.update(drill_evidence)
 
     if contract_only:
         if require_promotion_eligible:
@@ -283,6 +286,31 @@ def _live_evidence(spec: dict[str, Any], root: Path) -> dict[str, int]:
     return {
         "live_evidence_ledgers": result["ledgers"],
         "live_evidence_probes": result["covered"],
+    }
+
+
+def _drill_evidence(spec: dict[str, Any], root: Path) -> dict[str, int]:
+    raw = spec.get("drillEvidence")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ReleaseCandidateError("release candidate drillEvidence must be an object")
+    contract_path = _repository_file(_string(raw, "contract"), root)
+    ledger_values = _unique_strings(raw, "ledgers")
+    ledger_paths: list[Path] = []
+    for value in ledger_values:
+        if not value.startswith("docs/release/evidence/alpha1/"):
+            raise ReleaseCandidateError(
+                "drill evidence ledgers must use docs/release/evidence/alpha1/"
+            )
+        ledger_paths.append(_repository_file(value, root))
+    try:
+        result = validate_drill_evidence(contract_path, ledger_paths, root)
+    except DrillError as exc:
+        raise ReleaseCandidateError(str(exc)) from exc
+    return {
+        "drill_evidence_ledgers": result["ledgers"],
+        "drill_evidence_checks": result["checks"],
     }
 
 

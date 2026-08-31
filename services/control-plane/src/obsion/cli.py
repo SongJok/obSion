@@ -11,6 +11,7 @@ from obsion.evaluations.offline import OfflineEvaluationError, execute_offline_e
 from obsion.main import create_app
 from obsion.registry.manifests import RegistryManifestError, validate_registry_root
 from obsion.release.candidate import ReleaseCandidateError, validate_release_candidate
+from obsion.release.drill import DrillError, record_drill_evidence
 from obsion.release.hardening import (
     EvaluationGateError,
     cyclonedx_sbom,
@@ -202,6 +203,25 @@ def _record_live_evidence(args: argparse.Namespace) -> None:
         raise SystemExit("live evidence probes failed: " + ", ".join(result["failed"]))
 
 
+def _record_drill_evidence(args: argparse.Namespace) -> None:
+    root = Path(args.root).resolve()
+    contract = Path(args.contract)
+    if not contract.is_absolute():
+        contract = root / contract
+    output = Path(args.output) if args.output else None
+    if output is None:
+        output = root / "docs" / "release" / "evidence" / "alpha1" / "backup-restore-drill.yaml"
+    elif not output.is_absolute():
+        output = root / output
+    try:
+        result = record_drill_evidence(contract, output, root)
+    except DrillError as exc:
+        raise SystemExit(str(exc)) from exc
+    print(json.dumps(result, sort_keys=True))  # noqa: T201
+    if result["failed"]:
+        raise SystemExit("drill evidence checks failed: " + ", ".join(result["failed"]))
+
+
 def _validate_contracts(_: argparse.Namespace) -> None:
     summary = validate_contracts()
     print(  # noqa: T201
@@ -274,7 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-release-notes",
         help="Validate the current operator release-note contract",
     )
-    release_notes.add_argument("--manifest", default="docs/release/0.84.0-dev.yaml")
+    release_notes.add_argument("--manifest", default="docs/release/0.85.0-dev.yaml")
     release_notes.add_argument("--root", default=".")
     release_notes.set_defaults(handler=_validate_release_notes)
 
@@ -306,6 +326,18 @@ def build_parser() -> argparse.ArgumentParser:
     live_evidence.add_argument("--profile-label", required=True)
     live_evidence.add_argument("--include-send-probe", action="store_true")
     live_evidence.set_defaults(handler=_record_live_evidence)
+
+    drill_evidence = commands.add_parser(
+        "record-drill-evidence",
+        help="Run the opt-in backup/restore drill and write a redacted evidence ledger",
+    )
+    drill_evidence.add_argument(
+        "--contract",
+        default="docs/release/alpha1-drill-evidence-contract.yaml",
+    )
+    drill_evidence.add_argument("--output")
+    drill_evidence.add_argument("--root", default=".")
+    drill_evidence.set_defaults(handler=_record_drill_evidence)
 
     sbom = commands.add_parser("sbom", help="Generate a CycloneDX SBOM from uv.lock")
     sbom.add_argument("--lockfile", default="uv.lock")

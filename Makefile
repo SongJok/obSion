@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live record-feishu-live-evidence evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
+.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live record-feishu-live-evidence record-drill-evidence evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
 
 bootstrap:
 	uv sync --all-packages --all-extras
@@ -91,6 +91,11 @@ record-feishu-live-evidence:
 
 evaluate-datasets:
 	uv run obsion evaluate-datasets
+
+record-drill-evidence:
+	@case "$${OBSION_DR_DRILL:-}" in 1) ;; *) echo "OBSION_DR_DRILL=1 is required"; exit 2;; esac
+	@command -v docker >/dev/null 2>&1 || (echo "docker is required"; exit 2)
+	uv run obsion record-drill-evidence
 
 scan-secrets:
 	uv run obsion scan-secrets

@@ -1,0 +1,53 @@
+apiVersion: obsion.ai/v1
+kind: DrillEvidenceLadder
+metadata:
+  name: alpha1-backup-restore
+  releaseLine: alpha.1
+spec:
+  globalOptIn: OBSION_DR_DRILL
+  postgresImage: pgvector/pgvector:0.8.6-pg17-bookworm
+  database: obsion_drill
+  minimumRows:
+    audit_logs: 1
+    claims: 1
+    events: 1
+    evidence: 1
+    run_steps: 1
+    runs: 1
+    threads: 1
+    turns: 1
+    users: 1
+    workspaces: 1
+  checks:
+    - id: source-migrated
+      surface: Alembic upgrade head completes on the drill source database
+      allowed:
+        - passed
+    - id: dataset-seeded
+      surface: Real Harness scenario seeded through the control-plane REST API meets minimum row thresholds
+      allowed:
+        - passed
+    - id: dump-created
+      surface: pg_dump custom-format backup of the source database is non-empty and hashed
+      allowed:
+        - passed
+    - id: restore-completed
+      surface: pg_restore into a fresh, empty target database exits cleanly
+      allowed:
+        - passed
+    - id: schema-version-parity
+      surface: Restored alembic_version matches the migrated source head
+      allowed:
+        - passed
+    - id: row-count-parity
+      surface: Every public table row count is identical between source and restored target
+      allowed:
+        - passed
+    - id: referential-integrity
+      surface: Restored target contains no orphaned steps, events, turns, or threads
+      allowed:
+        - passed
+    - id: audit-preserved
+      surface: Ordered audit log identities are non-empty and identical after restore
+      allowed:
+        - passed
