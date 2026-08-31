@@ -1,0 +1,73 @@
+apiVersion: obsion.ai/v1
+kind: ArtifactDrillEvidenceLedger
+metadata:
+  name: alpha1-artifact-store
+  recordedAt: '2026-08-31T16:43:05.146965Z'
+  releaseLine: alpha.1
+  revision: 66e68019e70acba17e4598b6c545de5fcad1d17c
+spec:
+  alembicHead: b88f1c4d5e60
+  bucket: obsion-artifacts-drill
+  checks:
+  - classification: passed
+    detail: alembic head b88f1c4d5e60
+    id: source-migrated
+    recordedAt: '2026-08-31T16:43:00.685958Z'
+    surface: Throwaway PostgreSQL container migrated to the current Alembic head
+  - classification: passed
+    detail: 2 objects with 2 database references
+    id: objects-seeded
+    recordedAt: '2026-08-31T16:43:02.072485Z'
+    surface: Real REST scenario writes knowledge and file artifacts into the source
+      bucket
+  - classification: passed
+    detail: 2 objects, 123 bytes
+    id: snapshot-created
+    recordedAt: '2026-08-31T16:43:02.086328Z'
+    surface: Full-bucket snapshot captured with per-object SHA-256 and metadata manifest
+  - classification: passed
+    detail: 2 objects restored
+    id: restore-completed
+    recordedAt: '2026-08-31T16:43:03.707401Z'
+    surface: Snapshot restored into a fresh bucket on a second throwaway MinIO container
+  - classification: passed
+    detail: 2 keys in parity
+    id: object-count-parity
+    recordedAt: '2026-08-31T16:43:03.709172Z'
+    surface: Restored bucket key set is identical to the snapshot manifest
+  - classification: passed
+    detail: 2 checksums identical
+    id: content-checksum-parity
+    recordedAt: '2026-08-31T16:43:03.712389Z'
+    surface: Every restored object matches its snapshot SHA-256
+  - classification: passed
+    detail: 2 metadata sets identical
+    id: metadata-parity
+    recordedAt: '2026-08-31T16:43:03.714236Z'
+    surface: Every restored object preserves content type and user metadata
+  - classification: passed
+    detail: 2 database references consistent
+    id: database-consistency
+    recordedAt: '2026-08-31T16:43:03.921091Z'
+    surface: Every database-referenced storage key exists in the restored bucket with
+      matching SHA-256
+  checksum: sha256:c3b99272b250132dd0190f3da4b223febe97974f2551ed5eddde9b1634e0fbbe
+  contract: docs/release/alpha1-artifact-drill-evidence-contract.yaml
+  database: obsion_drill
+  databaseReferences:
+    artifacts: 1
+    documentVersions: 1
+  minioImage: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+  postgresImage: pgvector/pgvector:0.8.6-pg17-bookworm
+  snapshot:
+    manifestSha256: 2449c58805a7cd36666c0a6cb08e91827e3288313c8cdc945e904a705acd29d6
+    objectCount: 2
+    objectKeysSha256: 40c552ea080145c1990575285dfb2d74e5b53f6431e5c60f26396177b52e50ba
+    totalBytes: 123
+  timings:
+    migrateSeconds: 1.712
+    restoreSeconds: 0.013
+    seedSeconds: 1.201
+    snapshotSeconds: 0.014
+    totalSeconds: 9.608
+    verifySeconds: 0.214
