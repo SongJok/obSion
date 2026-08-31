@@ -4,9 +4,119 @@ export type ViewName =
   | "automation"
   | "actions"
   | "artifacts"
+  | "files"
+  | "reports"
+  | "dashboards"
+  | "sql"
+  | "evidence"
+  | "timeline"
   | "knowledge"
+  | "code"
   | "data"
+  | "studio"
+  | "eval"
   | "admin";
+
+export interface StudioVersion {
+  kind: "Agent" | "Skill";
+  name: string;
+  display_name: string;
+  description: string;
+  definition_id: string;
+  version_id: string;
+  version: number;
+  status: string;
+  checksum_sha256: string;
+  promoted: boolean;
+  promoted_at: string | null;
+  spec: Record<string, unknown>;
+}
+
+export interface StudioCompare {
+  kind: string;
+  name: string;
+  baseline: { version: number; checksum_sha256: string; promoted: boolean };
+  candidate: { version: number; checksum_sha256: string; promoted: boolean };
+  identical: boolean;
+  changes: Array<{ path: string; baseline: unknown; candidate: unknown }>;
+  traffic_split: boolean;
+  evaluation: string;
+}
+
+export interface StudioCatalog {
+  agents: StudioVersion[];
+  skills: StudioVersion[];
+}
+
+export interface StudioValidateResult {
+  kind: string;
+  name: string;
+  checksum_sha256: string;
+  preview: Record<string, unknown>;
+}
+
+export interface EvalDataset {
+  id: string;
+  name: string;
+  description: string;
+  domain: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvalAgentPin {
+  name: string;
+  version: number;
+  version_id: string;
+  checksum_sha256: string;
+}
+
+export interface EvalProfilePin {
+  id: string;
+  name: string;
+}
+
+export interface EvalRun {
+  id: string;
+  dataset_id: string;
+  application_revision: string;
+  status: string;
+  gate_passed: boolean | null;
+  metrics: Record<string, unknown>;
+  snapshot_sha256: string;
+}
+
+export interface EvalCase {
+  id: string;
+  dataset_id: string;
+  external_id: string;
+  version: number;
+  evaluator: string;
+}
+
+export interface EvalResult {
+  id: string;
+  external_id: string;
+  evaluator: string;
+  status: string;
+}
+
+export interface EvalCatalog {
+  datasets: EvalDataset[];
+  runs: EvalRun[];
+  agents: EvalAgentPin[];
+  prompts: EvalAgentPin[];
+  model_profiles: EvalProfilePin[];
+}
+
+export interface EvalCompare {
+  baseline: EvalRun;
+  candidate: EvalRun;
+  gate_passed: boolean;
+  metrics: Record<string, unknown>;
+  agent_changed: boolean;
+  prompt_changed: boolean;
+}
 
 export interface SessionPrincipal {
   principal_id: string;
@@ -14,6 +124,18 @@ export interface SessionPrincipal {
   display_name: string;
   department: string | null;
   roles: string[];
+}
+
+export interface ImBinding {
+  id: string;
+  channel: string;
+  sender_id: string;
+  user_id: string;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  revoked_at: string | null;
 }
 
 export interface Workspace {
@@ -71,8 +193,48 @@ export interface Run {
   status: RunStatus;
   agent_version_id: string | null;
   model_profile_id: string | null;
+  prompt_pins?: Array<{
+    name: string;
+    version: number;
+    version_id: string;
+    checksum_sha256: string;
+  }>;
+  context_budget?: {
+    budget?: number;
+    used?: number;
+    method?: string;
+    decisions?: Array<{
+      source: string;
+      trust: string;
+      action: "KEEP" | "COMPRESS" | "SUMMARIZE" | "DROP";
+      original_chars: number;
+      kept_chars: number;
+      reason: string;
+    }>;
+  };
+  conversation_compact?: {
+    method?: string;
+    keep_recent?: number;
+    kept_turns?: number;
+    summarized_turns?: number;
+    source_turn_ids?: string[];
+    summary?: Record<string, unknown> | null;
+  };
+  workspace_context?: {
+    workspace_id?: string;
+    name?: string;
+    classification?: string;
+    visibility?: string;
+    description?: string;
+    description_fingerprint?: string;
+  };
   intent: Record<string, unknown>;
-  plan: { route?: string; required_evidence?: string[]; steps?: PlanStep[] };
+  plan: {
+    route?: string;
+    required_evidence?: string[];
+    steps?: PlanStep[];
+    sandbox?: { network?: string; enabled?: boolean; mounts?: string[] };
+  };
   step_count: number;
   max_input_tokens: number;
   max_output_tokens: number;
@@ -135,6 +297,9 @@ export interface Artifact {
   storage_key: string | null;
   classification: string;
   lineage: Record<string, unknown>;
+  path?: string | null;
+  file_version?: number | null;
+  superseded_at?: string | null;
   created_at: string;
 }
 
@@ -147,6 +312,7 @@ export interface ArtifactContent {
   row_count?: number;
   data?: { values?: Record<string, unknown>[] };
   encoding?: Record<string, { field?: string; type?: string }>;
+  validation?: { valid?: boolean };
   [key: string]: unknown;
 }
 
@@ -160,6 +326,7 @@ export interface Verification {
 
 export interface Evidence {
   id: string;
+  run_id?: string;
   evidence_type: string;
   source: string;
   resource: string;
@@ -222,6 +389,37 @@ export interface FeedbackSummary {
   helpful: number;
   needs_improvement: number;
   helpful_rate: number | null;
+}
+
+export interface RuntimeSlo {
+  source: "postgresql";
+  runs: {
+    terminal: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+    success_rate: number | null;
+  };
+  latency: {
+    average_ms: number | null;
+    count: number;
+    ttft: { available: boolean; metric: string; reason: string };
+    model: { average_ms: number | null; count: number };
+    tool: { average_ms: number | null; count: number; source: "capability-steps" };
+  };
+  steps: { average: number | null; count: number };
+  tokens: { input: number; output: number };
+  cost: { amount: string };
+  replans: { events: number; rate: number | null };
+  approvals: {
+    requested: number;
+    approved: number;
+    rejected: number;
+    pending: number;
+    approval_rate: number | null;
+  };
+  satisfaction: FeedbackSummary;
+  evidence_coverage: { average: number | null; count: number };
 }
 
 export type WorkspaceTaskStatus =
@@ -296,6 +494,32 @@ export interface MessageBundle {
   run?: Run;
   artifact?: Artifact;
   artifacts?: Artifact[];
+}
+
+export interface CodeRepository {
+  id: string;
+  name: string;
+  default_branch: string;
+  classification: string;
+  current_snapshot_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CodeSymbolHit {
+  repository_id: string;
+  repository: string;
+  commit_id: string;
+  snapshot_id: string;
+  symbol_id: string;
+  path: string;
+  language: string;
+  kind: string;
+  name: string;
+  qualified_name: string;
+  start_line: number;
+  end_line: number;
+  relations: Array<Record<string, unknown>>;
 }
 
 export interface Metric {
@@ -396,7 +620,7 @@ export interface AutomationExecution {
   workflow_id: string;
   workflow_version_id: string;
   schedule_id: string | null;
-  trigger: "MANUAL" | "SCHEDULE";
+  trigger: "MANUAL" | "SCHEDULE" | "CAPABILITY";
   scheduled_for: string | null;
   status: AutomationStatus;
   owner_id: string;

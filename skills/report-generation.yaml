@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: report-generation
+spec:
+  instructions:
+    - assemble a report only from Evidence collected by the current Run
+    - every factual paragraph must cite Evidence IDs already on the Run
+    - label missing types as unknown instead of interpolating from memory or conversation
+    - keep DATA, DOCUMENT, CODE, and operational Evidence in separate cited sections
+    - never query a new production system solely to fill a report template
+    - never include credentials, raw PII, or unredacted payloads
+  capabilities: [knowledge.search, metric.describe, data.query]
+  requiredEvidence: [DOCUMENT]
+  optionalEvidence: [DATA, METRIC, CODE]
+  verification: [citation coverage, unknown-safe, no extra production access]

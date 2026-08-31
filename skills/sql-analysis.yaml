@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: sql-analysis
+spec:
+  instructions:
+    - resolve only governed metrics, tables, and dimensions
+    - compile a bounded read-only logical plan before any SQL is considered
+    - validate the AST against the SQL policy; reject writes, DDL, and unbounded scans
+    - explain the query with cited metric definitions, never raw warehouse credentials
+    - if the metric or table is unauthorized or unresolved, say unknown and do not guess
+    - never inspect logs, traces, tickets, or production hosts to answer a SQL question
+  capabilities: [metric.describe, schema.search, sql.validate, sql.explain, data.query]
+  requiredEvidence: [DATA]
+  optionalEvidence: [SQL]
+  verification: [metric definition, sql validated, query bounded, result cited]

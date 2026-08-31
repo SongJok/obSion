@@ -1,0 +1,26 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: root-cause-analysis
+spec:
+  instructions:
+    - establish a metric baseline before ranking any cause
+    - require at least two distinct Evidence types for every causal candidate
+    - correlate deployments, commits, configuration, logs, and traces in one window
+    - keep unresolved conflicts attached; never collapse them into a single conclusion
+    - produce at most three ranked candidates, never an automatic repair
+    - never restart, reconfigure, deploy, or write to production
+  capabilities:
+    - metric.query
+    - metric.compare
+    - metric.anomaly
+    - metric.dimension
+    - log.aggregate
+    - trace.search
+    - deployment.list
+    - git.diff
+    - config.diff
+    - k8s.status
+  requiredEvidence: [METRIC, DEPLOYMENT, LOG]
+  optionalEvidence: [TRACE, CODE, GIT, CONFIG]
+  verification: [temporal consistency, cross-type evidence, conflicting causes, evidence coverage]

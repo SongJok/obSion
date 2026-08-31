@@ -60,6 +60,76 @@
         "minimum_answer_faithfulness": 1.0
       },
       "fixtures": {}
+    },
+    {
+      "external_id": "engineering-order-create-001",
+      "version": 1,
+      "evaluator": "RUN_OUTPUT",
+      "input_payload": {"run_ref": "engineering-order-create"},
+      "expected": {
+        "run_status": "COMPLETED",
+        "route": "ENGINEERING",
+        "capabilities": ["code.symbol"],
+        "evidence_types": ["CODE"],
+        "answer_contains": ["order"],
+        "minimum_evidence_coverage": 1.0,
+        "minimum_citation_precision": 1.0,
+        "minimum_answer_faithfulness": 1.0
+      },
+      "fixtures": {}
+    },
+    {
+      "external_id": "support-refund-ticket-001",
+      "version": 1,
+      "evaluator": "RUN_OUTPUT",
+      "input_payload": {"run_ref": "support-refund-ticket"},
+      "expected": {
+        "run_status": "COMPLETED",
+        "route": "SUPPORT",
+        "intent": "SUPPORT",
+        "capabilities": ["ticket.search", "knowledge.search"],
+        "evidence_types": ["DOCUMENT"],
+        "answer_contains": ["退款"],
+        "minimum_evidence_coverage": 1.0,
+        "minimum_citation_precision": 1.0,
+        "minimum_answer_faithfulness": 1.0
+      },
+      "fixtures": {}
+    },
+    {
+      "external_id": "operation-checkout-status-001",
+      "version": 1,
+      "evaluator": "RUN_OUTPUT",
+      "input_payload": {"run_ref": "operation-checkout-status"},
+      "expected": {
+        "run_status": "COMPLETED",
+        "route": "OPERATION",
+        "intent": "OPERATION",
+        "capabilities": ["k8s.status"],
+        "answer_contains": ["checkout"],
+        "minimum_evidence_coverage": 1.0,
+        "minimum_citation_precision": 1.0,
+        "minimum_answer_faithfulness": 1.0
+      },
+      "fixtures": {}
+    },
+    {
+      "external_id": "analytics-funnel-001",
+      "version": 1,
+      "evaluator": "RUN_OUTPUT",
+      "input_payload": {"run_ref": "analytics-funnel"},
+      "expected": {
+        "run_status": "COMPLETED",
+        "route": "ANALYTICS",
+        "intent": "ANALYTICS_QUERY",
+        "capabilities": ["data.query"],
+        "evidence_types": ["DATA"],
+        "answer_contains": ["漏斗"],
+        "minimum_evidence_coverage": 1.0,
+        "minimum_citation_precision": 1.0,
+        "minimum_answer_faithfulness": 1.0
+      },
+      "fixtures": {}
     }
   ]
 }

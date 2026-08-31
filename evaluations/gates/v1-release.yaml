@@ -1,0 +1,24 @@
+apiVersion: obsion.dev/v1
+kind: EvaluationGate
+metadata:
+  name: v1-release
+spec:
+  minimumPassRate: 1.0
+  maximumErrorRate: 0.0
+  maximumRegressionRate: 0.0
+  scoreFloors:
+    evidence_coverage: 1.0
+    citation_precision: 1.0
+    answer_faithfulness: 1.0
+  requiredEvaluators:
+    - ROUTING
+    - SQL_POLICY
+    - RUN_OUTPUT
+  requiredRoutes:
+    - KNOWLEDGE
+    - DATA
+    - ENGINEERING
+    - INCIDENT
+    - SUPPORT
+    - OPERATION
+    - ANALYTICS

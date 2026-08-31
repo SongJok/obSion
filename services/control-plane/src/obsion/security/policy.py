@@ -2,6 +2,7 @@ import fnmatch
 import hashlib
 import json
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -14,7 +15,7 @@ from obsion.db.models import CapabilityVersion, Policy, PolicyDecision
 from obsion.domain.enums import DecisionEffect, RiskLevel, SideEffect
 from obsion.security.identity import Principal
 from obsion.security.redaction import redact
-from obsion.telemetry import policy_counter, tracer
+from obsion.telemetry import policy_counter, policy_duration, tracer
 
 _EFFECT_STRENGTH = {
     DecisionEffect.ALLOW: 0,
@@ -58,6 +59,7 @@ class ResourcePolicyInput:
     context: dict[str, Any]
     risk_level: RiskLevel
     resource_type: str
+    capability_version_id: UUID | None = None
     agent_name: str = "control-plane"
     agent_version_id: UUID | None = None
     run_id: UUID | None = None
@@ -199,21 +201,22 @@ def _policy_matches(
     return _matches_mapping(context, context_conditions)
 
 
+def _record_policy_decision(
+    *, action: str, effect: DecisionEffect, risk: RiskLevel, started: float
+) -> None:
+    attributes = {"action": action, "effect": effect.value, "risk": risk.value}
+    policy_counter.add(1, attributes)
+    policy_duration.record((perf_counter() - started) * 1000, attributes)
+
+
 class PolicyEngine:
     async def evaluate(self, session: AsyncSession, request: PolicyInput) -> Decision:
+        started = perf_counter()
         with tracer.start_as_current_span("obsion.policy.evaluate") as span:
             effect, obligations, reasons, policy_ids = await self._resolve(session, request)
             span.set_attribute("obsion.policy.action", request.action)
             span.set_attribute("obsion.policy.effect", effect.value)
             span.set_attribute("obsion.policy.risk", request.capability.risk_level.value)
-            policy_counter.add(
-                1,
-                {
-                    "action": request.action,
-                    "effect": effect.value,
-                    "risk": request.capability.risk_level.value,
-                },
-            )
         safe_input = {
             **_principal_fingerprint(request.principal),
             "agent": request.agent_name,
@@ -250,6 +253,12 @@ class PolicyEngine:
         )
         session.add(model)
         await session.flush()
+        _record_policy_decision(
+            action=request.action,
+            effect=effect,
+            risk=request.capability.risk_level,
+            started=started,
+        )
         return Decision(
             id=model.id,
             effect=effect,
@@ -270,6 +279,7 @@ class PolicyEngine:
         resource mutations remain denied by default unless a dedicated workflow
         supplies a narrower policy surface.
         """
+        started = perf_counter()
         policies = list(
             await session.scalars(
                 select(Policy)
@@ -335,6 +345,9 @@ class PolicyEngine:
             "agent": request.agent_name,
             "agent_version_id": str(request.agent_version_id) if request.agent_version_id else None,
             "resource_type": request.resource_type,
+            "capability_version_id": (
+                str(request.capability_version_id) if request.capability_version_id else None
+            ),
             "action": request.action,
             "resource": redact(request.resource),
             "context": redact(request.context),
@@ -351,7 +364,7 @@ class PolicyEngine:
             run_id=request.run_id,
             principal_id=request.principal.id,
             agent_version_id=None,
-            capability_version_id=None,
+            capability_version_id=request.capability_version_id,
             action=request.action,
             resource=redact(request.resource),
             context=redact(request.context),
@@ -365,13 +378,11 @@ class PolicyEngine:
         )
         session.add(model)
         await session.flush()
-        policy_counter.add(
-            1,
-            {
-                "action": request.action,
-                "effect": effect.value,
-                "risk": request.risk_level.value,
-            },
+        _record_policy_decision(
+            action=request.action,
+            effect=effect,
+            risk=request.risk_level,
+            started=started,
         )
         return Decision(
             id=model.id,
@@ -387,6 +398,7 @@ class PolicyEngine:
         This entry point is called only by ActionGateway. Generic capability
         invocation continues to use ``evaluate`` and remains read-only.
         """
+        started = perf_counter()
         policy_input = PolicyInput(
             principal=request.principal,
             capability=request.capability,
@@ -484,13 +496,11 @@ class PolicyEngine:
         )
         session.add(model)
         await session.flush()
-        policy_counter.add(
-            1,
-            {
-                "action": request.action,
-                "effect": effect.value,
-                "risk": request.capability.risk_level.value,
-            },
+        _record_policy_decision(
+            action=request.action,
+            effect=effect,
+            risk=request.capability.risk_level,
+            started=started,
         )
         return Decision(
             id=model.id,

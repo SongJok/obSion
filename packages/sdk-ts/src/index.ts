@@ -26,6 +26,41 @@ export interface Run {
   status: RunStatus;
   agent_version_id: string | null;
   model_profile_id: string | null;
+  prompt_pins?: Array<{
+    name: string;
+    version: number;
+    version_id: string;
+    checksum_sha256: string;
+  }>;
+  context_budget?: {
+    budget?: number;
+    used?: number;
+    method?: string;
+    decisions?: Array<{
+      source: string;
+      trust: string;
+      action: "KEEP" | "COMPRESS" | "SUMMARIZE" | "DROP";
+      original_chars: number;
+      kept_chars: number;
+      reason: string;
+    }>;
+  };
+  conversation_compact?: {
+    method?: string;
+    keep_recent?: number;
+    kept_turns?: number;
+    summarized_turns?: number;
+    source_turn_ids?: string[];
+    summary?: Record<string, unknown> | null;
+  };
+  workspace_context?: {
+    workspace_id?: string;
+    name?: string;
+    classification?: string;
+    visibility?: string;
+    description?: string;
+    description_fingerprint?: string;
+  };
   intent: Record<string, unknown>;
   plan: Record<string, unknown>;
   max_steps: number;
@@ -92,6 +127,9 @@ export interface Artifact {
   storage_key: string | null;
   classification: string;
   lineage: Record<string, unknown>;
+  path?: string | null;
+  file_version?: number | null;
+  superseded_at?: string | null;
   created_at: string;
 }
 
@@ -120,6 +158,45 @@ export interface KnowledgeHit {
   content: string;
   score: number;
   classification: string;
+}
+
+export interface CodeRepository {
+  id: string;
+  name: string;
+  default_branch: string;
+  classification: string;
+  current_snapshot_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CodeSnapshot {
+  id: string;
+  repository_id: string;
+  ordinal: number;
+  commit_id: string;
+  parser_version: string;
+  file_count: number;
+  symbol_count: number;
+  content_checksum_sha256: string;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CodeSymbolHit {
+  repository_id: string;
+  repository: string;
+  commit_id: string;
+  snapshot_id: string;
+  symbol_id: string;
+  path: string;
+  language: string;
+  kind: string;
+  name: string;
+  qualified_name: string;
+  start_line: number;
+  end_line: number;
+  relations: Array<Record<string, unknown>>;
 }
 
 export interface Metric {
@@ -348,6 +425,114 @@ export class ObsionAppServerClient {
     return this.request("run.unsubscribe", { subscription_id: subscriptionId });
   }
 
+  listWorkspaces(includeArchived = false): Promise<Workspace[]> {
+    return this.request("workspace.list", { include_archived: includeArchived });
+  }
+
+  listThreads(workspaceId: string, includeArchived = false): Promise<Thread[]> {
+    return this.request("thread.list", {
+      workspace_id: workspaceId,
+      include_archived: includeArchived,
+    });
+  }
+
+  archiveThread(threadId: string, clientRequestId: string): Promise<Thread> {
+    return this.request("thread.archive", {
+      client_request_id: clientRequestId,
+      thread_id: threadId,
+    });
+  }
+
+  resumeThread(threadId: string, clientRequestId: string): Promise<Thread> {
+    return this.request("thread.resume", {
+      client_request_id: clientRequestId,
+      thread_id: threadId,
+    });
+  }
+
+  forkThread(
+    threadId: string,
+    clientRequestId: string,
+    input: { title?: string; from_turn_id?: string } = {},
+  ): Promise<Thread> {
+    return this.request("thread.fork", {
+      client_request_id: clientRequestId,
+      thread_id: threadId,
+      ...input,
+    });
+  }
+
+  listTurns(threadId: string): Promise<Turn[]> {
+    return this.request("thread.turns", { thread_id: threadId });
+  }
+
+  listThreadRuns(threadId: string): Promise<Run[]> {
+    return this.request("thread.runs", { thread_id: threadId });
+  }
+
+  listThreadEvents(
+    threadId: string,
+    afterSequence = 0,
+    limit = 200,
+  ): Promise<RunEvent[]> {
+    return this.request("thread.events", {
+      thread_id: threadId,
+      after_sequence: afterSequence,
+      limit,
+    });
+  }
+
+  getRun(runId: string): Promise<Run> {
+    return this.request("run.get", { run_id: runId });
+  }
+
+  cancelRun(runId: string, clientRequestId: string): Promise<Run> {
+    return this.request("run.cancel", {
+      client_request_id: clientRequestId,
+      run_id: runId,
+    });
+  }
+
+  replayRun(runId: string, clientRequestId: string): Promise<Run> {
+    return this.request("run.replay", {
+      client_request_id: clientRequestId,
+      run_id: runId,
+    });
+  }
+
+  listRunEvents(runId: string, afterSequence = 0, limit = 500): Promise<RunEvent[]> {
+    return this.request("run.events", {
+      run_id: runId,
+      after_sequence: afterSequence,
+      limit,
+    });
+  }
+
+  listApprovals(status?: string): Promise<Array<Record<string, unknown>>> {
+    return this.request("approval.list", status ? { status } : {});
+  }
+
+  decideApproval(
+    approvalId: string,
+    clientRequestId: string,
+    input: { approve: boolean; reason: string },
+  ): Promise<Record<string, unknown>> {
+    return this.request("approval.decide", {
+      client_request_id: clientRequestId,
+      approval_id: approvalId,
+      decision: input.approve ? "approve" : "reject",
+      reason: input.reason,
+    });
+  }
+
+  listArtifacts(workspaceId: string): Promise<Artifact[]> {
+    return this.request("artifact.list", { workspace_id: workspaceId });
+  }
+
+  getArtifact(artifactId: string): Promise<Artifact> {
+    return this.request("artifact.get", { artifact_id: artifactId });
+  }
+
   close(code = 1000, reason = "client closing"): void {
     const socket = this.socket;
     this.socket = null;
@@ -399,10 +584,23 @@ export class ObsionAppServerClient {
   }
 }
 
+export function newClientRequestId(prefix = "sdk"): string {
+  return `${prefix}-${crypto.randomUUID()}`;
+}
+
 export function appServerUrlFromApiUrl(apiUrl: string): string {
   const url = new URL(apiUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  url.pathname = `${url.pathname.replace(/\/$/, "")}/app-server`;
+  const trimmed = url.pathname.replace(/\/$/, "");
+  if (trimmed.endsWith("/app-server")) {
+    url.pathname = trimmed;
+  } else if (trimmed.endsWith("/api/v1")) {
+    url.pathname = `${trimmed}/app-server`;
+  } else if (trimmed === "") {
+    url.pathname = "/api/v1/app-server";
+  } else {
+    url.pathname = `${trimmed}/api/v1/app-server`;
+  }
   url.search = "";
   url.hash = "";
   return url.toString();
@@ -527,7 +725,7 @@ export interface AutomationExecution {
   workflow_id: string;
   workflow_version_id: string;
   schedule_id: string | null;
-  trigger: "MANUAL" | "SCHEDULE";
+  trigger: "MANUAL" | "SCHEDULE" | "CAPABILITY";
   scheduled_for: string | null;
   idempotency_key: string;
   status: AutomationStatus;
@@ -705,7 +903,7 @@ export interface Memory {
   content: Record<string, unknown>;
   dedupe_key: string;
   sensitivity: string;
-  status: "CANDIDATE" | "APPROVED" | "REJECTED" | "EXPIRED";
+  status: "CANDIDATE" | "APPROVED" | "REJECTED" | "EXPIRED" | "REVOKED";
   policy_decision_id: string | null;
   expires_at: string | null;
   created_at: string;
@@ -762,6 +960,37 @@ export interface FeedbackSummary {
   helpful: number;
   needs_improvement: number;
   helpful_rate: number | null;
+}
+
+export interface RuntimeSlo {
+  source: "postgresql";
+  runs: {
+    terminal: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+    success_rate: number | null;
+  };
+  latency: {
+    average_ms: number | null;
+    count: number;
+    ttft: { available: boolean; metric: string; reason: string };
+    model: { average_ms: number | null; count: number };
+    tool: { average_ms: number | null; count: number; source: "capability-steps" };
+  };
+  steps: { average: number | null; count: number };
+  tokens: { input: number; output: number };
+  cost: { amount: string };
+  replans: { events: number; rate: number | null };
+  approvals: {
+    requested: number;
+    approved: number;
+    rejected: number;
+    pending: number;
+    approval_rate: number | null;
+  };
+  satisfaction: FeedbackSummary;
+  evidence_coverage: { average: number | null; count: number };
 }
 
 export type WorkspaceTaskStatus =
@@ -948,8 +1177,259 @@ export class ObsionClient {
     return this.request("/api/v1/admin/feedback/summary");
   }
 
+  getRuntimeSlo(): Promise<RuntimeSlo> {
+    return this.request("/api/v1/admin/slo");
+  }
+
   listEvents(runId: string, after = 0): Promise<RunEvent[]> {
     return this.request(`/api/v1/runs/${runId}/events?after=${after}`);
+  }
+
+  listApprovals(status?: string): Promise<Array<Record<string, unknown>>> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    return this.request(`/api/v1/approvals${query}`);
+  }
+
+  decideApproval(
+    approvalId: string,
+    input: { approve: boolean; reason: string },
+  ): Promise<Record<string, unknown>> {
+    const decision = input.approve ? "approve" : "reject";
+    return this.request(`/api/v1/approvals/${approvalId}/${decision}`, {
+      method: "POST",
+      body: JSON.stringify({ reason: input.reason }),
+    });
+  }
+
+  listImBindings(): Promise<Array<Record<string, unknown>>> {
+    return this.request("/api/v1/admin/im-bindings");
+  }
+
+  createImBinding(input: {
+    channel: string;
+    sender_id: string;
+    user_id: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/im-bindings", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  revokeImBinding(bindingId: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/admin/im-bindings/${bindingId}/revoke`, { method: "POST" });
+  }
+
+  createImMessage(input: {
+    channel: string;
+    sender_id: string;
+    conversation_id: string;
+    text: string;
+    sender_display?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/experience/im/messages", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  prepareImDelivery(runId: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/experience/im/runs/${runId}/deliveries`, { method: "POST" });
+  }
+
+  completeImDelivery(
+    deliveryId: string,
+    input: { vendor_message_id: string },
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/experience/im/deliveries/${deliveryId}/complete`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  failImDelivery(
+    deliveryId: string,
+    input: { failure_code?: string } = {},
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/experience/im/deliveries/${deliveryId}/fail`, {
+      method: "POST",
+      body: JSON.stringify({
+        failure_code: input.failure_code ?? "vendor_request_failed",
+      }),
+    });
+  }
+
+  listStudioCatalog(): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/studio/catalog");
+  }
+
+  validateStudioDocument(document: string): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/studio/validate", {
+      method: "POST",
+      body: JSON.stringify({ document }),
+    });
+  }
+
+  publishStudioAgent(document: string): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/studio/agents", {
+      method: "POST",
+      body: JSON.stringify({ document }),
+    });
+  }
+
+  publishStudioSkill(document: string): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/studio/skills", {
+      method: "POST",
+      body: JSON.stringify({ document }),
+    });
+  }
+
+  promoteStudioVersion(input: {
+    kind: string;
+    name: string;
+    version: number;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/studio/promote", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  rollbackStudioVersion(input: {
+    kind: string;
+    name: string;
+    version: number;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/studio/rollback", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  compareStudioVersions(input: {
+    kind: string;
+    name: string;
+    baseline_version: number;
+    candidate_version: number;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/studio/compare", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listConnectors(): Promise<Record<string, unknown>[]> {
+    return this.request("/api/v1/admin/connectors");
+  }
+
+  createConnector(definition: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/admin/connectors", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  }
+
+  listAdminCapabilities(): Promise<Record<string, unknown>[]> {
+    return this.request("/api/v1/admin/capabilities");
+  }
+
+  listOperatorInvocations(options: {
+    status?: "IN_PROGRESS" | "COMPLETED" | "FAILED" | "UNKNOWN";
+    limit?: number;
+  } = {}): Promise<Record<string, unknown>[]> {
+    const params = new URLSearchParams();
+    params.set("limit", String(options.limit ?? 100));
+    if (options.status) params.set("status", options.status);
+    return this.request(`/api/v1/admin/operator-invocations?${params.toString()}`);
+  }
+
+  bindCapability(
+    capabilityId: string,
+    input: {
+      connector_id: string;
+      environment: string;
+      resource_selector?: Record<string, unknown>;
+    },
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/admin/capabilities/${capabilityId}/bindings`, {
+      method: "POST",
+      body: JSON.stringify({
+        resource_selector: {},
+        ...input,
+      }),
+    });
+  }
+
+  probeConnectorHealth(connectorId: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/admin/connectors/${connectorId}/health`, {
+      method: "POST",
+    });
+  }
+
+  discoverConnector(connectorId: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/admin/connectors/${connectorId}/discover`, {
+      method: "POST",
+    });
+  }
+
+  scanConnectorPlugin(connectorId: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/admin/connectors/${connectorId}/scan`, {
+      method: "POST",
+    });
+  }
+
+  promoteConnectorPlugin(connectorId: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/admin/connectors/${connectorId}/promote`, {
+      method: "POST",
+    });
+  }
+
+  listEvalCatalog(): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/eval/catalog");
+  }
+
+  createEvalDataset(input: {
+    name: string;
+    domain: string;
+    description?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/eval/datasets", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  addEvalCase(
+    datasetId: string,
+    input: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/eval/datasets/${datasetId}/cases`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  startEvalRun(
+    datasetId: string,
+    input: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/eval/datasets/${datasetId}/runs`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  compareEvalRuns(input: {
+    baselineRunId: string;
+    candidateRunId: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/eval/compare", {
+      method: "POST",
+      body: JSON.stringify({
+        baseline_run_id: input.baselineRunId,
+        candidate_run_id: input.candidateRunId,
+      }),
+    });
   }
 
   listRunSteps(runId: string): Promise<Array<Record<string, unknown>>> {
@@ -958,6 +1438,10 @@ export class ObsionClient {
 
   listRunEvidence(runId: string): Promise<Array<Record<string, unknown>>> {
     return this.request(`/api/v1/runs/${runId}/evidence`);
+  }
+
+  listWorkspaceEvidence(workspaceId: string): Promise<Array<Record<string, unknown>>> {
+    return this.request(`/api/v1/workspaces/${workspaceId}/evidence`);
   }
 
   listRunClaims(runId: string): Promise<Array<Record<string, unknown>>> {
@@ -1000,6 +1484,28 @@ export class ObsionClient {
     if (options.status) query.set("status", options.status);
     const suffix = query.size ? `?${query.toString()}` : "";
     return this.request(`/api/v1/memories${suffix}`);
+  }
+
+  getMemory(memoryId: string): Promise<Memory> {
+    return this.request(`/api/v1/memories/${memoryId}`);
+  }
+
+  updateMemory(
+    memoryId: string,
+    input: {
+      content: Record<string, unknown>;
+      sensitivity?: string;
+      expires_at?: string;
+    },
+  ): Promise<Memory> {
+    return this.request(`/api/v1/memories/${memoryId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  revokeMemory(memoryId: string): Promise<Memory> {
+    return this.request(`/api/v1/memories/${memoryId}`, { method: "DELETE" });
   }
 
   decideMemory(memoryId: string, approve: boolean, reason: string): Promise<Memory> {
@@ -1148,6 +1654,31 @@ export class ObsionClient {
     return this.request(`/api/v1/workspaces/${workspaceId}/artifacts`);
   }
 
+  listWorkspaceFiles(
+    workspaceId: string,
+    includeSuperseded = false,
+  ): Promise<Artifact[]> {
+    return this.request(
+      `/api/v1/workspaces/${workspaceId}/files?include_superseded=${includeSuperseded}`,
+    );
+  }
+
+  listWorkspaceReports(workspaceId: string): Promise<Artifact[]> {
+    return this.request(`/api/v1/workspaces/${workspaceId}/reports`);
+  }
+
+  listWorkspaceDashboards(workspaceId: string): Promise<Artifact[]> {
+    return this.request(`/api/v1/workspaces/${workspaceId}/dashboards`);
+  }
+
+  listWorkspaceSql(workspaceId: string): Promise<Artifact[]> {
+    return this.request(`/api/v1/workspaces/${workspaceId}/sql`);
+  }
+
+  listWorkspaceTimeline(workspaceId: string, limit = 500): Promise<RunEvent[]> {
+    return this.request(`/api/v1/workspaces/${workspaceId}/timeline?limit=${limit}`);
+  }
+
   async uploadArtifact(
     workspaceId: string,
     input: {
@@ -1158,6 +1689,7 @@ export class ObsionClient {
       classification?: string;
       runId?: string;
       lineage?: Record<string, unknown>;
+      path?: string;
     },
   ): Promise<Artifact> {
     const form = new FormData();
@@ -1167,6 +1699,7 @@ export class ObsionClient {
     form.set("classification", input.classification ?? "INTERNAL");
     form.set("lineage", JSON.stringify(input.lineage ?? {}));
     if (input.runId) form.set("run_id", input.runId);
+    if (input.path) form.set("path", input.path);
     return this.request(`/api/v1/workspaces/${workspaceId}/artifacts`, {
       method: "POST",
       body: form,
@@ -1298,6 +1831,143 @@ export class ObsionClient {
     return this.request("/api/v1/knowledge/search", {
       method: "POST",
       body: JSON.stringify({ query, limit }),
+    });
+  }
+
+  ingestFeishuDocument(input: {
+    document_id: string;
+    obj_type?: "auto" | "docx" | "wiki";
+    title?: string;
+    classification?: string;
+    acl?: Record<string, unknown>;
+    inherit_acl?: boolean;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/knowledge/sources/feishu/documents", {
+      method: "POST",
+      body: JSON.stringify({
+        obj_type: "auto",
+        classification: "INTERNAL",
+        acl: { organization: true },
+        inherit_acl: false,
+        ...input,
+      }),
+    });
+  }
+
+  listFeishuSpaces(): Promise<Array<Record<string, unknown>>> {
+    return this.request("/api/v1/knowledge/sources/feishu/spaces");
+  }
+
+  listFeishuWikiNodes(spaceId: string): Promise<Array<Record<string, unknown>>> {
+    return this.request(
+      `/api/v1/knowledge/sources/feishu/spaces/${encodeURIComponent(spaceId)}/nodes`,
+    );
+  }
+
+  syncFeishuSpace(
+    spaceId: string,
+    input: {
+      classification?: string;
+      acl?: Record<string, unknown>;
+      inherit_acl?: boolean;
+    } = {},
+  ): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/knowledge/sources/feishu/spaces/${encodeURIComponent(spaceId)}/sync`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          classification: "INTERNAL",
+          acl: { organization: true },
+          inherit_acl: false,
+          ...input,
+        }),
+      },
+    );
+  }
+
+  ingestConfluencePage(input: {
+    page_id: string;
+    title?: string;
+    classification?: string;
+    acl?: Record<string, unknown>;
+    inherit_acl?: boolean;
+  }): Promise<Record<string, unknown>> {
+    return this.request("/api/v1/knowledge/sources/confluence/pages", {
+      method: "POST",
+      body: JSON.stringify({
+        classification: "INTERNAL",
+        acl: { organization: true },
+        inherit_acl: false,
+        ...input,
+      }),
+    });
+  }
+
+  listConfluenceSpaces(): Promise<Array<Record<string, unknown>>> {
+    return this.request("/api/v1/knowledge/sources/confluence/spaces");
+  }
+
+  syncConfluenceSpace(
+    spaceId: string,
+    input: {
+      classification?: string;
+      acl?: Record<string, unknown>;
+      inherit_acl?: boolean;
+    } = {},
+  ): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/knowledge/sources/confluence/spaces/${encodeURIComponent(spaceId)}/sync`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          classification: "INTERNAL",
+          acl: { organization: true },
+          inherit_acl: false,
+          ...input,
+        }),
+      },
+    );
+  }
+
+  createCodeRepository(input: {
+    name: string;
+    classification?: string;
+    acl?: Record<string, unknown>;
+    default_branch?: string;
+  }): Promise<CodeRepository> {
+    return this.request("/api/v1/code/repositories", {
+      method: "POST",
+      body: JSON.stringify({
+        classification: "INTERNAL",
+        acl: { organization: true },
+        default_branch: "main",
+        ...input,
+      }),
+    });
+  }
+
+  listCodeRepositories(): Promise<CodeRepository[]> {
+    return this.request("/api/v1/code/repositories", { method: "GET" });
+  }
+
+  indexCodeSnapshot(
+    repositoryId: string,
+    input: { commit_id: string; files: Array<{ path: string; content: string }> },
+  ): Promise<{ repository: CodeRepository; snapshot: CodeSnapshot }> {
+    return this.request(`/api/v1/code/repositories/${repositoryId}/snapshots`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  searchCodeSymbols(
+    query: string,
+    options: { repository?: string; limit?: number } = {},
+  ): Promise<CodeSymbolHit[]> {
+    return this.request("/api/v1/code/symbols/search", {
+      method: "POST",
+      body: JSON.stringify({ query, limit: options.limit ?? 20, ...options }),
     });
   }
 

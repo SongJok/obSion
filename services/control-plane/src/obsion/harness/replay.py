@@ -489,7 +489,7 @@ class RunReplayService:
                     created_at=source_artifact.created_at,
                     updated_at=source_artifact.updated_at,
                 )
-        )
+            )
         session.add_all(cloned_artifacts)
         # Flush the target Claim generation before inserting a VERIFIED
         # assessment.  PostgreSQL's claim-generation seal trigger therefore
@@ -509,9 +509,7 @@ class RunReplayService:
                     claim_generation=item.claim_generation,
                     outcome=self._replay_assessment_outcome(item.outcome),
                     publication_decision=(
-                        item.publication_decision
-                        if str(item.outcome) != "ERROR"
-                        else "WITHHOLD"
+                        item.publication_decision if str(item.outcome) != "ERROR" else "WITHHOLD"
                     ),
                     evaluator=item.evaluator,
                     evaluator_version=item.evaluator_version,

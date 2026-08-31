@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from obsion.registry.agent_spec import AgentSpec
+from obsion.registry.agent_spec import ALLOWED_SANDBOX_MOUNTS, AgentSpec
 from obsion.registry.manifests import (
     RegistryManifestError,
     load_registry_specs,
@@ -114,6 +114,19 @@ def test_agent_spec_binds_model_profile_not_provider_details() -> None:
     assert parsed.max_steps == 30
     assert parsed.timeout_seconds == 300
     assert parsed.capabilities == ("knowledge.search",)
+
+    missing_sandbox = AgentSpec.from_dict(
+        {
+            "description": "Legacy coordinator",
+            "modelPolicy": {"profile": "reasoning-high"},
+            "maxSteps": 8,
+            "capabilities": ["knowledge.search"],
+            "riskPolicy": {"maxLevel": "L1"},
+        }
+    )
+    assert missing_sandbox.sandbox["network"] == "gateway-only"
+    assert missing_sandbox.sandbox["enabled"] is True
+    assert missing_sandbox.sandbox["mounts"] == list(ALLOWED_SANDBOX_MOUNTS)
 
     with pytest.raises(RegistryManifestError, match="ModelProfile"):
         AgentSpec.from_dict(

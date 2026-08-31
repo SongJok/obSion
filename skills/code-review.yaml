@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: code-review
+spec:
+  instructions:
+    - review only authorized CODE and GIT Evidence from the current Run
+    - resolve symbols and diffs from the Code Graph and git.* reads, never by executing the repo
+    - cite repository, path, symbol, and commit for every finding
+    - distinguish style notes from defects that the evidence actually shows
+    - if authorized evidence is missing, say unknown and do not guess
+    - never apply patches, open pull requests, or write to any environment
+  capabilities: [code.symbol, code.reference, code.callers, code.callees, code.search, git.diff, git.history]
+  requiredEvidence: [CODE]
+  optionalEvidence: [GIT]
+  verification: [symbol lineage, source version, finding cited, no write path]

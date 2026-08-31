@@ -6,5 +6,10 @@ spec:
   description: Code and system analysis agent
   modelPolicy: {profile: coding-high}
   maxSteps: 24
-  capabilities: [code.search, code.symbol, code.reference, git.diff, git.history]
+  skills: [code-architecture, code-review]
+  capabilities: [code.search, code.symbol, code.reference, code.callers, code.callees, git.diff, git.history]
   riskPolicy: {maxLevel: L2}
+  sandbox:
+    enabled: true
+    network: gateway-only
+    mounts: [/workspace, /repo, /artifacts, /tmp]

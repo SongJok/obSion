@@ -36,7 +36,24 @@ from obsion.api.admin_schemas import (
     ModelProfileBindingRequest,
     RoleBindingRequest,
 )
-from obsion.common.errors import AuthorizationError, ConflictError, NotFoundError, ValidationError
+from obsion.api.dependencies import get_connector_sdk_runtime
+from obsion.application.slo import RuntimeSloService
+from obsion.capabilities.connector_spi import ConnectorSdkRuntime
+from obsion.capabilities.plugin_governance import (
+    enforce_plugin_governance,
+    inspect_plugin,
+    is_spi_connector,
+    merge_scan_into_health,
+    plugin_requires_approval,
+    promote_plugin,
+)
+from obsion.common.errors import (
+    AuthorizationError,
+    ConflictError,
+    NotFoundError,
+    ObsionError,
+    ValidationError,
+)
 from obsion.common.ids import new_id
 from obsion.common.time import utc_now
 from obsion.config import Environment, Settings
@@ -60,6 +77,7 @@ from obsion.db.models import (
     ModelEndpoint,
     ModelProfile,
     ModelProfileEndpoint,
+    OperatorCapabilityInvocation,
     Policy,
     PromptDefinition,
     PromptVersion,
@@ -78,6 +96,8 @@ from obsion.db.models import (
 from obsion.domain.enums import (
     ActorType,
     CapabilityTransport,
+    ConnectorStatus,
+    OperatorInvocationStatus,
     RegistryStatus,
     RiskLevel,
     SideEffect,
@@ -132,6 +152,9 @@ async def _audit_admin(
     action: str,
     resource_type: str,
     resource_id: object,
+    *,
+    outcome: str = "SUCCESS",
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     await AuditWriter().write(
         session,
@@ -143,7 +166,8 @@ async def _audit_admin(
             action=action,
             resource_type=resource_type,
             resource_id=str(resource_id),
-            outcome="SUCCESS",
+            outcome=outcome,
+            metadata=metadata or {},
         ),
     )
 
@@ -379,6 +403,7 @@ async def bind_role(
 async def list_connectors(
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
+    runtime: ConnectorSdkRuntime = Depends(get_connector_sdk_runtime),
 ) -> list[dict]:
     _require_admin(principal)
     connectors = await session.scalars(
@@ -397,6 +422,8 @@ async def list_connectors(
             # browser receives health metadata rather than network targets.
             "has_credential": bool(item.credential_ref),
             "health": item.last_health,
+            "spi": runtime.supports(item.connector_type),
+            "plugin": inspect_plugin(item).as_dict(),
         }
         for item in connectors
     ]
@@ -407,6 +434,7 @@ async def create_connector(
     request: CreateConnectorRequest,
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
+    runtime: ConnectorSdkRuntime = Depends(get_connector_sdk_runtime),
 ) -> dict:
     _require_admin(principal, "connectors.write")
     _safe_configuration(request.configuration)
@@ -425,10 +453,234 @@ async def create_connector(
             allowed_egress=request.allowed_egress,
             last_health={"status": "unknown"},
         )
+        if runtime.supports(connector.connector_type) or is_spi_connector(connector):
+            scan = inspect_plugin(connector)
+            if scan.error_code == "v1_production_action_boundary":
+                raise ValidationError("v1_production_action_boundary", scan.message)
+            if plugin_requires_approval(scan.risk) and connector.status == ConnectorStatus.ACTIVE:
+                raise ObsionError(
+                    "capability_denied",
+                    "L3+ connector plugins cannot be created ACTIVE; scan, sign, and promote them",
+                )
+            if connector.status == ConnectorStatus.ACTIVE:
+                enforce_plugin_governance(connector)
+            connector.last_health = merge_scan_into_health(connector.last_health, scan)
         session.add(connector)
         await session.flush()
         await _audit_admin(session, principal, "connector.create", "connector", connector.id)
     return {"id": str(connector.id)}
+
+
+@router.post("/connectors/{connector_id}/health")
+async def probe_connector_health(
+    connector_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    runtime: ConnectorSdkRuntime = Depends(get_connector_sdk_runtime),
+) -> dict:
+    _require_admin(principal)
+    async with session.begin():
+        connector = await session.get(Connector, connector_id)
+        if connector is None or connector.organization_id != principal.organization_id:
+            raise NotFoundError("Connector", connector_id)
+        if not runtime.supports(connector.connector_type):
+            await _audit_admin(
+                session,
+                principal,
+                "connector.health",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": "connector_handler_missing"},
+            )
+            raise ValidationError(
+                "connector_handler_missing",
+                "No Connector SDK adapter is registered for this connector type",
+                connector_type=connector.connector_type,
+            )
+        try:
+            health = await runtime.probe_health(connector)
+        except ObsionError as exc:
+            connector.last_health = merge_scan_into_health(
+                {
+                    "status": "unavailable",
+                    "adapter": "connector-sdk",
+                    "error_code": exc.code,
+                },
+                inspect_plugin(connector),
+            )
+            await _audit_admin(
+                session,
+                principal,
+                "connector.health",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": exc.code},
+            )
+            raise
+        health_payload = merge_scan_into_health(health, inspect_plugin(connector))
+        connector.last_health = health_payload
+        await _audit_admin(session, principal, "connector.health", "connector", connector.id)
+    return {"id": str(connector_id), "health": health_payload}
+
+
+@router.post("/connectors/{connector_id}/discover")
+async def discover_connector(
+    connector_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    runtime: ConnectorSdkRuntime = Depends(get_connector_sdk_runtime),
+) -> dict:
+    _require_admin(principal)
+    async with session.begin():
+        connector = await session.get(Connector, connector_id)
+        if connector is None or connector.organization_id != principal.organization_id:
+            raise NotFoundError("Connector", connector_id)
+        if not runtime.supports(connector.connector_type):
+            await _audit_admin(
+                session,
+                principal,
+                "connector.discover",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": "connector_handler_missing"},
+            )
+            raise ValidationError(
+                "connector_handler_missing",
+                "No Connector SDK adapter is registered for this connector type",
+                connector_type=connector.connector_type,
+            )
+        binding_count = await session.scalar(
+            select(func.count())
+            .select_from(CapabilityBinding)
+            .where(
+                CapabilityBinding.organization_id == principal.organization_id,
+                CapabilityBinding.connector_id == connector.id,
+            )
+        )
+        try:
+            discovery = await runtime.discover(connector)
+        except ObsionError as exc:
+            await _audit_admin(
+                session,
+                principal,
+                "connector.discover",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": exc.code},
+            )
+            raise
+        await _audit_admin(session, principal, "connector.discover", "connector", connector.id)
+    return {
+        "id": str(connector_id),
+        "discovery": discovery,
+        "binding_count": int(binding_count or 0),
+    }
+
+
+@router.post("/connectors/{connector_id}/scan")
+async def scan_connector_plugin(
+    connector_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    runtime: ConnectorSdkRuntime = Depends(get_connector_sdk_runtime),
+) -> dict:
+    _require_admin(principal)
+    async with session.begin():
+        connector = await session.get(Connector, connector_id)
+        if connector is None or connector.organization_id != principal.organization_id:
+            raise NotFoundError("Connector", connector_id)
+        scan = inspect_plugin(connector)
+        if not runtime.supports(connector.connector_type) and scan.status != "not_applicable":
+            await _audit_admin(
+                session,
+                principal,
+                "connector.plugin.scan",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": "connector_handler_missing"},
+            )
+            raise ValidationError(
+                "connector_handler_missing",
+                "No Connector SDK adapter is registered for this connector type",
+                connector_type=connector.connector_type,
+            )
+        health = connector.last_health if isinstance(connector.last_health, dict) else {}
+        connector.last_health = merge_scan_into_health(health, scan)
+        outcome = "SUCCESS" if scan.status != "failed" else "FAILED"
+        await _audit_admin(
+            session,
+            principal,
+            "connector.plugin.scan",
+            "connector",
+            connector.id,
+            outcome=outcome,
+            metadata={"status": scan.status, "lifecycle": scan.lifecycle},
+        )
+    return {"id": str(connector_id), "scan": scan.as_dict()}
+
+
+@router.post("/connectors/{connector_id}/promote")
+async def promote_connector_plugin(
+    connector_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    runtime: ConnectorSdkRuntime = Depends(get_connector_sdk_runtime),
+) -> dict:
+    _require_admin(principal, "connectors.write")
+    async with session.begin():
+        connector = await session.get(Connector, connector_id)
+        if connector is None or connector.organization_id != principal.organization_id:
+            raise NotFoundError("Connector", connector_id)
+        if not runtime.supports(connector.connector_type) and not is_spi_connector(connector):
+            await _audit_admin(
+                session,
+                principal,
+                "connector.plugin.promote",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": "connector_handler_missing"},
+            )
+            raise ValidationError(
+                "connector_handler_missing",
+                "No Connector SDK adapter is registered for this connector type",
+                connector_type=connector.connector_type,
+            )
+        try:
+            scan = promote_plugin(connector, principal)
+        except ObsionError as exc:
+            await _audit_admin(
+                session,
+                principal,
+                "connector.plugin.promote",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": exc.code},
+            )
+            raise
+        health = connector.last_health if isinstance(connector.last_health, dict) else {}
+        connector.last_health = merge_scan_into_health(health, scan)
+        await _audit_admin(
+            session,
+            principal,
+            "connector.plugin.promote",
+            "connector",
+            connector.id,
+            metadata={"lifecycle": scan.lifecycle, "risk": scan.risk},
+        )
+        status = connector.status
+        payload = scan.as_dict()
+    return {
+        "id": str(connector_id),
+        "status": status,
+        "scan": payload,
+    }
 
 
 @router.get("/capabilities")
@@ -1244,6 +1496,15 @@ async def list_costs(
     ]
 
 
+@router.get("/slo")
+async def project_runtime_slo(
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    _require_admin(principal, "audit.read")
+    return await RuntimeSloService().project(session, principal.organization_id)
+
+
 @router.get("/feedback/summary", response_model=FeedbackSummaryView)
 async def summarize_run_feedback(
     session: AsyncSession = Depends(get_session),
@@ -1489,6 +1750,45 @@ async def list_audit(
             "metadata": item.redacted_metadata,
             "latency_ms": item.latency_ms,
             "created_at": item.created_at,
+        }
+        for item in records
+    ]
+
+
+@router.get("/operator-invocations")
+async def list_operator_invocations(
+    invocation_status: OperatorInvocationStatus | None = Query(default=None, alias="status"),
+    limit: int = Query(default=100, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> list[dict[str, Any]]:
+    """列出无 Run Capability 幂等账本；不返回输入或结果内容。"""
+
+    _require_admin(principal, "audit.read")
+    statement = select(OperatorCapabilityInvocation).where(
+        OperatorCapabilityInvocation.organization_id == principal.organization_id
+    )
+    if invocation_status is not None:
+        statement = statement.where(OperatorCapabilityInvocation.status == invocation_status)
+    records = await session.scalars(
+        statement.order_by(OperatorCapabilityInvocation.created_at.desc()).limit(limit)
+    )
+    return [
+        {
+            "id": str(item.id),
+            "request_id": str(item.request_id),
+            "principal_id": str(item.principal_id),
+            "capability_name": item.capability_name,
+            "capability_version_id": str(item.capability_version_id),
+            "connector_id": str(item.connector_id),
+            "policy_decision_id": str(item.policy_decision_id),
+            "status": item.status,
+            "error_code": item.error_code,
+            "reconciliation_required": item.status == OperatorInvocationStatus.UNKNOWN,
+            "lease_expires_at": item.lease_expires_at,
+            "created_at": item.created_at,
+            "completed_at": item.completed_at,
+            "expires_at": item.expires_at,
         }
         for item in records
     ]

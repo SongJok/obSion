@@ -21,36 +21,90 @@ from obsion.api import (
     auth,
     automation,
     capabilities,
+    code,
     collaboration,
     data,
+    eval_console,
     evaluations,
     events,
     feedback,
     health,
+    im_identity,
     knowledge,
     memory,
     run_inspection,
+    studio,
     workspaces,
 )
 from obsion.api.schemas import ErrorBody
 from obsion.app_server import websocket as app_server
 from obsion.application.app_server import AppServerApplication
+from obsion.application.im_delivery import ImDeliveryService
+from obsion.application.im_identity import ImIdentityService
 from obsion.application.workspaces import WorkspaceService
 from obsion.artifacts.service import ArtifactService
 from obsion.artifacts.store import InMemoryObjectStore, MinioObjectStore
 from obsion.automation.worker import AutomationWorker
 from obsion.bootstrap import bootstrap_development_identity
+from obsion.capabilities.agent import (
+    DEVELOPMENT_CONNECTOR_TYPE as AGENT_DEVELOPMENT_CONNECTOR_TYPE,
+)
+from obsion.capabilities.agent import (
+    DevelopmentAgentExecutor,
+)
+from obsion.capabilities.agent import (
+    create_development_echo_handler as create_agent_echo_handler,
+)
+from obsion.capabilities.connector_spi import (
+    DEVELOPMENT_CONNECTOR_TYPE as CONNECTOR_SDK_DEVELOPMENT_TYPE,
+)
+from obsion.capabilities.connector_spi import ConnectorSdkRuntime
 from obsion.capabilities.connectors import (
     HttpJsonExecutor,
     InternalExecutor,
     PostgresReadOnlyExecutor,
 )
 from obsion.capabilities.gateway import CapabilityGateway
+from obsion.capabilities.grpc import (
+    DEVELOPMENT_CONNECTOR_TYPE as GRPC_DEVELOPMENT_CONNECTOR_TYPE,
+)
+from obsion.capabilities.grpc import (
+    DevelopmentGrpcExecutor,
+)
+from obsion.capabilities.grpc import (
+    create_development_echo_handler as create_grpc_echo_handler,
+)
+from obsion.capabilities.mcp import (
+    DEVELOPMENT_CONNECTOR_TYPE as MCP_DEVELOPMENT_CONNECTOR_TYPE,
+)
+from obsion.capabilities.mcp import (
+    DevelopmentMcpExecutor,
+)
+from obsion.capabilities.mcp import (
+    create_development_echo_handler as create_mcp_echo_handler,
+)
 from obsion.capabilities.rate_limit import (
     CapabilityRateLimiter,
     InMemoryFixedWindowRateLimiter,
     RedisFixedWindowRateLimiter,
 )
+from obsion.capabilities.sdk import (
+    DEVELOPMENT_CONNECTOR_TYPE as SDK_DEVELOPMENT_CONNECTOR_TYPE,
+)
+from obsion.capabilities.sdk import (
+    DevelopmentSdkExecutor,
+)
+from obsion.capabilities.sdk import (
+    create_development_echo_handler as create_sdk_echo_handler,
+)
+from obsion.capabilities.workflow import (
+    DEVELOPMENT_CONNECTOR_TYPE as WORKFLOW_DEVELOPMENT_CONNECTOR_TYPE,
+)
+from obsion.capabilities.workflow import (
+    DevelopmentWorkflowExecutor,
+    create_automation_dispatch_handler,
+)
+from obsion.code_intelligence.handler import create_code_graph_handler
 from obsion.common.errors import ObsionError
 from obsion.config import Environment, Settings, get_settings
 from obsion.db.session import Database
@@ -58,10 +112,12 @@ from obsion.domain.enums import CapabilityTransport
 from obsion.harness.runtime import HarnessRuntime
 from obsion.harness.worker import RunWorker
 from obsion.knowledge.handler import create_knowledge_search_handler
+from obsion.knowledge.service import KnowledgeService
 from obsion.model_gateway.gateway import ModelGateway
 from obsion.security.auth import get_principal
 from obsion.security.redaction import redact
 from obsion.telemetry import configure_telemetry, flush_telemetry, instrument_database
+from obsion_sdk.connector import DevelopmentEchoConnector
 
 logger = structlog.get_logger(__name__)
 
@@ -143,6 +199,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.database = database
         app.state.settings = resolved_settings
         app.state.workspace_service = WorkspaceService(resolved_settings)
+        app.state.im_identity_service = ImIdentityService(app.state.workspace_service)
+        app.state.im_delivery_service = ImDeliveryService()
         app.state.object_store = (
             InMemoryObjectStore()
             if resolved_settings.environment == Environment.TEST
@@ -165,6 +223,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "knowledge-index",
             create_knowledge_search_handler(database, resolved_settings, app.state.object_store),
         )
+        internal_executor.register(
+            "code-index",
+            create_code_graph_handler(database, resolved_settings),
+        )
+        connector_sdk_runtime = ConnectorSdkRuntime()
+        connector_sdk_runtime.register(CONNECTOR_SDK_DEVELOPMENT_TYPE, DevelopmentEchoConnector())
+        internal_executor.register(
+            CONNECTOR_SDK_DEVELOPMENT_TYPE,
+            connector_sdk_runtime.as_internal_handler(),
+        )
+        app.state.connector_sdk_runtime = connector_sdk_runtime
+        mcp_executor = DevelopmentMcpExecutor()
+        mcp_executor.register(MCP_DEVELOPMENT_CONNECTOR_TYPE, create_mcp_echo_handler())
+        sdk_executor = DevelopmentSdkExecutor()
+        sdk_executor.register(SDK_DEVELOPMENT_CONNECTOR_TYPE, create_sdk_echo_handler())
+        grpc_executor = DevelopmentGrpcExecutor()
+        grpc_executor.register(GRPC_DEVELOPMENT_CONNECTOR_TYPE, create_grpc_echo_handler())
+        workflow_executor = DevelopmentWorkflowExecutor()
+        workflow_executor.register(
+            WORKFLOW_DEVELOPMENT_CONNECTOR_TYPE, create_automation_dispatch_handler()
+        )
+        agent_executor = DevelopmentAgentExecutor()
+        agent_executor.register(AGENT_DEVELOPMENT_CONNECTOR_TYPE, create_agent_echo_handler())
         rate_limiter: CapabilityRateLimiter
         if resolved_settings.environment == Environment.TEST:
             rate_limiter = InMemoryFixedWindowRateLimiter(
@@ -179,10 +260,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         capability_gateway = CapabilityGateway(
             {
                 CapabilityTransport.INTERNAL.value: internal_executor,
-                CapabilityTransport.HTTP.value: HttpJsonExecutor(resolved_settings),
+                CapabilityTransport.HTTP.value: HttpJsonExecutor(
+                    resolved_settings,
+                    knowledge_service=KnowledgeService(resolved_settings, app.state.object_store),
+                ),
+                CapabilityTransport.GRPC.value: grpc_executor,
+                CapabilityTransport.MCP.value: mcp_executor,
+                CapabilityTransport.SDK.value: sdk_executor,
                 CapabilityTransport.SQL_PROXY.value: PostgresReadOnlyExecutor(resolved_settings),
+                CapabilityTransport.WORKFLOW.value: workflow_executor,
+                CapabilityTransport.AGENT.value: agent_executor,
             },
             rate_limiter=rate_limiter,
+            operator_idempotency_retention_hours=(
+                resolved_settings.operator_capability_idempotency_retention_hours
+            ),
         )
         app.state.capability_gateway = capability_gateway
         action_gateway = ActionGateway(rate_limiter=rate_limiter)
@@ -360,11 +452,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     protected_api.include_router(capabilities.router)
     protected_api.include_router(collaboration.router)
     protected_api.include_router(knowledge.router)
+    protected_api.include_router(code.router)
     protected_api.include_router(memory.router)
     protected_api.include_router(data.router)
     protected_api.include_router(evaluations.router)
     protected_api.include_router(run_inspection.router)
     protected_api.include_router(admin.router)
+    protected_api.include_router(im_identity.admin_router)
+    protected_api.include_router(im_identity.experience_router)
+    protected_api.include_router(studio.router)
+    protected_api.include_router(eval_console.router)
 
     app.include_router(health.router)
     # Browser login/logout exchange bearer credentials for a revocable HttpOnly

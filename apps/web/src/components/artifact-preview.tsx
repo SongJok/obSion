@@ -33,6 +33,24 @@ export function ArtifactPreview({ artifact }: { artifact: Artifact }) {
     );
   }
   if (artifact.kind === "CHART") return <ChartPreview artifact={artifact} />;
+  if (artifact.kind === "DASHBOARD") {
+    const panels = Array.isArray(content.panels) ? content.panels : [];
+    return (
+      <div className="dashboard-preview">
+        <p>此仪表盘只引用已发布的 CHART / TABLE / SQL，不包含自造数据系列。</p>
+        <ul>
+          {panels.map((panel) => {
+            const item = panel as { artifact_id?: string; kind?: string; title?: string };
+            return (
+              <li key={item.artifact_id ?? item.title}>
+                {item.kind} · {item.title}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
   return <pre className="sql-preview">{JSON.stringify(content, null, 2)}</pre>;
 }
 

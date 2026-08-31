@@ -1,0 +1,17 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: support-diagnosis
+spec:
+  instructions:
+    - diagnose customer issues from authorized tickets and knowledge only
+    - search tickets as DOCUMENT Evidence with the same ACL as the knowledge index
+    - cite ticket source, title, version, and chunk for every procedural claim
+    - use knowledge articles to explain policy; do not invent refund or account actions
+    - logs and traces are optional and read-only; skip them unless the question names an error
+    - never create, close, or comment on tickets, never query SQL, and never write to production
+    - if authorized ticket or policy evidence is missing, say unknown
+  capabilities: [ticket.search, knowledge.search, document.read, log.search, trace.search]
+  requiredEvidence: [DOCUMENT]
+  optionalEvidence: [LOG, TRACE]
+  verification: [citation coverage, ACL retained, no write path, unknown-safe]

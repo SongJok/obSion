@@ -16,7 +16,10 @@
         "ENGINEERING",
         "INCIDENT",
         "CONVERSATION",
-        "RESOURCE_ACCESS"
+        "RESOURCE_ACCESS",
+        "ANALYTICS",
+        "SUPPORT",
+        "OPERATION"
       ]
     },
     "steps": {

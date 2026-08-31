@@ -242,11 +242,10 @@ def test_capability_approval_api_approves_rejects_emits_events_and_audits(
     assert replay_assessment["ruleset_fingerprint"] == source_assessment["ruleset_fingerprint"]
     assert replay_assessment["input_fingerprint"] == source_assessment["input_fingerprint"]
     assert replay_assessment["outcome"] == source_assessment["outcome"]
-    assert replay_assessment["publication_decision"] == source_assessment[
-        "publication_decision"
-    ]
-    assert replay_assessment["replay_lineage"]["replay_source_assessment_id"] == (
-        source_assessment["id"]
+    assert replay_assessment["publication_decision"] == source_assessment["publication_decision"]
+    assert (
+        replay_assessment["replay_lineage"]["replay_source_assessment_id"]
+        == (source_assessment["id"])
     )
 
     rejected_events = client.get(f"/api/v1/runs/{rejected_run_id}/events").json()
@@ -432,9 +431,7 @@ async def test_incident_golden_response_persists_verified_claims_and_replays_gra
                 kind=StepKind.VERIFY,
                 status=StepStatus.PENDING,
                 depends_on=[],
-                input_payload={
-                    "required_evidence": ["METRIC", "DEPLOYMENT", "LOG"]
-                },
+                input_payload={"required_evidence": ["METRIC", "DEPLOYMENT", "LOG"]},
             )
             respond_step = RunStep(
                 organization_id=organization_id,
@@ -584,17 +581,18 @@ async def test_incident_golden_response_persists_verified_claims_and_replays_gra
                 )
                 assert len(linked_types) >= 2
             assessment = await session.scalar(
-                select(VerificationAssessment).where(
-                    VerificationAssessment.run_id == source_run_id
-                )
+                select(VerificationAssessment).where(VerificationAssessment.run_id == source_run_id)
             )
             assert assessment is not None
             assert str(assessment.outcome) == "VERIFIED"
             assert str(assessment.publication_decision) == "PUBLISH"
             assert assessment.policy_decision_id == policy_decision.id
-            assert await session.scalar(
-                select(func.count()).select_from(Event).where(Event.run_id == source_run_id)
-            ) >= 4
+            assert (
+                await session.scalar(
+                    select(func.count()).select_from(Event).where(Event.run_id == source_run_id)
+                )
+                >= 4
+            )
 
         async with database.sessions() as session, session.begin():
             replay = Run(
@@ -610,9 +608,7 @@ async def test_incident_golden_response_persists_verified_claims_and_replays_gra
             await RunReplayService().materialize(session, organization_id, replay_run_id)
         async with database.sessions() as session:
             replay_assessment = await session.scalar(
-                select(VerificationAssessment).where(
-                    VerificationAssessment.run_id == replay_run_id
-                )
+                select(VerificationAssessment).where(VerificationAssessment.run_id == replay_run_id)
             )
             assert replay_assessment is not None
             assert replay_assessment.id != assessment.id
@@ -620,11 +616,19 @@ async def test_incident_golden_response_persists_verified_claims_and_replays_gra
             assert replay_assessment.replay_lineage["replay_source_assessment_id"] == str(
                 assessment.id
             )
-            assert await session.scalar(
-                select(func.count()).select_from(Claim).where(Claim.run_id == replay_run_id)
-            ) == 3
-            assert await session.scalar(
-                select(func.count()).select_from(Evidence).where(Evidence.run_id == replay_run_id)
-            ) == 3
+            assert (
+                await session.scalar(
+                    select(func.count()).select_from(Claim).where(Claim.run_id == replay_run_id)
+                )
+                == 3
+            )
+            assert (
+                await session.scalar(
+                    select(func.count())
+                    .select_from(Evidence)
+                    .where(Evidence.run_id == replay_run_id)
+                )
+                == 3
+            )
     finally:
         await database.dispose()

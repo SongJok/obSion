@@ -1,0 +1,113 @@
+project: obsion
+version: 0.80.0-alpha.1
+architecture_version: 1
+
+completed_phases:
+  - phase-01
+  - phase-02
+  - phase-03
+  - phase-04
+  - phase-05
+  - phase-06
+  - phase-07
+  - phase-08
+  - phase-09
+  - phase-10
+  - phase-11
+  - phase-12
+  - phase-13
+  - phase-14
+  - phase-15
+  - phase-16
+  - phase-17
+  - phase-18
+  - phase-19
+  - phase-20
+  - phase-21
+  - phase-22
+  - phase-23
+  - phase-24
+  - phase-25
+  - phase-26
+  - phase-27
+  - phase-28
+  - phase-29
+  - phase-30
+  - phase-31
+  - phase-32
+  - phase-33
+  - phase-34
+  - phase-35
+  - phase-36
+  - phase-37
+  - phase-38
+  - phase-39
+  - phase-40
+  - phase-41
+  - phase-42
+  - phase-43
+  - phase-44
+  - phase-45
+  - phase-46
+  - phase-47
+  - phase-48
+  - phase-49
+  - phase-50
+  - phase-51
+  - phase-52
+  - phase-53
+  - phase-54
+  - phase-55
+  - phase-56
+  - phase-57
+  - phase-58
+  - phase-59
+  - phase-60
+  - phase-61
+  - phase-62
+  - phase-63
+  - phase-64
+  - phase-65
+  - phase-66
+  - phase-67
+  - phase-68
+  - phase-69
+  - phase-70
+  - phase-71
+  - phase-72
+  - phase-73
+  - phase-74
+  - phase-75
+  - phase-76
+  - phase-77
+  - phase-78
+  - phase-79
+  - phase-80
+
+current_phase: phase-80
+
+tests:
+  unit: passed
+  integration: passed
+  e2e: passed
+
+known_issues:
+  - Alpha.1 is a repository-local release candidate only; no external tag, package, image, signature, or deployment promotion was created.
+  - Staging deploy, UAT, and human security sign-off were not executed in this environment.
+  - CI Trivy covers unfixed CRITICAL findings; HIGH CVE policy and live OIDC remain operator-owned.
+  - Backup/restore is documented; a timed DR drill has not been run here.
+  - CLI, IDE, IM, and Desktop App Server coverage against a live WebSocket cluster is operator-owned; in-process tests use REST reconciliation plus a scripted App Server transport.
+  - VS Code host packaging of `@obsion/ide-extension` against a remote cluster is operator-owned.
+  - Electron packaging of `@obsion/desktop` against a signed installer remains operator-owned.
+  - Feishu, DingTalk, and WeCom outbound HTTP, inbound signatures/AES, and public TLS ingress are implemented. Generic `--deliver http` is still rejected. Phase 76 verified Feishu tenant authentication plus non-sending document/wiki denial or read behavior with real credentials; Phases 78-79 verified real no-write Feishu browsing through the REST-to-Capability-Gateway path. A permitted live document, live message delivery, public DNS/TLS, and all DingTalk/WeCom tenants remain operator-owned. Feishu, DingTalk, WeCom, and Confluence Knowledge ingest/sync and browse are implemented with shared budgets and provenance contracts. Phases 77-78 route all vendor REST source writes and reads through the no-Run Capability Gateway with Policy, grants, schema, rate, credentials, masking, telemetry, and Audit. Phase 79 adds durable principal-scoped terminal replay, mismatch/in-progress conflict, and fail-closed UNKNOWN reconciliation for no-Run L2 idempotent writes. Workbench and all three SDKs expose content-free reconciliation metadata without inventing Evidence.
+  - MCP, SDK, gRPC, WORKFLOW, and AGENT are in-process adapters only. Remote MCP servers, stdio spawn, third-party SDK installs, remote gRPC channels, Temporal/Airflow engines, and nested Harness agent loops are not implemented. WORKFLOW `workflow_id` dispatch reuses AutomationService with a depth-1 recursion budget.
+  - The Java SDK is a REST client of the Python control plane. It does not speak App Server WebSocket and is not a second backend. The Connector SDK SPI is Python-only (`health`/`discover`/`execute`); it does not pip-install tenant modules or load remote connectors. Plugin scan is static HMAC over the declaration, not binary/GPG provenance.
+  - Agent sandbox CPU/memory/disk/process fields are declared and pinned; this control plane does not apply cgroups or start a container runtime.
+  - Studio compare/rollback does not split Harness traffic. Prompt templates are immutable snapshots pinned on each Turn/Run; they are not rewritten in place. Template interpolation is schema-bound and does not accept user-turn variables.
+  - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
+
+next_phase:
+  id: phase-81
+  name: alpha1-artifact-installation
+  blocked: false
+  notes: Alpha.1 now has a repository-wide machine contract, continuous Phase and architecture evidence, a linear 30-revision Alembic chain, and a matching SBOM. Phase 81 should build the Python distributions, Node package archives, Java JAR, and control-plane/Workbench container images from one isolated revision; install or load each artifact in clean temporary environments; record hashes and smoke results; scan the resulting images/artifacts; and keep all outputs local unless explicit external publication authority is provided. No production write expansion or second runtime is permitted.

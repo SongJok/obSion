@@ -3,7 +3,7 @@ import json
 import re
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
 
 from sqlalchemy import select
@@ -46,6 +46,29 @@ class CaseEvaluation:
 
     def __post_init__(self) -> None:
         validate_error_code(self.error_code)
+
+
+class EvaluationCaseView(Protocol):
+    @property
+    def evaluator(self) -> EvaluationTarget: ...
+
+    @property
+    def input_payload(self) -> dict[str, Any]: ...
+
+    @property
+    def expected(self) -> dict[str, Any]: ...
+
+    @property
+    def fixtures(self) -> dict[str, Any]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class OfflineEvaluationCase:
+    evaluator: EvaluationTarget
+    input_payload: dict[str, Any]
+    expected: dict[str, Any]
+    fixtures: dict[str, Any]
+    external_id: str = ""
 
 
 def canonical_sha256(value: Any) -> str:
@@ -126,9 +149,49 @@ class EvaluationEngine:
                 error_message="The evaluation executor could not complete the case",
             )
 
+    def evaluate_offline(self, case: EvaluationCaseView) -> CaseEvaluation:
+        started = perf_counter()
+        try:
+            if case.evaluator == EvaluationTarget.ROUTING:
+                checks, scores, observed, evidence_refs = self._evaluate_routing(case)
+            elif case.evaluator == EvaluationTarget.SQL_POLICY:
+                checks, scores, observed, evidence_refs = self._evaluate_sql(case)
+            else:
+                return CaseEvaluation(
+                    status=EvaluationResultStatus.FAILED,
+                    checks={"offline_evaluator": False},
+                    scores={"offline_evaluator_accuracy": 0.0},
+                    observed={"evaluator": getattr(case.evaluator, "value", str(case.evaluator))},
+                    evidence_refs=[],
+                    duration_ms=max(0, int((perf_counter() - started) * 1000)),
+                )
+            return CaseEvaluation(
+                status=(
+                    EvaluationResultStatus.PASSED
+                    if checks and all(checks.values())
+                    else EvaluationResultStatus.FAILED
+                ),
+                checks=checks,
+                scores=scores,
+                observed=redact(observed),
+                evidence_refs=evidence_refs,
+                duration_ms=max(0, int((perf_counter() - started) * 1000)),
+            )
+        except ObsionError as exc:
+            return CaseEvaluation(
+                status=EvaluationResultStatus.ERROR,
+                checks={},
+                scores={},
+                observed={},
+                evidence_refs=[],
+                duration_ms=max(0, int((perf_counter() - started) * 1000)),
+                error_code=exc.code,
+                error_message=exc.message,
+            )
+
     @staticmethod
     def _evaluate_routing(
-        case: EvaluationCase,
+        case: EvaluationCaseView,
     ) -> tuple[dict[str, bool], dict[str, float], dict[str, Any], list[dict[str, Any]]]:
         question = str(case.input_payload.get("question", ""))
         if not question:
@@ -164,7 +227,7 @@ class EvaluationEngine:
 
     def _evaluate_sql(
         self,
-        case: EvaluationCase,
+        case: EvaluationCaseView,
     ) -> tuple[dict[str, bool], dict[str, float], dict[str, Any], list[dict[str, Any]]]:
         sql = str(case.input_payload.get("sql", ""))
         if not sql:

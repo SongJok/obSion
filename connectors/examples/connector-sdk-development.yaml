@@ -1,0 +1,19 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-connector-sdk-development
+spec:
+  type: connector-sdk-development
+  environment: development
+  transport: INTERNAL
+  grants: [connector.sdk.invoke]
+  allowedEgress: []
+  plugin:
+    risk: L1
+    network: deny
+    filesystem: []
+    secrets: []
+    capabilities: [connector.sdk.echo]
+  configuration:
+    operation: echo
+  capabilities: [connector.sdk.echo]

@@ -15,7 +15,7 @@ Phase 7 turns the Harness into a real runtime loop without implementing real too
 Every ordinary Run persists the core sequence:
 
 ```text
-Observe -> Understand -> Plan -> Act -> Verify -> Respond
+Observe -> Understand -> Plan -> Act -> Verify -> Reflect -> Respond
 ```
 
 Act is represented by zero or more `CAPABILITY` RunSteps. The only external execution
@@ -52,13 +52,13 @@ providers. It chooses only which persisted RunSteps can move next.
 ## Acceptance semantics
 
 - A greeting such as `你好` is routed as non-factual conversation. It still completes
-  Observe, Understand, Plan, Verify, and Respond steps, but it requires no Evidence,
-  creates no Claim, and does not call a Capability or model.
+  Observe, Understand, Plan, Verify, Reflect, and Respond steps, but it requires no
+  Evidence, creates no Claim, and does not call a Capability or model.
 - A request such as `查生产库` is routed as controlled resource access. The plan may
   request only the `data.query` Capability with a production resource descriptor; it
   must not synthesize SQL inside the Harness. With no production Capability binding,
   the Run fails as `capabilities_unavailable`, the Capability step records the
-  underlying error, and Verify/Respond are skipped through dependency failure.
+  underlying error, and Verify/Reflect/Respond are skipped through dependency failure.
 - Factual answers still require Claim-Evidence verification. The no-claim path is
   available only for evidence-free, non-factual conversation plans.
 

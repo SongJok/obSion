@@ -55,6 +55,22 @@ correlation. Error responses use:
   Turn `attachment_refs` accept only artifacts in the same authorized workspace;
   the Harness safely parses supported content, redacts it, and persists Evidence with
   artifact checksum lineage before model use.
+  `GET /workspaces/{id}/files` lists path-versioned FILE artifacts. A file path is
+  data; it is not SYSTEM or Skill text until a Turn attaches the artifact.
+  `GET /workspaces/{id}/reports` lists published REPORT artifacts from evidenced
+  Runs. Conversation greetings do not appear there.
+  `GET /workspaces/{id}/dashboards` lists published DASHBOARD artifacts that
+  reference existing CHART/TABLE/SQL rows. They do not invent series.
+  `GET /workspaces/{id}/sql` lists published SQL artifacts. It does not execute
+  the warehouse or invent SELECT text.
+  `GET /workspaces/{id}/evidence` lists persisted Evidence rows for Runs in the
+  workspace. It does not invent citations.
+  `GET /workspaces/{id}/timeline` lists persisted Run Events for those Runs. It
+  does not invent Harness steps.
+- `/experience/im/messages` ingests a bound sender into one Turn. Feishu live
+  delivery uses `POST /experience/im/runs/{id}/deliveries` then
+  `/deliveries/{id}/complete|fail`. The adapter posts to Feishu only after that
+  Policy-authorized receipt. Generic HTTP delivery is not a public API.
 - `/runs/{id}` supports inspection, cancellation, and deterministic terminal-run
   replay. Replay copies the immutable recorded snapshot and never re-invokes a model
   or connector; use a new Turn when current external state is required. Cancellation
@@ -89,6 +105,24 @@ correlation. Error responses use:
   DOCUMENT Evidence; when authorized retrieval has no substantive hit, the answer is
   explicitly `不知道` and carries no Claim. Document and Chunk ACL checks happen before
   ranking and are reused by detail/download endpoints.
+  `POST /knowledge/sources/feishu/documents` fetches one Feishu docx (or a wiki
+  node that resolves to docx) through the `feishu-docs` connector and writes it
+  into that same pipeline. It is not an IM delivery.
+  `GET /knowledge/sources/feishu/spaces` and
+  `GET /knowledge/sources/feishu/spaces/{space_id}/nodes` list wiki spaces and
+  walked nodes. `POST /knowledge/sources/feishu/spaces/{space_id}/sync` ingests
+  each `docx` node through the same pipeline and records non-docx nodes as
+  skipped. Space listing is not invented when Feishu denies the call.
+  `POST /knowledge/sources/dingtalk/documents` fetches one DingTalk cloud
+  document through the `dingtalk-docs` connector. Workspace list and sync
+  endpoints walk `api.dingtalk.com` only and skip unsupported node types.
+  `POST /knowledge/sources/wecom/documents` fetches one WeCom wedoc through the
+  `wecom-docs` connector. Space describe/list/sync endpoints require an
+  operator-supplied WeDrive `space_id` and skip nodes without a resolvable
+  `docid`.
+  `POST /knowledge/sources/confluence/pages` fetches one current Confluence
+  Cloud page through the `confluence` connector. Space list and sync endpoints
+  skip non-current pages. Pagination cannot leave the Cloud site origin.
   `GET /data/metrics` returns validated metric definitions, and
   `GET /data/lineage/{metric_id}` returns the caller tenant's read-only data-source,
   table, and metric chain for inspection in clients without executing a query.
@@ -140,7 +174,9 @@ correlation. Error responses use:
   decision. `/actions/{id}/rollback` requests a separately approved compensating
   operation, while `/actions/{id}/cancel` cancels only an eligible lifecycle state.
 - `/admin` manages tenant-scoped registries, bindings, models, policies, catalog,
-  evaluations, and audit metadata. `POST|GET /admin/models/profiles` manages logical,
+  evaluations, and audit metadata. `POST /admin/connectors/{id}/health` and
+  `/discover` probe Connector SDK adapters; discover never auto-binds Capabilities.
+  `POST|GET /admin/models/profiles` manages logical,
   secret-free Profile requirements and fallback policy;
   `POST|GET /admin/models/endpoints` manages provider/model metadata, capabilities,
   classifications, pricing, egress base URL, and gateway-only credential references
@@ -150,6 +186,9 @@ correlation. Error responses use:
   as a model selector.
 - `/admin/feedback/summary` requires audit-read authority and reports the current
   tenant response counts and helpful rate without exposing individual reasons.
+- `/admin/slo` requires audit-read authority and projects success, replan, approval,
+  satisfaction, evidence coverage, tokens, cost, steps, and mean latencies from
+  PostgreSQL. TTFT is histogram-only and is not a p95 SLA.
 - `/admin/evaluations/datasets/{id}/runs` starts a deterministic release gate.
   `run_bindings` connects Golden Dataset `run_ref` values to real terminal Runs;
   `/admin/evaluations/runs/{id}/results` exposes immutable per-case checks, scores and
@@ -178,6 +217,17 @@ parameters, and timeout; conflicting reuse returns a stable conflict error. Do n
 retry approval decisions with a different reason, and never call an action provider
 directly. The server owns provider attempt keys and reuses the same key when recovering
 an expired worker lease or a lost response.
+
+Vendor Knowledge ingest/sync POST routes use the validated `X-Request-ID` UUID as a
+principal-scoped no-Run Capability idempotency key. Exact retries replay the immutable
+terminal Gateway result without consuming another connector rate slot or resolving a
+credential. Reusing the UUID for different canonical input returns
+`idempotency_key_reused`. An expired in-progress attempt becomes
+`operator_invocation_outcome_unknown` and is never automatically re-executed. Admins
+with `audit.read` can inspect the content-free reconciliation projection at
+`GET /api/v1/admin/operator-invocations`; inputs and result payloads are not returned.
+Safe non-UUID correlation strings remain valid for ordinary API correlation but are
+rejected on vendor source operations because they cannot be durable replay keys.
 
 ## Regenerating the contract
 

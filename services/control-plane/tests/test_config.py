@@ -50,3 +50,13 @@ def test_conversation_message_budget_cannot_exceed_total_budget() -> None:
             conversation_context_max_chars=4_000,
             conversation_context_max_chars_per_message=8_000,
         )
+
+
+def test_operator_idempotency_retention_is_independent_and_reconciliation_sized() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.app_server_idempotency_retention_hours == 24
+    assert settings.operator_capability_idempotency_retention_hours == 24 * 7
+
+    with pytest.raises(PydanticValidationError):
+        Settings(_env_file=None, operator_capability_idempotency_retention_hours=23)

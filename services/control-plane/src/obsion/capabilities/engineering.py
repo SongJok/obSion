@@ -11,11 +11,29 @@ from obsion.common.errors import ObsionError, ValidationError
 from obsion.security.redaction import redact
 
 ENGINEERING_OPERATIONS = frozenset(
-    {"code.search", "git.commit", "git.diff", "git.history", "deployment.commit"}
+    {
+        "code.search",
+        "git.commit",
+        "git.diff",
+        "git.blame",
+        "git.history",
+        "deployment.commit",
+        "config.get",
+        "config.diff",
+        "k8s.status",
+    }
 )
 _FIELD_ALIASES: dict[str, tuple[str, ...]] = {
-    "timestamp": ("timestamp", "time", "created_at", "createdAt", "committed_at", "deployed_at"),
-    "repository": ("repository", "repo", "repository_name", "repositoryName"),
+    "timestamp": (
+        "timestamp",
+        "time",
+        "created_at",
+        "createdAt",
+        "committed_at",
+        "deployed_at",
+        "observed_at",
+    ),
+    "repository": ("repository", "repo", "repository_name", "repositoryName", "cluster"),
     "commit_id": ("commit_id", "commitId", "sha", "commit"),
     "deployment_id": ("deployment_id", "deploymentId", "release_id", "releaseId"),
     "service": ("service", "service_name", "serviceName"),
@@ -25,7 +43,25 @@ _FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "status": ("status", "state"),
 }
 _ATTRIBUTE_KEYS = frozenset(
-    {"branch", "ref", "message", "files", "changed_files", "patch", "diff", "url", "provider"}
+    {
+        "branch",
+        "ref",
+        "message",
+        "files",
+        "changed_files",
+        "patch",
+        "diff",
+        "url",
+        "provider",
+        "namespace",
+        "workload",
+        "replicas",
+        "ready",
+        "key",
+        "previous",
+        "current",
+        "cluster",
+    }
 )
 
 
@@ -105,7 +141,7 @@ def _records(payload: Any) -> list[Mapping[str, Any]]:
         return _mapping_records(payload)
     if not isinstance(payload, Mapping):
         raise ValueError("response must be an object or array")
-    for key in ("items", "events", "results", "commits", "deployments"):
+    for key in ("items", "events", "results", "commits", "deployments", "configs", "workloads"):
         value = payload.get(key)
         if isinstance(value, list):
             return _mapping_records(value)

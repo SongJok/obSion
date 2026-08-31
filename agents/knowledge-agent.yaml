@@ -9,3 +9,7 @@ spec:
   skills: [knowledge-qa]
   capabilities: [knowledge.search, document.read]
   riskPolicy: {maxLevel: L1}
+  sandbox:
+    enabled: true
+    network: gateway-only
+    mounts: [/workspace, /repo, /artifacts, /tmp]

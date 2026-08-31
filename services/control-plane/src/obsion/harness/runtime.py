@@ -4,9 +4,11 @@ import json
 import math
 from dataclasses import asdict
 from decimal import Decimal
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
+import structlog
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,21 +70,56 @@ from obsion.domain.run_state import is_terminal, validate_run_transition
 from obsion.domains.evidence.fabric import EvidenceFabric, EvidenceInput
 from obsion.harness.agent_router import AgentRouter, RouteSelection
 from obsion.harness.critic import Critic
+from obsion.harness.evidence_gaps import gap_step_contract, gap_step_name, select_gap_capabilities
 from obsion.harness.incident import IncidentEvidenceFusion, IncidentFusionResult
 from obsion.harness.planner import Planner
 from obsion.harness.replay import RunReplayService
 from obsion.harness.steps import StepExecutor
 from obsion.harness.understanding import UnderstandingEngine
 from obsion.knowledge.parsers import parse_document
-from obsion.model_gateway.context import ContextBuilder, ContextSegment, TrustLevel
+from obsion.model_gateway.compaction import (
+    ConversationCompactor,
+    conversation_turns_from_snapshots,
+)
+from obsion.model_gateway.context import (
+    ContextBuilder,
+    ContextPack,
+    ContextSegment,
+    TrustLevel,
+)
+from obsion.model_gateway.evidence_segments import evidence_context_segments
 from obsion.model_gateway.gateway import ModelGateway, ModelUnavailableError
+from obsion.model_gateway.workspace_context import workspace_context_segments
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
-from obsion.registry.agent_spec import AgentSpec
+from obsion.registry.agent_spec import AgentSpec, sandbox_allows_capabilities
+from obsion.registry.prompt_pins import (
+    SYSTEM_POLICY_PROMPT_NAME,
+    load_pinned_templates,
+)
+from obsion.registry.prompt_render import governed_prompt_values, render_prompt_template
 from obsion.security.auth import load_principal_by_id
 from obsion.security.identity import Principal
 from obsion.security.redaction import redact_text
-from obsion.telemetry import run_counter, tracer
+from obsion.telemetry import (
+    context_budget_counter,
+    conversation_compact_counter,
+    critic_coverage,
+    replan_counter,
+    run_counter,
+    run_duration,
+    run_steps,
+    run_ttft,
+    tracer,
+)
+
+logger = structlog.get_logger(__name__)
+
+
+def _observe_run(status: str, started: float) -> None:
+    attributes = {"status": status}
+    run_counter.add(1, attributes)
+    run_duration.record((perf_counter() - started) * 1000, attributes)
 
 
 class HarnessRuntime:
@@ -113,30 +150,53 @@ class HarnessRuntime:
         self.evidence = EvidenceFabric()
 
     async def execute(self, organization_id: UUID, run_id: UUID) -> None:
+        started = perf_counter()
         with tracer.start_as_current_span("obsion.run") as span:
             span.set_attribute("obsion.run.id", str(run_id))
             try:
                 replay = await self._materialize_replay(organization_id, run_id)
                 if replay:
                     span.set_attribute("obsion.run.replay", True)
-                    run_counter.add(1, {"status": "REPLAYED"})
+                    _observe_run("REPLAYED", started)
                     return
                 await self._prepare(organization_id, run_id)
                 should_continue = await self._execute_steps(organization_id, run_id)
                 if should_continue:
-                    while await self._replan_transient_failures(organization_id, run_id):
-                        should_continue = await self._execute_steps(organization_id, run_id)
-                        if not should_continue:
-                            run_counter.add(1, {"status": "WAITING"})
-                            return
-                    await self._respond(organization_id, run_id)
-                    run_counter.add(1, {"status": "COMPLETED"})
+                    while True:
+                        while await self._replan_transient_failures(organization_id, run_id):
+                            replan_counter.add(1, {"reason": "transient"})
+                            should_continue = await self._execute_steps(organization_id, run_id)
+                            if not should_continue:
+                                _observe_run("WAITING", started)
+                                return
+                        if await self._replan_missing_evidence(organization_id, run_id):
+                            replan_counter.add(1, {"reason": "missing_evidence"})
+                            should_continue = await self._execute_steps(organization_id, run_id)
+                            if not should_continue:
+                                _observe_run("WAITING", started)
+                                return
+                            continue
+                        replanned = await self._respond(organization_id, run_id)
+                        if replanned:
+                            replan_counter.add(1, {"reason": "critic_verification_failed"})
+                            should_continue = await self._execute_steps(organization_id, run_id)
+                            if not should_continue:
+                                _observe_run("WAITING", started)
+                                return
+                            continue
+                        break
+                    _observe_run("COMPLETED", started)
                 else:
-                    run_counter.add(1, {"status": "WAITING"})
+                    _observe_run("WAITING", started)
             except Exception as exc:
+                logger.exception(
+                    "run.execute_failed",
+                    run_id=str(run_id),
+                    error=f"{type(exc).__name__}: {exc}",
+                )
                 span.record_exception(exc)
                 span.set_attribute("error.type", type(exc).__name__)
-                run_counter.add(1, {"status": "FAILED"})
+                _observe_run("FAILED", started)
                 await self._fail(organization_id, run_id, exc)
 
     async def _materialize_replay(self, organization_id: UUID, run_id: UUID) -> bool:
@@ -183,8 +243,11 @@ class HarnessRuntime:
         organization_id: UUID,
         agent_version: AgentVersion,
         agent_name: str,
-    ) -> frozenset[str]:
+    ) -> tuple[frozenset[str], dict[str, Any]]:
         agent_spec = AgentSpec.from_dict(agent_version.spec, source=agent_name)
+        sandbox = dict(agent_spec.sandbox)
+        if not sandbox_allows_capabilities(sandbox):
+            return frozenset(), sandbox
         registered = set(
             await session.scalars(
                 select(CapabilityDefinition.name)
@@ -196,7 +259,7 @@ class HarnessRuntime:
                 )
             )
         )
-        return frozenset(registered.intersection(agent_spec.capabilities))
+        return frozenset(registered.intersection(agent_spec.capabilities)), sandbox
 
     async def _prepare(self, organization_id: UUID, run_id: UUID) -> None:
         async with self.database.sessions() as session, session.begin():
@@ -246,6 +309,7 @@ class HarnessRuntime:
                 session,
                 organization_id,
                 str(understanding["route"]),
+                question=str(understanding.get("question") or turn.sanitized_input),
                 fallback=RouteSelection(
                     agent_version=agent_version,
                     agent_definition=agent_definition,
@@ -259,7 +323,7 @@ class HarnessRuntime:
                 understanding["agent"] = agent_definition.name
                 understanding["skill"] = skill_snapshot["name"]
             compiled_payload: dict[str, Any] | None = None
-            if understanding["route"] == "DATA":
+            if understanding["route"] in {"DATA", "ANALYTICS"}:
                 if not understanding["metrics"]:
                     raise ValidationError(
                         "metric_not_resolved",
@@ -278,7 +342,7 @@ class HarnessRuntime:
                     raise NotFoundError("Data source", compiled.lineage["data_source_id"])
                 compiled_payload = jsonable_encoder(asdict(compiled))
                 compiled_payload["environment"] = source.environment
-            allowed_capabilities = await self._planner_capabilities(
+            allowed_capabilities, sandbox = await self._planner_capabilities(
                 session,
                 organization_id,
                 agent_version,
@@ -290,6 +354,8 @@ class HarnessRuntime:
                 available_capabilities=allowed_capabilities,
             )
             plan_payload = plan.as_dict()
+            plan_payload["available_capabilities"] = sorted(allowed_capabilities)
+            plan_payload["sandbox"] = sandbox
             if skill_snapshot is not None:
                 plan_payload["agent"] = agent_definition.name
                 plan_payload["skill"] = skill_snapshot
@@ -377,10 +443,20 @@ class HarnessRuntime:
                         organization_id=organization_id,
                         run_id=run.id,
                         ordinal=verify_ordinal + 1,
+                        name="Reflect on verification and publication",
+                        kind=StepKind.REFLECT,
+                        status=StepStatus.PENDING,
+                        depends_on=[verify_ordinal],
+                        input_payload={},
+                    ),
+                    RunStep(
+                        organization_id=organization_id,
+                        run_id=run.id,
+                        ordinal=verify_ordinal + 2,
                         name="Publish governed response",
                         kind=StepKind.RESPOND,
                         status=StepStatus.PENDING,
-                        depends_on=[verify_ordinal],
+                        depends_on=[verify_ordinal + 1],
                         input_payload={},
                     ),
                 ]
@@ -686,6 +762,248 @@ class HarnessRuntime:
             )
             return True
 
+    async def _apply_gap_replan(
+        self,
+        session: AsyncSession,
+        run: Run,
+        turn: Turn,
+        steps: list[RunStep],
+        *,
+        missing: tuple[str, ...],
+        reason: str,
+    ) -> bool:
+        """Insert unused authorized capabilities ahead of VERIFY/REFLECT/RESPOND."""
+        if not missing:
+            return False
+        plan = dict(run.plan)
+        history = list(plan.get("replans", []))
+        critic_attempts = sum(
+            1
+            for item in history
+            if item.get("reason") in {"critic_missing_evidence", "critic_verification_failed"}
+        )
+        if critic_attempts >= self.settings.run_max_critic_replans:
+            return False
+        capability_steps = [step for step in steps if step.kind == StepKind.CAPABILITY]
+        attempted = {
+            str(step.input_payload.get("capability"))
+            for step in capability_steps
+            if isinstance(step.input_payload, dict) and step.input_payload.get("capability")
+        }
+        declared = plan.get("available_capabilities")
+        if isinstance(declared, list):
+            available = frozenset(str(item) for item in declared)
+        elif run.agent_version_id is not None:
+            agent_row = (
+                await session.execute(
+                    select(AgentVersion, AgentDefinition)
+                    .join(AgentDefinition, AgentDefinition.id == AgentVersion.agent_id)
+                    .where(
+                        AgentVersion.id == run.agent_version_id,
+                        AgentVersion.organization_id == run.organization_id,
+                    )
+                )
+            ).one_or_none()
+            if agent_row is None:
+                available = frozenset()
+            else:
+                agent_version, agent_definition = agent_row._tuple()
+                available, _sandbox = await self._planner_capabilities(
+                    session, run.organization_id, agent_version, agent_definition.name
+                )
+        else:
+            available = frozenset()
+        selected = select_gap_capabilities(
+            missing, available=available, attempted=frozenset(attempted)
+        )
+        if not selected:
+            return False
+        verify_step = next((step for step in reversed(steps) if step.kind == StepKind.VERIFY), None)
+        reflect_step = next(
+            (step for step in reversed(steps) if step.kind == StepKind.REFLECT), None
+        )
+        respond_step = next(
+            (step for step in reversed(steps) if step.kind == StepKind.RESPOND), None
+        )
+        if verify_step is None or respond_step is None:
+            return False
+        added = len(selected)
+        if len(steps) + added > run.max_steps:
+            return False
+        question = turn.sanitized_input
+        template = next(
+            (
+                dict(step.input_payload)
+                for step in reversed(capability_steps)
+                if isinstance(step.input_payload, dict)
+            ),
+            {},
+        )
+        original_verify = verify_step.ordinal
+        original_reflect = reflect_step.ordinal if reflect_step is not None else None
+        original_respond = respond_step.ordinal
+        verify_step.ordinal = original_verify + 1000
+        if reflect_step is not None and original_reflect is not None:
+            reflect_step.ordinal = original_reflect + 1000
+        respond_step.ordinal = original_respond + 1000
+        await session.flush()
+        verify_step.ordinal = original_verify + added
+        if reflect_step is not None and original_reflect is not None:
+            reflect_step.ordinal = original_reflect + added
+        respond_step.ordinal = original_respond + added
+        await session.flush()
+        new_ordinals: list[int] = []
+        completed_caps = [
+            step.ordinal for step in capability_steps if step.status == StepStatus.COMPLETED
+        ]
+        last_capability = max(completed_caps, default=3)
+        plan_steps = list(plan.get("steps", []))
+        for offset, (missing_type, capability) in enumerate(selected):
+            ordinal = original_verify + offset
+            new_ordinals.append(ordinal)
+            contract = gap_step_contract(
+                capability,
+                missing_type,
+                question=question,
+                template=template,
+            )
+            session.add(
+                RunStep(
+                    organization_id=run.organization_id,
+                    run_id=run.id,
+                    ordinal=ordinal,
+                    name=gap_step_name(capability, missing_type),
+                    kind=StepKind.CAPABILITY,
+                    status=StepStatus.PENDING,
+                    depends_on=[last_capability],
+                    input_payload=jsonable_encoder(contract),
+                    max_retries=1,
+                )
+            )
+            plan_steps.append(
+                {
+                    "ordinal": len(plan_steps) + 1,
+                    "name": gap_step_name(capability, missing_type),
+                    "capability": capability,
+                    "payload": contract["payload"],
+                    "resource": contract["resource"],
+                    "environment": contract["environment"],
+                    "depends_on": (len(plan_steps),) if plan_steps else (),
+                    "replan_reason": reason,
+                }
+            )
+        verify_depends = [int(item) for item in verify_step.depends_on] + new_ordinals
+        verify_step.depends_on = list(dict.fromkeys(verify_depends))
+        if reflect_step is not None:
+            reflect_step.depends_on = [verify_step.ordinal]
+            respond_step.depends_on = [reflect_step.ordinal]
+        else:
+            respond_step.depends_on = [verify_step.ordinal]
+        validate_run_transition(run.status, RunStatus.REPLANNING)
+        previous_status = run.status
+        run.status = RunStatus.REPLANNING
+        await self.events.append(
+            session,
+            self._event(
+                run,
+                "run.state_changed",
+                {
+                    "from": previous_status,
+                    "to": RunStatus.REPLANNING,
+                    "reason": reason,
+                },
+            ),
+        )
+        history.append(
+            {
+                "attempt": len(history) + 1,
+                "reason": reason,
+                "missing_evidence": list(missing),
+                "capabilities": [capability for _, capability in selected],
+                "step_ordinals": new_ordinals,
+            }
+        )
+        plan["replans"] = history
+        plan["steps"] = plan_steps
+        run.plan = plan
+        await self.events.append(
+            session,
+            self._event(run, "plan.updated", {"replan": history[-1]}),
+        )
+        validate_run_transition(run.status, RunStatus.RUNNING)
+        run.status = RunStatus.RUNNING
+        await self.events.append(
+            session,
+            self._event(
+                run,
+                "run.state_changed",
+                {
+                    "from": RunStatus.REPLANNING,
+                    "to": RunStatus.RUNNING,
+                    "reason": "recovery_plan_ready",
+                },
+            ),
+        )
+        return True
+
+    async def _replan_missing_evidence(
+        self,
+        organization_id: UUID,
+        run_id: UUID,
+    ) -> bool:
+        """Append unused authorized capabilities for Critic-reported evidence gaps."""
+        async with self.database.sessions() as session, session.begin():
+            run = await session.scalar(
+                select(Run)
+                .where(Run.id == run_id, Run.organization_id == organization_id)
+                .with_for_update()
+            )
+            if run is None:
+                raise NotFoundError("Run", run_id)
+            if is_terminal(run.status) or run.status == RunStatus.WAITING_APPROVAL:
+                return False
+            if run.cancellation_requested_at:
+                await self._cancel(session, run)
+                return False
+            turn = await session.scalar(select(Turn).where(Turn.id == run.turn_id))
+            if turn is None:
+                raise NotFoundError("Turn", run.turn_id)
+            required_types = tuple(str(item) for item in run.plan.get("required_evidence", []))
+            if not required_types:
+                return False
+            evidence = list(
+                await session.scalars(
+                    select(Evidence).where(
+                        Evidence.organization_id == organization_id,
+                        Evidence.run_id == run_id,
+                    )
+                )
+            )
+            missing = Critic.missing_required_types(
+                Critic.substantive_records(evidence), required_types
+            )
+            if not missing:
+                return False
+            steps = list(
+                await session.scalars(
+                    select(RunStep)
+                    .where(
+                        RunStep.organization_id == organization_id,
+                        RunStep.run_id == run_id,
+                    )
+                    .order_by(RunStep.ordinal)
+                    .with_for_update()
+                )
+            )
+            return await self._apply_gap_replan(
+                session,
+                run,
+                turn,
+                steps,
+                missing=missing,
+                reason="critic_missing_evidence",
+            )
+
     async def _invoke_step(
         self,
         organization_id: UUID,
@@ -797,16 +1115,16 @@ class HarnessRuntime:
             step.capability_version_id = capability_version_id or step.capability_version_id
             step.completed_at = utc_now()
 
-    async def _respond(self, organization_id: UUID, run_id: UUID) -> None:
+    async def _respond(self, organization_id: UUID, run_id: UUID) -> bool:
         async with self.database.sessions() as session, session.begin():
             run, turn, thread, _, agent_version, agent_definition = await self._load_context(
                 session, organization_id, run_id, for_update=True
             )
             if is_terminal(run.status):
-                return
+                return False
             if run.cancellation_requested_at:
                 await self._cancel(session, run)
-                return
+                return False
             steps = list(
                 await session.scalars(
                     select(RunStep)
@@ -818,8 +1136,15 @@ class HarnessRuntime:
                     .with_for_update()
                 )
             )
-            verify_step = next((step for step in steps if step.kind == StepKind.VERIFY), None)
-            respond_step = next((step for step in steps if step.kind == StepKind.RESPOND), None)
+            verify_step = next(
+                (step for step in reversed(steps) if step.kind == StepKind.VERIFY), None
+            )
+            reflect_step = next(
+                (step for step in reversed(steps) if step.kind == StepKind.REFLECT), None
+            )
+            respond_step = next(
+                (step for step in reversed(steps) if step.kind == StepKind.RESPOND), None
+            )
             evidence = list(
                 await session.scalars(
                     select(Evidence)
@@ -881,7 +1206,7 @@ class HarnessRuntime:
             if run.plan.get("route") == "INCIDENT":
                 incident_fusion = self.incident_fusion.fuse(evidence)
             citations: list[dict[str, Any]] = []
-            if run.plan.get("route") == "KNOWLEDGE":
+            if run.plan.get("route") in {"KNOWLEDGE", "SUPPORT"}:
                 citations = self._knowledge_citations(claims, evidence)
                 if citations:
                     answer = self._append_knowledge_citations(answer, citations)
@@ -890,16 +1215,23 @@ class HarnessRuntime:
                     # be an explicit unknown rather than an unverified model response.
                     answer = self._knowledge_unknown_answer()
                     claims = []
+            elif run.plan.get("route") == "ENGINEERING":
+                citations = self._code_citations(claims, evidence)
+                if citations:
+                    answer = self._append_code_citations(answer, citations)
+                else:
+                    answer = self._code_unknown_answer()
+                    claims = []
             await session.refresh(
                 run,
                 attribute_names=["status", "cancellation_requested_at"],
                 with_for_update=True,
             )
             if is_terminal(run.status):
-                return
+                return False
             if run.cancellation_requested_at:
                 await self._cancel(session, run)
-                return
+                return False
             required_types = tuple(run.plan.get("required_evidence", []))
             self._start_core_step(run, verify_step)
             critic = self.critic.verify(
@@ -920,6 +1252,29 @@ class HarnessRuntime:
                 ),
             )
             self._complete_core_step(verify_step, output_ref="critic.completed")
+            decision = self._reflect_decision(
+                critic=critic, evidence_free_response=evidence_free_response
+            )
+            if decision == "REPLAN":
+                applied = await self._apply_gap_replan(
+                    session,
+                    run,
+                    turn,
+                    steps,
+                    missing=tuple(str(item) for item in critic.missing_evidence),
+                    reason="critic_verification_failed",
+                )
+                if applied:
+                    self._reopen_core_step(run, verify_step)
+                    return True
+                decision = "WITHHOLD"
+            self._complete_reflect_step(
+                run,
+                reflect_step,
+                critic=critic,
+                evidence_free_response=evidence_free_response,
+                decision=decision,
+            )
             verification_status = (
                 VerificationStatus.VERIFIED if critic.verified else VerificationStatus.PARTIAL
             )
@@ -971,7 +1326,16 @@ class HarnessRuntime:
                                 evidence_id=evidence_by_id[evidence_id].id,
                             )
                         )
-            result_artifacts = self._data_result_artifacts(run, turn, thread, evidence)
+            result_artifacts = self._data_result_artifacts(
+                run, turn, thread, evidence
+            ) + self._engineering_result_artifacts(run, turn, thread, evidence)
+            critic_coverage.record(
+                float(critic.coverage),
+                {
+                    "route": str(run.plan.get("route") or "UNKNOWN"),
+                    "verified": "true" if critic.verified else "false",
+                },
+            )
             verification_assessment_id = await self._persist_verification_assessment(
                 session,
                 run=run,
@@ -988,6 +1352,11 @@ class HarnessRuntime:
             )
             session.add_all(result_artifacts)
             await session.flush()
+            dashboard = self._workspace_dashboard_artifact(run, turn, thread, result_artifacts)
+            if dashboard is not None:
+                session.add(dashboard)
+                await session.flush()
+                result_artifacts = [*result_artifacts, dashboard]
             answer_content: dict[str, Any] = {
                 "markdown": answer,
                 "verification": jsonable_encoder(asdict(critic)),
@@ -1023,11 +1392,33 @@ class HarnessRuntime:
             )
             session.add(artifact)
             await session.flush()
+            report = self._workspace_report_artifact(
+                run,
+                turn,
+                thread,
+                answer=artifact,
+                result_artifacts=result_artifacts,
+                citations=citations,
+                incident_fusion=incident_fusion,
+            )
+            if report is not None:
+                session.add(report)
+                await session.flush()
+                result_artifacts = [*result_artifacts, report]
+                artifact.lineage = {
+                    **artifact.lineage,
+                    "report_artifact_id": str(report.id),
+                }
             await self.events.append(session, self._event(run, "critic.completed", asdict(critic)))
             await self.events.append(
                 session,
                 self._event(run, "answer.delta", {"delta": answer, "final": True}),
             )
+            run_ttft.record(
+                max(0.0, (utc_now() - ensure_utc(run.created_at)).total_seconds() * 1000),
+                {"final": "true"},
+            )
+            run_steps.record(run.step_count, {"route": str(run.plan.get("route") or "UNKNOWN")})
             for result_artifact in result_artifacts:
                 await self.events.append(
                     session,
@@ -1109,6 +1500,7 @@ class HarnessRuntime:
                     ),
                 ),
             )
+            return False
 
     async def _persist_verification_assessment(
         self,
@@ -1149,9 +1541,7 @@ class HarnessRuntime:
         assessment_verified = bool(critic.verified and claim_models and policy_decision)
         policy_id = policy_decision.id if assessment_verified and policy_decision else None
         outcome = (
-            VerificationOutcome.VERIFIED
-            if assessment_verified
-            else VerificationOutcome.PARTIAL
+            VerificationOutcome.VERIFIED if assessment_verified else VerificationOutcome.PARTIAL
         )
         publication = (
             AnswerPublicationDecision.PUBLISH
@@ -1325,9 +1715,7 @@ class HarnessRuntime:
             except ValueError:
                 kind = EvidenceConflictKind.VALUE
             try:
-                severity = EvidenceConflictSeverity(
-                    str(conflict.get("severity", "MEDIUM")).upper()
-                )
+                severity = EvidenceConflictSeverity(str(conflict.get("severity", "MEDIUM")).upper())
             except ValueError:
                 severity = EvidenceConflictSeverity.MEDIUM
             subject = str(conflict.get("subject") or left.resource or "evidence")[:500]
@@ -1391,8 +1779,7 @@ class HarnessRuntime:
                 )
             )
             persisted_conflicts += int(
-                severity
-                in {EvidenceConflictSeverity.HIGH, EvidenceConflictSeverity.CRITICAL}
+                severity in {EvidenceConflictSeverity.HIGH, EvidenceConflictSeverity.CRITICAL}
             )
         assessment.high_conflict_count = persisted_conflicts
         return assessment.id
@@ -1406,6 +1793,57 @@ class HarnessRuntime:
             and isinstance(plan_steps, list)
             and not plan_steps
         )
+
+    @staticmethod
+    def _reflect_decision(*, critic: Any, evidence_free_response: bool) -> str:
+        if critic.verified or evidence_free_response:
+            return "RESPOND"
+        if critic.missing_evidence:
+            return "REPLAN"
+        return "WITHHOLD"
+
+    def _complete_reflect_step(
+        self,
+        run: Run,
+        reflect_step: RunStep | None,
+        *,
+        critic: Any,
+        evidence_free_response: bool,
+        decision: str | None = None,
+    ) -> str:
+        chosen = decision or self._reflect_decision(
+            critic=critic, evidence_free_response=evidence_free_response
+        )
+        self._start_core_step(run, reflect_step)
+        if reflect_step is not None and reflect_step.status == StepStatus.RUNNING:
+            payload = dict(reflect_step.input_payload or {})
+            payload.update(
+                jsonable_encoder(
+                    {
+                        "decision": chosen,
+                        "verified": bool(critic.verified),
+                        "missing_evidence": list(critic.missing_evidence),
+                        "conflict_count": len(critic.conflicts),
+                        "coverage": critic.coverage,
+                        "evidence_free_response": evidence_free_response,
+                    }
+                )
+            )
+            reflect_step.input_payload = payload
+        self._complete_core_step(reflect_step, output_ref=f"reflect.{chosen.lower()}")
+        return chosen
+
+    @staticmethod
+    def _reopen_core_step(run: Run, step: RunStep | None) -> None:
+        if step is None or step.status == StepStatus.PENDING:
+            return
+        if step.status == StepStatus.RUNNING and run.step_count > 0:
+            run.step_count -= 1
+        step.status = StepStatus.PENDING
+        step.started_at = None
+        step.completed_at = None
+        step.output_ref = None
+        step.error_code = None
 
     @staticmethod
     def _start_core_step(run: Run, step: RunStep | None) -> None:
@@ -1435,7 +1873,7 @@ class HarnessRuntime:
         thread: Thread,
         evidence: list[Evidence],
     ) -> list[Artifact]:
-        if run.plan.get("route") != "DATA":
+        if run.plan.get("route") not in {"DATA", "ANALYTICS"}:
             return []
         data_evidence = next(
             (item for item in evidence if item.evidence_type == EvidenceType.DATA), None
@@ -1539,6 +1977,213 @@ class HarnessRuntime:
             )
         return artifacts
 
+    def _workspace_dashboard_artifact(
+        self,
+        run: Run,
+        turn: Turn,
+        thread: Thread,
+        result_artifacts: list[Artifact],
+    ) -> Artifact | None:
+        if any(item.kind == ArtifactKind.DASHBOARD for item in result_artifacts):
+            return None
+        charts = [item for item in result_artifacts if item.kind == ArtifactKind.CHART]
+        if not charts:
+            return None
+        panel_kinds = {ArtifactKind.CHART, ArtifactKind.TABLE, ArtifactKind.SQL}
+        panels = [
+            {
+                "artifact_id": str(item.id),
+                "kind": item.kind,
+                "title": item.title,
+            }
+            for item in result_artifacts
+            if item.kind in panel_kinds
+        ]
+        return Artifact(
+            organization_id=run.organization_id,
+            workspace_id=thread.workspace_id,
+            run_id=run.id,
+            kind=ArtifactKind.DASHBOARD,
+            title="Workspace dashboard",
+            media_type="application/vnd.obsion.dashboard+json",
+            inline_content={
+                "panels": panels,
+                "chart_artifact_ids": [str(item.id) for item in charts],
+                "table_artifact_ids": [
+                    str(item.id) for item in result_artifacts if item.kind == ArtifactKind.TABLE
+                ],
+                "sql_artifact_ids": [
+                    str(item.id) for item in result_artifacts if item.kind == ArtifactKind.SQL
+                ],
+                "source": "workspace-dashboard",
+            },
+            classification=charts[0].classification,
+            acl={"users": [str(turn.created_by)]},
+            lineage={
+                "run_id": str(run.id),
+                "source": "workspace-dashboard",
+                "chart_artifact_ids": [str(item.id) for item in charts],
+            },
+        )
+
+    def _workspace_report_artifact(
+        self,
+        run: Run,
+        turn: Turn,
+        thread: Thread,
+        *,
+        answer: Artifact,
+        result_artifacts: list[Artifact],
+        citations: list[dict[str, Any]],
+        incident_fusion: IncidentFusionResult | None,
+    ) -> Artifact | None:
+        if any(item.kind == ArtifactKind.REPORT for item in result_artifacts):
+            return None
+        if not citations and not result_artifacts and incident_fusion is None:
+            return None
+        content = dict(answer.inline_content or {})
+        return Artifact(
+            organization_id=run.organization_id,
+            workspace_id=thread.workspace_id,
+            run_id=run.id,
+            kind=ArtifactKind.REPORT,
+            title="Workspace report",
+            media_type="text/markdown",
+            inline_content={
+                "markdown": content.get("markdown") or "",
+                "verification": content.get("verification"),
+                "citations": content.get("citations") or [],
+                "answer_artifact_id": str(answer.id),
+                "linked_artifact_ids": [str(item.id) for item in result_artifacts],
+                **(
+                    {"incident_fusion": content.get("incident_fusion")}
+                    if content.get("incident_fusion") is not None
+                    else {}
+                ),
+            },
+            classification=answer.classification,
+            acl={"users": [str(turn.created_by)]},
+            lineage={
+                "run_id": str(run.id),
+                "answer_artifact_id": str(answer.id),
+                "source": "workspace-report",
+            },
+        )
+
+    def _engineering_result_artifacts(
+        self,
+        run: Run,
+        turn: Turn,
+        thread: Thread,
+        evidence: list[Evidence],
+    ) -> list[Artifact]:
+        code_evidence = [
+            item
+            for item in evidence
+            if item.evidence_type == EvidenceType.CODE and Critic._substantive(item)
+        ]
+        git_evidence = [
+            item
+            for item in evidence
+            if item.evidence_type == EvidenceType.GIT and Critic._substantive(item)
+        ]
+        if not code_evidence and not git_evidence:
+            return []
+        common = {
+            "organization_id": run.organization_id,
+            "workspace_id": thread.workspace_id,
+            "run_id": run.id,
+            "acl": {"users": [str(turn.created_by)]},
+        }
+        artifacts: list[Artifact] = []
+        for item in code_evidence:
+            rows = [row for row in (item.content.get("items") or []) if isinstance(row, dict)]
+            if not rows:
+                continue
+            artifacts.append(
+                Artifact(
+                    **common,
+                    kind=ArtifactKind.CODE,
+                    title="Authorized code graph symbols",
+                    media_type="application/vnd.obsion.code+json",
+                    inline_content={
+                        "symbols": [
+                            {
+                                "repository": row.get("repository") or item.source,
+                                "path": row.get("path") or item.resource,
+                                "qualified_name": row.get("qualified_name"),
+                                "kind": row.get("kind"),
+                                "commit_id": row.get("commit_id"),
+                            }
+                            for row in rows[:200]
+                        ],
+                        "count": int(item.content.get("count", len(rows))),
+                    },
+                    classification=item.classification,
+                    lineage={
+                        "run_id": str(run.id),
+                        "evidence_id": str(item.id),
+                        "content_fingerprint": item.content_fingerprint,
+                    },
+                )
+            )
+        for item in git_evidence:
+            rows = [row for row in (item.content.get("items") or []) if isinstance(row, dict)]
+            if not rows:
+                continue
+            artifacts.append(
+                Artifact(
+                    **common,
+                    kind=ArtifactKind.DIFF,
+                    title="Authorized Git diff",
+                    media_type="application/vnd.obsion.diff+json",
+                    inline_content={
+                        "commits": [
+                            {
+                                "repository": row.get("repository") or item.source,
+                                "commit_id": row.get("commit_id"),
+                                "files": (row.get("attributes") or {}).get("files")
+                                if isinstance(row.get("attributes"), dict)
+                                else row.get("files"),
+                                "patch": (row.get("attributes") or {}).get("patch")
+                                if isinstance(row.get("attributes"), dict)
+                                else row.get("patch"),
+                            }
+                            for row in rows[:100]
+                        ],
+                        "count": int(item.content.get("count", len(rows))),
+                    },
+                    classification=item.classification,
+                    lineage={
+                        "run_id": str(run.id),
+                        "evidence_id": str(item.id),
+                        "content_fingerprint": item.content_fingerprint,
+                    },
+                )
+            )
+        if artifacts:
+            source = code_evidence[0] if code_evidence else git_evidence[0]
+            artifacts.append(
+                Artifact(
+                    **common,
+                    kind=ArtifactKind.REPORT,
+                    title="Engineering evidence report",
+                    media_type="text/markdown",
+                    inline_content={
+                        "markdown": (
+                            f"本次运行收集到 {len(code_evidence)} 份 CODE Evidence、"
+                            f"{len(git_evidence)} 份 GIT Evidence。"
+                            "符号与 diff 均来自授权只读 Capability，仓库代码未执行。"
+                        ),
+                        "code_evidence_ids": [str(item.id) for item in code_evidence],
+                        "git_evidence_ids": [str(item.id) for item in git_evidence],
+                    },
+                    classification=source.classification,
+                    lineage={"run_id": str(run.id)},
+                )
+            )
+        return artifacts
+
     @staticmethod
     def _chart_contract(columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any] | None:
         if not columns or not rows:
@@ -1600,6 +2245,34 @@ class HarnessRuntime:
             return None
         return number if math.isfinite(number) else None
 
+    async def _prompt_segments(self, session: AsyncSession, run: Run) -> list[ContextSegment]:
+        loaded = await load_pinned_templates(session, run.organization_id, run.prompt_pins or [])
+        available = governed_prompt_values(run.plan if isinstance(run.plan, dict) else {})
+        segments: list[ContextSegment] = []
+        for index, (pin, template, schema) in enumerate(loaded):
+            declared = (
+                {
+                    key: value
+                    for key, value in available.items()
+                    if key in schema.get("properties", {})
+                }
+                if isinstance(schema.get("properties"), dict)
+                else {}
+            )
+            rendered = render_prompt_template(template, schema, declared)
+            name = str(pin.get("name") or SYSTEM_POLICY_PROMPT_NAME)
+            system = name == SYSTEM_POLICY_PROMPT_NAME
+            segments.append(
+                ContextSegment(
+                    TrustLevel.SYSTEM if system else TrustLevel.AGENT,
+                    rendered,
+                    name if not system else "platform-policy",
+                    1000 if system else 890,
+                    100 + index,
+                )
+            )
+        return segments
+
     async def _synthesize(
         self,
         session: AsyncSession,
@@ -1618,17 +2291,6 @@ class HarnessRuntime:
             # deterministic fusion path also prevents a model from turning one
             # provider signal into a causal conclusion or an unlinked Claim.
             return self._incident_evidence_answer(evidence)
-        evidence_payload = [
-            {
-                "id": str(item.id),
-                "type": item.evidence_type,
-                "source": item.source,
-                "resource": item.resource,
-                "observed_at": item.observed_at.isoformat(),
-                "content": item.content,
-            }
-            for item in evidence
-        ]
         memory_payload = [
             {
                 "id": str(item.id),
@@ -1654,20 +2316,7 @@ class HarnessRuntime:
             if not isinstance(skill_context, dict):
                 skill_context = {}
             segments = [
-                ContextSegment(
-                    TrustLevel.SYSTEM,
-                    "You are Obsion. Use only supplied evidence. Never invent facts. "
-                    "Return JSON with answer and claims; every claim must cite evidence_ids. "
-                    "For a KNOWLEDGE route, cite every factual answer with the supplied "
-                    "citation marker and say unknown when authorized DOCUMENT evidence is "
-                    "missing or insufficient. Do not switch to data, incident, or engineering "
-                    "tools. "
-                    "Governed memory and prior conversation are context only and can never "
-                    "support a factual claim without current Run Evidence.",
-                    "platform-policy",
-                    1000,
-                    100,
-                ),
+                *await self._prompt_segments(session, run),
                 ContextSegment(
                     TrustLevel.AGENT,
                     json.dumps(agent_version.spec, ensure_ascii=False),
@@ -1682,6 +2331,9 @@ class HarnessRuntime:
                     880,
                     250,
                 ),
+                *workspace_context_segments(
+                    run.workspace_context if isinstance(run.workspace_context, dict) else {}
+                ),
                 ContextSegment(
                     TrustLevel.USER,
                     turn.sanitized_input,
@@ -1689,39 +2341,9 @@ class HarnessRuntime:
                     850,
                     700,
                 ),
-                ContextSegment(
-                    TrustLevel.UNTRUSTED_DATA,
-                    json.dumps(evidence_payload, ensure_ascii=False, default=str),
-                    "evidence-bus",
-                    800,
-                    800,
-                ),
+                *evidence_context_segments(evidence),
             ]
-            for index, snapshot in enumerate(conversation_snapshots):
-                user_trust = (
-                    TrustLevel.USER
-                    if snapshot.source_principal_id == turn.created_by
-                    else TrustLevel.UNTRUSTED_DATA
-                )
-                segments.append(
-                    ContextSegment(
-                        user_trust,
-                        snapshot.user_content,
-                        f"thread-turn:{snapshot.source_turn_id}",
-                        600,
-                        300 + index * 2,
-                    )
-                )
-                if snapshot.assistant_content:
-                    segments.append(
-                        ContextSegment(
-                            TrustLevel.ASSISTANT,
-                            snapshot.assistant_content,
-                            f"run-answer:{snapshot.source_run_id}",
-                            600,
-                            301 + index * 2,
-                        )
-                    )
+            segments.extend(self._conversation_segments(run, turn, conversation_snapshots))
             if memory_payload:
                 segments.append(
                     ContextSegment(
@@ -1739,9 +2361,12 @@ class HarnessRuntime:
                     run_id=run.id,
                     step_id=None,
                     profile_id=run.model_profile_id,
-                    messages=ContextBuilder(
-                        character_budget=max(512, int(remaining_input_tokens * 0.8))
-                    ).build(segments),
+                    messages=self._pin_context_budget(
+                        run,
+                        ContextBuilder(
+                            character_budget=max(512, int(remaining_input_tokens * 0.8))
+                        ).pack(segments),
+                    ),
                     classification=self._highest_classification(
                         evidence,
                         memory_snapshots,
@@ -1905,6 +2530,10 @@ class HarnessRuntime:
                     "title": str(candidate.get("title", "授权文档")),
                     "version": candidate.get("version"),
                     "chunk_id": candidate.get("chunk_id"),
+                    "external_id": candidate.get("external_id"),
+                    "revision_id": candidate.get("revision_id"),
+                    "connector_name": candidate.get("connector_name"),
+                    "operation": candidate.get("operation"),
                 }
                 citations.append(citation)
                 if len(citations) >= 8:
@@ -1931,13 +2560,81 @@ class HarnessRuntime:
         return "不知道：在当前授权知识范围内没有找到足够的证据来回答这个问题。"
 
     @staticmethod
+    def _code_unknown_answer() -> str:
+        return "不知道：在当前授权代码图中没有找到足够的符号、引用或调用链证据。"
+
+    @staticmethod
+    def _code_citations(
+        claims: list[dict[str, Any]], evidence: list[Evidence]
+    ) -> list[dict[str, Any]]:
+        evidence_by_id = {str(item.id): item for item in evidence}
+        referenced_ids = [
+            evidence_id
+            for claim in claims
+            for evidence_id in claim.get("evidence_ids", [])
+            if evidence_id in evidence_by_id
+        ]
+        if not referenced_ids:
+            referenced_ids = [
+                str(item.id)
+                for item in evidence
+                if not (
+                    isinstance(item.content.get("items"), list)
+                    and not item.content["items"]
+                    and item.content.get("count") == 0
+                )
+            ]
+        citations: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for evidence_id in referenced_ids:
+            item = evidence_by_id[evidence_id]
+            hits = item.content.get("items")
+            candidates = (
+                [hit for hit in hits if isinstance(hit, dict)]
+                if isinstance(hits, list)
+                else [item.content]
+            )
+            for candidate in candidates:
+                symbol_id = str(candidate.get("symbol_id") or candidate.get("qualified_name") or "")
+                key = (evidence_id, symbol_id)
+                if key in seen:
+                    continue
+                seen.add(key)
+                citations.append(
+                    {
+                        "label": f"[{len(citations) + 1}]",
+                        "evidence_id": evidence_id,
+                        "repository": str(candidate.get("repository", item.source)),
+                        "path": str(candidate.get("path", item.resource)),
+                        "qualified_name": str(candidate.get("qualified_name", "")),
+                        "commit_id": candidate.get("commit_id"),
+                    }
+                )
+                if len(citations) >= 8:
+                    return citations
+        return citations
+
+    @staticmethod
+    def _append_code_citations(answer: str, citations: list[dict[str, Any]]) -> str:
+        lines = [answer.rstrip(), "", "### 代码证据"]
+        for citation in citations:
+            commit = citation.get("commit_id")
+            commit_label = f" · {commit}" if commit else ""
+            lines.append(
+                f"- {citation['label']} `{citation['qualified_name']}` · "
+                f"{citation['repository']}:{citation['path']}{commit_label} "
+                f"（Evidence `{citation['evidence_id']}`）"
+            )
+        return "\n".join(lines)
+
+    @staticmethod
     def _evidence_only_answer(
         run: Run, evidence: list[Evidence]
     ) -> tuple[str, list[dict[str, Any]]]:
         route = run.plan.get("route")
         claims: list[dict[str, Any]] = []
         lines = ["已完成受控检索，以下内容严格来自当前可访问证据。"]
-        if route == "KNOWLEDGE":
+        if route in {"KNOWLEDGE", "SUPPORT"}:
             hits = [
                 hit
                 for item in evidence
@@ -1966,7 +2663,29 @@ class HarnessRuntime:
                 )
             else:
                 lines = [HarnessRuntime._knowledge_unknown_answer()]
-        elif route == "DATA":
+        elif route == "ENGINEERING":
+            items = [
+                hit
+                for item in evidence
+                for hit in item.content.get("items", [])
+                if isinstance(hit, dict)
+            ]
+            for hit in items[:8]:
+                lines.append(
+                    f"- **{hit.get('qualified_name') or hit.get('name')}** · "
+                    f"{hit.get('path')} ({hit.get('kind')})"
+                )
+            if items:
+                claims.append(
+                    {
+                        "statement": f"Code Graph 返回 {len(items)} 个已授权符号或关系。",
+                        "evidence_ids": [str(item.id) for item in evidence],
+                        "confidence": 0.9,
+                    }
+                )
+            else:
+                lines = [HarnessRuntime._code_unknown_answer()]
+        elif route in {"DATA", "ANALYTICS"}:
             result = evidence[0].content
             semantic = evidence[0].lineage.get("request_resource", {})
             metric = semantic.get("metric", {}) if isinstance(semantic, dict) else {}
@@ -2065,6 +2784,65 @@ class HarnessRuntime:
                     result_classification=Classification.INTERNAL,
                 ),
             )
+
+    def _conversation_segments(
+        self,
+        run: Run,
+        turn: Turn,
+        conversation_snapshots: list[RunConversationSnapshot],
+    ) -> list[ContextSegment]:
+        compacted = ConversationCompactor().compact(
+            conversation_turns_from_snapshots(conversation_snapshots)
+        )
+        if not run.conversation_compact:
+            run.conversation_compact = compacted.as_dict()
+            conversation_compact_counter.add(
+                1,
+                {
+                    "method": compacted.method,
+                    "summarized": str(compacted.summarized_turns > 0).lower(),
+                },
+            )
+        segments: list[ContextSegment] = []
+        if compacted.summary_segment is not None:
+            segments.append(compacted.summary_segment)
+        recent_by_id = {item.source_turn_id: item for item in compacted.recent}
+        for index, snapshot in enumerate(conversation_snapshots):
+            if snapshot.source_turn_id not in recent_by_id:
+                continue
+            user_trust = (
+                TrustLevel.USER
+                if snapshot.source_principal_id == turn.created_by
+                else TrustLevel.UNTRUSTED_DATA
+            )
+            segments.append(
+                ContextSegment(
+                    user_trust,
+                    snapshot.user_content,
+                    f"thread-turn:{snapshot.source_turn_id}",
+                    600,
+                    300 + index * 2,
+                )
+            )
+            if snapshot.assistant_content:
+                segments.append(
+                    ContextSegment(
+                        TrustLevel.ASSISTANT,
+                        snapshot.assistant_content,
+                        f"run-answer:{snapshot.source_run_id}",
+                        600,
+                        301 + index * 2,
+                    )
+                )
+        return segments
+
+    @staticmethod
+    def _pin_context_budget(run: Run, pack: ContextPack) -> list[dict[str, str]]:
+        if not run.context_budget:
+            run.context_budget = pack.as_dict()
+            for decision in pack.decisions:
+                context_budget_counter.add(1, {"action": decision.action.value})
+        return pack.messages
 
     @staticmethod
     def _event(run: Run, name: str, payload: dict[str, Any]) -> EventDraft:

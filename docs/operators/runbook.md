@@ -161,7 +161,8 @@ application version at it after validating tenant and audit integrity.
 - HTTP, SQLAlchemy, Harness, capability, policy, and model spans export through
   OTLP/HTTP when `OBSION_OTEL_EXPORTER_OTLP_ENDPOINT` is configured.
 - Counters include `obsion.runs`, `obsion.capability.invocations`,
-  `obsion.policy.decisions`, `obsion.model.calls`, and
+  `obsion.policy.decisions`, `obsion.policy.duration`, `obsion.approval.decisions`,
+  `obsion.automation.duration`, `obsion.model.calls`, and
   `obsion.automation.executions`; governed attempts add `obsion.action.attempts` by
   action type, purpose, and outcome. Memory context capture emits
   `obsion.memory.context` with scope and selected/skipped outcomes. App Server
@@ -261,6 +262,49 @@ schedule with an ownership error must be reassigned or have permissions restored
 an authorized operator re-enables it. Never edit `next_fire_at` or insert an execution
 manually; use a manual idempotent trigger when an occurrence must be replayed.
 
+### IM ingest rejected or bound to the wrong user
+
+Confirm the sender is bound in the Workbench IM panel or `/api/v1/admin/im-bindings`.
+The identity key is `(channel, sender_id)`, never a nickname. Unmapped senders return
+`unknown_im_sender`. Vendor envelopes must include `open_id`, `senderStaffId`, or
+`FromUserName`. Feishu URL verification must not create a Turn. If
+`OBSION_IM_WEBHOOK_SECRET` is set, unsigned envelopes fail closed. Inspect
+`local_outbox` envelopes with `obsion-im --json` and optional `--outbox` before live
+delivery. Explicit `feishu-http`, `dingtalk-http`, and `wecom-http` delivery is
+permitted only after `POST /api/v1/experience/im/runs/{id}/deliveries` records a
+Policy-authorized receipt; generic `--deliver http` is not implemented. Loopback
+`serve --listen 127.0.0.1` remains the default. Public callbacks require `--public`,
+TLS files, Host allowlisting, and channel-specific security. WeCom encrypted callbacks
+require Token plus EncodingAESKey; missing or invalid material fails closed.
+
+If vendor HTTP is degraded, disable that explicit transport and preserve its delivery
+receipt. Do not retry with a generic URL or change an existing receipt. Validate token
+scope, pinned origin, redacted error, and vendor request id before restoring traffic.
+For the full support and rollback matrix, use the
+[0.75.0-dev release notes](../release/0.75.0-dev.md).
+
+### Vendor Knowledge sync rejected or incomplete
+
+Confirm the active connector type, `credential_ref`, exact egress origin,
+`knowledge.write` permission, connector grants, rate limit, and sync budget. Missing
+ACL must fail closed; do not replace it with organization-wide access. Budget
+exhaustion is an explicit failed sync, not permission to silently truncate. Disable
+the connector before investigating upstream scope or provenance mismatch and retain
+existing DocumentVersions, Evidence, Events, and Audit.
+
+### Operator Capability outcome is UNKNOWN
+
+`OBSION_OPERATOR_CAPABILITY_IDEMPOTENCY_RETENTION_HOURS` controls this ledger
+independently from App Server retries and defaults to 168 hours. Set it longer than
+the maximum incident detection and connector reconciliation window before rollout.
+Query `/api/v1/admin/operator-invocations?status=UNKNOWN` and correlate its request,
+CapabilityVersion, Connector, PolicyDecision, and Audit. Do not edit the ledger or
+reuse the same request UUID: exact retry remains fail-closed. Inspect the connector's
+source object and the Knowledge Document/DocumentVersion lineage to determine whether
+the original attempt committed. Only after connector-specific reconciliation may an
+operator submit a new request UUID. A new UUID is a new operation, not proof that the
+unknown attempt failed. Retain both Audit trails in the incident record.
+
 ## Routine maintenance
 
 - Review expired approvals and memory candidates weekly. Investigate L3 memory-write
@@ -276,8 +320,15 @@ manually; use a manual idempotent trigger when an occurrence must be replayed.
   through the feedback endpoint; never edit or delete feedback directly, and never
   use a rating to override Evidence or Critic results.
 - Review policy denials, rate-limit changes, connector health, and cost anomalies daily.
+- Review UNKNOWN Operator Capability invocations daily and reconcile them before
+  their retention expires; never convert UNKNOWN to FAILED by direct SQL.
 - Re-run version-pinned evaluations before promoting agents, skills, prompts, models,
   semantic definitions, or capability schemas. Bind every Golden Dataset `run_ref` to
   a terminal candidate Run, use a completed exact-snapshot baseline, and stop the
-  release when `gate_passed` is false.
+  release when `gate_passed` is false. CI also runs `uv run obsion validate-eval-gates`
+  and `uv run obsion scan-secrets`.
+- Follow [backup/restore](backup-restore.md) and [upgrade](upgrade.md) before a
+  production cutover. [SLO targets](slo.md) are engineering defaults, not a signed SLA.
+  Day-two procedures: [deployment](deployment.md), [administrator](administrator.md),
+  [agents and skills](agents-and-skills.md), and [incident](incident.md).
 - Retire old versions only after retained runs no longer require replay against them.

@@ -87,14 +87,21 @@ def validate_case_request(
     if evaluator == EvaluationTarget.RUN_OUTPUT:
         run_ref = request.input_payload.get("run_ref")
         if isinstance(run_ref, str) and _RUN_REF.fullmatch(run_ref):
-            return
-        try:
-            UUID(str(request.input_payload["run_id"]))
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValidationError(
-                "evaluation_run_id_required",
-                "A Run output case requires a valid run_id or run_ref",
-            ) from exc
+            pass
+        else:
+            try:
+                UUID(str(request.input_payload["run_id"]))
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValidationError(
+                    "evaluation_run_id_required",
+                    "A Run output case requires a valid run_id or run_ref",
+                ) from exc
+    if "actual" in request.fixtures:
+        raise ValidationError(
+            "evaluation_expectation_unsupported",
+            "Evaluation cases cannot self-report fixtures.actual",
+            fields=["fixtures.actual"],
+        )
 
 
 def validate_score_thresholds(values: dict[str, float]) -> dict[str, float]:

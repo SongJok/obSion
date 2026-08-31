@@ -96,6 +96,7 @@ requirement, not an incomplete implementation.
 | Skills | Versioned procedure, capability and evidence requirements | Schema and promotion tests |
 | Capability fabric | Transport-neutral descriptors and connector bindings | Contract tests |
 | Capability Gateway | Validate, authorize, approve, broker, execute, mask, evidence, audit; generic invocation stays read-only | Gateway integration tests |
+| Operator Capability retry safety | No-Run L2 idempotent Knowledge writes use a durable organization/principal/request ledger, canonical input fingerprint, current-Policy replay authorization, immutable terminal result, and fail-closed UNKNOWN reconciliation without inventing Harness state | REST replay/conflict tests, PostgreSQL concurrency/trigger tests, migration round-trip, SDK and Workbench projection |
 | Governed actions | Closed L3 PR/ticket surface, immutable plan, non-self execute/rollback approval, pinned connector, idempotent attempt, compensation | Action API/worker, provider-recovery, PostgreSQL invariant, and UI tests |
 | Policy | RBAC + ABAC + resource + capability rules; allow/mask/ask/deny | Precedence and isolation tests |
 | Risk | L0-L5; generic agents capped at read-only L2; dedicated V1 action plane limited to approved L3 PR/ticket writes outside production | Denial and bypass tests |
@@ -135,6 +136,9 @@ requirement, not an incomplete implementation.
 - A reconnect retry cannot repeat an App Server lifecycle mutation when it supplies
   the same principal-scoped client request ID; a different method or payload cannot
   reuse that authority.
+- A no-Run idempotent operator write cannot execute twice for the same
+  organization/principal/request UUID; exact terminal retries must reauthorize and
+  replay, while expired uncertain outcomes remain UNKNOWN until reconciled.
 - A Run stream cursor is monotonic across events from every primary aggregate and is
   advanced only after delivery; aggregate-local sequence numbers are never used as a
   substitute.

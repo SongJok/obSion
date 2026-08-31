@@ -14,6 +14,7 @@ from obsion.domain.enums import (
     Classification,
     EvaluationResultStatus,
     EvaluationTarget,
+    ImDeliveryStatus,
     MemoryScope,
     MemoryStatus,
     RiskLevel,
@@ -134,6 +135,10 @@ class RunView(APIModel):
     status: RunStatus
     agent_version_id: UUID | None
     model_profile_id: UUID | None
+    prompt_pins: list[dict[str, Any]] = Field(default_factory=list)
+    context_budget: dict[str, Any] = Field(default_factory=dict)
+    conversation_compact: dict[str, Any] = Field(default_factory=dict)
+    workspace_context: dict[str, Any] = Field(default_factory=dict)
     intent: dict[str, Any]
     plan: dict[str, Any]
     max_steps: int
@@ -207,6 +212,9 @@ class ArtifactView(APIModel):
     storage_key: str | None
     classification: Classification
     lineage: dict[str, Any]
+    path: str | None = None
+    file_version: int | None = None
+    superseded_at: datetime | None = None
     created_at: datetime
 
 
@@ -307,6 +315,12 @@ class CreateMemoryRequest(APIModel):
     expires_at: datetime | None = None
 
 
+class UpdateMemoryRequest(APIModel):
+    content: dict[str, Any]
+    sensitivity: Classification | None = None
+    expires_at: datetime | None = None
+
+
 class MemoryDecisionRequest(APIModel):
     reason: str = Field(min_length=3, max_length=1000)
 
@@ -402,6 +416,7 @@ class StartEvaluationRunRequest(APIModel):
     maximum_regression_rate: float = Field(default=0.0, ge=0, le=1)
     score_thresholds: dict[str, float] = Field(default_factory=dict)
     run_bindings: dict[str, UUID] = Field(default_factory=dict)
+    prompt_pins: dict[str, int] = Field(default_factory=dict)
 
 
 class EvaluationRunView(APIModel):
@@ -467,6 +482,198 @@ class KnowledgeSearchRequest(APIModel):
     limit: int = Field(default=8, ge=1, le=50)
 
 
+class FeishuDocumentIngestRequest(APIModel):
+    document_id: str = Field(min_length=10, max_length=100)
+    obj_type: str = Field(default="auto", pattern="^(auto|docx|wiki)$")
+    title: str | None = Field(default=None, max_length=500)
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class FeishuDocumentIngestedView(DocumentIngestedView):
+    source: str
+    external_id: str
+    revision_id: str | None
+    obj_type: str
+
+
+class FeishuWikiSpaceView(APIModel):
+    space_id: str
+    name: str
+    description: str
+
+
+class FeishuWikiNodeView(APIModel):
+    space_id: str
+    node_token: str
+    obj_token: str
+    obj_type: str
+    title: str
+
+
+class FeishuSpaceSyncRequest(APIModel):
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class FeishuSpaceSyncView(APIModel):
+    operation: str
+    space_id: str
+    ingested: list[dict[str, Any]]
+    skipped: list[dict[str, Any]]
+    failed: list[dict[str, Any]]
+    ingested_count: int
+    skipped_count: int
+    failed_count: int
+    budget: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+
+
+class DingTalkDocumentIngestRequest(APIModel):
+    document_id: str = Field(min_length=8, max_length=128)
+    title: str | None = Field(default=None, max_length=500)
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class DingTalkDocumentIngestedView(DocumentIngestedView):
+    source: str
+    external_id: str
+    revision_id: str | None
+    workspace_id: str | None
+
+
+class DingTalkWorkspaceView(APIModel):
+    workspace_id: str
+    name: str
+    description: str
+
+
+class DingTalkWorkspaceNodeView(APIModel):
+    workspace_id: str
+    node_id: str
+    document_id: str
+    node_type: str
+    title: str
+
+
+class DingTalkWorkspaceSyncRequest(APIModel):
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class DingTalkWorkspaceSyncView(APIModel):
+    operation: str
+    workspace_id: str
+    ingested: list[dict[str, Any]]
+    skipped: list[dict[str, Any]]
+    failed: list[dict[str, Any]]
+    ingested_count: int
+    skipped_count: int
+    failed_count: int
+    budget: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+
+
+class WeComDocumentIngestRequest(APIModel):
+    document_id: str = Field(min_length=8, max_length=128)
+    title: str | None = Field(default=None, max_length=500)
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class WeComDocumentIngestedView(DocumentIngestedView):
+    source: str
+    external_id: str
+    revision_id: str | None
+    space_id: str | None
+
+
+class WeComSpaceView(APIModel):
+    space_id: str
+    name: str
+    description: str
+
+
+class WeComSpaceNodeView(APIModel):
+    space_id: str
+    node_id: str
+    document_id: str
+    node_type: str
+    title: str
+
+
+class WeComSpaceSyncRequest(APIModel):
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class WeComSpaceSyncView(APIModel):
+    operation: str
+    space_id: str
+    ingested: list[dict[str, Any]]
+    skipped: list[dict[str, Any]]
+    failed: list[dict[str, Any]]
+    ingested_count: int
+    skipped_count: int
+    failed_count: int
+    budget: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+
+
+class ConfluencePageIngestRequest(APIModel):
+    page_id: str = Field(pattern=r"^[1-9][0-9]{0,19}$")
+    title: str | None = Field(default=None, max_length=500)
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class ConfluencePageIngestedView(DocumentIngestedView):
+    source: str
+    external_id: str
+    revision_id: str | None
+    space_id: str | None
+
+
+class ConfluenceSpaceView(APIModel):
+    space_id: str
+    key: str
+    name: str
+
+
+class ConfluenceSpacePageView(APIModel):
+    space_id: str
+    page_id: str
+    title: str
+    status: str
+
+
+class ConfluenceSpaceSyncRequest(APIModel):
+    classification: Classification = Classification.INTERNAL
+    acl: dict[str, Any] = Field(default_factory=dict)
+    inherit_acl: bool = False
+
+
+class ConfluenceSpaceSyncView(APIModel):
+    operation: str
+    space_id: str
+    ingested: list[dict[str, Any]]
+    skipped: list[dict[str, Any]]
+    failed: list[dict[str, Any]]
+    ingested_count: int
+    skipped_count: int
+    failed_count: int
+    budget: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+
+
 class KnowledgeHitView(APIModel):
     chunk_id: UUID
     document_id: UUID
@@ -477,6 +684,60 @@ class KnowledgeHitView(APIModel):
     content: str
     score: float
     classification: Classification
+    external_id: str | None = None
+    revision_id: str | None = None
+    connector_name: str | None = None
+    operation: str | None = None
+
+
+class CodeRepositoryView(APIModel):
+    id: UUID
+    name: str
+    default_branch: str
+    classification: Classification
+    current_snapshot_id: UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CodeSnapshotView(APIModel):
+    id: UUID
+    repository_id: UUID
+    ordinal: int
+    commit_id: str
+    parser_version: str
+    file_count: int
+    symbol_count: int
+    content_checksum_sha256: str
+    metadata_json: dict[str, Any]
+    created_at: datetime
+
+
+class CodeRepositoryIngestedView(APIModel):
+    repository: CodeRepositoryView
+    snapshot: CodeSnapshotView
+
+
+class CodeSymbolQuery(APIModel):
+    query: str = Field(min_length=1, max_length=4000)
+    repository: str | None = Field(default=None, max_length=240)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class CodeSymbolHitView(APIModel):
+    repository_id: UUID
+    repository: str
+    commit_id: str
+    snapshot_id: UUID
+    symbol_id: UUID
+    path: str
+    language: str
+    kind: str
+    name: str
+    qualified_name: str
+    start_line: int
+    end_line: int
+    relations: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class DataUnderstandRequest(APIModel):
@@ -567,3 +828,200 @@ class MetricView(APIModel):
 class Page(APIModel):
     items: list[Any]
     next_cursor: str | None = None
+
+
+class CreateImBindingRequest(APIModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    channel: str = Field(
+        min_length=1,
+        max_length=64,
+        description="IM identity namespace. Nicknames are not accepted.",
+    )
+    sender_id: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Stable vendor or development sender id. Display names cannot authorize.",
+    )
+    user_id: UUID
+
+
+class ImBindingView(APIModel):
+    id: UUID
+    channel: str
+    sender_id: str
+    user_id: UUID
+    active: bool
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
+    revoked_at: datetime | None
+
+
+class CreateImMessageRequest(APIModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    channel: str = Field(min_length=1, max_length=64)
+    sender_id: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Stable IM sender id bound to a User. Display names cannot authorize.",
+    )
+    conversation_id: str = Field(min_length=1, max_length=200)
+    text: str = Field(min_length=1, max_length=100_000)
+    sender_display: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Optional display label. Ignored for authorization and not stored as a key.",
+    )
+
+
+class ImMessageAcceptedView(APIModel):
+    binding_id: UUID
+    channel: str
+    principal_id: UUID
+    run_id: UUID
+    sender_id: str
+    thread_id: UUID
+    turn_id: UUID
+    workspace_id: UUID
+
+
+class ImDeliveryPrepareView(APIModel):
+    id: UUID
+    run_id: UUID
+    channel: str
+    conversation_id: str
+    text: str
+    content_fingerprint: str
+    idempotency_key: str
+    status: ImDeliveryStatus
+    attempt_count: int
+
+
+class CompleteImDeliveryRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    vendor_message_id: str = Field(min_length=1, max_length=500)
+
+
+class FailImDeliveryRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    failure_code: str = Field(
+        pattern="^(vendor_request_failed|delivery_audit_failed)$",
+    )
+
+
+class ImDeliveryView(APIModel):
+    id: UUID
+    run_id: UUID
+    channel: str
+    conversation_id: str
+    content_fingerprint: str
+    status: ImDeliveryStatus
+    policy_decision_id: UUID
+    requested_by: UUID
+    attempt_count: int
+    vendor_message_id: str | None
+    failure_code: str | None
+    delivered_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class StudioDocumentRequest(APIModel):
+    document: str = Field(min_length=1, max_length=200_000)
+
+
+class StudioPromoteRequest(APIModel):
+    kind: str = Field(min_length=1, max_length=16)
+    name: str = Field(min_length=1, max_length=80)
+    version: int = Field(ge=1)
+
+
+class StudioCompareRequest(APIModel):
+    kind: str = Field(min_length=1, max_length=16)
+    name: str = Field(min_length=1, max_length=80)
+    baseline_version: int = Field(ge=1)
+    candidate_version: int = Field(ge=1)
+
+
+class StudioCompareSideView(APIModel):
+    version: int
+    checksum_sha256: str
+    promoted: bool
+
+
+class StudioChangeView(APIModel):
+    path: str
+    baseline: Any
+    candidate: Any
+
+
+class StudioCompareView(APIModel):
+    kind: str
+    name: str
+    baseline: StudioCompareSideView
+    candidate: StudioCompareSideView
+    identical: bool
+    changes: list[StudioChangeView]
+    traffic_split: bool
+    evaluation: str
+
+
+class StudioValidateView(APIModel):
+    kind: str
+    name: str
+    checksum_sha256: str
+    preview: dict[str, Any]
+
+
+class StudioVersionView(APIModel):
+    kind: str
+    name: str
+    display_name: str
+    description: str
+    definition_id: UUID
+    version_id: UUID
+    version: int
+    status: str
+    checksum_sha256: str
+    promoted: bool
+    promoted_at: datetime | None
+    spec: dict[str, Any]
+
+
+class StudioCatalogView(APIModel):
+    agents: list[StudioVersionView]
+    skills: list[StudioVersionView]
+
+
+class EvalAgentPinView(APIModel):
+    name: str
+    version: int
+    version_id: UUID
+    checksum_sha256: str
+
+
+class EvalProfilePinView(APIModel):
+    id: UUID
+    name: str
+
+
+class EvalCatalogView(APIModel):
+    datasets: list[EvaluationDatasetView]
+    runs: list[EvaluationRunView]
+    agents: list[EvalAgentPinView]
+    prompts: list[EvalAgentPinView]
+    model_profiles: list[EvalProfilePinView]
+
+
+class EvalCompareRequest(APIModel):
+    baseline_run_id: UUID
+    candidate_run_id: UUID
+
+
+class EvalCompareView(APIModel):
+    baseline: EvaluationRunView
+    candidate: EvaluationRunView
+    gate_passed: bool
+    metrics: dict[str, Any]
+    agent_changed: bool
+    prompt_changed: bool

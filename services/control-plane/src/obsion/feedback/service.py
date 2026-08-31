@@ -14,6 +14,7 @@ from obsion.persistence.events import EventDraft, EventStore
 from obsion.security.identity import Principal
 from obsion.security.redaction import redact_text
 from obsion.security.workspace_access import require_run_access
+from obsion.telemetry import run_satisfaction
 
 
 class RunFeedbackService:
@@ -114,6 +115,13 @@ class RunFeedbackService:
             feedback.reason = reason
             feedback.version += 1
         await session.flush()
+        run_satisfaction.add(
+            1,
+            {
+                "rating": str(feedback.rating),
+                "revised": str(not created).lower(),
+            },
+        )
 
         correlation_id = new_id()
         await self.events.append(

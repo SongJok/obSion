@@ -1,9 +1,23 @@
 import type {
   Artifact,
   Claim,
+  CodeRepository,
+  CodeSymbolHit,
   ConversationSnapshot,
   Evidence,
   FeedbackSummary,
+  ImBinding,
+  RuntimeSlo,
+  EvalCatalog,
+  EvalCase,
+  EvalCompare,
+  EvalDataset,
+  EvalResult,
+  EvalRun,
+  StudioCatalog,
+  StudioCompare,
+  StudioValidateResult,
+  StudioVersion,
   Metric,
   MetricLineage,
   MemorySnapshot,
@@ -164,8 +178,12 @@ export const api = {
   }),
   listEvents: (runId: string, after = 0) =>
     request<RunEvent[]>(`/runs/${runId}/events?after=${after}`),
+  listWorkspaceTimeline: (workspaceId: string, limit = 500) =>
+    request<RunEvent[]>(`/workspaces/${workspaceId}/timeline?limit=${limit}`),
   listSteps: (runId: string) => request<RunStep[]>(`/runs/${runId}/steps`),
   listEvidence: (runId: string) => request<Evidence[]>(`/runs/${runId}/evidence`),
+  listWorkspaceEvidence: (workspaceId: string) =>
+    request<Evidence[]>(`/workspaces/${workspaceId}/evidence`),
   listRunMemories: (runId: string) =>
     request<MemorySnapshot[]>(`/runs/${runId}/memories`),
   listRunConversation: (runId: string) =>
@@ -174,6 +192,18 @@ export const api = {
   listArtifacts: (runId: string) => request<Artifact[]>(`/runs/${runId}/artifacts`),
   listWorkspaceArtifacts: (workspaceId: string) =>
     request<Artifact[]>(`/workspaces/${workspaceId}/artifacts`),
+  listWorkspaceFiles: (workspaceId: string, includeSuperseded = false) =>
+    request<Artifact[]>(
+      `/workspaces/${workspaceId}/files?include_superseded=${includeSuperseded}`,
+    ),
+  listWorkspaceReports: (workspaceId: string) =>
+    request<Artifact[]>(`/workspaces/${workspaceId}/reports`),
+  listWorkspaceDashboards: (workspaceId: string) =>
+    request<Artifact[]>(`/workspaces/${workspaceId}/dashboards`),
+  listWorkspaceSql: (workspaceId: string) =>
+    request<Artifact[]>(`/workspaces/${workspaceId}/sql`),
+  getArtifact: (artifactId: string) =>
+    request<Artifact>(`/artifacts/${artifactId}`),
   uploadArtifact: (workspaceId: string, form: FormData) =>
     request<Artifact>(`/workspaces/${workspaceId}/artifacts`, {
       method: "POST",
@@ -205,9 +235,153 @@ export const api = {
       { method: "POST", body: form },
     ),
   knowledgeSearch: (query: string) =>
-    request<Array<Record<string, unknown>>>("/knowledge/search", {
+    request<
+      Array<{
+        chunk_id: string;
+        document_id: string;
+        version: number;
+        title: string;
+        source: string;
+        heading_path: string[];
+        content: string;
+        score: number;
+        classification: string;
+        external_id?: string | null;
+        revision_id?: string | null;
+        connector_name?: string | null;
+        operation?: string | null;
+      }>
+    >("/knowledge/search", {
       method: "POST",
       body: JSON.stringify({ query, limit: 12 }),
+    }),
+  ingestFeishuDocument: (input: {
+    document_id: string;
+    obj_type?: "auto" | "docx" | "wiki";
+    title?: string;
+    classification?: string;
+    acl?: Record<string, unknown>;
+    inherit_acl?: boolean;
+  }) =>
+    request<{
+      document: { id: string; title: string };
+      chunk_count: number;
+      source: string;
+      external_id: string;
+    }>("/knowledge/sources/feishu/documents", {
+      method: "POST",
+      body: JSON.stringify({
+        obj_type: "auto",
+        classification: "INTERNAL",
+        acl: { organization: true },
+        inherit_acl: false,
+        ...input,
+      }),
+    }),
+  ingestDingTalkDocument: (input: {
+    document_id: string;
+    title?: string;
+    classification?: string;
+    acl?: Record<string, unknown>;
+    inherit_acl?: boolean;
+  }) =>
+    request<{
+      document: { id: string; title: string };
+      chunk_count: number;
+      source: string;
+      external_id: string;
+    }>("/knowledge/sources/dingtalk/documents", {
+      method: "POST",
+      body: JSON.stringify({
+        classification: "INTERNAL",
+        acl: { organization: true },
+        inherit_acl: false,
+        ...input,
+      }),
+    }),
+  ingestWeComDocument: (input: {
+    document_id: string;
+    title?: string;
+    classification?: string;
+    acl?: Record<string, unknown>;
+    inherit_acl?: boolean;
+  }) =>
+    request<{
+      document: { id: string; title: string };
+      chunk_count: number;
+      source: string;
+      external_id: string;
+    }>("/knowledge/sources/wecom/documents", {
+      method: "POST",
+      body: JSON.stringify({
+        classification: "INTERNAL",
+        acl: { organization: true },
+        inherit_acl: false,
+        ...input,
+      }),
+    }),
+  listFeishuSpaces: () =>
+    request<Array<{ space_id: string; name: string; description: string }>>(
+      "/knowledge/sources/feishu/spaces",
+    ),
+  listFeishuWikiNodes: (spaceId: string) =>
+    request<
+      Array<{
+        space_id: string;
+        node_token: string;
+        obj_token: string;
+        obj_type: string;
+        title: string;
+      }>
+    >(`/knowledge/sources/feishu/spaces/${encodeURIComponent(spaceId)}/nodes`),
+  syncFeishuSpace: (
+    spaceId: string,
+    input: {
+      classification?: string;
+      acl?: Record<string, unknown>;
+      inherit_acl?: boolean;
+    } = {},
+  ) =>
+    request<{
+      space_id: string;
+      ingested_count: number;
+      skipped_count: number;
+      failed_count: number;
+    }>(`/knowledge/sources/feishu/spaces/${encodeURIComponent(spaceId)}/sync`, {
+      method: "POST",
+      body: JSON.stringify({
+        classification: "INTERNAL",
+        acl: { organization: true },
+        inherit_acl: false,
+        ...input,
+      }),
+    }),
+  ingestConfluencePage: (input: {
+    page_id: string;
+    title?: string;
+    classification?: string;
+    acl?: Record<string, unknown>;
+    inherit_acl?: boolean;
+  }) =>
+    request<{
+      document: { id: string; title: string };
+      chunk_count: number;
+      source: string;
+      external_id: string;
+    }>("/knowledge/sources/confluence/pages", {
+      method: "POST",
+      body: JSON.stringify({
+        classification: "INTERNAL",
+        acl: { organization: true },
+        inherit_acl: false,
+        ...input,
+      }),
+    }),
+  listCodeRepositories: () => request<CodeRepository[]>("/code/repositories"),
+  searchCodeSymbols: (query: string) =>
+    request<CodeSymbolHit[]>("/code/symbols/search", {
+      method: "POST",
+      body: JSON.stringify({ query, limit: 20 }),
     }),
   collaboration: {
     listTasks: (workspaceId: string, status?: WorkspaceTaskStatus) =>
@@ -339,6 +513,22 @@ export const api = {
     roles: () => request<Array<Record<string, unknown>>>("/admin/roles"),
     departments: () => request<Array<Record<string, unknown>>>("/admin/departments"),
     connectors: () => request<Array<Record<string, unknown>>>("/admin/connectors"),
+    probeConnectorHealth: (connectorId: string) =>
+      request<Record<string, unknown>>(`/admin/connectors/${connectorId}/health`, {
+        method: "POST",
+      }),
+    discoverConnector: (connectorId: string) =>
+      request<Record<string, unknown>>(`/admin/connectors/${connectorId}/discover`, {
+        method: "POST",
+      }),
+    scanConnectorPlugin: (connectorId: string) =>
+      request<Record<string, unknown>>(`/admin/connectors/${connectorId}/scan`, {
+        method: "POST",
+      }),
+    promoteConnectorPlugin: (connectorId: string) =>
+      request<Record<string, unknown>>(`/admin/connectors/${connectorId}/promote`, {
+        method: "POST",
+      }),
     capabilities: () => request<Array<Record<string, unknown>>>("/admin/capabilities"),
     modelProfiles: () => request<Array<Record<string, unknown>>>("/admin/models/profiles"),
     agents: () => request<Array<Record<string, unknown>>>("/admin/agents"),
@@ -350,9 +540,93 @@ export const api = {
     evaluations: () => request<Array<Record<string, unknown>>>("/admin/evaluations/runs"),
     costs: () => request<Array<Record<string, unknown>>>("/admin/costs"),
     feedbackSummary: () => request<FeedbackSummary>("/admin/feedback/summary"),
+    runtimeSlo: () => request<RuntimeSlo>("/admin/slo"),
     prompts: () => request<Array<Record<string, unknown>>>("/admin/prompts"),
     knowledge: () => request<Array<Record<string, unknown>>>("/admin/knowledge"),
     secrets: () => request<Array<Record<string, unknown>>>("/admin/secrets"),
     audit: () => request<Array<Record<string, unknown>>>("/admin/audit?limit=30"),
+    operatorInvocations: () =>
+      request<Array<Record<string, unknown>>>("/admin/operator-invocations?limit=30"),
+    imBindings: () => request<ImBinding[]>("/admin/im-bindings"),
+    createImBinding: (input: { channel: string; sender_id: string; user_id: string }) =>
+      request<ImBinding>("/admin/im-bindings", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    revokeImBinding: (bindingId: string) =>
+      request<ImBinding>(`/admin/im-bindings/${bindingId}/revoke`, { method: "POST" }),
+  },
+  studio: {
+    catalog: () => request<StudioCatalog>("/studio/catalog"),
+    validate: (document: string) =>
+      request<StudioValidateResult>("/studio/validate", {
+        method: "POST",
+        body: JSON.stringify({ document }),
+      }),
+    publishAgent: (document: string) =>
+      request<StudioVersion>("/studio/agents", {
+        method: "POST",
+        body: JSON.stringify({ document }),
+      }),
+    publishSkill: (document: string) =>
+      request<StudioVersion>("/studio/skills", {
+        method: "POST",
+        body: JSON.stringify({ document }),
+      }),
+    promote: (input: { kind: string; name: string; version: number }) =>
+      request<StudioVersion>("/studio/promote", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    rollback: (input: { kind: string; name: string; version: number }) =>
+      request<StudioVersion>("/studio/rollback", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    compare: (input: {
+      kind: string;
+      name: string;
+      baseline_version: number;
+      candidate_version: number;
+    }) =>
+      request<StudioCompare>("/studio/compare", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+  },
+  eval: {
+    catalog: () => request<EvalCatalog>("/eval/catalog"),
+    createDataset: (input: { name: string; domain: string; description?: string }) =>
+      request<EvalDataset>("/eval/datasets", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    cases: (datasetId: string) => request<EvalCase[]>(`/eval/datasets/${datasetId}/cases`),
+    addCase: (datasetId: string, input: Record<string, unknown>) =>
+      request<EvalCase>(`/eval/datasets/${datasetId}/cases`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    startRun: (
+      datasetId: string,
+      input: {
+        agent_version_id: string;
+        model_profile_id: string;
+        application_revision: string;
+        baseline_run_id?: string;
+        run_bindings?: Record<string, string>;
+        prompt_pins?: Record<string, number>;
+      },
+    ) =>
+      request<EvalRun>(`/eval/datasets/${datasetId}/runs`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    results: (runId: string) => request<EvalResult[]>(`/eval/runs/${runId}/results`),
+    compare: (input: { baseline_run_id: string; candidate_run_id: string }) =>
+      request<EvalCompare>("/eval/compare", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
   },
 };

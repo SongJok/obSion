@@ -45,7 +45,7 @@ from obsion.persistence.events import EventDraft, EventStore
 from obsion.security.auth import load_principal_by_id
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_workspace_access
-from obsion.telemetry import automation_counter, tracer
+from obsion.telemetry import automation_counter, automation_duration, tracer
 
 logger = structlog.get_logger(__name__)
 
@@ -59,6 +59,14 @@ _STEP_TERMINAL = {
     AutomationStepStatus.CANCELLED,
     AutomationStepStatus.SKIPPED,
 }
+
+
+def _observe_automation(execution: AutomationExecution, status: str) -> None:
+    attributes = {"status": status}
+    automation_counter.add(1, attributes)
+    started = execution.started_at or execution.created_at
+    elapsed_ms = max(0.0, (utc_now() - ensure_utc(started)).total_seconds() * 1000)
+    automation_duration.record(elapsed_ms, attributes)
 
 
 def render_automation_template(
@@ -421,7 +429,7 @@ class AutomationWorker:
                 await self._execution_event(
                     session, execution, "automation.completed", execution.summary
                 )
-                automation_counter.add(1, {"status": AutomationStatus.COMPLETED.value})
+                _observe_automation(execution, AutomationStatus.COMPLETED.value)
                 if workflow.notify_on_success:
                     await self.service.deliver_notification(
                         session,
@@ -623,7 +631,7 @@ class AutomationWorker:
                     run.cancellation_requested_at = now
         execution.summary = self._summary(current_steps)
         await self._execution_event(session, execution, "automation.failed", {"error_code": code})
-        automation_counter.add(1, {"status": AutomationStatus.FAILED.value})
+        _observe_automation(execution, AutomationStatus.FAILED.value)
         workflow = await session.scalar(
             select(WorkflowDefinition).where(
                 WorkflowDefinition.id == execution.workflow_id,

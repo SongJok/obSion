@@ -1,0 +1,25 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-confluence
+spec:
+  type: confluence
+  environment: production
+  transport: HTTP
+  baseUrl: https://example.atlassian.net
+  credentialRef: env://OBSION_CONFLUENCE_API_TOKEN
+  grants: [knowledge.write, knowledge.read]
+  allowedEgress: ["https://example.atlassian.net"]
+  tlsRequired: true
+  configuration:
+    protocol: confluence.cloud.v2
+    email_env: OBSION_CONFLUENCE_EMAIL
+    site_host: example.atlassian.net
+    rate_limit_per_minute: 60
+    knowledge_sync_budget:
+      max_pages: 20
+      max_nodes: 200
+      max_depth: 8
+  capabilities:
+    - knowledge.ingest
+    - knowledge.sync

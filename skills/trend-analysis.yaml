@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: trend-analysis
+spec:
+  instructions:
+    - compute trends only on governed metrics inside the requested time window
+    - use comparison periods that the semantic catalog allows, never ad-hoc calendars
+    - show direction, magnitude, and grain; do not infer root cause from a trend alone
+    - cite the metric version and the DATA Evidence rows that support the series
+    - if the window or metric is missing, say unknown
+    - never inspect logs, traces, deployments, or code to decorate a trend
+  capabilities: [metric.describe, metric.query, metric.compare, data.query]
+  requiredEvidence: [DATA]
+  optionalEvidence: [METRIC]
+  verification: [time window bounded, metric definition, series cited]

@@ -28,9 +28,17 @@ class AgentRouter:
 
     _SPECIALISTS: dict[str, tuple[str, str]] = {
         "DATA": ("data-agent", "governed-analytics"),
+        "ANALYTICS": ("analytics-agent", "business-analysis"),
         "KNOWLEDGE": ("knowledge-agent", "knowledge-qa"),
+        "ENGINEERING": ("engineering-agent", "code-architecture"),
         "INCIDENT": ("incident-agent", "incident-investigation"),
+        "SUPPORT": ("support-agent", "support-diagnosis"),
+        "OPERATION": ("operation-agent", "log-analysis"),
     }
+    _REVIEW_TERMS = ("review", "评审", "代码评审", "pr review")
+    _FUNNEL_TERMS = ("漏斗", "funnel", "转化")
+    _TREND_TERMS = ("趋势", "trend", "同比", "环比", "cohort")
+    _SQL_TERMS = ("sql", "查询语句", "explain select")
 
     async def resolve(
         self,
@@ -38,12 +46,14 @@ class AgentRouter:
         organization_id: UUID,
         route: str,
         *,
+        question: str = "",
         fallback: RouteSelection,
     ) -> RouteSelection:
         target = self._SPECIALISTS.get(route)
         if target is None:
             return fallback
         agent_name, skill_name = target
+        skill_name = self._pin_skill(route, question, skill_name)
         row = (
             await session.execute(
                 select(AgentVersion, AgentDefinition)
@@ -53,8 +63,8 @@ class AgentRouter:
                     AgentDefinition.organization_id == organization_id,
                     AgentDefinition.name == agent_name,
                     AgentDefinition.status == RegistryStatus.ACTIVE,
+                    AgentDefinition.active_version == AgentVersion.version,
                 )
-                .order_by(AgentVersion.version.desc())
                 .limit(1)
             )
         ).one_or_none()
@@ -70,8 +80,8 @@ class AgentRouter:
                     SkillDefinition.organization_id == organization_id,
                     SkillDefinition.name == skill_name,
                     SkillDefinition.status == RegistryStatus.ACTIVE,
+                    SkillDefinition.active_version == SkillVersion.version,
                 )
-                .order_by(SkillVersion.version.desc())
                 .limit(1)
             )
         ).one_or_none()
@@ -84,6 +94,21 @@ class AgentRouter:
             skill_definition=skill_definition,
             skill_version=skill_version,
         )
+
+    @classmethod
+    def _pin_skill(cls, route: str, question: str, default: str) -> str:
+        normalized = question.casefold()
+        if route == "ENGINEERING" and any(term in normalized for term in cls._REVIEW_TERMS):
+            return "code-review"
+        if route == "ANALYTICS":
+            if any(term in normalized for term in cls._FUNNEL_TERMS):
+                return "funnel-analysis"
+            if any(term in normalized for term in cls._TREND_TERMS):
+                return "trend-analysis"
+            return default
+        if route == "DATA" and any(term in normalized for term in cls._SQL_TERMS):
+            return "sql-analysis"
+        return default
 
     @staticmethod
     def skill_snapshot(selection: RouteSelection) -> dict[str, Any] | None:

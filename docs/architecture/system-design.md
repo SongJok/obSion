@@ -50,14 +50,27 @@ The initial control plane is one Python application with separately testable mod
   concurrency policy, review gates, and notifications. Analysis nodes submit ordinary
   Harness Runs instead of creating a second agent runtime.
 
-PostgreSQL is the transactional source of truth and initial event store. Redis provides ephemeral locks, rate limits, stream cursors, and short-lived state. S3-compatible storage holds large artifacts. OpenTelemetry exports traces and metrics. Kafka and ClickHouse are scale-out options, not required correctness dependencies.
+PostgreSQL is the transactional source of truth and initial event store. Redis provides ephemeral locks, rate limits, stream cursors, and short-lived state. S3-compatible storage holds large artifacts. OpenTelemetry exports traces and metrics. Kafka and ClickHouse are scale-out options, not required correctness dependencies. The administration SLO ledger (`GET /admin/slo`) is a tenant-scoped PostgreSQL projection of those durable rates and means; it does not invent histogram p95.
 
-## Workbench and browser identity
+## Workbench, CLI, IDE, Desktop, and browser identity
 
 The Workbench is one responsive shell: Workspace/Thread navigation on the left,
 conversation in the center, and the persisted Runtime Plan/Steps/Events/Cost projection
-on the right. It never implements a model or tool loop; live Event delivery and REST
-reconciliation both terminate at the same App Server/application boundary.
+on the right. Studio is a developer rail for Agent/Skill manifests; Eval is a
+developer rail for Golden Datasets and Evaluation Runs. Neither is a conversation
+Agent picker. The Experience CLI (`obsion-cli`), the VS Code extension
+(`apps/ide-extension`), the IM adapter (`obsion-im`), and the Desktop client
+(`obsion-desktop`)
+are non-browser clients of the same App Server and REST application services. None of
+them implements a model or tool loop; live Event delivery and REST reconciliation
+both terminate at the same App Server/application boundary. IM senders resolve through
+control-plane `(channel, sender_id)` bindings to a provisioned User; nicknames cannot
+authorize. Feishu, DingTalk, and WeCom inbound envelopes are translated locally;
+outbound replies default to vendor-shaped local-outbox envelopes. A loopback webhook
+may bind `127.0.0.1` only. Feishu, DingTalk, and WeCom may POST through the
+explicit `feishu-http` / `dingtalk-http` / `wecom-http` transports after Policy
+authorization. Generic `--deliver http` remains fail-closed. Public `--public`
+binds require TLS, Host allowlist, and channel security.
 
 Browser login exchanges a development or OIDC access token for a random, revocable
 opaque session. PostgreSQL stores only the session digest with organization/User,
@@ -98,7 +111,10 @@ WorkflowDefinition -> immutable WorkflowVersion -> WorkflowSchedule
 
 Schedulers use PostgreSQL row locks and idempotency constraints. They re-authorize the
 accountable owner at fire time; no privileged scheduler identity bypasses workspace or
-capability policy.
+capability policy. A WORKFLOW capability with a connector `workflow_id` may also
+create an `AutomationExecution` through the Capability Gateway (`trigger=CAPABILITY`).
+That path reuses `AutomationService.trigger_workflow` and refuses dispatch from an
+automation ANALYSIS child Run. It is not Temporal, Airflow, or a second orchestrator.
 
 Governed change execution has its own lifecycle and never runs as an ordinary agent
 tool call:
@@ -154,7 +170,10 @@ authenticates once per connection, durably deduplicates mutations by a
 principal-scoped client request ID, and multiplexes bounded Run subscriptions. Event
 notifications retain their domain names (`answer.delta`, `tool.started`,
 `approval.requested`, and others). REST remains available for management and binary
-Artifact transfer; SSE is a compatibility stream over the same Run cursor. The
+Artifact transfer; SSE is a compatibility stream over the same Run cursor. Language
+SDKs (Python, TypeScript, Java) are clients of this plane. The Java SDK speaks REST
+only and is not a second backend. The Python Connector SPI (`health`/`discover`/`execute`)
+is hosted in-process by the control plane and is not a package installer. The
 transport delegates every authenticated operation to an application facade and is
 statically forbidden from opening database sessions or importing persistence,
 Harness, or Model Gateway implementations.
@@ -169,7 +188,11 @@ permission action, timeout/limits, data classification, and an output mapping wh
 kind is `Evidence`. Schema and Evidence mapping validation happens before a descriptor
 is exposed. Implementations can use HTTP, gRPC, MCP, SDK, SQL proxy, another agent, or
 a deterministic workflow, but the descriptor never embeds connector credentials or
-execution code.
+execution code. MCP, SDK, gRPC, WORKFLOW, and AGENT are installed as in-process
+adapters (JSON-RPC `tools/call`, `{sdk, method, arguments}`, `{service, method,
+message}`, `{workflow, operation, input}`, and `{agent, operation, input}`). Process
+spawn, pip installs, remote MCP/SDK URLs, remote gRPC channels, remote workflow
+engines, and nested Harness agent loops fail closed.
 
 Harness resolves an AgentSpec's declared capability IDs against the current
 organization's active Registry (and the Principal's permission-visible set) before
@@ -186,7 +209,9 @@ resolve active binding -> identity -> policy/risk
         -> audit and telemetry -> result
 ```
 
-No runtime plugin can bypass this gateway. Connectors receive short-lived execution credentials, not model-visible secrets.
+No runtime plugin can bypass this gateway. Connector SDK plugins are scanned as
+static declarations (network, filesystem, capabilities, secrets, risk) and HMAC-signed
+before production load. Connectors receive short-lived execution credentials, not model-visible secrets.
 
 Audit is written in the same transaction as the governed outcome. Capability records
 carry the actor/run correlation, policy and approval references, descriptor risk,
@@ -213,11 +238,20 @@ Agents and skills are declarative, immutable by version, and promoted through en
 
 GeneralAgent is the only primary conversational entry point. DataAgent, IncidentAgent, EngineeringAgent, KnowledgeAgent, AnalyticsAgent, OperationAgent, and SupportAgent are internal routes.
 
+Sandbox `network` is `deny` or `gateway-only` (default). The normalized policy is
+pinned on `run.plan.sandbox`. `deny` forbids Capability Gateway execution.
+`gateway-only` still cannot `curl` arbitrary hosts: connectors execute only through
+the Gateway with grants and egress allowlists. Declared CPU, memory, disk, and
+process fields are stored; this control plane does not apply cgroups or start a
+container. Mounts may only name `/workspace`, `/repo`, `/artifacts`, and `/tmp`.
+
 ## Model gateway
 
 Agents select logical profiles such as `reasoning-high`, `coding-high`, `fast`, `private`, or `vision`, never provider model IDs. The current router evaluates tenant, sensitivity, region, provider family, context window, required chat/tool/JSON capability, availability, and call budget. Sensitive classifications can force an explicitly private profile and endpoint. Profile-scoped fallback preserves those eligibility constraints. Every provider attempt records effective profile, endpoint, redacted request fingerprint, token usage, latency, cost, and outcome; failed attempts are not rewritten as the later fallback result.
 
-External content is always tagged as untrusted data. System policy, AgentSpec, and Skill instructions occupy distinct context segments that retrieval and tool output cannot override.
+External content is always tagged as untrusted data. System policy, AgentSpec, and Skill instructions occupy distinct context segments that retrieval and tool output cannot override. Token Budget Manager records Keep / Compress / Summarize / Drop on the Run; summarize is extractive, not a nested model call. Older conversation is compacted extractively before that budget runs. Workspace
+identity is pinned on the Run; workspace description stays untrusted. Capability
+tool results occupy a separate untrusted context segment.
 
 ## Evidence and claims
 
@@ -243,7 +277,23 @@ The semantic catalog versions Metric, Dimension, Entity, Relation, BusinessRule,
 
 ## Knowledge intelligence
 
-Document ACLs and classifications propagate to chunks and retrieval indexes. Retrieval authorization happens before ranking. The pipeline versions the source, parser, extracted structure, chunks, metadata, ACL, embedding, and index state. Answers cite Evidence records rather than opaque vector hits. A `KNOWLEDGE` route is internally pinned to the L1 `knowledge-agent` and its `knowledge-qa` Skill; unsupported questions produce an explicit unknown answer instead of a model-only claim.
+Document ACLs and classifications propagate to chunks and retrieval indexes. Retrieval authorization happens before ranking. The pipeline versions the source, parser, extracted structure, chunks, metadata, ACL, embedding, and index state. Feishu, DingTalk, WeCom, and Confluence Cloud documents enter that pipeline through the `feishu-docs`, `dingtalk-docs`, `wecom-docs`, and `confluence` connectors and `knowledge.ingest` after Policy `knowledge.write`. Agents never receive vendor credentials. Answers cite Evidence records rather than opaque vector hits. A `KNOWLEDGE` route is internally pinned to the L1 `knowledge-agent` and its `knowledge-qa` Skill; unsupported questions produce an explicit unknown answer instead of a model-only claim.
+
+Vendor REST ingest/sync uses the same Capability Gateway registry/binding, Policy,
+grant, schema, rate, credential, executor, masking, telemetry, and Audit boundary via
+a no-Run operator entry. It cannot emit Run Events/Evidence or create Approval without
+a real Harness Run. Vendor source browsing uses the same no-Run entry through
+versioned L1, side-effect-free `knowledge.source.containers` and
+`knowledge.source.items` contracts. REST only projects the canonical container/item
+result into existing vendor response shapes; browsing never creates Run Evidence.
+
+L2 no-Run idempotent writes use a dedicated control-plane ledger, not Runtime Events.
+The claim transaction commits `IN_PROGRESS` before credential/connector work; a
+second transaction commits Knowledge changes, Audit, and the terminal result. Exact
+retries reauthorize and replay without execution. Expired leases become UNKNOWN and
+require connector-specific reconciliation. This ledger carries no raw request,
+credential, Run, Event, or Evidence and therefore does not create a second Harness
+trajectory.
 
 ## Incident intelligence
 

@@ -5,6 +5,7 @@ import {
   ObsionAppServerClient,
   ObsionAppServerError,
   appServerUrlFromApiUrl,
+  newClientRequestId,
 } from "../dist/index.js";
 
 class FakeWebSocket {
@@ -45,6 +46,18 @@ class FakeWebSocket {
           jsonrpc: "2.0",
           id: request.id,
           result: { id: "thread-1", title: request.params.title },
+        });
+      } else if (request.method === "workspace.list") {
+        this.emit({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: [{ id: "workspace-1" }],
+        });
+      } else if (request.method === "approval.decide") {
+        this.emit({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: { id: request.params.approval_id, status: "APPROVED" },
         });
       } else {
         this.emit({
@@ -119,4 +132,29 @@ test("App Server URL derives from the versioned REST base", () => {
     appServerUrlFromApiUrl("https://obsion.example/api/v1/"),
     "wss://obsion.example/api/v1/app-server",
   );
+  assert.equal(
+    appServerUrlFromApiUrl("http://127.0.0.1:8080"),
+    "ws://127.0.0.1:8080/api/v1/app-server",
+  );
+});
+
+test("client request IDs are durable mutation keys", () => {
+  const first = newClientRequestId("ide");
+  const second = newClientRequestId("ide");
+  assert.match(first, /^ide-[0-9a-f-]{36}$/);
+  assert.notEqual(first, second);
+});
+
+test("App Server client covers workspace listing and approval decisions", async () => {
+  const client = new ObsionAppServerClient("wss://obsion.example/api/v1/app-server", {
+    webSocketFactory: (url, protocols) => new FakeWebSocket(url, protocols),
+  });
+  await client.connect();
+  assert.deepEqual(await client.listWorkspaces(), [{ id: "workspace-1" }]);
+  const decided = await client.decideApproval("approval-1", "decide-1", {
+    approve: true,
+    reason: "Verified the evidence chain",
+  });
+  assert.equal(decided.status, "APPROVED");
+  client.close();
 });

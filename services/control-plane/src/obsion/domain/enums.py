@@ -50,6 +50,7 @@ class StepKind(StrEnum):
     MODEL = "MODEL"
     CAPABILITY = "CAPABILITY"
     VERIFY = "VERIFY"
+    REFLECT = "REFLECT"
     RESPOND = "RESPOND"
 
 
@@ -88,6 +89,13 @@ class SideEffect(StrEnum):
     DESTRUCTIVE = "DESTRUCTIVE"
 
 
+class OperatorInvocationStatus(StrEnum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    UNKNOWN = "UNKNOWN"
+
+
 class CapabilityTransport(StrEnum):
     INTERNAL = "INTERNAL"
     HTTP = "HTTP"
@@ -115,13 +123,34 @@ class ArtifactKind(StrEnum):
 class EvidenceType(StrEnum):
     DOCUMENT = "DOCUMENT"
     DATA = "DATA"
+    SQL = "SQL"
     METRIC = "METRIC"
     LOG = "LOG"
     TRACE = "TRACE"
+    CODE = "CODE"
+    GIT = "GIT"
     DEPLOYMENT = "DEPLOYMENT"
     CONFIG = "CONFIG"
-    CODE = "CODE"
     TOOL = "TOOL"
+
+
+class CodeSymbolKind(StrEnum):
+    MODULE = "MODULE"
+    CLASS = "CLASS"
+    FUNCTION = "FUNCTION"
+    METHOD = "METHOD"
+    API = "API"
+    TABLE = "TABLE"
+
+
+class CodeRelation(StrEnum):
+    CONTAINS = "CONTAINS"
+    CALLS = "CALLS"
+    REFERENCES = "REFERENCES"
+    DEPENDS_ON = "DEPENDS_ON"
+    READS_TABLE = "READS_TABLE"
+    WRITES_TABLE = "WRITES_TABLE"
+    EXPOSES_API = "EXPOSES_API"
 
 
 class VerificationStatus(StrEnum):
@@ -216,6 +245,7 @@ class MemoryStatus(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
+    REVOKED = "REVOKED"
 
 
 class WorkspaceTaskStatus(StrEnum):
@@ -287,6 +317,7 @@ class WorkflowStepType(StrEnum):
 class AutomationTrigger(StrEnum):
     MANUAL = "MANUAL"
     SCHEDULE = "SCHEDULE"
+    CAPABILITY = "CAPABILITY"
 
 
 class AutomationStatus(StrEnum):
@@ -322,6 +353,12 @@ class ReviewDecision(StrEnum):
 class NotificationStatus(StrEnum):
     DELIVERED = "DELIVERED"
     READ = "READ"
+
+
+class ImDeliveryStatus(StrEnum):
+    PENDING = "PENDING"
+    SENT = "SENT"
+    FAILED = "FAILED"
 
 
 class ActionType(StrEnum):

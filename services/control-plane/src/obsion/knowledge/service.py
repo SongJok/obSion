@@ -1,6 +1,7 @@
 import hashlib
 import re
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -15,11 +16,19 @@ from obsion.common.time import utc_now
 from obsion.config import Settings
 from obsion.db.models import Document, DocumentChunk, DocumentChunkGrant, DocumentVersion
 from obsion.domain.enums import Classification
+from obsion.knowledge.connector_contract import provenance_fields_from_version
 from obsion.knowledge.parsers import chunk_document, parse_document
 from obsion.model_gateway.gateway import ModelGateway
 from obsion.security.identity import Principal
+from obsion.telemetry import retrieval_duration
 
 _TOKEN = re.compile(r"[\w\u3400-\u9fff]+", re.UNICODE)
+
+
+def bounded_search_limit(limit: int, maximum: int) -> int:
+    return max(1, min(limit, maximum))
+
+
 _CLASSIFICATION_LEVEL = {
     Classification.PUBLIC: 0,
     Classification.INTERNAL: 1,
@@ -48,6 +57,10 @@ class SearchHit:
     content: str
     score: float
     classification: Classification
+    external_id: str | None = None
+    revision_id: str | None = None
+    connector_name: str | None = None
+    operation: str | None = None
 
 
 def _authorized(principal: Principal, classification: Classification, acl: dict[str, Any]) -> bool:
@@ -67,6 +80,10 @@ def _authorized(principal: Principal, classification: Classification, acl: dict[
         return True
     required_permission = f"knowledge.read.{classification.value.lower()}"
     return principal.can(required_permission)
+
+
+def validate_document_acl(acl: dict[str, Any]) -> dict[str, Any]:
+    return _validate_acl(acl)
 
 
 def _validate_acl(acl: dict[str, Any]) -> dict[str, Any]:
@@ -220,6 +237,7 @@ class KnowledgeService:
         content: bytes,
         classification: Classification,
         acl: dict[str, Any],
+        extra_metadata: dict[str, Any] | None = None,
     ) -> tuple[Document, DocumentVersion, int]:
         if not principal.can("knowledge.write"):
             raise AuthorizationError(
@@ -314,7 +332,11 @@ class KnowledgeService:
             checksum_sha256=checksum,
             content_ref=storage_key,
             parser_version=parsed.parser_version,
-            metadata_json={**parsed.metadata, "filename": filename},
+            metadata_json={
+                **parsed.metadata,
+                "filename": filename,
+                **(extra_metadata or {}),
+            },
             created_at=utc_now(),
         )
         session.add(version)
@@ -386,64 +408,89 @@ class KnowledgeService:
         query: str,
         *,
         limit: int = 8,
+        sources: tuple[str, ...] | None = None,
+        exclude_sources: tuple[str, ...] | None = None,
     ) -> list[SearchHit]:
         terms = [term.lower() for term in _TOKEN.findall(query) if term.strip()]
         if not terms:
             raise ValidationError(
                 "knowledge_query_empty", "The search query has no searchable terms"
             )
+        limit = bounded_search_limit(limit, self.settings.knowledge_max_results)
+        source_filters: list[ColumnElement[bool]] = []
+        if sources:
+            source_filters.append(Document.source.in_(sources))
+        if exclude_sources:
+            source_filters.append(Document.source.notin_(exclude_sources))
         base_filters = (
             DocumentChunk.organization_id == principal.organization_id,
             Document.organization_id == principal.organization_id,
             Document.deleted_at.is_(None),
             DocumentVersion.version == Document.current_version,
             _authorization_clause(principal),
+            *source_filters,
         )
         dialect = session.get_bind().dialect.name
-        if dialect == "postgresql":
-            postgres_hits = await self._search_postgresql(
-                session,
-                principal,
-                query,
-                terms,
-                base_filters,
-                limit,
-            )
-            return postgres_hits
-        lexical_candidates = (
-            await session.execute(
-                select(DocumentChunk, DocumentVersion, Document)
-                .join(DocumentVersion, DocumentVersion.id == DocumentChunk.document_version_id)
-                .join(Document, Document.id == DocumentVersion.document_id)
-                .where(*base_filters)
-                .limit(self.settings.knowledge_max_candidates)
-            )
-        ).all()
-        scored: list[SearchHit] = []
-        query_lower = query.lower()
-        for chunk, version, document in lexical_candidates:
-            content_lower = chunk.content.lower()
-            term_score = sum(content_lower.count(term) for term in set(terms))
-            phrase_bonus = 4 if query_lower in content_lower else 0
-            coverage = sum(1 for term in set(terms) if term in content_lower) / len(set(terms))
-            score = term_score + phrase_bonus + coverage * 3
-            if score <= 0:
-                continue
-            scored.append(
-                SearchHit(
-                    chunk_id=chunk.id,
-                    document_id=document.id,
-                    version=version.version,
-                    title=document.title,
-                    source=document.source,
-                    heading_path=chunk.heading_path,
-                    content=chunk.content,
-                    score=round(score, 4),
-                    classification=chunk.classification,
+        started = perf_counter()
+        try:
+            if dialect == "postgresql":
+                hits = await self._search_postgresql(
+                    session,
+                    principal,
+                    query,
+                    terms,
+                    base_filters,
+                    limit,
                 )
-            )
-        scored.sort(key=lambda hit: (-hit.score, hit.title, str(hit.chunk_id)))
-        return scored[:limit]
+            else:
+                lexical_candidates = (
+                    await session.execute(
+                        select(DocumentChunk, DocumentVersion, Document)
+                        .join(
+                            DocumentVersion, DocumentVersion.id == DocumentChunk.document_version_id
+                        )
+                        .join(Document, Document.id == DocumentVersion.document_id)
+                        .where(*base_filters)
+                        .limit(self.settings.knowledge_max_candidates)
+                    )
+                ).all()
+                scored: list[SearchHit] = []
+                query_lower = query.lower()
+                for chunk, version, document in lexical_candidates:
+                    content_lower = chunk.content.lower()
+                    term_score = sum(content_lower.count(term) for term in set(terms))
+                    phrase_bonus = 4 if query_lower in content_lower else 0
+                    coverage = sum(1 for term in set(terms) if term in content_lower) / len(
+                        set(terms)
+                    )
+                    score = term_score + phrase_bonus + coverage * 3
+                    if score <= 0:
+                        continue
+                    scored.append(
+                        SearchHit(
+                            chunk_id=chunk.id,
+                            document_id=document.id,
+                            version=version.version,
+                            title=document.title,
+                            source=document.source,
+                            heading_path=chunk.heading_path,
+                            content=chunk.content,
+                            score=round(score, 4),
+                            classification=chunk.classification,
+                            **provenance_fields_from_version(
+                                source=document.source,
+                                external_id=document.external_id,
+                                metadata=version.metadata_json
+                                if isinstance(version.metadata_json, dict)
+                                else None,
+                            ),
+                        )
+                    )
+                scored.sort(key=lambda hit: (-hit.score, hit.title, str(hit.chunk_id)))
+                hits = scored[:limit]
+            return hits
+        finally:
+            retrieval_duration.record((perf_counter() - started) * 1000, {"backend": dialect})
 
     async def _search_postgresql(
         self,
@@ -527,6 +574,13 @@ class KnowledgeService:
                     content=chunk.content,
                     score=round(reranked, 6),
                     classification=chunk.classification,
+                    **provenance_fields_from_version(
+                        source=document.source,
+                        external_id=document.external_id,
+                        metadata=version.metadata_json
+                        if isinstance(version.metadata_json, dict)
+                        else None,
+                    ),
                 )
             )
         hits.sort(key=lambda hit: (-hit.score, hit.title, str(hit.chunk_id)))

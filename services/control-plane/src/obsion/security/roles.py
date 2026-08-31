@@ -22,6 +22,9 @@ SYSTEM_ROLE_DEFINITIONS: tuple[SystemRoleDefinition, ...] = (
         (
             "artifact.write",
             "automation.trigger",
+            "code.read.confidential",
+            "code.read.internal",
+            "code.write",
             "evaluations.read",
             "evaluations.write",
             "knowledge.read.confidential",
@@ -29,6 +32,8 @@ SYSTEM_ROLE_DEFINITIONS: tuple[SystemRoleDefinition, ...] = (
             "knowledge.write",
             "memory.read",
             "memory.write",
+            "registry.read",
+            "registry.write",
         ),
     ),
     SystemRoleDefinition(

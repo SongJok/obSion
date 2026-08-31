@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-workflow-automation
+spec:
+  type: workflow-development
+  environment: development
+  transport: WORKFLOW
+  grants: [automation.trigger]
+  allowedEgress: []
+  configuration:
+    workflow: obsion.automation
+    operation: trigger
+    # Replace with a published WorkflowDefinition UUID after create/publish.
+    workflow_id: 00000000-0000-4000-8000-000000000001
+  capabilities: [workflow.automation.trigger]

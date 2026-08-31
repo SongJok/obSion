@@ -16,8 +16,6 @@ spec:
     rate_limit_per_minute: 180
   capabilities:
     - code.search
-    - code.symbol
-    - code.reference
     - git.commit
     - git.diff
     - git.blame

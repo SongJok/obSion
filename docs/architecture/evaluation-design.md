@@ -29,14 +29,20 @@ Workbench/API path, waits for a terminal Run, and supplies a `run_bindings` map 
 starting the Evaluation Run. This separates immutable expected behavior from the
 candidate execution while retaining exact Run, Evidence and Artifact provenance.
 
-The repository validates all dataset contracts with:
+The repository validates dataset contracts and then executes ROUTING and SQL_POLICY
+cases against production Understanding and SQL AST code:
 
 ```bash
 uv run obsion validate-evaluations
+uv run obsion validate-eval-gates
+uv run obsion evaluate-datasets
 ```
 
-The command is part of `make check` and CI. It rejects missing evaluator types,
-unsupported expectations, duplicate case revisions and self-reported actual output.
+`evaluate-datasets` skips `RUN_OUTPUT` until an operator or CI job binds terminal
+Harness Runs. Dataset validation rejects missing evaluator types, unsupported
+expectations, duplicate case revisions and self-reported actual output. The release
+gate additionally requires Knowledge, Data, Engineering, Incident, Support,
+Operation, and Analytics routes plus ROUTING, SQL_POLICY, and RUN_OUTPUT evaluators.
 
 ## Result and regression model
 
@@ -53,3 +59,7 @@ visible in the metrics contract.
 
 PostgreSQL prevents updates and deletes of case results and terminal Evaluation Runs.
 This makes a passed gate durable evidence rather than mutable dashboard state.
+
+Workbench **评测台** (`/api/v1/eval`) is the product console over this engine. It does
+not implement a second Harness. `/api/v1/admin/evaluations` remains. Compare of two
+completed runs uses the same snapshot rule as a baseline start.

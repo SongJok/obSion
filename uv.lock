@@ -9,7 +9,9 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "obsion-cli",
     "obsion-control-plane",
+    "obsion-im",
     "obsion-sdk",
 ]
 
@@ -1310,6 +1312,17 @@ wheels = [
 ]
 
 [[package]]
+name = "obsion-cli"
+version = "0.1.0"
+source = { editable = "apps/cli" }
+dependencies = [
+    { name = "obsion-sdk", extra = ["app-server"] },
+]
+
+[package.metadata]
+requires-dist = [{ name = "obsion-sdk", extras = ["app-server"], editable = "packages/sdk-python" }]
+
+[[package]]
 name = "obsion-control-plane"
 version = "0.1.0"
 source = { editable = "services/control-plane" }
@@ -1323,6 +1336,7 @@ dependencies = [
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "minio" },
+    { name = "obsion-sdk" },
     { name = "openpyxl" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
@@ -1374,6 +1388,7 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.24,<5" },
     { name = "minio", specifier = ">=7.2,<8" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16,<2" },
+    { name = "obsion-sdk", editable = "packages/sdk-python" },
     { name = "openpyxl", specifier = ">=3.1,<4" },
     { name = "opentelemetry-api", specifier = ">=1.36,<2" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.36,<2" },
@@ -1402,6 +1417,25 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.35,<1" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "obsion-im"
+version = "0.1.0"
+source = { editable = "apps/im-adapter" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "httpx" },
+    { name = "obsion-cli" },
+    { name = "obsion-sdk", extra = ["app-server"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cryptography", specifier = ">=44,<51" },
+    { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "obsion-cli", editable = "apps/cli" },
+    { name = "obsion-sdk", extras = ["app-server"], editable = "packages/sdk-python" },
+]
 
 [[package]]
 name = "obsion-sdk"

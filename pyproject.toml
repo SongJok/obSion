@@ -2,12 +2,14 @@
 members = [
   "services/control-plane",
   "packages/sdk-python",
+  "apps/cli",
+  "apps/im-adapter",
 ]
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["services/control-plane/src", "packages/sdk-python/src"]
+src = ["services/control-plane/src", "packages/sdk-python/src", "apps/cli/src", "apps/im-adapter/src"]
 extend-exclude = [".claude"]
 
 [tool.ruff.lint]
@@ -15,15 +17,19 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "S"]
 ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "S106"]
+"**/tests/**" = ["S101", "S105", "S106"]
 "services/control-plane/src/obsion/api/*.py" = ["B008"]
 "services/control-plane/src/obsion/security/auth.py" = ["B008"]
 "services/control-plane/src/obsion/config.py" = ["S104"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
-testpaths = ["services/control-plane/tests", "packages/sdk-python/tests"]
+testpaths = ["services/control-plane/tests", "packages/sdk-python/tests", "apps/cli/tests", "apps/im-adapter/tests"]
 asyncio_mode = "auto"
+markers = [
+  "live: opt-in tests against an operator-owned external tenant; never enabled in default CI",
+  "feishu_browse_live: opt-in non-writing Feishu source browse through Capability Gateway",
+]
 
 [tool.coverage.report]
 fail_under = 70

@@ -52,6 +52,8 @@ return a stable conflict and require an explicit refresh.
 - `GET /api/v1/admin/feedback/summary` requires `audit.read` and returns current
   tenant counts plus `helpful_rate = helpful / total`; the rate is `null` when no
   feedback exists.
+- `GET /api/v1/admin/slo` includes the same satisfaction buckets plus the other
+  goal.txt core rates from PostgreSQL. It does not invent p95.
 
 The administrative projection is calculated from current durable records, so a
 revision moves one response between buckets instead of inflating the denominator.

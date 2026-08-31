@@ -1,0 +1,24 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-wecom-docs
+spec:
+  type: wecom-docs
+  environment: production
+  transport: HTTP
+  baseUrl: https://qyapi.weixin.qq.com
+  credentialRef: env://OBSION_WECOM_CORP_SECRET
+  grants: [knowledge.write, knowledge.read]
+  allowedEgress: ["https://qyapi.weixin.qq.com"]
+  tlsRequired: true
+  configuration:
+    protocol: wecom.docs.v1
+    corp_id_env: OBSION_WECOM_CORP_ID
+    rate_limit_per_minute: 60
+    knowledge_sync_budget:
+      max_pages: 20
+      max_nodes: 200
+      max_depth: 8
+  capabilities:
+    - knowledge.ingest
+    - knowledge.sync

@@ -4,11 +4,20 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obsion.artifacts.paths import normalize_workspace_path
 from obsion.artifacts.store import ObjectStore, StoredObject
-from obsion.common.errors import AuthorizationError, NotFoundError, ObsionError, ValidationError
+from obsion.common.errors import (
+    AuthorizationError,
+    ConflictError,
+    NotFoundError,
+    ObsionError,
+    ValidationError,
+)
 from obsion.common.ids import new_id
+from obsion.common.time import utc_now
 from obsion.db.models import Artifact, Run, Thread, Turn
 from obsion.domain.enums import ActorType, ArtifactKind, Classification
 from obsion.persistence.audit import AuditDraft, AuditWriter
@@ -37,6 +46,7 @@ class ArtifactService:
         content: bytes,
         classification: Classification,
         lineage: dict[str, Any],
+        path: str | None = None,
     ) -> Artifact:
         if not principal.can("artifact.write"):
             raise AuthorizationError("artifact_write_denied", "Artifact upload is not permitted")
@@ -65,6 +75,22 @@ class ArtifactService:
         artifact_id = new_id()
         key = f"{principal.organization_id}/{workspace_id}/{artifact_id}"
         checksum = hashlib.sha256(content).hexdigest()
+        file_path = normalize_workspace_path(path)
+        file_version = None
+        if file_path is not None:
+            current = await session.scalar(
+                select(Artifact)
+                .where(
+                    Artifact.organization_id == principal.organization_id,
+                    Artifact.workspace_id == workspace_id,
+                    Artifact.path == file_path,
+                    Artifact.superseded_at.is_(None),
+                )
+                .with_for_update()
+            )
+            file_version = 1 if current is None else int(current.file_version or 0) + 1
+            if current is not None:
+                current.superseded_at = utc_now()
         artifact = Artifact(
             id=artifact_id,
             organization_id=principal.organization_id,
@@ -78,9 +104,18 @@ class ArtifactService:
             classification=classification,
             acl={"workspace_id": str(workspace_id)},
             lineage=lineage,
+            path=file_path,
+            file_version=file_version,
         )
         session.add(artifact)
-        await session.flush()
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "artifact_path_conflict",
+                "Another current file already occupies this workspace path",
+                path=file_path,
+            ) from exc
         stored = False
         try:
             await self.store.put(
@@ -115,7 +150,12 @@ class ArtifactService:
                     resource_type="artifact",
                     resource_id=str(artifact.id),
                     outcome="SUCCESS",
-                    metadata={"kind": artifact.kind, "bytes": len(content)},
+                    metadata={
+                        "kind": artifact.kind,
+                        "bytes": len(content),
+                        "path": artifact.path,
+                        "file_version": artifact.file_version,
+                    },
                 ),
             )
         except Exception:
@@ -135,6 +175,92 @@ class ArtifactService:
                 .where(
                     Artifact.organization_id == principal.organization_id,
                     Artifact.workspace_id == workspace_id,
+                )
+                .order_by(Artifact.created_at.desc())
+                .limit(500)
+            )
+        )
+
+    async def list_files(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        workspace_id: UUID,
+        *,
+        include_superseded: bool = False,
+    ) -> list[Artifact]:
+        await require_workspace_access(session, principal, workspace_id)
+        query = select(Artifact).where(
+            Artifact.organization_id == principal.organization_id,
+            Artifact.workspace_id == workspace_id,
+            Artifact.kind == ArtifactKind.FILE,
+            Artifact.path.is_not(None),
+        )
+        if not include_superseded:
+            query = query.where(Artifact.superseded_at.is_(None))
+        return list(
+            await session.scalars(
+                query.order_by(Artifact.path, Artifact.file_version.desc()).limit(500)
+            )
+        )
+
+    async def list_reports(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        workspace_id: UUID,
+    ) -> list[Artifact]:
+        await require_workspace_access(session, principal, workspace_id)
+        return list(
+            await session.scalars(
+                select(Artifact)
+                .where(
+                    Artifact.organization_id == principal.organization_id,
+                    Artifact.workspace_id == workspace_id,
+                    Artifact.kind == ArtifactKind.REPORT,
+                    Artifact.superseded_at.is_(None),
+                )
+                .order_by(Artifact.created_at.desc())
+                .limit(500)
+            )
+        )
+
+    async def list_dashboards(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        workspace_id: UUID,
+    ) -> list[Artifact]:
+        await require_workspace_access(session, principal, workspace_id)
+        return list(
+            await session.scalars(
+                select(Artifact)
+                .where(
+                    Artifact.organization_id == principal.organization_id,
+                    Artifact.workspace_id == workspace_id,
+                    Artifact.kind == ArtifactKind.DASHBOARD,
+                    Artifact.superseded_at.is_(None),
+                )
+                .order_by(Artifact.created_at.desc())
+                .limit(500)
+            )
+        )
+
+    async def list_sql(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        workspace_id: UUID,
+    ) -> list[Artifact]:
+        await require_workspace_access(session, principal, workspace_id)
+        return list(
+            await session.scalars(
+                select(Artifact)
+                .where(
+                    Artifact.organization_id == principal.organization_id,
+                    Artifact.workspace_id == workspace_id,
+                    Artifact.kind == ArtifactKind.SQL,
+                    Artifact.superseded_at.is_(None),
                 )
                 .order_by(Artifact.created_at.desc())
                 .limit(500)

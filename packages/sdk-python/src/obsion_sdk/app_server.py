@@ -4,9 +4,38 @@ import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
 from typing import Any, Protocol, cast
+from urllib.parse import urlsplit, urlunsplit
+from uuid import uuid4
 
 APP_SERVER_PROTOCOL_VERSION = "2026-08-26"
 APP_SERVER_SUBPROTOCOL = "obsion.jsonrpc.v1"
+
+
+def new_client_request_id(prefix: str = "cli") -> str:
+    """Return an App Server mutation idempotency key.
+
+    The server accepts ``[A-Za-z0-9][A-Za-z0-9._:-]*``. Callers must generate a
+    new key per logical mutation and reuse it only for retries of that mutation.
+    """
+
+    return f"{prefix}-{uuid4()}"
+
+
+def app_server_url_from_api_url(api_url: str) -> str:
+    """Derive the WebSocket App Server URL from an HTTP API base."""
+
+    parsed = urlsplit(api_url.strip())
+    scheme = "wss" if parsed.scheme == "https" else "ws"
+    path = parsed.path.rstrip("/")
+    if path.endswith("/app-server"):
+        websocket_path = path
+    elif path.endswith("/api/v1"):
+        websocket_path = f"{path}/app-server"
+    elif path in {"", "/"}:
+        websocket_path = "/api/v1/app-server"
+    else:
+        websocket_path = f"{path}/api/v1/app-server"
+    return urlunsplit((scheme, parsed.netloc, websocket_path, "", ""))
 
 
 class AppServerTransport(Protocol):
@@ -213,6 +242,157 @@ class AsyncObsionAppServerClient:
                 "run.unsubscribe",
                 {"subscription_id": subscription_id},
             ),
+        )
+
+    async def list_workspaces(self, *, include_archived: bool = False) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self.request("workspace.list", {"include_archived": include_archived}),
+        )
+
+    async def list_threads(
+        self, workspace_id: str, *, include_archived: bool = False
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self.request(
+                "thread.list",
+                {"workspace_id": workspace_id, "include_archived": include_archived},
+            ),
+        )
+
+    async def archive_thread(self, thread_id: str, *, client_request_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self.request(
+                "thread.archive",
+                {"client_request_id": client_request_id, "thread_id": thread_id},
+            ),
+        )
+
+    async def resume_thread(self, thread_id: str, *, client_request_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self.request(
+                "thread.resume",
+                {"client_request_id": client_request_id, "thread_id": thread_id},
+            ),
+        )
+
+    async def fork_thread(
+        self,
+        thread_id: str,
+        *,
+        client_request_id: str,
+        title: str | None = None,
+        from_turn_id: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "client_request_id": client_request_id,
+            "thread_id": thread_id,
+        }
+        if title is not None:
+            params["title"] = title
+        if from_turn_id is not None:
+            params["from_turn_id"] = from_turn_id
+        return cast(dict[str, Any], await self.request("thread.fork", params))
+
+    async def list_turns(self, thread_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self.request("thread.turns", {"thread_id": thread_id}),
+        )
+
+    async def list_thread_runs(self, thread_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self.request("thread.runs", {"thread_id": thread_id}),
+        )
+
+    async def list_thread_events(
+        self, thread_id: str, *, after_sequence: int = 0, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self.request(
+                "thread.events",
+                {
+                    "thread_id": thread_id,
+                    "after_sequence": after_sequence,
+                    "limit": limit,
+                },
+            ),
+        )
+
+    async def get_run(self, run_id: str) -> dict[str, Any]:
+        return cast(dict[str, Any], await self.request("run.get", {"run_id": run_id}))
+
+    async def cancel_run(self, run_id: str, *, client_request_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self.request(
+                "run.cancel",
+                {"client_request_id": client_request_id, "run_id": run_id},
+            ),
+        )
+
+    async def replay_run(self, run_id: str, *, client_request_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self.request(
+                "run.replay",
+                {"client_request_id": client_request_id, "run_id": run_id},
+            ),
+        )
+
+    async def list_run_events(
+        self, run_id: str, *, after_sequence: int = 0, limit: int = 500
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self.request(
+                "run.events",
+                {"run_id": run_id, "after_sequence": after_sequence, "limit": limit},
+            ),
+        )
+
+    async def list_approvals(self, *, status: str | None = None) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        if status is not None:
+            params["status"] = status
+        return cast(list[dict[str, Any]], await self.request("approval.list", params))
+
+    async def decide_approval(
+        self,
+        approval_id: str,
+        *,
+        client_request_id: str,
+        approve: bool,
+        reason: str,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self.request(
+                "approval.decide",
+                {
+                    "client_request_id": client_request_id,
+                    "approval_id": approval_id,
+                    "decision": "approve" if approve else "reject",
+                    "reason": reason,
+                },
+            ),
+        )
+
+    async def list_artifacts(self, workspace_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self.request("artifact.list", {"workspace_id": workspace_id}),
+        )
+
+    async def get_artifact(self, artifact_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self.request("artifact.get", {"artifact_id": artifact_id}),
         )
 
     async def _read_loop(self) -> None:

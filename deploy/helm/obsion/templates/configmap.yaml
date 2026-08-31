@@ -38,6 +38,7 @@ data:
   OBSION_APP_SERVER_MAX_SUBSCRIPTIONS: {{ .Values.config.appServer.maxSubscriptions | quote }}
   OBSION_APP_SERVER_EVENT_POLL_INTERVAL_SECONDS: {{ .Values.config.appServer.eventPollIntervalSeconds | quote }}
   OBSION_APP_SERVER_IDEMPOTENCY_RETENTION_HOURS: {{ .Values.config.appServer.idempotencyRetentionHours | quote }}
+  OBSION_OPERATOR_CAPABILITY_IDEMPOTENCY_RETENTION_HOURS: {{ .Values.config.operatorCapability.idempotencyRetentionHours | quote }}
   OBSION_AUTOMATION_ENABLED: {{ .Values.config.automation.enabled | quote }}
   OBSION_AUTOMATION_WORKER_CONCURRENCY: {{ .Values.config.automation.workerConcurrency | quote }}
   OBSION_AUTOMATION_POLL_INTERVAL_SECONDS: {{ .Values.config.automation.pollIntervalSeconds | quote }}

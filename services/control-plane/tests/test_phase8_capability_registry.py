@@ -7,7 +7,7 @@ _PHASE8_PLACEHOLDERS = {
     "data.query": "DATA",
     "metric.query": "METRIC",
     "log.search": "LOG",
-    "git.diff": "CODE",
+    "git.diff": "GIT",
 }
 
 

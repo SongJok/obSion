@@ -1,0 +1,11 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-code-index
+spec:
+  type: code-index
+  environment: internal
+  transport: INTERNAL
+  grants: [code.read]
+  allowedEgress: []
+  capabilities: [code.symbol, code.reference, code.callers, code.callees]

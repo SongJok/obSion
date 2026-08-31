@@ -25,6 +25,12 @@ api:
       memory: 2Gi
   podAnnotations: {}
   extraEnv: []
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+  terminationGracePeriodSeconds: 60
 
 web:
   replicaCount: 2
@@ -80,6 +86,8 @@ config:
     maxSubscriptions: 32
     eventPollIntervalSeconds: 0.25
     idempotencyRetentionHours: 24
+  operatorCapability:
+    idempotencyRetentionHours: 168
   automation:
     enabled: true
     workerConcurrency: 4
@@ -106,6 +114,10 @@ objectStore:
   existingSecret: obsion-object-store
   accessKeyKey: access-key
   secretKeyKey: secret-key
+
+encryption:
+  existingSecret: ""
+  key: key
 
 ingress:
   enabled: false
@@ -139,6 +151,7 @@ podDisruptionBudget:
 
 networkPolicy:
   enabled: true
+  ingressNamespace: ingress-nginx
 
 nodeSelector: {}
 tolerations: []

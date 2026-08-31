@@ -1,0 +1,67 @@
+{
+  "name": "@obsion/ide-extension",
+  "displayName": "Obsion",
+  "description": "Obsion Experience client for VS Code. Uses App Server and REST; never implements Harness.",
+  "version": "0.1.0",
+  "publisher": "obsion",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "vscode": "^1.100.0",
+    "node": ">=22"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onCommand:obsion.ask",
+    "onCommand:obsion.setToken",
+    "onCommand:obsion.clearToken",
+    "onCommand:obsion.cancelRun",
+    "onCommand:obsion.replayRun",
+    "onCommand:obsion.approve",
+    "onCommand:obsion.reject"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {"command": "obsion.ask", "title": "Obsion: Ask"},
+      {"command": "obsion.setToken", "title": "Obsion: Set Token"},
+      {"command": "obsion.clearToken", "title": "Obsion: Clear Token"},
+      {"command": "obsion.cancelRun", "title": "Obsion: Cancel Run"},
+      {"command": "obsion.replayRun", "title": "Obsion: Replay Run"},
+      {"command": "obsion.approve", "title": "Obsion: Approve Capability"},
+      {"command": "obsion.reject", "title": "Obsion: Reject Capability"}
+    ],
+    "configuration": {
+      "title": "Obsion",
+      "properties": {
+        "obsion.baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8080",
+          "description": "Control plane HTTP base URL. Credentials are not allowed here."
+        },
+        "obsion.protocol": {
+          "type": "string",
+          "enum": ["app-server", "rest"],
+          "default": "app-server",
+          "description": "App Server JSON-RPC (default) or REST when a WebSocket transport is unavailable."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test --test-concurrency=1 tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@obsion/sdk": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/vscode": "1.100.0",
+    "typescript": "5.9.2"
+  },
+  "files": ["dist", "package.json"]
+}

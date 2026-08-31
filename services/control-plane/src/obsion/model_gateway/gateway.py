@@ -30,7 +30,7 @@ from obsion.model_gateway.providers import (
 )
 from obsion.security.egress import validate_model_endpoint
 from obsion.security.redaction import redact
-from obsion.telemetry import model_counter, tracer
+from obsion.telemetry import model_cost, model_counter, model_duration, model_tokens, tracer
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +134,10 @@ class ModelGateway:
             span.set_attribute("obsion.model.output_tokens", result.output_tokens)
             span.set_attribute("obsion.model.tool_call_count", len(result.tool_calls))
             model_counter.add(1, {"status": "SUCCESS"})
+            model_duration.record(result.latency_ms, {"status": "SUCCESS"})
+            model_cost.record(float(result.cost_amount), {"status": "SUCCESS"})
+            model_tokens.add(result.input_tokens, {"direction": "input"})
+            model_tokens.add(result.output_tokens, {"direction": "output"})
             return result
 
     async def _complete(

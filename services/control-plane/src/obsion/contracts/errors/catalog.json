@@ -266,6 +266,18 @@
       "http_status": 422
     },
     {
+      "category": "conflict",
+      "code": "artifact_path_conflict",
+      "description": "Indicates the stable conflict condition `artifact_path_conflict` (artifact path conflict). REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "artifact_path_invalid",
+      "description": "Indicates the stable validation condition `artifact_path_invalid` (artifact path invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
       "category": "validation",
       "code": "artifact_run_workspace_mismatch",
       "description": "Indicates the stable validation condition `artifact_run_workspace_mismatch` (artifact run workspace mismatch). REST responses use HTTP 422.",
@@ -446,6 +458,96 @@
       "http_status": 422
     },
     {
+      "category": "validation",
+      "code": "code_acl_invalid",
+      "description": "Repository ACL is missing required fields or contains unsupported keys. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "code_acl_required",
+      "description": "Code Graph ingestion requires an explicit repository ACL. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "code_file_too_large",
+      "description": "A source file exceeds the Code Graph size limit. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "code_operation_invalid",
+      "description": "The Code Graph operation is not part of the read-only contract. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "code_path_invalid",
+      "description": "A source path is not a relative POSIX path inside the repository. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "code_snapshot_empty",
+      "description": "A Code Graph snapshot requires at least one source file. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "code_snapshot_too_large",
+      "description": "The Code Graph snapshot exceeds the configured file or byte budget. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "code_write_denied",
+      "description": "The principal is not permitted to ingest or mutate the Code Graph. REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "confluence_operation_invalid",
+      "description": "The Confluence connector operation is not part of the knowledge ingest contract. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "confluence_page_id_invalid",
+      "description": "The Confluence page id is missing or not a valid Cloud page identifier. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "confluence_response_invalid",
+      "description": "The Confluence Cloud API returned a payload outside the documented page contract. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "confluence_site_invalid",
+      "description": "The Confluence connector site is missing or is not a Cloud *.atlassian.net host. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "confluence_space_id_invalid",
+      "description": "The Confluence space id is missing or not a valid Cloud space identifier. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "confluence_upstream_denied",
+      "description": "Confluence denied the page fetch. Missing scopes, restrictions, or site permission fail closed. REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "dependency",
+      "code": "confluence_upstream_unavailable",
+      "description": "The Confluence Cloud API is unavailable after bounded retries. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
       "category": "conflict",
       "code": "connection_already_initialized",
       "description": "Indicates the stable conflict condition `connection_already_initialized` (connection already initialized). REST responses use HTTP 409.",
@@ -533,6 +635,42 @@
       "category": "validation",
       "code": "dimension_scope_invalid",
       "description": "Indicates the stable validation condition `dimension_scope_invalid` (dimension scope invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "dingtalk_docs_document_id_invalid",
+      "description": "The DingTalk document id is missing or not a valid OpenAPI document identifier. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "dingtalk_docs_operation_invalid",
+      "description": "The DingTalk docs connector operation is not part of the knowledge ingest contract. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "dingtalk_docs_response_invalid",
+      "description": "The DingTalk Doc OpenAPI returned a payload outside the documented document contract. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "authorization",
+      "code": "dingtalk_docs_upstream_denied",
+      "description": "DingTalk denied the document fetch. Missing scopes or document ACL fail closed. REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "dependency",
+      "code": "dingtalk_docs_upstream_unavailable",
+      "description": "The DingTalk Doc OpenAPI was unavailable after bounded retries. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "dingtalk_docs_workspace_id_invalid",
+      "description": "The DingTalk workspace id is missing or not a valid OpenAPI workspace identifier. REST responses use HTTP 422.",
       "http_status": 422
     },
     {
@@ -782,6 +920,48 @@
       "http_status": 422
     },
     {
+      "category": "validation",
+      "code": "feishu_docs_document_id_invalid",
+      "description": "The Feishu document token is missing or not a valid OpenAPI document or wiki token. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "feishu_docs_obj_type_unsupported",
+      "description": "The Feishu object type cannot enter the Knowledge pipeline. Only docx and wiki nodes that resolve to docx are supported. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "feishu_docs_operation_invalid",
+      "description": "The Feishu docs connector operation is not part of the knowledge ingest contract. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "feishu_docs_response_invalid",
+      "description": "The Feishu docs OpenAPI returned a payload outside the documented document contract. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "feishu_docs_space_id_invalid",
+      "description": "The Feishu wiki space id is missing or not a valid OpenAPI space identifier. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "feishu_docs_upstream_denied",
+      "description": "Feishu denied the document fetch. Missing scopes, document ACL, or tenant permission fail closed. REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "dependency",
+      "code": "feishu_docs_upstream_unavailable",
+      "description": "The Feishu docs OpenAPI is unavailable after bounded retries. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
       "category": "execution",
       "code": "human_review_rejected",
       "description": "Indicates the stable execution condition `human_review_rejected` (human review rejected).",
@@ -810,6 +990,54 @@
       "code": "idempotency_request_in_progress",
       "description": "Indicates the stable conflict condition `idempotency_request_in_progress` (idempotency request in progress). REST responses use HTTP 409.",
       "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "im_delegate_denied",
+      "description": "Indicates the stable authorization condition `im_delegate_denied` (IM sender delegation is not permitted). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_answer_missing",
+      "description": "A completed IM Run has no durable final-answer artifact that can be delivered.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_context_missing",
+      "description": "A Run was not created through the governed IM ingress and has no delivery lineage.",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "im_delivery_denied",
+      "description": "The Policy Engine denied final-answer delivery or receipt reporting.",
+      "http_status": 403
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_lineage_changed",
+      "description": "The persisted delivery target or answer fingerprint differs from the completed Run.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_receipt_conflict",
+      "description": "An idempotent IM delivery was completed with a different vendor receipt.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_run_not_completed",
+      "description": "Only a completed IM Run can prepare a final-answer delivery.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
+      "code": "im_sender_id_required",
+      "description": "Indicates the stable validation condition `im_sender_id_required` (a stable IM sender id is required). REST responses use HTTP 422.",
+      "http_status": 422
     },
     {
       "category": "validation",
@@ -857,6 +1085,18 @@
       "category": "validation",
       "code": "knowledge_query_empty",
       "description": "Indicates the stable validation condition `knowledge_query_empty` (knowledge query empty). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "knowledge_sync_budget_exceeded",
+      "description": "Vendor knowledge sync exceeded the configured pages, nodes, or depth budget. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "knowledge_sync_budget_invalid",
+      "description": "The connector knowledge_sync_budget configuration is invalid. REST responses use HTTP 422.",
       "http_status": 422
     },
     {
@@ -1034,6 +1274,12 @@
       "http_status": 403
     },
     {
+      "category": "conflict",
+      "code": "operator_invocation_outcome_unknown",
+      "description": "A previous no-Run operator Capability attempt lost its durable completion boundary. Automatic retry is denied pending reconciliation. REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
       "category": "authorization",
       "code": "organization_claim_missing",
       "description": "Indicates the stable authorization condition `organization_claim_missing` (organization claim missing). REST responses use HTTP 403.",
@@ -1044,6 +1290,12 @@
       "code": "plan_dependency_deadlock",
       "description": "Indicates the stable validation condition `plan_dependency_deadlock` (plan dependency deadlock). REST responses use HTTP 422.",
       "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "prompt_pin_mismatch",
+      "description": "A Run or Evaluation pin does not match the immutable PromptVersion. REST responses use HTTP 409.",
+      "http_status": 409
     },
     {
       "category": "validation",
@@ -1068,6 +1320,24 @@
       "code": "rate_limit_unavailable",
       "description": "Indicates the stable rate_limit condition `rate_limit_unavailable` (rate limit unavailable).",
       "http_status": null
+    },
+    {
+      "category": "authorization",
+      "code": "registry_read_denied",
+      "description": "Indicates the stable authorization condition `registry_read_denied` (registry catalog or Studio validate is not permitted). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "registry_spec_invalid",
+      "description": "Indicates the stable validation condition `registry_spec_invalid` (Agent, Skill, Workflow, or Connector manifest is invalid or contains forbidden runtime material). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "registry_write_denied",
+      "description": "Indicates the stable authorization condition `registry_write_denied` (registry publish or promote is not permitted). REST responses use HTTP 403.",
+      "http_status": 403
     },
     {
       "category": "conflict",
@@ -1311,6 +1581,12 @@
     },
     {
       "category": "authorization",
+      "code": "unknown_im_sender",
+      "description": "Indicates the stable authorization condition `unknown_im_sender` (IM sender is not bound to a provisioned principal). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "authorization",
       "code": "unknown_principal",
       "description": "Indicates the stable authorization condition `unknown_principal` (unknown principal). REST responses use HTTP 403.",
       "http_status": 403
@@ -1344,6 +1620,42 @@
       "code": "v1_production_action_boundary",
       "description": "Indicates the stable validation condition `v1_production_action_boundary` (v1 production action boundary). REST responses use HTTP 422.",
       "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "wecom_docs_document_id_invalid",
+      "description": "The WeCom document id is missing or not a valid OpenAPI document identifier. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "wecom_docs_operation_invalid",
+      "description": "The WeCom docs connector operation is not part of the knowledge ingest contract. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "dependency",
+      "code": "wecom_docs_response_invalid",
+      "description": "The WeCom Doc OpenAPI returned a payload outside the documented document contract. REST responses use HTTP 503.",
+      "http_status": 503
+    },
+    {
+      "category": "validation",
+      "code": "wecom_docs_space_id_invalid",
+      "description": "The WeCom WeDrive space id is missing or not a valid OpenAPI space identifier. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "wecom_docs_upstream_denied",
+      "description": "WeCom denied the document fetch. Missing scopes or document ACL fail closed. REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "dependency",
+      "code": "wecom_docs_upstream_unavailable",
+      "description": "The WeCom Doc OpenAPI was unavailable after bounded retries. REST responses use HTTP 503.",
+      "http_status": 503
     },
     {
       "category": "execution",

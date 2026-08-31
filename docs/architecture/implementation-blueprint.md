@@ -6,7 +6,8 @@ The correctness boundary spans lifecycle state, event append, authorization,
 approval, evidence, and audit. Keeping these modules in one Python deployment at V1
 allows their durable writes to share a PostgreSQL transaction while interfaces remain
 explicit enough to extract under measured load. It also satisfies the project
-requirement to prefer Python and avoids a second backend stack.
+requirement to prefer Python and avoids a second backend stack. Java, Python, and
+TypeScript SDKs are clients of this plane; they do not host Harness or Policy.
 
 Modules communicate through application services and typed contracts. They do not
 read another module's tables. High-volume event and telemetry projections may move to
@@ -32,7 +33,8 @@ harness
 capability_gateway
   -> registry -> schema validation -> policy -> approval
   -> connector grants -> rate limit -> credential broker -> timeout-bounded connector
-  -> DLP/masking -> EvidenceFabric normalization
+  -> INTERNAL (including Connector SDK SPI execute, plugin scan/HMAC before load) | HTTP | MCP (in-process JSON-RPC) | SDK (in-process envelope) | GRPC (in-process unary) | WORKFLOW (in-process envelope to AutomationService) | AGENT (in-process envelope) | SQL_PROXY executors
+  -> circuit breaker -> DLP/masking -> EvidenceFabric normalization
   -> evidence -> Claim linkage -> audit -> telemetry
 
 actions
@@ -42,6 +44,7 @@ actions
 intelligence
   -> knowledge: ingest -> ACL -> chunk -> retrieve -> rerank -> evidence
   -> data: understand -> semantics -> logical plan -> SQL AST -> query -> evidence
+  -> code: static parse -> ACL -> snapshot -> symbol/call graph -> evidence
   -> incident: normalize -> fuse -> rank candidates -> verify -> evidence
 ```
 
@@ -49,6 +52,14 @@ The internal Knowledge route resolves the active `knowledge-agent` and pinned
 `knowledge-qa` Skill before planning. The Skill is limited to Knowledge capabilities,
 requires DOCUMENT Evidence, renders citations from substantive Claim links, and emits an
 explicit unknown answer when authorized retrieval has no supporting source.
+
+Internal specialist routing also pins `analytics-agent`, `operation-agent`, and
+`support-agent` without a user-facing agent picker. Support diagnosis searches
+ACL-filtered tickets (`source=ticket`) and knowledge through the same INTERNAL index;
+it cannot create tickets or write to production. Operations stay on read-only
+status, configuration, log, and metric capabilities. Event v1 `intent.detected` and
+`plan.created` route enums add `ANALYTICS`, `SUPPORT`, and `OPERATION` without a
+breaking version bump.
 
 The semantic catalog is also an inspectable product surface. Validated metrics expose
 their complete versioned definition and a tenant-scoped, read-only lineage chain from
@@ -60,6 +71,14 @@ ranked candidate root causes from the current Run's normalized Evidence. A root-
 Claim must link two distinct Evidence types; unresolved conflicts remain attached to
 the answer Artifact and downgrade verification rather than becoming a causal fact.
 
+The internal Engineering route resolves `engineering-agent` and the pinned
+`code-architecture` Skill. Source is ingested into an immutable Code Graph snapshot
+through static parsers that never execute repository files. Repository ACLs are
+applied before symbol ranking. `code.symbol`, `code.reference`, `code.callers`, and
+`code.callees` are INTERNAL capabilities bound to `obsion-code-index`. Missing
+authorized CODE Evidence yields an explicit unknown answer; citations name repository,
+path, symbol, and commit.
+
 ## Dependency rules
 
 1. Domain packages depend only on standard library and shared contracts.
@@ -70,7 +89,8 @@ the answer Artifact and downgrade verification rather than becoming a causal fac
    routers because background runs use the same application services.
 5. Agents and skills declare capability IDs. Harness resolves those IDs against the
    active tenant Registry before planning; importing connector code from either is an
-   architecture-test failure.
+   architecture-test failure. Agent sandbox is pinned on the Run plan and re-checked
+   at the Capability Gateway; `network: deny` yields no executable capabilities.
 6. Events and audit records are outputs of use cases, not best-effort logging.
 
 ## Persistence and transactions
@@ -120,7 +140,7 @@ rate is projected from current records rather than submission-event volume.
 ## Harness execution
 
 Ordinary Runs persist the Harness loop as first-class RunSteps:
-`OBSERVE -> UNDERSTAND -> PLAN -> CAPABILITY* -> VERIFY -> RESPOND`. The Act phase is
+`OBSERVE -> UNDERSTAND -> PLAN -> CAPABILITY* -> VERIFY -> REFLECT -> RESPOND`. The Act phase is
 empty for non-factual conversation and is otherwise represented only by Capability
 Gateway requests. Missing Capability bindings, policy denials, schema failures, and
 connector failures terminate the evidence path explicitly; they cannot be masked by a
@@ -132,7 +152,12 @@ DAG nodes may execute concurrently. Retries are allowed only for declared transi
 idempotent operations. V1 read-only capability steps receive at most one recovery
 attempt; the runtime enters `REPLANNING`, records `plan.updated`, restores affected
 dependent nodes, and charges every attempt against the pinned step budget. Policy
-denials and other deterministic failures are never retried.
+denials and other deterministic failures are never retried. After the capability wave,
+the deterministic Critic may append at most one additional wave of unused, Agent-
+authorized, read-only capabilities for missing required Evidence types. Git operations
+produce `GIT` Evidence; query results remain `DATA` and also satisfy a `SQL`
+requirement. The critic-replan bound is pinned on the Run (`run_max_critic_replans`)
+so a persistent gap cannot recurse.
 
 Run steps and events are persisted before and after each boundary. Before planning, the
 runtime resolves only currently authorized, approved, unexpired TURN, SESSION,
@@ -166,7 +191,26 @@ configured private profile by default and fail before provider access when no ho
 private route exists. Provider responses and normalized tool arguments are
 schema-validated, every attempt records usage/cost, and fallback stays within the
 selected logical profile. External data occupies an explicitly untrusted context
-segment and cannot become system or skill instructions.
+segment and cannot become system or skill instructions. Context Builder records
+Keep / Compress / Summarize / Drop against the character budget. Summarize is
+extractive identity or head/tail text, never a nested model call. The ledger is
+pinned on `runs.context_budget`. Older conversation is compacted extractively
+(`runs.conversation_compact`) before that budget runs; recent turns stay verbatim.
+Workspace identity is an AGENT segment; workspace description is untrusted and
+pinned on `runs.workspace_context`. Capability TOOL evidence is a sibling
+`tool-result` untrusted segment, not mixed into `evidence-bus`.
+Admin `GET /admin/slo` projects success, replan, approval, satisfaction, coverage,
+tokens, cost, and mean latencies from PostgreSQL. TTFT stays an OTel histogram
+and is not presented as p95. Workspace Files reuse the Artifact store with an
+optional governed path and version; they do not become SYSTEM text automatically.
+Workspace Reports are published `REPORT` artifacts from cited or evidenced
+answers; greetings do not create them. Workspace Dashboards are published
+`DASHBOARD` artifacts that only reference existing CHART/TABLE/SQL rows; they
+do not invent series. Workspace SQL lists published `SQL` artifacts and does
+not invent warehouse rows. Workspace Evidence lists persisted `Evidence` rows
+joined through Run → Turn → Thread and does not invent citations. Workspace
+Timeline lists persisted Run Events the same way and does not invent Harness
+steps.
 
 No provider is required to boot the control plane. A run that needs a model and has no
 eligible endpoint becomes a typed, recoverable configuration failure; it never falls
@@ -207,7 +251,19 @@ but makes enterprise execution visible:
 - the login page exchanges an access token once for a revocable opaque HttpOnly
   session; browser code never persists or forwards the bearer, and REST/WebSocket use
   the same provisioned Principal;
-- the left rail selects workspaces, threads, files, reports, data, and administration;
+- `obsion-cli` is a non-browser Experience client of the same App Server and REST
+  services; it never implements Observe/Understand/Plan/Execute locally;
+- `apps/ide-extension` is the VS Code Experience client of the same protocol; only
+  `extension.ts` imports `vscode`, and the runtime never implements Harness;
+- `obsion-im` is the IM Experience client of the same protocol; it translates
+  documented inbound envelopes, may listen on `127.0.0.1`, renders vendor-shaped
+  local-outbox replies, may deliver Feishu/DingTalk/WeCom replies through the
+  explicit `*-http` transports after Policy authorization, resolves senders through
+  control-plane principal mapping, and does not accept generic `--deliver http`;
+- `obsion-desktop` is the Desktop Experience client of the same protocol; only
+  `electron-main.ts` may import Electron, the loopback UI binds `127.0.0.1`, and the
+  runtime never implements Harness;
+- the left rail selects workspaces, threads, files, reports, data, Studio, Eval, and administration;
 - the task-and-decision view keeps actionable follow-up beside immutable team
   rationale, version history, and replacement lineage;
 - the center presents conversation and rich artifacts with a persistent composer;
@@ -224,8 +280,10 @@ but makes enterprise execution visible:
 - keyboard navigation, focus states, reduced motion, contrast, and screen-reader live
   regions are first-class requirements.
 
-The interface never asks ordinary users to select specialist agents. It may expose
-which internal route was used after execution for transparency.
+The interface never asks ordinary users to select specialist agents. Studio is a
+developer registry workbench. Eval is a Golden Dataset console over the existing
+evaluation engine. Neither appears in the composer. The
+shell may expose which internal route was used after execution for transparency.
 
 ## Failure behavior
 

@@ -10,8 +10,23 @@
           "minimum": 1,
           "type": "integer"
         },
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "missing_evidence": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "reason": {
-          "const": "transient_read_only_failure"
+          "enum": [
+            "critic_missing_evidence",
+            "transient_read_only_failure"
+          ]
         },
         "step_ordinals": {
           "items": {

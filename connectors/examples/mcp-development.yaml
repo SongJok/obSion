@@ -1,0 +1,13 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-mcp-development
+spec:
+  type: mcp-development
+  environment: development
+  transport: MCP
+  grants: [mcp.invoke]
+  allowedEgress: []
+  configuration:
+    tool: obsion.echo
+  capabilities: [mcp.development.echo]

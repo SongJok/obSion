@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
@@ -33,9 +34,11 @@ from obsion.db.models import (
 )
 from obsion.domain.enums import ActorType, RegistryStatus, RunStatus, ThreadStatus
 from obsion.domain.run_state import is_terminal, validate_run_transition
+from obsion.model_gateway.workspace_context import snapshot_workspace
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
 from obsion.registry.agent_spec import AgentSpec
+from obsion.registry.prompt_pins import names_for_agent_spec, resolve_prompt_pins
 from obsion.security.identity import Principal
 from obsion.security.redaction import redact_text
 from obsion.security.workspace_access import (
@@ -44,6 +47,7 @@ from obsion.security.workspace_access import (
     require_workspace_access,
     workspace_access_clause,
 )
+from obsion.telemetry import workspace_context_counter
 
 
 class WorkspaceService:
@@ -561,8 +565,8 @@ class WorkspaceService:
                 AgentDefinition.organization_id == principal.organization_id,
                 AgentDefinition.name == "general-agent",
                 AgentDefinition.status == RegistryStatus.ACTIVE,
+                AgentDefinition.active_version == AgentVersion.version,
             )
-            .order_by(AgentVersion.version.desc())
             .limit(1)
         )
         if agent_version is None:
@@ -579,6 +583,30 @@ class WorkspaceService:
         )
         if model_profile is None:
             raise NotFoundError("Model profile", profile_name)
+        prompt_pins = await resolve_prompt_pins(
+            session,
+            principal.organization_id,
+            names_for_agent_spec(agent_version.spec),
+        )
+        workspace = await session.scalar(
+            select(Workspace).where(
+                Workspace.id == thread.workspace_id,
+                Workspace.organization_id == principal.organization_id,
+            )
+        )
+        if workspace is None:
+            raise NotFoundError("Workspace", thread.workspace_id)
+        workspace_context = snapshot_workspace(
+            workspace_id=workspace.id,
+            name=workspace.name,
+            classification=workspace.classification.value,
+            visibility=workspace.visibility.value,
+            description=workspace.description,
+        )
+        workspace_context_counter.add(
+            1,
+            {"has_description": str(bool(workspace_context["description"].strip())).lower()},
+        )
         sanitized_input = redact_text(request.input)
         turn = Turn(
             organization_id=principal.organization_id,
@@ -606,6 +634,8 @@ class WorkspaceService:
             status=RunStatus.PENDING,
             agent_version_id=agent_version.id,
             model_profile_id=model_profile.id,
+            prompt_pins=prompt_pins,
+            workspace_context=workspace_context,
             max_steps=min(self.settings.run_max_steps, agent_spec.max_steps),
             timeout_seconds=timeout_seconds,
             max_input_tokens=self.settings.run_max_input_tokens,
@@ -814,6 +844,10 @@ class WorkspaceService:
             status=RunStatus.PENDING,
             agent_version_id=source.agent_version_id,
             model_profile_id=source.model_profile_id,
+            prompt_pins=list(source.prompt_pins or []),
+            context_budget=deepcopy(source.context_budget or {}),
+            conversation_compact=deepcopy(source.conversation_compact or {}),
+            workspace_context=deepcopy(source.workspace_context or {}),
             max_steps=source.max_steps,
             timeout_seconds=source.timeout_seconds,
             max_input_tokens=source.max_input_tokens,

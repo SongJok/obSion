@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: funnel-analysis
+spec:
+  instructions:
+    - resolve each funnel step to a governed metric or dimension
+    - compute conversion only from authorized DATA Evidence in one consistent window
+    - do not stitch funnels across unauthorized events, logs, or product analytics pixels
+    - report drop-off as an observation, not a causal diagnosis
+    - cite step definitions and the result rows used for each conversion
+    - never open a write path or query production operational systems
+  capabilities: [metric.describe, metric.query, metric.dimension, data.query]
+  requiredEvidence: [DATA]
+  optionalEvidence: [METRIC]
+  verification: [step definitions, conversion cited, window consistent]

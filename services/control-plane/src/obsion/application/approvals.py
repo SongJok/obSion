@@ -12,6 +12,7 @@ from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_run_access, workspace_access_clause
+from obsion.telemetry import approval_counter
 
 
 class ApprovalService:
@@ -171,4 +172,5 @@ class ApprovalService:
                 approval_id=approval.id,
             ),
         )
+        approval_counter.add(1, {"decision": approval.status.value, "kind": "capability"})
         return approval

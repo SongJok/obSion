@@ -6,7 +6,7 @@ spec:
   description: Production incident investigator
   modelPolicy: {profile: reasoning-high}
   maxSteps: 30
-  skills: [incident-investigation]
+  skills: [incident-investigation, log-analysis, root-cause-analysis]
   capabilities:
     - metric.query
     - metric.compare
@@ -21,3 +21,7 @@ spec:
     - config.diff
     - k8s.status
   riskPolicy: {maxLevel: L2}
+  sandbox:
+    enabled: true
+    network: gateway-only
+    mounts: [/workspace, /repo, /artifacts, /tmp]

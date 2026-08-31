@@ -1,0 +1,14 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-grpc-development
+spec:
+  type: grpc-development
+  environment: development
+  transport: GRPC
+  grants: [grpc.invoke]
+  allowedEgress: []
+  configuration:
+    service: obsion.development.Echo
+    method: Ping
+  capabilities: [grpc.development.echo]

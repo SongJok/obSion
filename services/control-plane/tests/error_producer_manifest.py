@@ -14,12 +14,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "actions/gateway.py::ActionGateway._invoke#ActionGatewayResult[5]",
-            frozenset(
-                {
-                    "action_provider_failed",
-                    "action_provider_timeout",
-                }
-            ),
+            frozenset({"action_provider_failed", "action_provider_timeout"}),
         ),
         (
             "actions/gateway.py::ActionGateway._post#ValidationError[1]",
@@ -79,12 +74,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "actions/gateway.py::ActionGateway._validate_schema#ValidationError[1]",
-            frozenset(
-                {
-                    "action_input_invalid",
-                    "action_output_invalid",
-                }
-            ),
+            frozenset({"action_input_invalid", "action_output_invalid"}),
         ),
         (
             "actions/gateway.py::ActionGateway.preflight#NotFoundError[1]",
@@ -192,13 +182,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "actions/worker.py::ActionWorker._fail#ActionRequest.error_code[1]",
-            frozenset(
-                {
-                    "action_provider_failed",
-                    "action_timeout",
-                    "action_worker_failed",
-                }
-            ),
+            frozenset({"action_provider_failed", "action_timeout", "action_worker_failed"}),
         ),
         (
             "actions/worker.py::ActionWorker._invoke#ValidationError[1]",
@@ -269,12 +253,12 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
-            "api/admin.py::create_semantic_entity#NotFoundError[1]",
-            frozenset({"resource_not_found"}),
+            "api/admin.py::create_connector#ObsionError[1]",
+            frozenset({"capability_denied"}),
         ),
         (
-            "api/admin.py::create_semantic_relation#NotFoundError[1]",
-            frozenset({"resource_not_found"}),
+            "api/admin.py::create_connector#ValidationError[1]",
+            frozenset({"v1_production_action_boundary"}),
         ),
         (
             "api/admin.py::create_data_source#NotFoundError[1]",
@@ -325,6 +309,14 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"secret_reference_exists"}),
         ),
         (
+            "api/admin.py::create_semantic_entity#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/admin.py::create_semantic_relation#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "api/admin.py::create_semantic_synonym#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
@@ -339,6 +331,38 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "api/admin.py::create_user#NotFoundError[1]",
             frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/admin.py::discover_connector#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/admin.py::discover_connector#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "api/admin.py::probe_connector_health#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/admin.py::probe_connector_health#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "api/admin.py::promote_connector_plugin#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/admin.py::promote_connector_plugin#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "api/admin.py::scan_connector_plugin#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/admin.py::scan_connector_plugin#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
         ),
         (
             "api/artifacts.py::upload_artifact#ValidationError[1]",
@@ -357,6 +381,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"run_not_invocable"}),
         ),
         (
+            "api/data.py::explain_sql#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "api/data.py::metric_lineage#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
@@ -369,12 +397,16 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
-            "api/data.py::explain_sql#NotFoundError[1]",
-            frozenset({"resource_not_found"}),
+            "api/knowledge.py::_operator_correlation_id#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
         ),
         (
             "api/knowledge.py::ingest_document#ValidationError[1]",
             frozenset({"document_acl_invalid"}),
+        ),
+        (
+            "api/knowledge.py::_operator_gateway_output#ObsionError[1]",
+            frozenset({"capability_failed"}),
         ),
         (
             "api/memory.py::approve_memory#AuthorizationError[1]",
@@ -389,28 +421,20 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"memory_policy_denied"}),
         ),
         (
+            "api/memory.py::revoke_memory#AuthorizationError[1]",
+            frozenset({"memory_policy_denied"}),
+        ),
+        (
+            "api/memory.py::update_memory#AuthorizationError[1]",
+            frozenset({"memory_policy_denied"}),
+        ),
+        (
             "api/run_inspection.py::get_artifact#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
         (
             "api/run_inspection.py::get_evidence#NotFoundError[1]",
             frozenset({"resource_not_found"}),
-        ),
-        (
-            "persistence/app_server_requests.py::AppServerRequestStore.claim#ConflictError[1]",
-            frozenset({"idempotency_claim_lost"}),
-        ),
-        (
-            "persistence/app_server_requests.py::AppServerRequestStore.claim#ConflictError[2]",
-            frozenset({"idempotency_key_reused"}),
-        ),
-        (
-            "persistence/app_server_requests.py::AppServerRequestStore.claim#ConflictError[3]",
-            frozenset({"idempotency_request_in_progress"}),
-        ),
-        (
-            "persistence/app_server_requests.py::AppServerRequestStore.complete#ConflictError[1]",
-            frozenset({"idempotency_already_completed"}),
         ),
         (
             "app_server/websocket.py::AppServerConnection._process#ConflictError[1]",
@@ -457,10 +481,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"approval_read_denied"}),
         ),
         (
-            (
-                "application/conversation_context.py"
-                "::ConversationContextService.capture#NotFoundError[1]"
-            ),
+            "application/conversation_context.py::ConversationContextService.capture#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
         (
@@ -500,6 +521,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"evaluation_write_denied"}),
         ),
         (
+            "application/evaluations.py::EvaluationService.compare_runs#ConflictError[1]",
+            frozenset({"evaluation_baseline_not_completed"}),
+        ),
+        (
             "application/evaluations.py::EvaluationService.get_run#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
@@ -514,6 +539,94 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "application/evaluations.py::EvaluationService.run#ValidationError[2]",
             frozenset({"evaluation_run_binding_required"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._authorize_report#AuthorizationError[1]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._get_for_update#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.complete#ConflictError[1]",
+            frozenset({"im_delivery_receipt_conflict"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.prepare#AuthorizationError[1]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[1]",
+            frozenset({"im_delivery_run_not_completed"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[2]",
+            frozenset({"im_delivery_lineage_changed"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.prepare#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_delivery.py::_answer_for_run#ConflictError[1]",
+            frozenset({"im_delivery_answer_missing"}),
+        ),
+        (
+            "application/im_delivery.py::_answer_for_run#ConflictError[2]",
+            frozenset({"im_delivery_answer_missing"}),
+        ),
+        (
+            "application/im_delivery.py::_delivery_context#ConflictError[1]",
+            frozenset({"im_delivery_context_missing"}),
+        ),
+        (
+            "application/im_delivery.py::_delivery_context#ConflictError[2]",
+            frozenset({"im_delivery_context_missing"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.bind#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.bind#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.bind#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.ingest_message#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.ingest_message#AuthorizationError[2]",
+            frozenset({"unknown_im_sender"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.ingest_message#ValidationError[1]",
+            frozenset({"im_sender_id_required"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.list_bindings#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.revoke#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.revoke#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::_require_channel#ValidationError[1]",
+            frozenset({"im_sender_id_required"}),
+        ),
+        (
+            "application/im_identity.py::_require_sender_id#ValidationError[1]",
+            frozenset({"im_sender_id_required"}),
         ),
         (
             "application/memory.py::MemoryService._require_owner#AuthorizationError[1]",
@@ -564,21 +677,159 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
+            "application/memory.py::MemoryService.get_memory#AuthorizationError[1]",
+            frozenset({"memory_read_denied"}),
+        ),
+        (
+            "application/memory.py::MemoryService.get_memory#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "application/memory.py::MemoryService.list_memories#AuthorizationError[1]",
             frozenset({"memory_read_denied"}),
         ),
         (
-            (
-                "application/thread_history.py"
-                "::ThreadHistoryResolver.effective_turns#ConflictError[1]"
-            ),
+            "application/memory.py::MemoryService.revoke_memory#AuthorizationError[1]",
+            frozenset({"memory_write_denied"}),
+        ),
+        (
+            "application/memory.py::MemoryService.revoke_memory#ConflictError[1]",
+            frozenset({"memory_already_decided"}),
+        ),
+        (
+            "application/memory.py::MemoryService.revoke_memory#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/memory.py::MemoryService.update_memory#AuthorizationError[1]",
+            frozenset({"memory_write_denied"}),
+        ),
+        (
+            "application/memory.py::MemoryService.update_memory#ConflictError[1]",
+            frozenset({"memory_already_decided"}),
+        ),
+        (
+            "application/memory.py::MemoryService.update_memory#ConflictError[2]",
+            frozenset({"memory_duplicate_classification_conflict"}),
+        ),
+        (
+            "application/memory.py::MemoryService.update_memory#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/memory.py::MemoryService.update_memory#ValidationError[1]",
+            frozenset({"memory_expiry_invalid"}),
+        ),
+        (
+            "application/memory.py::MemoryService.update_memory#ValidationError[2]",
+            frozenset({"memory_expiry_exceeds_policy"}),
+        ),
+        (
+            "application/memory.py::MemoryService.update_memory#ValidationError[3]",
+            frozenset({"memory_content_too_large"}),
+        ),
+        (
+            "application/studio.py::StudioService._load_registry_version#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService._load_registry_version#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService._load_registry_version#NotFoundError[3]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService._load_registry_version#NotFoundError[4]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService._parse#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService._publish_agent#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService._publish_skill#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService._require_read#AuthorizationError[1]",
+            frozenset({"registry_read_denied"}),
+        ),
+        (
+            "application/studio.py::StudioService._require_write#AuthorizationError[1]",
+            frozenset({"registry_write_denied"}),
+        ),
+        (
+            "application/studio.py::StudioService._version_payload#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService._version_payload#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService.compare#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.compare#ValidationError[2]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.promote#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService.promote#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService.promote#NotFoundError[3]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService.promote#NotFoundError[4]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/studio.py::StudioService.promote#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.publish#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.publish#ValidationError[2]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.publish#ValidationError[3]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.rollback#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.rollback#ValidationError[2]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/studio.py::StudioService.rollback#ValidationError[3]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "application/thread_history.py::ThreadHistoryResolver.effective_turns#ConflictError[1]",
             frozenset({"thread_lineage_invalid"}),
         ),
         (
-            (
-                "application/thread_history.py"
-                "::ThreadHistoryResolver.effective_turns#ConflictError[2]"
-            ),
+            "application/thread_history.py::ThreadHistoryResolver.effective_turns#ConflictError[2]",
             frozenset({"thread_fork_point_missing"}),
         ),
         (
@@ -586,17 +837,11 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
-            (
-                "application/workspaces.py"
-                "::WorkspaceService._validate_attachments#ValidationError[1]"
-            ),
+            "application/workspaces.py::WorkspaceService._validate_attachments#ValidationError[1]",
             frozenset({"attachment_type_unsupported"}),
         ),
         (
-            (
-                "application/workspaces.py"
-                "::WorkspaceService._validate_attachments#ValidationError[2]"
-            ),
+            "application/workspaces.py::WorkspaceService._validate_attachments#ValidationError[2]",
             frozenset({"attachment_reference_invalid"}),
         ),
         (
@@ -628,6 +873,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
+            "application/workspaces.py::WorkspaceService.create_turn#NotFoundError[3]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "application/workspaces.py::WorkspaceService.fork_thread#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
@@ -644,6 +893,14 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"run_not_replayable"}),
         ),
         (
+            "artifacts/paths.py::normalize_workspace_path#ValidationError[1]",
+            frozenset({"artifact_path_invalid"}),
+        ),
+        (
+            "artifacts/paths.py::normalize_workspace_path#ValidationError[2]",
+            frozenset({"artifact_path_invalid"}),
+        ),
+        (
             "artifacts/service.py::ArtifactService.content#ObsionError[1]",
             frozenset({"artifact_integrity_failed"}),
         ),
@@ -654,6 +911,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "artifacts/service.py::ArtifactService.create_file#AuthorizationError[1]",
             frozenset({"artifact_write_denied"}),
+        ),
+        (
+            "artifacts/service.py::ArtifactService.create_file#ConflictError[1]",
+            frozenset({"artifact_path_conflict"}),
         ),
         (
             "artifacts/service.py::ArtifactService.create_file#ValidationError[1]",
@@ -681,22 +942,14 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "artifacts/store.py::MinioObjectStore.get.read_object#ObsionError[1]",
-            frozenset(
-                {
-                    "artifact_content_missing",
-                    "artifact_store_unavailable",
-                }
-            ),
+            frozenset({"artifact_content_missing", "artifact_store_unavailable"}),
         ),
         (
             "artifacts/store.py::MinioObjectStore.put#ObsionError[1]",
             frozenset({"artifact_store_unavailable"}),
         ),
         (
-            (
-                "automation/service.py"
-                "::AutomationService._cancel_execution_rows#AutomationStepExecution.error_code[1]"
-            ),
+            "automation/service.py::AutomationService._cancel_execution_rows#AutomationStepExecution.error_code[1]",
             frozenset({"automation_cancelled"}),
         ),
         (
@@ -768,10 +1021,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"automation_self_review_denied"}),
         ),
         (
-            (
-                "automation/service.py"
-                "::AutomationService.review_step#AutomationStepExecution.error_code[1]"
-            ),
+            "automation/service.py::AutomationService.review_step#AutomationStepExecution.error_code[1]",
             frozenset({"human_review_rejected"}),
         ),
         (
@@ -807,28 +1057,12 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"workflow_owner_required"}),
         ),
         (
-            (
-                "automation/service.py"
-                "::AutomationService.trigger_workflow#AutomationExecution.error_code[1]"
-            ),
-            frozenset(
-                {
-                    "workflow_concurrency_forbidden",
-                    "workflow_concurrency_limit",
-                }
-            ),
+            "automation/service.py::AutomationService.trigger_workflow#AutomationExecution.error_code[1]",
+            frozenset({"workflow_concurrency_forbidden", "workflow_concurrency_limit"}),
         ),
         (
-            (
-                "automation/service.py"
-                "::AutomationService.trigger_workflow#AutomationStepExecution.error_code[1]"
-            ),
-            frozenset(
-                {
-                    "workflow_concurrency_forbidden",
-                    "workflow_concurrency_limit",
-                }
-            ),
+            "automation/service.py::AutomationService.trigger_workflow#AutomationStepExecution.error_code[1]",
+            frozenset({"workflow_concurrency_forbidden", "workflow_concurrency_limit"}),
         ),
         (
             "automation/service.py::AutomationService.trigger_workflow#ConflictError[1]",
@@ -851,17 +1085,11 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"schedule_timezone_invalid"}),
         ),
         (
-            (
-                "automation/worker.py"
-                "::AutomationWorker._deliver_step_notification#ValidationError[1]"
-            ),
+            "automation/worker.py::AutomationWorker._deliver_step_notification#ValidationError[1]",
             frozenset({"workflow_step_invalid"}),
         ),
         (
-            (
-                "automation/worker.py"
-                "::AutomationWorker._fail_execution#AutomationExecution.error_code[1]"
-            ),
+            "automation/worker.py::AutomationWorker._fail_execution#AutomationExecution.error_code[1]",
             frozenset(
                 {
                     "automation_step_failed",
@@ -873,10 +1101,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             ),
         ),
         (
-            (
-                "automation/worker.py"
-                "::AutomationWorker._fail_execution#AutomationStepExecution.error_code[1]"
-            ),
+            "automation/worker.py::AutomationWorker._fail_execution#AutomationStepExecution.error_code[1]",
             frozenset(
                 {
                     "automation_step_failed",
@@ -908,17 +1133,11 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"workflow_version_unavailable"}),
         ),
         (
-            (
-                "automation/worker.py"
-                "::AutomationWorker.tick_schedules#WorkflowSchedule.last_error_code[1]"
-            ),
+            "automation/worker.py::AutomationWorker.tick_schedules#WorkflowSchedule.last_error_code[1]",
             frozenset({"workflow_not_active"}),
         ),
         (
-            (
-                "automation/worker.py"
-                "::AutomationWorker.tick_schedules#WorkflowSchedule.last_error_code[2]"
-            ),
+            "automation/worker.py::AutomationWorker.tick_schedules#WorkflowSchedule.last_error_code[2]",
             frozenset({"schedule_misfire_skipped"}),
         ),
         (
@@ -932,6 +1151,182 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "automation/worker.py::render_automation_template.replace#ValidationError[2]",
             frozenset({"workflow_template_value_invalid"}),
+        ),
+        (
+            "capabilities/agent.py::DevelopmentAgentExecutor.invoke#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/agent.py::DevelopmentAgentExecutor.invoke#ObsionError[2]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/agent.py::DevelopmentAgentExecutor.invoke#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "capabilities/agent.py::DevelopmentAgentExecutor.invoke#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/agent.py::DevelopmentAgentExecutor.invoke#ValidationError[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/agent.py::encode_agent_call#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/agent.py::encode_agent_call#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/circuit_breaker.py::ConnectorCircuitBreaker.guard#ConnectorCircuitOpenError[1]",
+            frozenset({"capabilities_unavailable"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._paginate#ConfluenceResponseError[1]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._paginate#ConfluenceResponseError[2]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._request_json#ConfluenceDeniedError[1]",
+            frozenset({"confluence_upstream_denied"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._request_json#ConfluenceResponseError[1]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._request_json#ConfluenceResponseError[2]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._request_json#ConfluenceResponseError[3]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._request_json#ConfluenceUnavailableError[1]",
+            frozenset({"confluence_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._request_json#ConfluenceUnavailableError[2]",
+            frozenset({"confluence_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient._request_json#ConfluenceUnavailableError[3]",
+            frozenset({"confluence_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient.fetch_page#ValidationError[1]",
+            frozenset({"confluence_page_id_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::ConfluenceClient.health#ConfluenceResponseError[1]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::_next_path#ConfluenceResponseError[1]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::_page_content#ValidationError[1]",
+            frozenset({"document_empty"}),
+        ),
+        (
+            "capabilities/confluence.py::_required_id#ConfluenceResponseError[1]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::_required_id#ConfluenceResponseError[2]",
+            frozenset({"confluence_response_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::assert_confluence_egress#ValidationError[1]",
+            frozenset({"confluence_operation_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::assert_confluence_egress#ValidationError[2]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/confluence.py::assert_confluence_egress#ValidationError[3]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/confluence.py::assert_confluence_egress#ValidationError[4]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::assert_confluence_egress#ValidationError[5]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/confluence.py::normalize_page_id#ValidationError[1]",
+            frozenset({"confluence_page_id_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::normalize_site_host#ValidationError[1]",
+            frozenset({"confluence_site_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::normalize_space_id#ValidationError[1]",
+            frozenset({"confluence_space_id_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::resolve_confluence_credentials#ValidationError[1]",
+            frozenset({"confluence_operation_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::resolve_confluence_credentials#ValidationError[2]",
+            frozenset({"confluence_operation_invalid"}),
+        ),
+        (
+            "capabilities/confluence.py::resolve_confluence_credentials#ValidationError[3]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime._guard_in_process#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime._guard_in_process#ObsionError[2]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime._require_adapter#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime.discover#ValidationError[1]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime.discover#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime.execute#ValidationError[1]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime.execute#ValidationError[2]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime.execute#ValidationError[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime.probe_health#ValidationError[1]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/connector_spi.py::ConnectorSdkRuntime.probe_health#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
         ),
         (
             "capabilities/connectors.py::CredentialBroker.resolve#ValidationError[1]",
@@ -954,64 +1349,44 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"credential_provider_unsupported"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[1]",
-            frozenset({"connector_endpoint_missing"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_confluence#ValidationError[1]",
+            frozenset({"confluence_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[2]",
-            frozenset({"connector_egress_invalid"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_confluence#ValidationError[2]",
+            frozenset({"confluence_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[3]",
-            frozenset({"connector_egress_denied"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_confluence#ValidationError[3]",
+            frozenset({"confluence_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[4]",
-            frozenset({"connector_tls_required"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_confluence#ValidationError[4]",
+            frozenset({"confluence_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityResponseError[1]",
-            frozenset({"observability_response_invalid"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_confluence#ValidationError[5]",
+            frozenset({"document_acl_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityResponseError[2]",
-            frozenset({"observability_response_invalid"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_dingtalk_docs#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityResponseError[3]",
-            frozenset({"observability_response_invalid"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_dingtalk_docs#ValidationError[2]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityUnavailableError[1]",
-            frozenset({"observability_unavailable"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_dingtalk_docs#ValidationError[3]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityUnavailableError[2]",
-            frozenset({"observability_unavailable"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_dingtalk_docs#ValidationError[4]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
         ),
         (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityUnavailableError[3]",
-            frozenset({"observability_unavailable"}),
-        ),
-        (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[1]",
-            frozenset({"observability_operation_invalid"}),
-        ),
-        (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[2]",
-            frozenset({"connector_endpoint_missing"}),
-        ),
-        (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[3]",
-            frozenset({"connector_egress_invalid"}),
-        ),
-        (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[4]",
-            frozenset({"connector_egress_denied"}),
-        ),
-        (
-            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[5]",
-            frozenset({"connector_tls_required"}),
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_dingtalk_docs#ValidationError[5]",
+            frozenset({"document_acl_invalid"}),
         ),
         (
             "capabilities/connectors.py::HttpJsonExecutor._invoke_engineering#EngineeringResponseError[1]",
@@ -1062,8 +1437,112 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"engineering_repository_denied"}),
         ),
         (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_feishu_docs#ValidationError[1]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_feishu_docs#ValidationError[2]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_feishu_docs#ValidationError[3]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_feishu_docs#ValidationError[4]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_feishu_docs#ValidationError[5]",
+            frozenset({"document_acl_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityResponseError[1]",
+            frozenset({"observability_response_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityResponseError[2]",
+            frozenset({"observability_response_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityResponseError[3]",
+            frozenset({"observability_response_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityUnavailableError[1]",
+            frozenset({"observability_unavailable"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityUnavailableError[2]",
+            frozenset({"observability_unavailable"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ObservabilityUnavailableError[3]",
+            frozenset({"observability_unavailable"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[1]",
+            frozenset({"observability_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[2]",
+            frozenset({"connector_endpoint_missing"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[3]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[4]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_observability#ValidationError[5]",
+            frozenset({"connector_tls_required"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_wecom_docs#ValidationError[1]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_wecom_docs#ValidationError[2]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_wecom_docs#ValidationError[3]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_wecom_docs#ValidationError[4]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_wecom_docs#ValidationError[5]",
+            frozenset({"document_acl_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[1]",
+            frozenset({"connector_endpoint_missing"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[2]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[3]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[4]",
+            frozenset({"connector_tls_required"}),
+        ),
+        (
             "capabilities/connectors.py::InternalExecutor.invoke#ValidationError[1]",
             frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "capabilities/connectors.py::PostgresReadOnlyExecutor._explain_scan_cost#ValidationError[1]",
+            frozenset({"sql_scan_budget_unavailable"}),
         ),
         (
             "capabilities/connectors.py::PostgresReadOnlyExecutor.invoke#ValidationError[1]",
@@ -1086,8 +1565,224 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"sql_scan_budget_exceeded"}),
         ),
         (
-            "capabilities/connectors.py::PostgresReadOnlyExecutor._explain_scan_cost#ValidationError[1]",
-            frozenset({"sql_scan_budget_unavailable"}),
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._access_token_value#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._access_token_value#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsDeniedError[2]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsResponseError[3]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsUnavailableError[1]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsUnavailableError[2]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsUnavailableError[3]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient._request_json#DingTalkDocsUnavailableError[4]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient.fetch_document#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::DingTalkDocsClient.fetch_document#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::assert_dingtalk_docs_egress#ValidationError[1]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::assert_dingtalk_docs_egress#ValidationError[2]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::assert_dingtalk_docs_egress#ValidationError[3]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::normalize_document_id#ValidationError[1]",
+            frozenset({"dingtalk_docs_document_id_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::normalize_workspace_id#ValidationError[1]",
+            frozenset({"dingtalk_docs_workspace_id_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::resolve_dingtalk_docs_credentials#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::resolve_dingtalk_docs_credentials#ValidationError[2]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_docs.py::resolve_dingtalk_docs_credentials#ValidationError[3]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/engineering.py::normalize_response#ValidationError[1]",
+            frozenset({"engineering_operation_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._paginate#FeishuDocsResponseError[1]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._paginate#FeishuDocsResponseError[2]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._paginate#FeishuDocsResponseError[3]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._paginate#FeishuDocsResponseError[4]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._request_json#FeishuDocsDeniedError[1]",
+            frozenset({"feishu_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._request_json#FeishuDocsResponseError[1]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._request_json#FeishuDocsResponseError[2]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._request_json#FeishuDocsResponseError[3]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._request_json#FeishuDocsUnavailableError[1]",
+            frozenset({"feishu_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._request_json#FeishuDocsUnavailableError[2]",
+            frozenset({"feishu_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._request_json#FeishuDocsUnavailableError[3]",
+            frozenset({"feishu_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._require_success#FeishuDocsDeniedError[1]",
+            frozenset({"feishu_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._require_success#FeishuDocsResponseError[1]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._require_success#FeishuDocsResponseError[2]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._tenant_access_token#FeishuDocsResponseError[1]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._tenant_access_token#FeishuDocsResponseError[2]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._wiki_node#FeishuDocsResponseError[1]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::FeishuDocsClient._wiki_node#ValidationError[1]",
+            frozenset({"feishu_docs_obj_type_unsupported"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::_document_content#ValidationError[1]",
+            frozenset({"document_empty"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::_document_identity#FeishuDocsResponseError[1]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::_required_id#FeishuDocsResponseError[1]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::_required_id#FeishuDocsResponseError[2]",
+            frozenset({"feishu_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::assert_feishu_docs_egress#ValidationError[1]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::assert_feishu_docs_egress#ValidationError[2]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::assert_feishu_docs_egress#ValidationError[3]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::assert_feishu_docs_egress#ValidationError[4]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::assert_feishu_docs_egress#ValidationError[5]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::normalize_document_id#ValidationError[1]",
+            frozenset({"feishu_docs_document_id_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::normalize_obj_type#ValidationError[1]",
+            frozenset({"feishu_docs_obj_type_unsupported"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::normalize_space_id#ValidationError[1]",
+            frozenset({"feishu_docs_space_id_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::resolve_feishu_docs_credentials#ValidationError[1]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::resolve_feishu_docs_credentials#ValidationError[2]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/feishu_docs.py::resolve_feishu_docs_credentials#ValidationError[3]",
+            frozenset({"credential_unavailable"}),
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[1]",
@@ -1111,12 +1806,63 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[9]",
-            frozenset(
-                {
-                    "capability_failed",
-                    "capability_timeout",
-                }
-            ),
+            frozenset({"capability_failed", "capability_timeout"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._execute_operator#GatewayResult[2]",
+            frozenset({"capability_failed", "capability_timeout"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#GatewayResult[2]",
+            frozenset({"idempotency_request_in_progress", "operator_invocation_outcome_unknown"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._operator_rate_result#GatewayResult[1]",
+            frozenset({"rate_limit_unavailable"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._operator_rate_result#GatewayResult[2]",
+            frozenset({"capability_rate_limited"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[1]",
+            frozenset({"capability_denied"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[2]",
+            frozenset({"connector_grant_missing"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[4]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[1]",
+            frozenset({"idempotency_claim_lost"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[2]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[3]",
+            frozenset({"idempotency_claim_lost"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#OperatorCapabilityInvocation.error_code[2]",
+            frozenset({"operator_invocation_outcome_unknown"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.complete#ConflictError[1]",
+            frozenset({"idempotency_claim_lost"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.complete#ConflictError[2]",
+            frozenset({"idempotency_already_completed"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.mark_unknown#OperatorCapabilityInvocation.error_code[1]",
+            frozenset({"operator_invocation_outcome_unknown"}),
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._resolve#NotFoundError[1]",
@@ -1128,41 +1874,378 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._validate#ValidationError[1]",
-            frozenset(
-                {
-                    "capability_input_invalid",
-                    "capability_output_invalid",
-                }
-            ),
+            frozenset({"capability_input_invalid", "capability_output_invalid"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService._check_version#ConflictError[1]"
-            ),
-            frozenset(
-                {
-                    "workspace_decision_version_conflict",
-                    "workspace_task_version_conflict",
-                }
-            ),
+            "capabilities/grpc.py::DevelopmentGrpcExecutor.invoke#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/grpc.py::DevelopmentGrpcExecutor.invoke#ObsionError[2]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/grpc.py::DevelopmentGrpcExecutor.invoke#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "capabilities/grpc.py::DevelopmentGrpcExecutor.invoke#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/grpc.py::DevelopmentGrpcExecutor.invoke#ValidationError[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/grpc.py::encode_grpc_call#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/grpc.py::encode_grpc_call#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::DevelopmentMcpExecutor.invoke#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/mcp.py::DevelopmentMcpExecutor.invoke#ObsionError[2]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/mcp.py::DevelopmentMcpExecutor.invoke#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "capabilities/mcp.py::DevelopmentMcpExecutor.invoke#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::DevelopmentMcpExecutor.invoke#ValidationError[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::decode_tools_result#ValidationError[1]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::decode_tools_result#ValidationError[2]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::decode_tools_result#ValidationError[3]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::decode_tools_result#ValidationError[4]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::decode_tools_result#ValidationError[5]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::encode_tools_call#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/mcp.py::encode_tools_call#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/observability.py::normalize_response#ValidationError[1]",
+            frozenset({"observability_operation_invalid"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ObsionError[2]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ValidationError[2]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ValidationError[3]",
+            frozenset({"connector_grant_missing"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ValidationError[4]",
+            frozenset({"inline_secret_denied"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ValidationError[5]",
+            frozenset({"v1_production_action_boundary"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::_raise_scan_failure#ValidationError[6]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::enforce_plugin_governance#ObsionError[1]",
+            frozenset({"capability_denied"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::promote_plugin#AuthorizationError[1]",
+            frozenset({"approval_decide_denied"}),
+        ),
+        (
+            "capabilities/plugin_governance.py::promote_plugin#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/sdk.py::DevelopmentSdkExecutor.invoke#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/sdk.py::DevelopmentSdkExecutor.invoke#ObsionError[2]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/sdk.py::DevelopmentSdkExecutor.invoke#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "capabilities/sdk.py::DevelopmentSdkExecutor.invoke#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/sdk.py::DevelopmentSdkExecutor.invoke#ValidationError[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/sdk.py::encode_sdk_call#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/sdk.py::encode_sdk_call#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._access_token_value#WeComDocsResponseError[1]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._access_token_value#WeComDocsResponseError[2]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsDeniedError[1]",
+            frozenset({"wecom_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsDeniedError[2]",
+            frozenset({"wecom_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsResponseError[1]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsResponseError[2]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsResponseError[3]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsUnavailableError[1]",
+            frozenset({"wecom_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsUnavailableError[2]",
+            frozenset({"wecom_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsUnavailableError[3]",
+            frozenset({"wecom_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient._request_json#WeComDocsUnavailableError[4]",
+            frozenset({"wecom_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient.describe_space#WeComDocsResponseError[1]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient.fetch_document#WeComDocsResponseError[1]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::WeComDocsClient.fetch_document#WeComDocsResponseError[2]",
+            frozenset({"wecom_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::assert_wecom_docs_egress#ValidationError[1]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::assert_wecom_docs_egress#ValidationError[2]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::assert_wecom_docs_egress#ValidationError[3]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::normalize_document_id#ValidationError[1]",
+            frozenset({"wecom_docs_document_id_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::normalize_space_id#ValidationError[1]",
+            frozenset({"wecom_docs_space_id_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::resolve_wecom_docs_credentials#ValidationError[1]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::resolve_wecom_docs_credentials#ValidationError[2]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/wecom_docs.py::resolve_wecom_docs_credentials#ValidationError[3]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/workflow.py::DevelopmentWorkflowExecutor.invoke#ObsionError[1]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/workflow.py::DevelopmentWorkflowExecutor.invoke#ObsionError[2]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "capabilities/workflow.py::DevelopmentWorkflowExecutor.invoke#ValidationError[1]",
+            frozenset({"connector_handler_missing"}),
+        ),
+        (
+            "capabilities/workflow.py::DevelopmentWorkflowExecutor.invoke#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/workflow.py::DevelopmentWorkflowExecutor.invoke#ValidationError[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/workflow.py::configured_workflow_id#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/workflow.py::create_automation_dispatch_handler.handler#BudgetExceededError[1]",
+            frozenset({"budget_exceeded"}),
+        ),
+        (
+            "capabilities/workflow.py::create_automation_dispatch_handler.handler#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/workflow.py::encode_workflow_call#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/workflow.py::encode_workflow_call#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "code_intelligence/parsers.py::normalize_repository_path#ValidationError[1]",
+            frozenset({"code_path_invalid"}),
+        ),
+        (
+            "code_intelligence/parsers.py::normalize_repository_path#ValidationError[2]",
+            frozenset({"code_path_invalid"}),
+        ),
+        (
+            "code_intelligence/parsers.py::normalize_repository_path#ValidationError[3]",
+            frozenset({"code_path_invalid"}),
+        ),
+        (
+            "code_intelligence/parsers.py::parse_source_file#ValidationError[1]",
+            frozenset({"code_file_too_large"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService._writable_repository#AuthorizationError[1]",
+            frozenset({"code_write_denied"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService._writable_repository#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.index_snapshot#AuthorizationError[1]",
+            frozenset({"code_write_denied"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.index_snapshot#ValidationError[1]",
+            frozenset({"code_snapshot_empty"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.index_snapshot#ValidationError[2]",
+            frozenset({"code_snapshot_too_large"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.index_snapshot#ValidationError[3]",
+            frozenset({"code_snapshot_too_large"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.invoke#ValidationError[1]",
+            frozenset({"code_operation_invalid"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.related_symbols#ValidationError[1]",
+            frozenset({"code_operation_invalid"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.search_symbols#ValidationError[1]",
+            frozenset({"code_operation_invalid"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.upsert_repository#AuthorizationError[1]",
+            frozenset({"code_write_denied"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.upsert_repository#ValidationError[1]",
+            frozenset({"code_acl_required"}),
+        ),
+        (
+            "code_intelligence/service.py::CodeIntelligenceService.upsert_repository#ValidationError[2]",
+            frozenset({"code_acl_invalid"}),
+        ),
+        (
+            "code_intelligence/service.py::_validate_acl#ValidationError[1]",
+            frozenset({"code_acl_invalid"}),
+        ),
+        (
+            "code_intelligence/service.py::_validate_acl#ValidationError[2]",
+            frozenset({"code_acl_invalid"}),
+        ),
+        (
+            "code_intelligence/service.py::_validate_acl#ValidationError[3]",
+            frozenset({"code_acl_invalid"}),
+        ),
+        (
+            "collaboration/service.py::WorkspaceCollaborationService._check_version#ConflictError[1]",
+            frozenset({"workspace_decision_version_conflict", "workspace_task_version_conflict"}),
         ),
         (
             "collaboration/service.py::WorkspaceCollaborationService._decision#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService._require_assignee#ValidationError[1]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService._require_assignee#ValidationError[1]",
             frozenset({"workspace_task_assignee_invalid"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService._require_source_run#ValidationError[1]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService._require_source_run#ValidationError[1]",
             frozenset({"workspace_source_run_mismatch"}),
         ),
         (
@@ -1170,17 +2253,11 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.create_decision#ConflictError[1]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.create_decision#ConflictError[1]",
             frozenset({"workspace_decision_supersedes_not_accepted"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.create_decision#ValidationError[1]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.create_decision#ValidationError[1]",
             frozenset({"workspace_decision_supersedes_workspace_mismatch"}),
         ),
         (
@@ -1196,59 +2273,35 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"workspace_decision_supersedes_workspace_mismatch"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.revise_decision#ConflictError[1]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.revise_decision#ConflictError[1]",
             frozenset({"workspace_decision_revision_closed"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.revise_decision#ConflictError[2]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.revise_decision#ConflictError[2]",
             frozenset({"workspace_decision_version_missing"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.revise_decision#ConflictError[3]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.revise_decision#ConflictError[3]",
             frozenset({"workspace_decision_no_changes"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.update_task#ConflictError[1]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.update_task#ConflictError[1]",
             frozenset({"workspace_task_no_changes"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.update_task#ValidationError[1]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.update_task#ValidationError[1]",
             frozenset({"workspace_task_title_required"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.update_task#ValidationError[2]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.update_task#ValidationError[2]",
             frozenset({"workspace_task_description_required"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.update_task#ValidationError[3]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.update_task#ValidationError[3]",
             frozenset({"workspace_task_priority_required"}),
         ),
         (
-            (
-                "collaboration/service.py"
-                "::WorkspaceCollaborationService.update_task#ValidationError[4]"
-            ),
+            "collaboration/service.py::WorkspaceCollaborationService.update_task#ValidationError[4]",
             frozenset({"workspace_task_status_required"}),
         ),
         (
@@ -1257,12 +2310,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "contracts/events/validation.py::_validate_instance#ValidationError[1]",
-            frozenset(
-                {
-                    "event_envelope_schema_invalid",
-                    "event_payload_schema_invalid",
-                }
-            ),
+            frozenset({"event_envelope_schema_invalid", "event_payload_schema_invalid"}),
         ),
         (
             "contracts/events/validation.py::_validate_payload_error_code#ValidationError[1]",
@@ -1291,6 +2339,14 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "contracts/events/validation.py::validate_event_envelope#ValidationError[2]",
             frozenset({"event_envelope_schema_invalid"}),
+        ),
+        (
+            "data_intelligence/service.py::DataIntelligenceService._append_row_policy#ValidationError[1]",
+            frozenset({"sql_row_policy_invalid"}),
+        ),
+        (
+            "data_intelligence/service.py::DataIntelligenceService._append_row_policy#ValidationError[2]",
+            frozenset({"sql_row_policy_invalid"}),
         ),
         (
             "data_intelligence/service.py::DataIntelligenceService.compile#NotFoundError[1]",
@@ -1325,12 +2381,16 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"query_filter_invalid"}),
         ),
         (
-            "data_intelligence/service.py::DataIntelligenceService._append_row_policy#ValidationError[1]",
-            frozenset({"sql_row_policy_invalid"}),
+            "data_intelligence/sql_policy.py::SqlPolicyValidator._apply_limit#ValidationError[1]",
+            frozenset({"sql_limit_required"}),
         ),
         (
-            "data_intelligence/service.py::DataIntelligenceService._append_row_policy#ValidationError[2]",
-            frozenset({"sql_row_policy_invalid"}),
+            "data_intelligence/sql_policy.py::SqlPolicyValidator.validate#ValidationError[10]",
+            frozenset({"sql_scan_budget_invalid"}),
+        ),
+        (
+            "data_intelligence/sql_policy.py::SqlPolicyValidator.validate#ValidationError[11]",
+            frozenset({"sql_scan_budget_exceeded"}),
         ),
         (
             "data_intelligence/sql_policy.py::SqlPolicyValidator.validate#ValidationError[1]",
@@ -1369,32 +2429,12 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"sql_column_denied"}),
         ),
         (
-            "data_intelligence/sql_policy.py::SqlPolicyValidator._apply_limit#ValidationError[1]",
-            frozenset({"sql_limit_required"}),
-        ),
-        (
-            "data_intelligence/sql_policy.py::SqlPolicyValidator.validate#ValidationError[10]",
-            frozenset({"sql_scan_budget_invalid"}),
-        ),
-        (
-            "data_intelligence/sql_policy.py::SqlPolicyValidator.validate#ValidationError[11]",
-            frozenset({"sql_scan_budget_exceeded"}),
-        ),
-        (
             "data_intelligence/sql_policy.py::_prepare_sql#ValidationError[1]",
             frozenset({"sql_explain_execution_denied"}),
         ),
         (
             "data_intelligence/sql_policy.py::_prepare_sql#ValidationError[2]",
             frozenset({"sql_explain_execution_denied"}),
-        ),
-        (
-            "capabilities/observability.py::normalize_response#ValidationError[1]",
-            frozenset({"observability_operation_invalid"}),
-        ),
-        (
-            "capabilities/engineering.py::normalize_response#ValidationError[1]",
-            frozenset({"engineering_operation_invalid"}),
         ),
         (
             "domain/run_state.py::validate_run_transition#ConflictError[1]",
@@ -1431,6 +2471,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "evaluations/contracts.py::validate_case_request#ValidationError[5]",
             frozenset({"evaluation_run_id_required"}),
+        ),
+        (
+            "evaluations/contracts.py::validate_case_request#ValidationError[6]",
+            frozenset({"evaluation_expectation_unsupported"}),
         ),
         (
             "evaluations/contracts.py::validate_run_bindings#ValidationError[1]",
@@ -1505,6 +2549,14 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"run_feedback_version_conflict"}),
         ),
         (
+            "harness/agent_router.py::AgentRouter.resolve#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "harness/agent_router.py::AgentRouter.resolve#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "harness/replay.py::RunReplayService.materialize#ConflictError[1]",
             frozenset({"replay_run_not_running"}),
         ),
@@ -1577,20 +2629,20 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
-            "harness/agent_router.py::AgentRouter.resolve#NotFoundError[1]",
-            frozenset({"resource_not_found"}),
-        ),
-        (
-            "harness/agent_router.py::AgentRouter.resolve#NotFoundError[2]",
-            frozenset({"resource_not_found"}),
-        ),
-        (
             "harness/runtime.py::HarnessRuntime._prepare#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
         (
             "harness/runtime.py::HarnessRuntime._prepare#ValidationError[1]",
             frozenset({"metric_not_resolved"}),
+        ),
+        (
+            "harness/runtime.py::HarnessRuntime._replan_missing_evidence#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "harness/runtime.py::HarnessRuntime._replan_missing_evidence#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
         ),
         (
             "harness/runtime.py::HarnessRuntime._replan_transient_failures#NotFoundError[1]",
@@ -1617,12 +2669,92 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"run_timeout"}),
         ),
         (
-            "registry/capability_descriptor.py::CapabilityDescriptor.from_models#ValidationError[1]",
-            frozenset({"capability_output_invalid"}),
+            "knowledge/confluence.py::_require_knowledge_write#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
         ),
         (
-            "registry/capability_descriptor.py::_validate_schema#ValidationError[1]",
-            frozenset({"capability_input_invalid", "capability_output_invalid"}),
+            "knowledge/confluence.py::ingest_confluence_page#ValidationError[1]",
+            frozenset({"confluence_operation_invalid"}),
+        ),
+        (
+            "knowledge/confluence.py::resolve_confluence_connector#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "knowledge/confluence.py::resolve_ingest_acl#ValidationError[1]",
+            frozenset({"document_acl_required"}),
+        ),
+        (
+            "knowledge/confluence.py::resolve_ingest_acl#ValidationError[2]",
+            frozenset({"document_acl_required"}),
+        ),
+        (
+            "knowledge/connector_contract.py::KnowledgeConnectorBudget.from_connector#ValidationError[1]",
+            frozenset({"knowledge_sync_budget_invalid"}),
+        ),
+        (
+            "knowledge/connector_contract.py::SyncBudgetTracker._fail#ValidationError[1]",
+            frozenset({"knowledge_sync_budget_exceeded"}),
+        ),
+        (
+            "knowledge/connector_contract.py::SyncBudgetTracker.enter_depth#ValidationError[1]",
+            frozenset({"knowledge_sync_budget_invalid"}),
+        ),
+        (
+            "knowledge/connector_contract.py::_non_negative_int#ValidationError[1]",
+            frozenset({"knowledge_sync_budget_invalid"}),
+        ),
+        (
+            "knowledge/connector_contract.py::_positive_int#ValidationError[1]",
+            frozenset({"knowledge_sync_budget_invalid"}),
+        ),
+        (
+            "knowledge/connector_contract.py::enforce_knowledge_capability_rate_limit#ObsionError[1]",
+            frozenset({"rate_limit_unavailable"}),
+        ),
+        (
+            "knowledge/connector_contract.py::enforce_knowledge_capability_rate_limit#ObsionError[2]",
+            frozenset({"capability_rate_limited"}),
+        ),
+        (
+            "knowledge/dingtalk.py::_require_knowledge_write#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/dingtalk.py::ingest_dingtalk_document#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk.py::resolve_dingtalk_docs_connector#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "knowledge/dingtalk.py::resolve_ingest_acl#ValidationError[1]",
+            frozenset({"document_acl_required"}),
+        ),
+        (
+            "knowledge/dingtalk.py::resolve_ingest_acl#ValidationError[2]",
+            frozenset({"document_acl_required"}),
+        ),
+        (
+            "knowledge/feishu.py::_require_knowledge_write#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/feishu.py::ingest_feishu_document#ValidationError[1]",
+            frozenset({"feishu_docs_operation_invalid"}),
+        ),
+        (
+            "knowledge/feishu.py::resolve_feishu_docs_connector#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "knowledge/feishu.py::resolve_ingest_acl#ValidationError[1]",
+            frozenset({"document_acl_required"}),
+        ),
+        (
+            "knowledge/feishu.py::resolve_ingest_acl#ValidationError[2]",
+            frozenset({"document_acl_required"}),
         ),
         (
             "knowledge/parsers.py::chunk_document#ValidationError[1]",
@@ -1681,6 +2813,26 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"document_acl_invalid"}),
         ),
         (
+            "knowledge/wecom.py::_require_knowledge_write#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/wecom.py::ingest_wecom_document#ValidationError[1]",
+            frozenset({"wecom_docs_operation_invalid"}),
+        ),
+        (
+            "knowledge/wecom.py::resolve_ingest_acl#ValidationError[1]",
+            frozenset({"document_acl_required"}),
+        ),
+        (
+            "knowledge/wecom.py::resolve_ingest_acl#ValidationError[2]",
+            frozenset({"document_acl_required"}),
+        ),
+        (
+            "knowledge/wecom.py::resolve_wecom_docs_connector#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "main.py::_error_response#ErrorBody[1]",
             frozenset(
                 {
@@ -1736,8 +2888,72 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"model_unavailable"}),
         ),
         (
+            "persistence/app_server_requests.py::AppServerRequestStore.claim#ConflictError[1]",
+            frozenset({"idempotency_claim_lost"}),
+        ),
+        (
+            "persistence/app_server_requests.py::AppServerRequestStore.claim#ConflictError[2]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
+            "persistence/app_server_requests.py::AppServerRequestStore.claim#ConflictError[3]",
+            frozenset({"idempotency_request_in_progress"}),
+        ),
+        (
+            "persistence/app_server_requests.py::AppServerRequestStore.complete#ConflictError[1]",
+            frozenset({"idempotency_already_completed"}),
+        ),
+        (
             "persistence/events.py::EventStore.append#ConflictError[1]",
             frozenset({"event_run_missing"}),
+        ),
+        (
+            "registry/capability_descriptor.py::CapabilityDescriptor.from_models#ValidationError[1]",
+            frozenset({"capability_output_invalid"}),
+        ),
+        (
+            "registry/capability_descriptor.py::_validate_schema#ValidationError[1]",
+            frozenset({"capability_input_invalid", "capability_output_invalid"}),
+        ),
+        (
+            "registry/prompt_pins.py::load_pinned_templates#ConflictError[1]",
+            frozenset({"prompt_pin_mismatch"}),
+        ),
+        (
+            "registry/prompt_pins.py::load_pinned_templates#ConflictError[2]",
+            frozenset({"prompt_pin_mismatch"}),
+        ),
+        (
+            "registry/prompt_pins.py::resolve_prompt_pins#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "registry/prompt_pins.py::resolve_prompt_pins#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "registry/prompt_pins.py::resolve_prompt_pins#ValidationError[1]",
+            frozenset({"registry_spec_invalid"}),
+        ),
+        (
+            "registry/prompt_render.py::declared_prompt_variables#ValidationError[1]",
+            frozenset({"prompt_variables_schema_invalid"}),
+        ),
+        (
+            "registry/prompt_render.py::declared_prompt_variables#ValidationError[2]",
+            frozenset({"prompt_secret_denied"}),
+        ),
+        (
+            "registry/prompt_render.py::render_prompt_template#ValidationError[1]",
+            frozenset({"prompt_variables_schema_invalid"}),
+        ),
+        (
+            "registry/prompt_render.py::render_prompt_template._replace#ValidationError[1]",
+            frozenset({"prompt_secret_denied"}),
+        ),
+        (
+            "registry/prompt_render.py::render_prompt_template._replace#ValidationError[2]",
+            frozenset({"prompt_variables_schema_invalid"}),
         ),
         (
             "security/auth.py::_decode_oidc_token#AuthorizationError[1]",
@@ -1746,14 +2962,6 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "security/auth.py::_load_principal#AuthorizationError[1]",
             frozenset({"unknown_principal"}),
-        ),
-        (
-            "security/auth.py::authenticate_session_principal#AuthorizationError[1]",
-            frozenset({"authentication_required"}),
-        ),
-        (
-            "security/auth.py::authenticate_session_principal#AuthorizationError[2]",
-            frozenset({"invalid_token"}),
         ),
         (
             "security/auth.py::authenticate_principal#AuthorizationError[1]",
@@ -1769,6 +2977,14 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "security/auth.py::authenticate_principal#AuthorizationError[4]",
+            frozenset({"invalid_token"}),
+        ),
+        (
+            "security/auth.py::authenticate_session_principal#AuthorizationError[1]",
+            frozenset({"authentication_required"}),
+        ),
+        (
+            "security/auth.py::authenticate_session_principal#AuthorizationError[2]",
             frozenset({"invalid_token"}),
         ),
         (
@@ -1821,7 +3037,6 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
     ]
 )
-
 REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
     [
         (
@@ -1834,86 +3049,98 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "actions/service.py::ActionService.preflight#ActionRequest.error_code[1]",
-            "forward:actions/service.py:308:exc.code",
+            "forward:actions/service.py:309:exc.code",
         ),
         (
             "actions/worker.py::ActionWorker._fail#ActionRequest.error_code[1]",
-            (
-                "forward:actions/worker.py:149:exc.code | "
-                "forward:actions/worker.py:315:result.error_code"
-            ),
+            "forward:actions/worker.py:149:exc.code | "
+            "forward:actions/worker.py:315:result.error_code",
         ),
         (
             "actions/worker.py::ActionWorker._invoke#ActionAttempt.error_code[2]",
             "forward:actions/worker.py:310:result.error_code",
         ),
         (
-            (
-                "application/evaluations.py"
-                "::EvaluationService.run#EvaluationCaseResult.error_code[1]"
-            ),
-            "forward:application/evaluations.py:250:outcome.error_code",
+            "application/evaluations.py::EvaluationService.run#EvaluationCaseResult.error_code[1]",
+            "forward:application/evaluations.py:254:outcome.error_code",
         ),
         (
-            (
-                "automation/service.py"
-                "::AutomationService._cancel_pending_steps#AutomationStepExecution.error_code[1]"
-            ),
+            "automation/service.py::AutomationService._cancel_pending_steps#AutomationStepExecution.error_code[1]",
             "forward:automation/service.py:750:step.error_code",
         ),
         (
-            (
-                "automation/service.py"
-                "::AutomationService.review_step#AutomationExecution.error_code[1]"
-            ),
+            "automation/service.py::AutomationService.review_step#AutomationExecution.error_code[1]",
             "forward:automation/service.py:747:step.error_code",
         ),
         (
+            "automation/worker.py::AutomationWorker._fail_execution#AutomationExecution.error_code[1]",
             (
-                "automation/worker.py"
-                "::AutomationWorker._fail_execution#AutomationExecution.error_code[1]"
-            ),
-            (
-                "forward:automation/worker.py:318:exc.code | "
-                "forward:automation/worker.py:389:failed.error_code"
+                "forward:automation/worker.py:326:exc.code | "
+                "forward:automation/worker.py:397:failed.error_code"
             ),
         ),
         (
+            "automation/worker.py::AutomationWorker._fail_execution#AutomationStepExecution.error_code[1]",
             (
-                "automation/worker.py"
-                "::AutomationWorker._fail_execution#AutomationStepExecution.error_code[1]"
-            ),
-            (
-                "forward:automation/worker.py:318:exc.code | "
-                "forward:automation/worker.py:389:failed.error_code"
+                "forward:automation/worker.py:326:exc.code | "
+                "forward:automation/worker.py:397:failed.error_code"
             ),
         ),
         (
             "automation/worker.py::AutomationWorker._reconcile_analysis_steps#AutomationStepExecution.error_code[2]",
-            "forward:automation/worker.py:490:run.error_code",
+            "forward:automation/worker.py:498:run.error_code",
         ),
         (
-            (
-                "automation/worker.py"
-                "::AutomationWorker.tick_schedules#WorkflowSchedule.last_error_code[4]"
-            ),
-            "forward:automation/worker.py:262:exc.code",
+            "automation/worker.py::AutomationWorker.tick_schedules#WorkflowSchedule.last_error_code[4]",
+            "forward:automation/worker.py:270:exc.code",
+        ),
+        (
+            "api/knowledge.py::_operator_gateway_output#ObsionError[1]",
+            "forward:api/knowledge.py:167:result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[3]",
-            "forward:capabilities/gateway.py:219:exc.code",
+            "forward:capabilities/gateway.py:755:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[9]",
-            "forward:capabilities/gateway.py:395:exc.code",
+            "forward:capabilities/gateway.py:933:exc.code",
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._execute_operator#GatewayResult[2]",
+            "forward:capabilities/gateway.py:601:exc.code",
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#GatewayResult[1]",
+            "forward:capabilities/gateway.py:242:exc.code",
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[1]",
+            "forward:capabilities/gateway.py:312:rate_result.error_code",
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[2]",
+            "forward:capabilities/gateway.py:332:result.error_code",
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._operator_result_from_record#GatewayResult[1]",
+            "forward:capabilities/gateway.py:652:record.error_code",
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[3]",
+            "forward:capabilities/gateway.py:447:exc.code",
         ),
         (
             "evaluations/engine.py::EvaluationEngine.evaluate#CaseEvaluation[2]",
-            "forward:evaluations/engine.py:114:exc.code",
+            "forward:evaluations/engine.py:137:exc.code",
+        ),
+        (
+            "evaluations/engine.py::EvaluationEngine.evaluate_offline#CaseEvaluation[3]",
+            "forward:evaluations/engine.py:188:exc.code",
         ),
         (
             "harness/replay.py::RunReplayService.materialize#Run.error_code[1]",
-            "forward:harness/replay.py:722:source.error_code",
+            "forward:harness/replay.py:720:source.error_code",
         ),
         (
             "harness/replay.py::RunReplayService.materialize#RunStep.error_code[1]",
@@ -1921,18 +3148,18 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:2026:exc.code",
+            "forward:harness/runtime.py:2745:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",
             (
-                "forward:harness/runtime.py:725:exc.code | "
-                "forward:harness/runtime.py:755:result.error_code"
+                "forward:harness/runtime.py:1043:exc.code | "
+                "forward:harness/runtime.py:1073:result.error_code"
             ),
         ),
         (
             "main.py::_error_response#ErrorBody[1]",
-            "forward:main.py:288:exc.code",
+            "forward:main.py:380:exc.code",
         ),
     ]
 )
@@ -2000,12 +3227,12 @@ REVIEWED_ERROR_HELPER_CALLS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"capability_output_invalid"}),
         ),
         (
-            "registry/capability_descriptor.py::CapabilityDescriptor.from_models#_validate_schema[1]",
-            frozenset({"capability_input_invalid"}),
+            "capabilities/gateway.py::CapabilityGateway._execute_operator#_validate[1]",
+            frozenset({"capability_output_invalid"}),
         ),
         (
-            "registry/capability_descriptor.py::CapabilityDescriptor.from_models#_validate_schema[2]",
-            frozenset({"capability_output_invalid"}),
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#_validate[1]",
+            frozenset({"capability_input_invalid"}),
         ),
         (
             "contracts/events/validation.py::prepare_event_draft#_validate_instance[1]",
@@ -2037,8 +3264,17 @@ REVIEWED_ERROR_HELPER_CALLS: dict[str, ErrorCodeDomain] = dict(
             "main.py::create_app.request_validation_error_handler#_error_response[1]",
             frozenset({"request_validation_failed"}),
         ),
+        (
+            "registry/capability_descriptor.py::CapabilityDescriptor.from_models#_validate_schema[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "registry/capability_descriptor.py::CapabilityDescriptor.from_models#_validate_schema[2]",
+            frozenset({"capability_output_invalid"}),
+        ),
     ]
 )
+
 
 RESERVED_COMPATIBILITY_ERROR_CODES = frozenset(
     {

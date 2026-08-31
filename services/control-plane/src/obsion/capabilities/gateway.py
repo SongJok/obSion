@@ -19,7 +19,8 @@ from obsion.capabilities.rate_limit import (
     InMemoryFixedWindowRateLimiter,
     RateLimitUnavailable,
 )
-from obsion.common.errors import NotFoundError, ObsionError, ValidationError
+from obsion.capabilities.vendor_knowledge import VENDOR_KNOWLEDGE_BROWSE_OPERATIONS
+from obsion.common.errors import ConflictError, NotFoundError, ObsionError, ValidationError
 from obsion.common.time import utc_now
 from obsion.contracts.errors import validate_error_code
 from obsion.db.models import (
@@ -30,6 +31,7 @@ from obsion.db.models import (
     CapabilityVersion,
     Connector,
     Evidence,
+    OperatorCapabilityInvocation,
     PolicyDecision,
 )
 from obsion.domain.enums import (
@@ -39,15 +41,22 @@ from obsion.domain.enums import (
     DecisionEffect,
     EvidenceType,
     RegistryStatus,
+    RiskLevel,
+    SideEffect,
 )
 from obsion.domains.evidence.fabric import EvidenceFabric, EvidenceInput
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
+from obsion.persistence.operator_invocations import (
+    OperatorInvocationStore,
+    operator_request_fingerprint,
+)
+from obsion.registry.agent_spec import sandbox_allows_capabilities
 from obsion.security.identity import Principal
 from obsion.security.masking import apply_obligations
-from obsion.security.policy import Decision, PolicyEngine, PolicyInput
+from obsion.security.policy import Decision, PolicyEngine, PolicyInput, ResourcePolicyInput
 from obsion.security.redaction import redact
-from obsion.telemetry import capability_counter, tracer
+from obsion.telemetry import capability_counter, capability_duration, tracer
 
 
 class GatewayStatus(StrEnum):
@@ -72,6 +81,36 @@ class GatewayRequest:
     capability_version: int | None = None
     capability_version_id: UUID | None = None
     context: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class OperatorGatewayRequest:
+    """Capability invocation from an authenticated control-plane operation.
+
+    Operator source management has no Harness Run, so it cannot emit Run Events,
+    create Run-scoped Evidence, or request a Run approval.  It still traverses the
+    same capability/connector, Policy, schema, rate, credential, executor, masking,
+    and Audit boundary as an Agent invocation.
+    """
+
+    principal: Principal
+    capability_name: str
+    payload: dict[str, Any]
+    resource: dict[str, Any]
+    environment: str
+    correlation_id: UUID
+    capability_version: int | None = None
+    capability_version_id: UUID | None = None
+    context: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class OperatorPreparedInvocation:
+    version: CapabilityVersion
+    connector: Connector
+    decision: Decision
+    executor: ConnectorExecutor
+    idempotent_write: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +139,8 @@ class CapabilityGateway:
         events: EventStore | None = None,
         audit: AuditWriter | None = None,
         rate_limiter: CapabilityRateLimiter | None = None,
+        operator_invocations: OperatorInvocationStore | None = None,
+        operator_idempotency_retention_hours: int = 24,
     ) -> None:
         self.executors = executors
         self.policy = policy or PolicyEngine()
@@ -107,19 +148,514 @@ class CapabilityGateway:
         self.events = events or EventStore()
         self.audit = audit or AuditWriter()
         self.rate_limiter = rate_limiter or InMemoryFixedWindowRateLimiter(120)
+        self.operator_invocations = operator_invocations or OperatorInvocationStore()
+        self.operator_idempotency_retention_hours = max(1, operator_idempotency_retention_hours)
         self.evidence = EvidenceFabric()
 
     async def invoke(self, session: AsyncSession, request: GatewayRequest) -> GatewayResult:
         with tracer.start_as_current_span("obsion.capability.invoke") as span:
             span.set_attribute("obsion.capability.name", request.capability_name)
             span.set_attribute("obsion.run.id", str(request.run_id))
+            started = perf_counter()
             result = await self._invoke(session, request)
             span.set_attribute("obsion.capability.status", result.status.value)
-            capability_counter.add(
-                1,
-                {"capability": request.capability_name, "status": result.status.value},
-            )
+            attributes = {
+                "capability": request.capability_name,
+                "status": result.status.value,
+            }
+            capability_counter.add(1, attributes)
+            capability_duration.record((perf_counter() - started) * 1000, attributes)
             return result
+
+    async def invoke_operator(
+        self,
+        session: AsyncSession,
+        request: OperatorGatewayRequest,
+    ) -> GatewayResult:
+        """Invoke a Capability for control-plane source management without a fake Run."""
+
+        with tracer.start_as_current_span("obsion.capability.operator_invoke") as span:
+            span.set_attribute("obsion.capability.name", request.capability_name)
+            span.set_attribute("obsion.correlation.id", str(request.correlation_id))
+            started = perf_counter()
+            result = await self._invoke_operator_durable(session, request)
+            span.set_attribute("obsion.capability.status", result.status.value)
+            attributes = {
+                "capability": request.capability_name,
+                "status": result.status.value,
+                "mode": "operator",
+            }
+            capability_counter.add(1, attributes)
+            capability_duration.record((perf_counter() - started) * 1000, attributes)
+            return result
+
+    async def _invoke_operator_durable(
+        self,
+        session: AsyncSession,
+        request: OperatorGatewayRequest,
+    ) -> GatewayResult:
+        invocation_id: UUID | None = None
+        prepared: OperatorPreparedInvocation
+        async with session.begin():
+            prepared_or_result = await self._prepare_operator(session, request)
+            if isinstance(prepared_or_result, GatewayResult):
+                return prepared_or_result
+            prepared = prepared_or_result
+            if not prepared.idempotent_write:
+                rate_result = await self._operator_rate_result(session, request, prepared)
+                if rate_result is not None:
+                    return rate_result
+                return await self._execute_operator(session, request, prepared)
+
+            fingerprint = operator_request_fingerprint(
+                capability_name=request.capability_name,
+                payload=request.payload,
+                resource=request.resource,
+                environment=request.environment,
+                context=request.context,
+            )
+            try:
+                claim = await self.operator_invocations.claim(
+                    session,
+                    request.principal,
+                    request_id=request.correlation_id,
+                    capability_name=request.capability_name,
+                    capability_version_id=prepared.version.id,
+                    connector_id=prepared.connector.id,
+                    policy_decision_id=prepared.decision.id,
+                    fingerprint=fingerprint,
+                    lease_seconds=max(60, prepared.version.timeout_seconds + 30),
+                    retention_hours=self.operator_idempotency_retention_hours,
+                )
+            except ConflictError as exc:
+                await self._audit_operator(
+                    session,
+                    request,
+                    prepared.version,
+                    prepared.decision,
+                    "DENIED",
+                    metadata={"error_code": exc.code, "idempotency": "CONFLICT"},
+                )
+                return GatewayResult(
+                    status=GatewayStatus.DENIED,
+                    policy_decision_id=prepared.decision.id,
+                    error_code=exc.code,
+                    error_message=exc.message,
+                    capability_version_id=prepared.version.id,
+                    connector_id=prepared.connector.id,
+                )
+            if claim.state == "REPLAY":
+                assert claim.replayed_result is not None
+                await self._audit_operator(
+                    session,
+                    request,
+                    prepared.version,
+                    prepared.decision,
+                    "REPLAYED",
+                    metadata={
+                        "idempotency": "REPLAY",
+                        "operator_invocation_id": str(claim.record.id),
+                    },
+                )
+                return self._operator_result_from_record(
+                    claim.replayed_result,
+                    record=claim.record,
+                    policy_decision_id=prepared.decision.id,
+                )
+            if claim.state in {"IN_PROGRESS", "UNKNOWN"}:
+                unknown = claim.state == "UNKNOWN"
+                code = (
+                    "operator_invocation_outcome_unknown"
+                    if unknown
+                    else "idempotency_request_in_progress"
+                )
+                message = (
+                    "The previous operator Capability outcome requires reconciliation"
+                    if unknown
+                    else "The original operator Capability request is still in progress"
+                )
+                await self._audit_operator(
+                    session,
+                    request,
+                    prepared.version,
+                    prepared.decision,
+                    "UNKNOWN" if unknown else "IN_PROGRESS",
+                    metadata={
+                        "error_code": code,
+                        "idempotency": claim.state,
+                        "operator_invocation_id": str(claim.record.id),
+                    },
+                )
+                return GatewayResult(
+                    status=GatewayStatus.FAILED,
+                    policy_decision_id=prepared.decision.id,
+                    error_code=code,
+                    error_message=message,
+                    capability_version_id=claim.record.capability_version_id,
+                    connector_id=claim.record.connector_id,
+                )
+            invocation_id = claim.record.id
+            rate_result = await self._operator_rate_result(session, request, prepared)
+            if rate_result is not None:
+                await self.operator_invocations.complete(
+                    session,
+                    invocation_id,
+                    result=self._operator_result_record(rate_result),
+                    succeeded=False,
+                )
+                rate_invocation = await session.scalar(
+                    select(OperatorCapabilityInvocation)
+                    .where(OperatorCapabilityInvocation.id == invocation_id)
+                    .with_for_update()
+                )
+                assert rate_invocation is not None
+                rate_invocation.error_code = rate_result.error_code
+                rate_invocation.error_message = rate_result.error_message
+                await session.flush()
+                return rate_result
+
+        try:
+            async with session.begin():
+                result = await self._execute_operator(session, request, prepared)
+                await self.operator_invocations.complete(
+                    session,
+                    invocation_id,
+                    result=self._operator_result_record(result),
+                    succeeded=result.status == GatewayStatus.COMPLETED,
+                )
+                completed_invocation = await session.scalar(
+                    select(OperatorCapabilityInvocation)
+                    .where(OperatorCapabilityInvocation.id == invocation_id)
+                    .with_for_update()
+                )
+                assert completed_invocation is not None
+                completed_invocation.error_code = result.error_code
+                completed_invocation.error_message = result.error_message
+                await session.flush()
+                return result
+        except BaseException:
+            if session.in_transaction():
+                await session.rollback()
+            async with session.begin():
+                await self.operator_invocations.mark_unknown(session, invocation_id)
+                await self._audit_operator(
+                    session,
+                    request,
+                    prepared.version,
+                    prepared.decision,
+                    "UNKNOWN",
+                    metadata={
+                        "error_code": "operator_invocation_outcome_unknown",
+                        "operator_invocation_id": str(invocation_id),
+                    },
+                )
+            raise
+
+    async def _prepare_operator(
+        self,
+        session: AsyncSession,
+        request: OperatorGatewayRequest,
+    ) -> OperatorPreparedInvocation | GatewayResult:
+        _, version, connector = await self._resolve(session, request)
+        is_source_write = (
+            request.capability_name in {"knowledge.ingest", "knowledge.sync"}
+            and version.permission_action == "knowledge.write"
+            and version.risk_level == RiskLevel.L2
+            and version.side_effect == SideEffect.IDEMPOTENT_WRITE
+        )
+        is_source_browse = (
+            request.capability_name in VENDOR_KNOWLEDGE_BROWSE_OPERATIONS
+            and version.permission_action == "knowledge.write"
+            and version.risk_level == RiskLevel.L1
+            and version.side_effect == SideEffect.NONE
+        )
+        is_source_operation = is_source_write or is_source_browse
+        decision = await self.policy.evaluate_resource(
+            session,
+            ResourcePolicyInput(
+                principal=request.principal,
+                action=version.permission_action,
+                resource=request.resource,
+                context={
+                    **request.context,
+                    "environment": request.environment,
+                    "invocation_mode": "operator",
+                },
+                risk_level=version.risk_level if is_source_operation else RiskLevel.L3,
+                resource_type="capability",
+                capability_version_id=version.id,
+                run_id=None,
+            ),
+        )
+        if decision.effect in {DecisionEffect.DENY, DecisionEffect.ASK}:
+            reason = (
+                "operator_capability_approval_requires_run"
+                if decision.effect == DecisionEffect.ASK
+                else "operator_capability_denied"
+            )
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "DENIED",
+                metadata={"reason": reason, "reasons": decision.reason_codes},
+            )
+            return GatewayResult(
+                status=GatewayStatus.DENIED,
+                policy_decision_id=decision.id,
+                error_code="capability_denied",
+                error_message=(
+                    "Operator Capability approval requires a durable Harness Run"
+                    if decision.effect == DecisionEffect.ASK
+                    else "The operator Capability request was denied by policy"
+                ),
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        if not self._connector_grant_allows(connector, version):
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "DENIED",
+                metadata={"error_code": "connector_grant_missing"},
+            )
+            return GatewayResult(
+                status=GatewayStatus.DENIED,
+                policy_decision_id=decision.id,
+                error_code="connector_grant_missing",
+                error_message="The connector is not granted this capability",
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        try:
+            self._validate(version.input_schema, request.payload, "capability_input_invalid")
+        except ValidationError as exc:
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "FAILED",
+                metadata={"error_code": exc.code},
+            )
+            return GatewayResult(
+                status=GatewayStatus.FAILED,
+                policy_decision_id=decision.id,
+                error_code=exc.code,
+                error_message=exc.message,
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+
+        executor = self.executors.get(version.transport.value)
+        if executor is None:
+            await self._audit_operator(session, request, version, decision, "FAILED")
+            return GatewayResult(
+                status=GatewayStatus.FAILED,
+                policy_decision_id=decision.id,
+                error_code="capability_transport_unavailable",
+                error_message="No executor is installed for the capability transport",
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        return OperatorPreparedInvocation(
+            version=version,
+            connector=connector,
+            decision=decision,
+            executor=executor,
+            idempotent_write=is_source_write,
+        )
+
+    async def _operator_rate_result(
+        self,
+        session: AsyncSession,
+        request: OperatorGatewayRequest,
+        prepared: OperatorPreparedInvocation,
+    ) -> GatewayResult | None:
+        version = prepared.version
+        connector = prepared.connector
+        decision = prepared.decision
+        configured_limit = connector.configuration.get("rate_limit_per_minute")
+        limit = (
+            configured_limit
+            if isinstance(configured_limit, int) and not isinstance(configured_limit, bool)
+            else None
+        )
+        rate_key = ":".join(
+            (
+                str(request.principal.organization_id),
+                str(request.principal.id),
+                str(version.id),
+                str(connector.id),
+            )
+        )
+        try:
+            rate_allowed = await self.rate_limiter.allow(rate_key, limit)
+        except RateLimitUnavailable:
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "FAILED",
+                metadata={"error_code": "rate_limit_unavailable"},
+            )
+            return GatewayResult(
+                status=GatewayStatus.FAILED,
+                policy_decision_id=decision.id,
+                error_code="rate_limit_unavailable",
+                error_message="The capability safety service is temporarily unavailable",
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        if rate_allowed:
+            return None
+        await self._audit_operator(
+            session,
+            request,
+            version,
+            decision,
+            "DENIED",
+            metadata={"error_code": "capability_rate_limited"},
+        )
+        return GatewayResult(
+            status=GatewayStatus.DENIED,
+            policy_decision_id=decision.id,
+            error_code="capability_rate_limited",
+            error_message="The capability rate limit has been reached",
+            capability_version_id=version.id,
+            connector_id=connector.id,
+        )
+
+    async def _execute_operator(
+        self,
+        session: AsyncSession,
+        request: OperatorGatewayRequest,
+        prepared: OperatorPreparedInvocation,
+    ) -> GatewayResult:
+        version = prepared.version
+        connector = prepared.connector
+        decision = prepared.decision
+        executor = prepared.executor
+        started = perf_counter()
+        credential: str | None = None
+        try:
+            credential = await self.credentials.resolve(
+                connector.credential_ref,
+                session=session,
+                organization_id=request.principal.organization_id,
+            )
+            async with session.begin_nested():
+                connector_result = await asyncio.wait_for(
+                    executor.invoke(
+                        connector,
+                        request.payload,
+                        credential,
+                        ConnectorContext(
+                            principal=request.principal,
+                            run_id=None,
+                            step_id=None,
+                            correlation_id=request.correlation_id,
+                            session=session,
+                            credential=credential,
+                        ),
+                    ),
+                    timeout=version.timeout_seconds,
+                )
+                self._validate(
+                    version.output_schema,
+                    connector_result.data,
+                    "capability_output_invalid",
+                )
+                output = apply_obligations(connector_result.data, decision.obligations)
+            latency_ms = int((perf_counter() - started) * 1000)
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "SUCCESS",
+                latency_ms=latency_ms,
+                metadata={
+                    "connector_id": str(connector.id),
+                    "source": connector_result.source,
+                    "result_resource": connector_result.resource,
+                },
+            )
+            return GatewayResult(
+                status=GatewayStatus.COMPLETED,
+                policy_decision_id=decision.id,
+                output=output,
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        except Exception as exc:
+            latency_ms = int((perf_counter() - started) * 1000)
+            if isinstance(exc, TimeoutError):
+                error_code = "capability_timeout"
+                error_message = "The connector exceeded the capability timeout"
+            elif isinstance(exc, ObsionError):
+                error_code = exc.code
+                error_message = exc.message
+            else:
+                error_code = "capability_failed"
+                error_message = "The connector could not complete the request"
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "FAILED",
+                latency_ms=latency_ms,
+                metadata={"error_code": error_code},
+            )
+            return GatewayResult(
+                status=GatewayStatus.FAILED,
+                policy_decision_id=decision.id,
+                error_code=error_code,
+                error_message=error_message,
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        finally:
+            credential = None
+
+    @staticmethod
+    def _operator_result_record(result: GatewayResult) -> dict[str, Any]:
+        return {
+            "status": result.status.value,
+            "output": result.output,
+            "error_code": result.error_code,
+            "error_message": result.error_message,
+            "capability_version_id": (
+                str(result.capability_version_id) if result.capability_version_id else None
+            ),
+            "connector_id": str(result.connector_id) if result.connector_id else None,
+        }
+
+    @staticmethod
+    def _operator_result_from_record(
+        stored: dict[str, Any],
+        *,
+        record: OperatorCapabilityInvocation,
+        policy_decision_id: UUID,
+    ) -> GatewayResult:
+        capability_version_id = stored.get("capability_version_id")
+        connector_id = stored.get("connector_id")
+        return GatewayResult(
+            status=GatewayStatus(str(stored["status"])),
+            policy_decision_id=policy_decision_id,
+            output=stored.get("output") if isinstance(stored.get("output"), dict) else None,
+            error_code=record.error_code,
+            error_message=record.error_message,
+            capability_version_id=(
+                UUID(str(capability_version_id)) if capability_version_id else None
+            ),
+            connector_id=UUID(str(connector_id)) if connector_id else None,
+        )
 
     async def _invoke(self, session: AsyncSession, request: GatewayRequest) -> GatewayResult:
         definition, version, connector = await self._resolve(session, request)
@@ -329,6 +865,8 @@ class CapabilityGateway:
                         principal=request.principal,
                         run_id=request.run_id,
                         step_id=request.step_id,
+                        session=session,
+                        credential=credential,
                     ),
                 ),
                 timeout=version.timeout_seconds,
@@ -432,7 +970,9 @@ class CapabilityGateway:
             credential = None
 
     async def _resolve(
-        self, session: AsyncSession, request: GatewayRequest
+        self,
+        session: AsyncSession,
+        request: GatewayRequest | OperatorGatewayRequest,
     ) -> tuple[CapabilityDefinition, CapabilityVersion, Connector]:
         if request.capability_version is not None and request.capability_version_id is not None:
             raise ValidationError(
@@ -502,6 +1042,15 @@ class CapabilityGateway:
         )
         if agent_version is None or not isinstance(agent_version.spec, dict):
             return False
+        sandbox = agent_version.spec.get("sandbox")
+        if sandbox is not None:
+            if not isinstance(sandbox, dict):
+                return False
+            network = sandbox.get("network")
+            if network not in (None, "deny", "gateway-only"):
+                return False
+            if not sandbox_allows_capabilities(sandbox):
+                return False
         capabilities = agent_version.spec.get("capabilities")
         risk_policy = agent_version.spec.get("riskPolicy")
         max_level = risk_policy.get("maxLevel") if isinstance(risk_policy, dict) else None
@@ -532,7 +1081,10 @@ class CapabilityGateway:
         return "*" in grants or version.permission_action in grants
 
     @staticmethod
-    def _engineering_repository_denied(connector: Connector, request: GatewayRequest) -> bool:
+    def _engineering_repository_denied(
+        connector: Connector,
+        request: GatewayRequest | OperatorGatewayRequest,
+    ) -> bool:
         allowed = connector.configuration.get("allowed_repositories")
         if not isinstance(allowed, list) or not allowed:
             return False
@@ -732,6 +1284,42 @@ class CapabilityGateway:
                 latency_ms=latency_ms,
                 agent_version_id=request.agent_version_id,
                 model_profile_id=request.model_profile_id,
+                capability_version_id=version.id,
+                resource=request.resource,
+                result_classification=version.data_classification,
+            ),
+        )
+
+    async def _audit_operator(
+        self,
+        session: AsyncSession,
+        request: OperatorGatewayRequest,
+        version: CapabilityVersion,
+        decision: Decision,
+        outcome: str,
+        *,
+        latency_ms: int | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=request.principal.organization_id,
+                correlation_id=request.correlation_id,
+                actor_type=ActorType.USER,
+                actor_id=request.principal.id,
+                action=version.permission_action,
+                resource_type="capability",
+                resource_id=str(version.id),
+                outcome=outcome,
+                risk_level=version.risk_level,
+                policy_decision_id=decision.id,
+                metadata={
+                    "invocation_mode": "operator",
+                    "capability": request.capability_name,
+                    **(metadata or {}),
+                },
+                latency_ms=latency_ms,
                 capability_version_id=version.id,
                 resource=request.resource,
                 result_classification=version.data_classification,

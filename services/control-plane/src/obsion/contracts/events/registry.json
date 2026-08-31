@@ -266,7 +266,7 @@
       "versions": [
         {
           "payload_schema": "payloads/automation.execution_created.v1.schema.json",
-          "payload_schema_sha256": "b63c4a792541dee8b2b32722f08a59e3afeddf29f99eaed4095b7b1b685d6b53",
+          "payload_schema_sha256": "0a21ee2e2b42820cce8d65f045ae02196a0ddede959776b4b35671eeea1130bd",
           "schema_version": 1
         }
       ]
@@ -276,7 +276,7 @@
       "versions": [
         {
           "payload_schema": "payloads/automation.execution_skipped.v1.schema.json",
-          "payload_schema_sha256": "5e5360b258bf13b840d1b056f45cf7abf8645ebfe0570cc87d99c5ee34447a7c",
+          "payload_schema_sha256": "9e3b58a7d2a287feca2d25c620ce88b0628348e4a83ab89a8cbf23300c8dba3c",
           "schema_version": 1
         }
       ]
@@ -416,7 +416,7 @@
       "versions": [
         {
           "payload_schema": "payloads/intent.detected.v1.schema.json",
-          "payload_schema_sha256": "bbe8057c90e8f87612c35b2ede4684405f54de7adf5a3ef82ce9178ef05b753d",
+          "payload_schema_sha256": "49836400aefadc4643565a6627e5f2f9e6cdd9ee8c16e63a715dab04e85edaf7",
           "schema_version": 1
         }
       ]
@@ -462,6 +462,16 @@
       ]
     },
     {
+      "name": "memory.revoked",
+      "versions": [
+        {
+          "payload_schema": "payloads/memory.revoked.v1.schema.json",
+          "payload_schema_sha256": "7c52d9cfbb7247601bf0b99b5448e47708476b316031e38671338dd7320de9c9",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
       "name": "notification.delivered",
       "versions": [
         {
@@ -476,7 +486,7 @@
       "versions": [
         {
           "payload_schema": "payloads/plan.created.v1.schema.json",
-          "payload_schema_sha256": "ec56f83553ce4e8925655b850421cd150cdac141360c1dad24bb23a0426d4fc5",
+          "payload_schema_sha256": "c2ba87781a935763c4927458f1eb3d2e7f96343ee49b48977a45f8018985005d",
           "schema_version": 1
         }
       ]
@@ -486,7 +496,7 @@
       "versions": [
         {
           "payload_schema": "payloads/plan.updated.v1.schema.json",
-          "payload_schema_sha256": "719343c21b6adda67e07dbe5e9c4b546d900cfab8955f1468af00faa760b552d",
+          "payload_schema_sha256": "f73a5ac61c3d5009449f25e02b38dd46ed1fc7104c5aad1e91b30c6f240ee9ac",
           "schema_version": 1
         }
       ]

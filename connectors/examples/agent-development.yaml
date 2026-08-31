@@ -1,0 +1,14 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-agent-development
+spec:
+  type: agent-development
+  environment: development
+  transport: AGENT
+  grants: [agent.invoke]
+  allowedEgress: []
+  configuration:
+    agent: obsion.development
+    operation: echo
+  capabilities: [agent.development.echo]

@@ -6,6 +6,11 @@ from typing import Any
 
 from obsion.db.models import Evidence
 
+_TYPE_ALIASES: dict[str, frozenset[str]] = {
+    "DATA": frozenset({"DATA", "SQL"}),
+    "SQL": frozenset({"DATA", "SQL"}),
+}
+
 
 @dataclass(frozen=True, slots=True)
 class CriticResult:
@@ -39,20 +44,8 @@ class Critic:
         answer: str | None = None,
         time_range: dict[str, Any] | None = None,
     ) -> CriticResult:
-        substantive = [
-            item
-            for item in evidence
-            if Critic._substantive(item)
-        ]
-        available = {
-            str(item.evidence_type.value).upper()
-            if hasattr(item.evidence_type, "value")
-            else str(item.evidence_type).upper()
-            for item in substantive
-        }
-        normalized_required = tuple(str(item).upper() for item in required_types)
-        missing_values = [item for item in normalized_required if item not in available]
-        missing = tuple(dict.fromkeys(missing_values))
+        substantive = Critic.substantive_records(evidence)
+        missing = Critic.missing_required_types(substantive, required_types)
         coverage = 1.0 if not required_types else 1 - len(missing) / len(required_types)
         substantive_ids = {str(item.id) for item in substantive}
         claim_links_valid = (
@@ -142,6 +135,34 @@ class Critic:
         )
 
     @staticmethod
+    def evidence_kind(item: Evidence) -> str:
+        value = item.evidence_type
+        return str(value.value).upper() if hasattr(value, "value") else str(value).upper()
+
+    @classmethod
+    def available_types(cls, evidence: list[Evidence]) -> set[str]:
+        return {cls.evidence_kind(item) for item in evidence if cls._substantive(item)}
+
+    @classmethod
+    def missing_required_types(
+        cls,
+        evidence: list[Evidence],
+        required_types: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        available = cls.available_types(evidence)
+        missing: list[str] = []
+        for item in required_types:
+            required = str(item).upper()
+            aliases = _TYPE_ALIASES.get(required, frozenset({required}))
+            if not aliases & available:
+                missing.append(required)
+        return tuple(dict.fromkeys(missing))
+
+    @classmethod
+    def substantive_records(cls, evidence: list[Evidence]) -> list[Evidence]:
+        return [item for item in evidence if cls._substantive(item)]
+
+    @staticmethod
     def _substantive(item: Evidence) -> bool:
         for key in ("hits", "events", "items", "records"):
             values = item.content.get(key)
@@ -152,9 +173,7 @@ class Critic:
     @staticmethod
     def _rows(item: Evidence) -> list[dict[str, Any]]:
         rows = (
-            item.content.get("events")
-            or item.content.get("items")
-            or item.content.get("records")
+            item.content.get("events") or item.content.get("items") or item.content.get("records")
         )
         if isinstance(rows, list):
             return [row for row in rows if isinstance(row, dict)]
@@ -192,10 +211,7 @@ class Critic:
             return False
         if re.search(r"[\u4e00-\u9fff]", question):
             return True
-        tokens = {
-            token.casefold()
-            for token in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", question)
-        }
+        tokens = {token.casefold() for token in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", question)}
         response = " ".join(
             [answer, *(str(claim.get("statement", "")) for claim in claims)]
         ).casefold()
@@ -227,7 +243,7 @@ class Critic:
             for item in evidence
         }
         signal = {"METRIC", "LOG", "TRACE"} & kinds
-        cause = {"DEPLOYMENT", "CONFIG", "CODE"} & kinds
+        cause = {"DEPLOYMENT", "CONFIG", "CODE", "GIT"} & kinds
         if signal and cause:
             return ()
         return (
@@ -305,7 +321,7 @@ class Critic:
                 if hasattr(item.evidence_type, "value")
                 else str(item.evidence_type).upper()
             )
-            if kind not in {"METRIC", "DATA"}:
+            if kind not in {"METRIC", "DATA", "SQL"}:
                 continue
             rows = Critic._rows(item)
             metric_rows.extend((item, row) for row in rows)

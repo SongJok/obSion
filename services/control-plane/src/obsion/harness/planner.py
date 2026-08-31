@@ -106,7 +106,7 @@ class Planner:
                 required_evidence=("DOCUMENT",),
                 verification=("citation_coverage", "acl_retained", "question_coverage"),
             )
-        if route == "DATA" and compiled_data_query is not None:
+        if route in {"DATA", "ANALYTICS"} and compiled_data_query is not None:
             data_steps: tuple[PlannedStep, ...] = (
                 (
                     PlannedStep(
@@ -137,8 +137,53 @@ class Planner:
                 verification=("metric_definition", "sql_validated", "result_cited"),
             )
         if route == "ENGINEERING":
-            engineering_steps: tuple[PlannedStep, ...] = (
-                (
+            engineering_steps: list[PlannedStep] = []
+            if can_select("code.symbol"):
+                engineering_steps.append(
+                    PlannedStep(
+                        name="Resolve authorized source symbols",
+                        capability="code.symbol",
+                        payload={
+                            "operation": "code.symbol",
+                            "query": question,
+                            "repository": str(understanding.get("repository") or "*"),
+                        },
+                        resource={"index": "organization", "scope": "authorized-code-graph"},
+                        environment="development",
+                    )
+                )
+            if can_select("code.reference") and engineering_steps:
+                engineering_steps.append(
+                    PlannedStep(
+                        name="Find symbol references",
+                        capability="code.reference",
+                        payload={
+                            "operation": "code.reference",
+                            "symbol": question,
+                            "repository": str(understanding.get("repository") or "*"),
+                        },
+                        resource={"index": "organization", "scope": "authorized-code-graph"},
+                        environment="development",
+                        depends_on=(1,),
+                    )
+                )
+            if can_select("code.callers") and engineering_steps:
+                engineering_steps.append(
+                    PlannedStep(
+                        name="Traverse callers",
+                        capability="code.callers",
+                        payload={
+                            "operation": "code.callers",
+                            "symbol": question,
+                            "repository": str(understanding.get("repository") or "*"),
+                        },
+                        resource={"index": "organization", "scope": "authorized-code-graph"},
+                        environment="development",
+                        depends_on=(len(engineering_steps),),
+                    )
+                )
+            if not engineering_steps and can_select("code.search"):
+                engineering_steps.append(
                     PlannedStep(
                         name="Search source code",
                         capability="code.search",
@@ -149,16 +194,96 @@ class Planner:
                         },
                         resource={"scope": "authorized-repositories"},
                         environment="production",
-                    ),
+                    )
                 )
-                if can_select("code.search")
-                else ()
-            )
             return ExecutionPlan(
                 route=route,
-                steps=engineering_steps,
+                steps=tuple(engineering_steps),
                 required_evidence=("CODE",),
                 verification=("symbol_lineage", "source_version", "question_coverage"),
+            )
+        if route == "SUPPORT":
+            support_steps: list[PlannedStep] = []
+            if can_select("ticket.search"):
+                support_steps.append(
+                    PlannedStep(
+                        name="Search authorized support tickets",
+                        capability="ticket.search",
+                        payload={
+                            "operation": "ticket.search",
+                            "query": question,
+                            "limit": 8,
+                        },
+                        resource={"index": "organization", "source": "ticket"},
+                        environment="development",
+                    )
+                )
+            if can_select("knowledge.search"):
+                support_steps.append(
+                    PlannedStep(
+                        name="Search authorized support knowledge",
+                        capability="knowledge.search",
+                        payload={"query": question, "limit": 8},
+                        resource={"index": "organization"},
+                        environment="development",
+                        depends_on=(len(support_steps),) if support_steps else (),
+                    )
+                )
+            return ExecutionPlan(
+                route=route,
+                steps=tuple(support_steps),
+                required_evidence=("DOCUMENT",),
+                verification=("citation_coverage", "acl_retained", "no_write_path"),
+            )
+        if route == "OPERATION":
+            operation_capabilities = (
+                ("Inspect Kubernetes workload status", "k8s.status", "TOOL"),
+                ("List authorized deployments", "deployment.list", "DEPLOYMENT"),
+                ("Read effective configuration", "config.get", "CONFIG"),
+                ("Compare configuration", "config.diff", "CONFIG"),
+                ("Search authorized operational logs", "log.search", "LOG"),
+                ("Query metric baseline", "metric.query", "METRIC"),
+            )
+            operation_steps: list[PlannedStep] = []
+            for name, capability, evidence_type in operation_capabilities:
+                if not can_select(capability):
+                    continue
+                operation_payload: dict[str, Any] = {
+                    "operation": capability,
+                    "query": question,
+                    "service": str(understanding.get("service") or "*"),
+                    "time_range": time_range,
+                    "environment": "production",
+                }
+                if isinstance(time_range, dict):
+                    if isinstance(time_range.get("start"), str):
+                        operation_payload["start_time"] = time_range["start"]
+                    if isinstance(time_range.get("end"), str):
+                        operation_payload["end_time"] = time_range["end"]
+                operation_steps.append(
+                    PlannedStep(
+                        name=name,
+                        capability=capability,
+                        payload=operation_payload,
+                        resource={"environment": "production", "evidence_type": evidence_type},
+                        environment="production",
+                        depends_on=tuple(range(1, len(operation_steps) + 1)[-1:]),
+                    )
+                )
+            return ExecutionPlan(
+                route=route,
+                steps=tuple(operation_steps),
+                required_evidence=tuple(
+                    dict.fromkeys(step.resource["evidence_type"] for step in operation_steps)
+                ),
+                verification=("read_only_status", "time_window_bounded", "no_write_path"),
+            )
+        if route != "INCIDENT":
+            return ExecutionPlan(
+                route=route,
+                steps=(),
+                required_evidence=(),
+                verification=("unsupported_route",),
             )
         incident_capabilities = (
             ("Query metric baseline", "metric.query", "METRIC", ()),
@@ -170,7 +295,8 @@ class Planner:
             ("Search production logs", "log.search", "LOG", (6,)),
             ("Search representative traces", "trace.search", "TRACE", (7,)),
             ("Compare configuration", "config.diff", "CONFIG", (7,)),
-            ("Inspect deployed code change", "git.diff", "CODE", (7,)),
+            ("Inspect Kubernetes workload status", "k8s.status", "TOOL", (7,)),
+            ("Inspect deployed code change", "git.diff", "GIT", (7,)),
         )
         selected_steps: list[PlannedStep] = []
         ordinal_map: dict[int, int] = {}

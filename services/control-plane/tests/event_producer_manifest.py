@@ -50,6 +50,7 @@ REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
             ("memory.candidate", 1),
             ("memory.expired", 1),
             ("memory.rejected", 1),
+            ("memory.revoked", 1),
         }
     ),
     "application/workspaces.py::WorkspaceService.add_member#EventDraft[1]": frozenset(
@@ -245,8 +246,23 @@ REVIEWED_EVENT_HELPER_CALLS: dict[str, frozenset[EventContractPair]] = {
     "application/memory.py::MemoryService.decide#_record[2]": frozenset(
         {("memory.approved", 1), ("memory.rejected", 1)}
     ),
+    "application/memory.py::MemoryService.get_memory#_record[1]": frozenset(
+        {("memory.expired", 1)}
+    ),
     "application/memory.py::MemoryService.list_memories#_record[1]": frozenset(
         {("memory.expired", 1)}
+    ),
+    "application/memory.py::MemoryService.revoke_memory#_record[1]": frozenset(
+        {("memory.expired", 1)}
+    ),
+    "application/memory.py::MemoryService.revoke_memory#_record[2]": frozenset(
+        {("memory.revoked", 1)}
+    ),
+    "application/memory.py::MemoryService.update_memory#_record[1]": frozenset(
+        {("memory.expired", 1)}
+    ),
+    "application/memory.py::MemoryService.update_memory#_record[2]": frozenset(
+        {("memory.candidate", 1)}
     ),
     "automation/service.py::AutomationService.cancel_execution#_event[1]": frozenset(
         {("automation.cancellation_requested", 1)}
@@ -331,6 +347,15 @@ REVIEWED_EVENT_HELPER_CALLS: dict[str, frozenset[EventContractPair]] = {
     "harness/runtime.py::HarnessRuntime._prepare#_event[1]": frozenset({("context.resolved", 1)}),
     "harness/runtime.py::HarnessRuntime._prepare#_event[2]": frozenset({("intent.detected", 1)}),
     "harness/runtime.py::HarnessRuntime._prepare#_event[3]": frozenset({("plan.created", 1)}),
+    "harness/runtime.py::HarnessRuntime._apply_gap_replan#_event[1]": frozenset(
+        {("run.state_changed", 1)}
+    ),
+    "harness/runtime.py::HarnessRuntime._apply_gap_replan#_event[2]": frozenset(
+        {("plan.updated", 1)}
+    ),
+    "harness/runtime.py::HarnessRuntime._apply_gap_replan#_event[3]": frozenset(
+        {("run.state_changed", 1)}
+    ),
     "harness/runtime.py::HarnessRuntime._replan_transient_failures#_event[1]": frozenset(
         {("run.state_changed", 1)}
     ),

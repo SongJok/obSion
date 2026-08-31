@@ -1,0 +1,183 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-repository-release
+  version: 0.80.0-alpha.1
+  phase: 80
+spec:
+  consolidates: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
+  migration:
+    database: alembic
+    revisions:
+      - 241e275bde59
+      - c93717e47198
+      - a8ec3bb0de71
+      - b5237a3c5f80
+      - d03c42ca980b
+      - e14b778c54af
+      - 30b5ceab28ca
+      - 59b7457d48dc
+      - 8ab0d4f7c2e1
+      - a8fe4fe85343
+      - f4c2e37a910b
+      - b7d1a5e492c3
+      - c4d7e8f901ab
+      - d5e8f9012abc
+      - e6f9a0123bcd
+      - f7a1b2c3d4e5
+      - 8d3f2a1c7b90
+      - 19c6b2e4a7d1
+      - a21c0de9f4b8
+      - c23e1d4a9b70
+      - d27a8c1e4f90
+      - e31b7c2d8a01
+      - f34b8d1e2c90
+      - a49f6c1d8e20
+      - b50f8e3d0c12
+      - c61a9f4e1d23
+      - d72b0a5e2f34
+      - e82d1b3c4a56
+      - f62c1a9e4d20
+      - a79c4d2e8f10
+    notes: Phase 80 adds no revision; Alpha.1 declares and verifies the complete one-base, one-head repository chain.
+  documents:
+    - README.md
+    - CHANGELOG.md
+    - LICENSE
+    - GOVERNANCE.md
+    - CONTRIBUTING.md
+    - SECURITY.md
+    - docs/project-status.yaml
+    - docs/product/requirements-traceability.md
+    - docs/release/0.80.0-alpha.1.md
+    - docs/release/v1-readiness.md
+    - docs/release/sbom.cdx.json
+    - docs/security/security-model.md
+    - docs/security/threat-model.md
+    - docs/operators/administrator.md
+    - docs/operators/deployment.md
+    - docs/operators/runbook.md
+    - docs/operators/upgrade.md
+    - docs/operators/backup-restore.md
+    - docs/phases/PHASE-79-REPORT.md
+    - docs/phases/PHASE-80-REPORT.md
+    - docs/architecture/phase-79-operator-capability-idempotency-gate.md
+    - docs/architecture/phase-80-alpha1-release-gate.md
+    - docs/adr/0058-operator-capability-idempotency.md
+    - docs/adr/0059-alpha1-release-contract.md
+  boundaries:
+    - One Python control plane, one App Server, one Harness, and one versioned Event protocol remain authoritative.
+    - Workspace, Thread, Turn, Run, Step, and Event remain the durable execution hierarchy.
+    - Every external Capability crosses Policy, grants, schemas, rate, credentials, masking, telemetry, Evidence when Run-scoped, and Audit.
+    - Model providers remain behind logical ModelProfiles and cannot grant tool authority.
+    - Factual answers require Claims, Evidence, confidence, source, timestamp, and independent Critic verification.
+    - Vendor source operations use the no-Run Capability Gateway without fabricated Runs or Evidence.
+    - Credentials remain secret-manager or process-environment inputs and never enter Agents, manifests, Events, model context, or release notes.
+    - Production database writes, deploys, restarts, config mutations, generic HTTP delivery, and L4-L5 actions remain denied.
+    - PostgreSQL is the V1 transactional source of truth; Kafka and ClickHouse are not introduced as a base.
+    - Java remains a REST SDK client of the Python control plane and is not a second backend.
+  repositoryEvidence:
+    projectStatus: docs/project-status.yaml
+    phaseReportsDirectory: docs/phases
+    architectureDirectory: docs/architecture
+    alembicVersionsDirectory: services/control-plane/alembic/versions
+    sbom: docs/release/sbom.cdx.json
+    publication:
+      stage: alpha
+      externallyPublished: false
+      signedTag: false
+  vendors:
+    - id: feishu
+      environmentVariables:
+        - OBSION_FEISHU_APP_ID
+        - OBSION_FEISHU_APP_SECRET
+        - OBSION_FEISHU_ENCRYPT_KEY
+        - OBSION_FEISHU_VERIFICATION_TOKEN
+        - OBSION_IM_PUBLIC_HOSTS
+        - OBSION_IM_TLS_CERT
+        - OBSION_IM_TLS_KEY
+      experience:
+        outboundTransport: feishu-http
+        outboundOrigin: https://open.feishu.cn
+        inboundSecurity:
+          - Public callbacks require TLS, exact Host allowlisting, and verified Lark signatures or configured encryption.
+      knowledge:
+        connector: obsion-feishu-docs
+        origin: https://open.feishu.cn
+        operations: [knowledge.ingest, knowledge.sync, knowledge.source.containers, knowledge.source.items]
+    - id: dingtalk
+      environmentVariables:
+        - OBSION_DINGTALK_APP_KEY
+        - OBSION_DINGTALK_APP_SECRET
+        - OBSION_IM_PUBLIC_HOSTS
+        - OBSION_IM_TLS_CERT
+        - OBSION_IM_TLS_KEY
+        - OBSION_IM_WEBHOOK_SECRET
+      experience:
+        outboundTransport: dingtalk-http
+        outboundOrigin: https://oapi.dingtalk.com
+        inboundSecurity:
+          - Public callbacks require TLS, exact Host allowlisting, and DingTalk app-secret or shared webhook verification.
+      knowledge:
+        connector: obsion-dingtalk-docs
+        origin: https://api.dingtalk.com
+        operations: [knowledge.ingest, knowledge.sync, knowledge.source.containers, knowledge.source.items]
+    - id: wecom
+      environmentVariables:
+        - OBSION_WECOM_CORP_ID
+        - OBSION_WECOM_CORP_SECRET
+        - OBSION_WECOM_AGENT_ID
+        - OBSION_WECOM_TOKEN
+        - OBSION_WECOM_ENCODING_AES_KEY
+        - OBSION_IM_PUBLIC_HOSTS
+        - OBSION_IM_TLS_CERT
+        - OBSION_IM_TLS_KEY
+      experience:
+        outboundTransport: wecom-http
+        outboundOrigin: https://qyapi.weixin.qq.com
+        inboundSecurity:
+          - Public encrypted callbacks require TLS, Host allowlisting, Token, and EncodingAESKey verification.
+      knowledge:
+        connector: obsion-wecom-docs
+        origin: https://qyapi.weixin.qq.com
+        operations: [knowledge.ingest, knowledge.sync, knowledge.source.containers, knowledge.source.items]
+    - id: confluence
+      environmentVariables:
+        - OBSION_CONFLUENCE_EMAIL
+        - OBSION_CONFLUENCE_API_TOKEN
+      knowledge:
+        connector: obsion-confluence
+        origin: https://example.atlassian.net
+        operations: [knowledge.ingest, knowledge.sync, knowledge.source.containers, knowledge.source.items]
+  rollout:
+    - Reproduce make check, JDK 21 SDK tests, Alembic drift, and the CycloneDX SBOM from one clean revision.
+    - Back up PostgreSQL and object storage and prove restore before changing traffic.
+    - Deploy to clean staging with OIDC, external secrets, exact TLS origins, NetworkPolicy, OTLP, and read-only data identities.
+    - Reconcile Registry definitions, immutable versions, connector bindings, grants, rate limits, egress, and Knowledge sync budgets.
+    - Run authorized and denied Knowledge, Data, Engineering, Incident, replay, cancellation, approval, and Workspace flows.
+    - Enable vendor source browsing before ingest or sync and verify ACL and provenance with tenant-owned fixtures.
+    - Review UNKNOWN Operator Capability invocations and connector-specific reconciliation procedures.
+    - Record UAT, timed DR, image/CVE/signature, security, and data-owner evidence before production promotion.
+  rollback:
+    - Disable affected connector bindings, workers, and vendor delivery transports without deleting durable records.
+    - Preserve Runs, Events, Evidence, Claims, Artifacts, delivery receipts, Audit, and operator idempotency ledgers.
+    - Reconcile every UNKNOWN external outcome before issuing a new request UUID.
+    - Restore the previous tested image, configuration, network policy, and secret references.
+    - Restore PostgreSQL and object storage into a separate verified environment when schema rollback is required.
+    - Re-run internal read-only smoke flows before restoring traffic.
+  verification:
+    - make check
+    - make test-java with JDK 21
+    - uv run obsion validate-release-notes
+    - uv run obsion scan-secrets
+    - uv run obsion validate-contracts
+    - uv run obsion validate-eval-gates
+    - PostgreSQL operator invocation concurrency and isolated migration round-trip tests
+    - Explicit non-writing Feishu Capability Gateway browse with operator process credentials
+  knownLimitations:
+    - This manifest does not create an external tag, signed source release, package, image, or deployment approval.
+    - Staging, UAT, timed DR, live OIDC and secret manager, registry HIGH-CVE policy, and human security or data-owner sign-off remain operator-owned.
+    - Real permitted Feishu document ingest and citations and all live DingTalk, WeCom, and Confluence tenant checks remain operator-owned.
+    - Remote MCP or gRPC, stdio spawn, third-party SDK loading, external workflow engines, nested Harness agents, and OS cgroup enforcement are not claimed.
+    - RUN_OUTPUT Golden Dataset fixtures require real terminal Run bindings and are not counted as passing when skipped.
+    - Production writes, deploys, restarts, and configuration mutation remain outside the Alpha.1 release boundary.

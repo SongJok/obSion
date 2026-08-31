@@ -8,4 +8,4 @@ spec:
   transport: INTERNAL
   grants: [knowledge.read]
   allowedEgress: []
-  capabilities: [knowledge.search]
+  capabilities: [knowledge.search, ticket.search]

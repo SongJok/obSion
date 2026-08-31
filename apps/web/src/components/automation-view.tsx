@@ -316,7 +316,7 @@ export function AutomationView({ workspace }: { workspace?: Workspace }) {
                     <div className="execution-table-head" role="row"><span>状态</span><span>触发方式</span><span>开始时间</span><span>耗时</span><span /></div>
                     {executions.map((item) => (
                       <button key={item.id} className={execution?.id === item.id ? "execution-row selected" : "execution-row"} onClick={() => void openExecution(item.id)}>
-                        <span><ExecutionStatus status={item.status} /></span><span>{item.trigger === "SCHEDULE" ? "定时计划" : "手动运行"}</span><time>{formatDate(item.started_at ?? item.created_at)}</time><span>{durationLabel(item)}</span><ChevronRight size={14} />
+                        <span><ExecutionStatus status={item.status} /></span><span>{triggerLabel(item.trigger)}</span><time>{formatDate(item.started_at ?? item.created_at)}</time><span>{durationLabel(item)}</span><ChevronRight size={14} />
                       </button>
                     ))}
                     {!executions.length && <div className="card-empty"><CirclePlay size={19} /><span>还没有运行记录</span><small>发布后点击“立即运行”进行首次验证。</small></div>}
@@ -342,7 +342,7 @@ function ExecutionDrawer({ execution, saving, onClose, onCancel, onReview }: { e
     <div className="execution-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
       <aside className="execution-drawer" aria-label="自动化运行详情">
         <header><div><ExecutionStatus status={execution.status} /><h2>运行详情</h2><code>{execution.id}</code></div><button className="icon-button" onClick={onClose}><X size={18} /></button></header>
-        <section className="execution-meta"><span>触发<strong>{execution.trigger === "SCHEDULE" ? "定时计划" : "手动运行"}</strong></span><span>开始<strong>{formatDate(execution.started_at ?? execution.created_at)}</strong></span><span>截止<strong>{formatDate(execution.deadline_at)}</strong></span></section>
+        <section className="execution-meta"><span>触发<strong>{triggerLabel(execution.trigger)}</strong></span><span>开始<strong>{formatDate(execution.started_at ?? execution.created_at)}</strong></span><span>截止<strong>{formatDate(execution.deadline_at)}</strong></span></section>
         {execution.error_message && <div className="execution-error"><XCircle size={16} /><span><strong>{execution.error_code}</strong>{execution.error_message}</span></div>}
         <div className="step-timeline">
           {(execution.steps ?? []).map((step, index) => (
@@ -410,6 +410,7 @@ function ExecutionStatus({ status, compact = false }: { status: AutomationStatus
 }
 
 function workflowStatusLabel(status: Workflow["status"]) { return { DRAFT: "草稿", ACTIVE: "运行中", PAUSED: "已暂停", RETIRED: "已退役" }[status]; }
+function triggerLabel(trigger: AutomationExecution["trigger"]) { return { MANUAL: "手动运行", SCHEDULE: "定时计划", CAPABILITY: "能力网关" }[trigger]; }
 function statusLabel(status: AutomationStatus) { return { PENDING: "等待", RUNNING: "运行中", WAITING_REVIEW: "待确认", COMPLETED: "完成", FAILED: "失败", CANCELLED: "已停止", SKIPPED: "已跳过" }[status]; }
 function stepTypeLabel(type: AutomationStep["step_type"]) { return { ANALYSIS: "Harness 智能分析", HUMAN_REVIEW: "人工确认门", NOTIFICATION: "责任人通知" }[type]; }
 function concurrencyLabel(value: Workflow["concurrency_policy"]) { return { FORBID: "禁止重叠", ALLOW: "允许并行", REPLACE: "新运行替换旧运行" }[value]; }

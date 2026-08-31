@@ -1,0 +1,15 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: code-architecture
+spec:
+  instructions:
+    - use only CODE Evidence collected by the current Run
+    - resolve symbols, references, and call chains from the authorized Code Graph
+    - relate APIs, services, methods, and SQL table references when present
+    - cite repository, path, symbol, and commit for every factual claim
+    - if authorized code evidence is missing, say unknown and do not guess
+    - never execute repository code or open a write path
+  capabilities: [code.symbol, code.reference, code.callers, code.callees, code.search]
+  requiredEvidence: [CODE]
+  verification: [symbol lineage, source version, question coverage]

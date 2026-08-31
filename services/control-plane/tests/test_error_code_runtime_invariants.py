@@ -49,6 +49,7 @@ _PERSISTED_FIELD_LENGTHS: dict[tuple[str, str], int] = {
     ("automation_executions", "error_code"): 100,
     ("automation_step_executions", "error_code"): 100,
     ("evaluation_case_results", "error_code"): 160,
+    ("operator_capability_invocations", "error_code"): 160,
     ("run_steps", "error_code"): 100,
     ("runs", "error_code"): 100,
     ("verification_assessments", "error_code"): 120,

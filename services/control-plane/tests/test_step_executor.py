@@ -45,7 +45,8 @@ def test_step_executor_marks_failed_dependencies_before_response_steps() -> None
         _step(3, StepKind.PLAN, StepStatus.COMPLETED, depends_on=[2]),
         _step(4, StepKind.CAPABILITY, StepStatus.FAILED, depends_on=[3]),
         _step(5, StepKind.VERIFY, StepStatus.PENDING, depends_on=[4]),
-        _step(6, StepKind.RESPOND, StepStatus.PENDING, depends_on=[5]),
+        _step(6, StepKind.REFLECT, StepStatus.PENDING, depends_on=[5]),
+        _step(7, StepKind.RESPOND, StepStatus.PENDING, depends_on=[6]),
     ]
 
     wave = StepExecutor().next_wave(steps)
@@ -53,6 +54,10 @@ def test_step_executor_marks_failed_dependencies_before_response_steps() -> None
     assert wave.ready == ()
     assert [step.ordinal for step in wave.blocked] == [5]
     assert not wave.deadlocked
+
+    steps[2].status = StepStatus.SKIPPED
+    wave = StepExecutor().next_wave(steps)
+    assert [step.ordinal for step in wave.blocked] == [6]
 
 
 def test_step_executor_detects_unresolved_capability_dependencies() -> None:

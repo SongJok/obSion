@@ -21,6 +21,8 @@ import {
 import { useState } from "react";
 
 import type { Artifact, Claim, ConversationSnapshot, Evidence, MemorySnapshot, Run, RunEvent, RunStep } from "@/lib/types";
+import { citationLabel, hitsFromEvidenceContent } from "@/lib/knowledge-citation";
+import { KnowledgeProvenance } from "./knowledge-provenance";
 
 interface RuntimeInspectorProps {
   open: boolean;
@@ -88,6 +90,16 @@ export function RuntimeInspector({
       <div className="inspector-summary">
         <StatusBadge status={run?.status ?? "IDLE"} />
         <span>{run?.plan.route ? routeName(run.plan.route) : "等待任务"}</span>
+        {typeof run?.plan.sandbox?.network === "string" && (
+          <span className="sandbox-chip" title="钉死在本次 Run 计划上的网络策略">
+            沙箱 {run.plan.sandbox.network}
+          </span>
+        )}
+        {run?.workspace_context?.name && (
+          <span className="workspace-chip" title="钉死在本次 Run 上的工作空间上下文">
+            空间 {run.workspace_context.name}
+          </span>
+        )}
         {run?.replay_of_run_id && <span className="replay-chip">历史快照</span>}
         {run?.cost_amount && <small>成本 ${Number(run.cost_amount).toFixed(4)}</small>}
       </div>
@@ -117,7 +129,15 @@ export function RuntimeInspector({
         {tab === "runtime" && (
           <RuntimeTimeline run={run} steps={steps} events={events} />
         )}
-        {tab === "context" && <ConversationContextList snapshots={conversation} />}
+        {tab === "context" && (
+          <ConversationContextList
+            snapshots={conversation}
+            budget={run?.context_budget}
+            compact={run?.conversation_compact}
+            workspace={run?.workspace_context}
+            hasToolResults={evidence.some((item) => item.evidence_type === "TOOL")}
+          />
+        )}
         {tab === "evidence" && (
           <EvidenceList evidence={evidence} onSelect={(item) => { setSelectedArtifact(undefined); setSelectedEvidence(item); }} />
         )}
@@ -154,6 +174,7 @@ export function RuntimeInspector({
             </button>
           </div>
           <p className="resource-path">{selectedEvidence.resource}</p>
+          <DocumentEvidenceCitations content={selectedEvidence.content} />
           <pre>{JSON.stringify(selectedEvidence.content, null, 2)}</pre>
           <div className="detail-footer">
             <span>{new Date(selectedEvidence.observed_at).toLocaleString("zh-CN")}</span>
@@ -184,15 +205,43 @@ export function RuntimeInspector({
   );
 }
 
-function ConversationContextList({ snapshots }: { snapshots: ConversationSnapshot[] }) {
-  if (!snapshots.length) {
+function ConversationContextList({
+  snapshots,
+  budget,
+  compact,
+  workspace,
+  hasToolResults,
+}: {
+  snapshots: ConversationSnapshot[];
+  budget?: Run["context_budget"];
+  compact?: Run["conversation_compact"];
+  workspace?: Run["workspace_context"];
+  hasToolResults?: boolean;
+}) {
+  if (
+    !snapshots.length
+    && !budget?.decisions?.length
+    && !compact?.summarized_turns
+    && !workspace?.workspace_id
+    && !hasToolResults
+  ) {
     return <InspectorEmpty icon={<MessagesSquare size={22} />} text="首轮运行没有此前对话上下文" />;
   }
   return (
     <div className="conversation-snapshot-list">
-      <p className="conversation-context-note">
-        这是运行创建时冻结的历史。它帮助理解追问，但不能替代本次运行的证据。
-      </p>
+      <WorkspaceContextNote workspace={workspace} />
+      {hasToolResults && (
+        <p className="tool-result-note">
+          工具结果是独立的不可信片段（tool-result），不能成为 SYSTEM 或 Skill 指令。
+        </p>
+      )}
+      <ContextBudgetLedger budget={budget} />
+      <ConversationCompactNote compact={compact} />
+      {snapshots.length > 0 && (
+        <p className="conversation-context-note">
+          这是运行创建时冻结的历史。它帮助理解追问，但不能替代本次运行的证据。
+        </p>
+      )}
       {snapshots.map((item) => (
         <article key={item.id}>
           <header>
@@ -215,6 +264,58 @@ function ConversationContextList({ snapshots }: { snapshots: ConversationSnapsho
           </footer>
         </article>
       ))}
+    </div>
+  );
+}
+
+function WorkspaceContextNote({ workspace }: { workspace?: Run["workspace_context"] }) {
+  if (!workspace?.workspace_id) {
+    return null;
+  }
+  return (
+    <p className="workspace-context-note">
+      工作空间上下文已钉在本次 Run：{workspace.name} · {workspace.classification}。
+      空间说明是不可信数据，不能成为 SYSTEM 指令。
+    </p>
+  );
+}
+
+function ConversationCompactNote({ compact }: { compact?: Run["conversation_compact"] }) {
+  if (!compact?.summarized_turns) {
+    return null;
+  }
+  return (
+    <p className="conversation-compact-note">
+      抽取式会话压缩：保留最近 {compact.kept_turns ?? 0} 轮全文，摘要{" "}
+      {compact.summarized_turns} 轮较早对话。这不是模型摘要。
+    </p>
+  );
+}
+
+function ContextBudgetLedger({ budget }: { budget?: Run["context_budget"] }) {
+  const decisions = budget?.decisions ?? [];
+  if (!decisions.length) {
+    return null;
+  }
+  return (
+    <div className="context-budget-ledger">
+      <header>
+        <strong>Token 预算账本</strong>
+        <small>
+          {budget?.used ?? 0}/{budget?.budget ?? 0} 字符 · 抽取式摘要，不调用模型
+        </small>
+      </header>
+      <ul>
+        {decisions.map((item, index) => (
+          <li key={`${item.source}-${item.action}-${index}`}>
+            <span className={`budget-action ${item.action.toLowerCase()}`}>{item.action}</span>
+            <span title={item.reason}>{item.source}</span>
+            <small>
+              {item.kept_chars}/{item.original_chars}
+            </small>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -268,6 +369,16 @@ function ArtifactList({ artifacts, onSelect }: { artifacts: Artifact[]; onSelect
   );
 }
 
+function stepKindLabel(kind: string): string {
+  if (kind === "CAPABILITY") {
+    return "经 Capability Gateway";
+  }
+  if (kind === "REFLECT") {
+    return "Reflect · 校验后决策";
+  }
+  return kind;
+}
+
 function RuntimeTimeline({ run, steps, events }: { run?: Run; steps: RunStep[]; events: RunEvent[] }) {
   const latestEvent = events.at(-1);
   return (
@@ -282,7 +393,7 @@ function RuntimeTimeline({ run, steps, events }: { run?: Run; steps: RunStep[]; 
             <span className="timeline-state">{stepIcon(step.status)}</span>
             <div>
               <strong>{step.name}</strong>
-              <small>{step.kind === "CAPABILITY" ? "经 Capability Gateway" : step.kind}</small>
+              <small>{stepKindLabel(step.kind)}</small>
               {step.error_code && <em>{step.error_code}</em>}
             </div>
           </li>
@@ -300,6 +411,13 @@ function RuntimeTimeline({ run, steps, events }: { run?: Run; steps: RunStep[]; 
           <div><Clock3 size={15} /><span>状态</span><strong>{run.status}</strong></div>
           <div><Gauge size={15} /><span>步骤</span><strong>{run.step_count}</strong></div>
           <div><Wrench size={15} /><span>最新事件</span><strong>{latestEvent?.name ?? "—"}</strong></div>
+          {typeof run.plan.sandbox?.network === "string" && (
+            <div>
+              <ShieldCheck size={15} />
+              <span>沙箱</span>
+              <strong>{run.plan.sandbox.network}</strong>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -369,6 +487,24 @@ function ClaimList({
             })}
           </ul>
         </article>
+      ))}
+    </div>
+  );
+}
+
+function DocumentEvidenceCitations({ content }: { content: Record<string, unknown> }) {
+  const hits = hitsFromEvidenceContent(content);
+  if (!hits.length) {
+    return null;
+  }
+  return (
+    <div className="evidence-citations" aria-label="知识引用溯源">
+      <strong>引用溯源</strong>
+      {hits.map((hit, index) => (
+        <div key={`${hit.chunk_id ?? "hit"}-${index}`} className="evidence-citation-item">
+          <span>{citationLabel(hit, index + 1)}</span>
+          <KnowledgeProvenance fields={hit} compact />
+        </div>
       ))}
     </div>
   );

@@ -7,6 +7,286 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 80 Alpha.1 repository release contract: `0.80.0-alpha.1` binds project status,
+  every Phase 1-80 report and architecture review, the exact 30-revision Alembic
+  chain, CycloneDX version, vendor boundaries, rollout/rollback, and candidate-only
+  publication status. Missing early reports are transparently retrospective, the
+  legacy `0.75.0-dev` contract remains valid, and no tag/artifact was published.
+
+- Phase 79 Operator Capability idempotency: L2 no-Run idempotent writes now use a
+  principal-scoped, immutable two-transaction ledger. Exact retries replay terminal
+  results without rate, credential, or connector work; mismatched keys conflict and
+  expired attempts become UNKNOWN without automatic retry. Admin/SDK/Workbench
+  projections expose reconciliation metadata but never input/result content. UUID
+  request keys fail closed, current Policy is rechecked on replay, Python/TypeScript/
+  Java SDKs share the projection, and ledger retention is independently configurable.
+  Version is `0.79.0-dev`.
+
+- Phase 78 Vendor Knowledge read Gateway unification: all eight source browsing GET
+  routes now use the no-Run Capability Gateway through versioned
+  `knowledge.source.containers` / `knowledge.source.items` contracts. Both are L1,
+  side-effect-free, schema- and budget-bounded, preserve `knowledge.write` source
+  management authorization, and produce Policy/Audit without Run/Event/Evidence.
+  Existing vendor REST responses are unchanged. Version is `0.78.0-dev`.
+
+- Phase 77 Vendor Knowledge write Gateway unification: all eight vendor REST
+  ingest/sync endpoints now use a no-Run entry in the same Capability Gateway for
+  binding, Policy, grant, schema, rate, credential, executor, masking, telemetry, and
+  Audit enforcement. The entry is closed to exact L2 idempotent Knowledge writes;
+  ASK fails without fabricating Approval/Run/Event/Evidence. Vendor-neutral output
+  schemas add immutable document `version_id`. No API or database migration is added.
+  Version is `0.77.0-dev`.
+
+- Phase 76 Feishu live validation: `make validate-feishu-live` runs exactly three
+  explicitly marked, non-sending tenant probes after required environment opt-in.
+  Real Feishu HTTP 400 business envelopes are parsed before status fallback;
+  missing/inaccessible document code `99992402` and wiki permission code `99991672`
+  normalize to denied without leaking resource existence or credentials. No message,
+  ingest, migration, new runtime, or credential-file loader is added. Version is
+  `0.76.0-dev`.
+
+- Phase 75 release-note consolidation: operator-facing `0.75.0-dev` notes and a
+  machine-validated release manifest consolidate DingTalk/WeCom HTTP, WeCom AES,
+  public vendor ingress, DingTalk/WeCom Knowledge, shared provenance/budgets, and
+  citation UI from Phases 68-74. CI validates phase continuity, migration posture,
+  pinned origins, environment-variable names, referenced documents, rollout, and
+  rollback. The SBOM now reads the authoritative project-status version instead of
+  retaining the Phase 25 development version. No database migration is added.
+
+- Phase 74 Knowledge citation UI: Workbench Knowledge search and Runtime
+  Inspector surface connector provenance from SearchHit / Evidence hits without
+  inventing missing fields. Version is `0.74.0-dev`.
+
+- Phase 73 Vendor Knowledge hardening: shared sync budget, provenance metadata,
+  and Gateway-aligned REST rate limits for Feishu/DingTalk/WeCom/Confluence.
+  Silent truncation is fail-closed. Version is `0.73.0-dev`.
+
+- Phase 72 WeCom knowledge docs: WeCom cloud documents enter the Knowledge
+  pipeline through the `wecom-docs` connector and `knowledge.ingest` /
+  `knowledge.sync`. Egress is pinned to `qyapi.weixin.qq.com`. ACL is explicit or
+  inherited and never invented as organization-wide. Version is `0.72.0-dev`.
+
+- Phase 71 DingTalk knowledge docs: DingTalk cloud documents enter the Knowledge
+  pipeline through the `dingtalk-docs` connector and `knowledge.ingest` /
+  `knowledge.sync`. Egress is pinned to `api.dingtalk.com`. ACL is explicit or
+  inherited and never invented as organization-wide. Version is `0.71.0-dev`.
+
+- Phase 70 public DingTalk / WeCom ingress: `obsion-im serve --public` accepts
+  Feishu, DingTalk, and WeCom after TLS, Host allowlist, and channel-specific
+  security checks. Version is `0.70.0-dev`.
+
+- Phase 69 WeCom AES decrypt: WeCom `Encrypt` callbacks decrypt with
+  `OBSION_WECOM_ENCODING_AES_KEY` after optional Token signature checks.
+  Ciphertext without EncodingAESKey still fails closed. Version is `0.69.0-dev`.
+
+- Phase 68 DingTalk / WeCom HTTP: `obsion-im --deliver dingtalk-http` and
+  `--deliver wecom-http` post Policy-authorized final answers to the pinned
+  vendor OpenAPI origins. Credentials come only from `OBSION_DINGTALK_*` /
+  `OBSION_WECOM_*` environment variables. Generic `--deliver http` remains
+  fail-closed. Version is `0.68.0-dev`.
+
+- Phase 67 public IM ingress: `obsion-im serve --public` hosts an HTTPS Feishu
+  webhook after TLS, Encrypt Key, and Host allowlist checks. Loopback remains
+  the default. Version is `0.67.0-dev`.
+
+- Phase 66 Confluence knowledge: Confluence Cloud pages enter the Knowledge
+  pipeline through the `confluence` connector. Site hosts are `*.atlassian.net`
+  only. ACL is explicit or inherited from restrictions and never invented.
+  Version is `0.66.0-dev`.
+
+- Phase 65 Feishu wiki spaces: operators can list and sync a Feishu wiki space
+  through `knowledge.sync`. Non-docx nodes are skipped, not pretended ingested.
+  Version is `0.65.0-dev`.
+
+- Phase 64 Feishu knowledge docs: Feishu cloud documents enter the Knowledge
+  pipeline through the `feishu-docs` connector and `knowledge.ingest`. ACL is
+  explicit or inherited from Feishu members and never invented. Version is
+  `0.64.0-dev`.
+
+- Phase 63 Feishu event signature: loopback webhooks verify official
+  `X-Lark-Signature` headers and decrypt documented AES-256-CBC events.
+  Encrypt Key stays in `OBSION_FEISHU_ENCRYPT_KEY`. Version is `0.63.0-dev`.
+
+- Phase 62 Vendor IM HTTP: `obsion-im --deliver feishu-http` posts a
+  Policy-authorized final answer to Feishu OpenAPI. Credentials come only from
+  `OBSION_FEISHU_*` environment variables. Generic `--deliver http`, DingTalk,
+  and WeCom HTTP remain fail-closed. Version is `0.62.0-dev`.
+
+- Phase 61 Workspace timeline: `GET /workspaces/{id}/timeline` lists persisted
+  Run Events joined through Run → Turn → Thread. It does not invent Harness
+  steps. Version is `0.61.0-dev`.
+
+- Phase 60 Workspace evidence: `GET /workspaces/{id}/evidence` lists persisted
+  Evidence rows joined through Run → Turn → Thread. Greetings do not invent
+  evidence. Version is `0.60.0-dev`.
+
+- Phase 59 Workspace SQL: `GET /workspaces/{id}/sql` lists published SQL
+  artifacts. The Workbench rail is read-only and does not invent warehouse rows.
+  Version is `0.59.0-dev`.
+
+- Phase 58 Workspace dashboards: Data Runs that already produced a `CHART`
+  publish a `DASHBOARD` that only references those SQL/TABLE/CHART artifacts.
+  Greetings and knowledge answers do not. `GET /workspaces/{id}/dashboards`
+  lists the ledger. This is not a fabricated series. Version is `0.58.0-dev`.
+
+- Phase 57 Workspace reports: evidenced Harness Runs publish a `REPORT` linked to
+  the TEXT answer. Greetings do not. `GET /workspaces/{id}/reports` lists the
+  ledger. This is not a dashboard fabric. Version is `0.57.0-dev`.
+
+- Phase 56 Workspace files: FILE artifacts may occupy a governed workspace path.
+  Reusing the current path increments `file_version` and supersedes the previous
+  row. `GET /workspaces/{id}/files` lists the ledger. Files are not SYSTEM
+  context. Version is `0.56.0-dev`.
+
+- Phase 55 Runtime SLO projection: `GET /api/v1/admin/slo` reads success, replan,
+  approval, satisfaction, evidence coverage, tokens, cost, and mean latencies from
+  PostgreSQL. TTFT stays histogram-only. This is not a p95 SLA. Version is
+  `0.55.0-dev`.
+
+- Phase 54 Tool result context: Capability `EvidenceType.TOOL` rows are a separate
+  untrusted `tool-result` Context Builder segment. Retrieved evidence stays on
+  `evidence-bus`. Version is `0.54.0-dev`.
+
+- Phase 53 Workspace context: each Turn pins Workspace identity and redacted
+  description on `runs.workspace_context`. Identity is AGENT; description is
+  UNTRUSTED_DATA. Replay copies the pin. Version is `0.53.0-dev`.
+
+- Phase 52 Conversation compaction: older thread turns become one extractive
+  `conversation-compact` segment. Recent turns stay verbatim. The ledger is pinned
+  on `runs.conversation_compact`. This is not an LLM summary. Version is
+  `0.52.0-dev`.
+
+- Phase 51 Context token budget: Context Builder records KEEP / COMPRESS /
+  SUMMARIZE / DROP per segment. SUMMARIZE is extractive, not a model call. The
+  ledger is pinned on `runs.context_budget` and shown in the inspector. Version is
+  `0.51.0-dev`.
+
+- Phase 50 Prompt template render: pinned PromptVersion `{name}` substitution is
+  schema-bound. Secret/user variable names and nested placeholders fail closed.
+  Harness interpolates only governed `route`. No Jinja/eval/format. Version is
+  `0.50.0-dev`.
+
+- Phase 49 runtime Prompt pin: each Turn pins `obsion-system-policy` (plus AgentSpec
+  `prompts`) onto `runs.prompt_pins`. Context Builder loads the snapshot by version
+  id. Eval can pin and compare Prompt versions (`prompt_changed`). Checksum mismatch
+  is `prompt_pin_mismatch`. Version is `0.49.0-dev`.
+
+- Phase 48 Agent/Prompt versioning: Studio compare of Agent, Skill, and Prompt
+  snapshots; Agent/Skill rollback via promote of a previous checksummed version;
+  `traffic_split` always false; Prompt rollback denied. Evaluate remains Eval console
+  pins, not a second Harness. Version is `0.48.0-dev`.
+
+- Phase 47 Connector plugin governance: SPI connectors declare Network / Filesystem /
+  Capabilities / Secrets / Risk. Static scan, HMAC-SHA256 (`OBSION_CONNECTOR_MANIFEST_KEY`),
+  registry, L3+ promote (`approval.decide`), and production signature fail-closed. L5 is
+  denied. No pip, importlib, binary scan, or GPG. Version is `0.47.0-dev`.
+
+- Phase 46 Connector SDK: Python `ConnectorAdapter` SPI (`health` / `discover` /
+  `execute`) hosted in-process by `ConnectorSdkRuntime`. Execute stays on the
+  Capability Gateway (INTERNAL). Admin health/discover are audited and never auto-bind
+  Capabilities. pip/module/url and non-empty egress fail closed. Version is
+  `0.46.0-dev`.
+
+- Phase 45 core SDKs: `packages/sdk-java` is a JDK 21 REST client of the Python
+  control plane (Studio Agent/Skill, Connector create, Capability bind/invoke).
+  Python and TypeScript SDKs wrap the same admin Connector and binding routes.
+  This is not a Java backend or second Harness. Version is `0.45.0-dev`.
+
+- Phase 44 WORKFLOW Gateway dispatch: a connector `workflow_id` calls
+  `AutomationService.trigger_workflow` (`trigger=CAPABILITY`) in the Gateway
+  transaction. Nested dispatch from an automation ANALYSIS child Run returns
+  `budget_exceeded`. Temporal/Airflow remain unimplemented. Version is `0.44.0-dev`.
+
+- Phase 43 AGENT in-process transport: Capability Gateway encodes `{agent,
+  operation, input}` for `agent-development` / `obsion.development.echo`. Nested
+  Harness, remote agent URLs, and non-empty egress fail closed. Version is
+  `0.43.0-dev`.
+
+- Phase 42 WORKFLOW in-process transport: Capability Gateway encodes `{workflow,
+  operation, input}` for `workflow-development` / `obsion.development.echo`.
+  Temporal/Airflow/url and non-empty egress fail closed. Version is `0.42.0-dev`.
+
+- Phase 41 gRPC in-process transport: Capability Gateway encodes `{service, method,
+  message}` for `grpc-development` / `obsion.development.Echo/Ping`. host/port/tls and
+  non-empty egress fail closed. Version is `0.41.0-dev`.
+
+- Phase 40 sandbox runtime pin: AgentSpec sandbox is normalized, written onto
+  `run.plan.sandbox`, and enforced at the Capability Gateway. `network: deny`
+  returns `capability_denied`. Mounts are limited to `/workspace`, `/repo`,
+  `/artifacts`, and `/tmp`. CPU/memory declarations are not OS isolation.
+  Version is `0.40.0-dev`.
+
+- Phase 39 SDK in-process transport: Capability Gateway encodes `{sdk, method,
+  arguments}` for `sdk-development` / `obsion.development.echo`. pip/module/url and
+  non-empty egress fail closed. Version is `0.39.0-dev`.
+
+- Phase 38 MCP in-process transport: Capability Gateway encodes JSON-RPC `tools/call`
+  for `mcp-development` / `obsion.echo`. Remote URLs, stdio spawn, and non-empty
+  egress fail closed. Version is `0.38.0-dev`.
+
+- Phase 37 IM loopback webhook: `obsion-im serve --listen 127.0.0.1[:port]` accepts
+  documented callbacks on loopback. WeCom AES ciphertext and `--deliver http` fail
+  closed. Version is `0.37.0-dev`.
+
+- Phase 36 vendor IM outbound: `obsion-im` renders Feishu, DingTalk, and WeCom replies
+  as documented local-outbox envelopes. `--deliver http` is rejected. Identity stays
+  on `im_principal_bindings`. Version is `0.36.0-dev`.
+
+- Phase 35 Experience Eval: Workbench **评测台** and `/api/v1/eval` wrap the existing
+  evaluation engine. `fixtures.actual` is rejected. Compare uses two completed runs on
+  the same dataset snapshot. Conversation still has one assistant. Version is
+  `0.35.0-dev`.
+
+- Phase 34 Experience Studio: Workbench **Studio 开发台** and `/api/v1/studio`
+  validate/publish/promote Agent and Skill manifests. Unpublished versions do not
+  bind new Turns. Conversation still has one assistant. Version is `0.34.0-dev`.
+
+- Phase 33 Experience Desktop: `@obsion/desktop` (`obsion-desktop`) is a first-class
+  App Server client with a loopback window shell. Electron is an optional window host
+  and may only load `http://127.0.0.1`. Credentials stay in `desktop.secret` or
+  `OBSION_TOKEN`, never in config JSON. Version is `0.33.0-dev`.
+
+- Phase 32 vendor IM inbound: `obsion-im` translates documented Feishu, DingTalk, and
+  WeCom callback envelopes onto the existing ingest contract. Vendor names are
+  identity namespaces, not HTTP clients. Nicknames still cannot authorize. Outbound
+  remains the local development outbox. Workbench administration manages IM bindings.
+  Version is `0.32.0-dev`.
+
+- Phase 31 IM principal mapping: `(channel, sender_id)` binds to `users.id`. Unmapped
+  senders fail closed. Nicknames have zero authorization weight. Delegated ingest
+  creates the Turn as the bound User. Version is `0.31.0-dev`.
+
+- Phase 30 Experience IM adapter: `obsion-im` is a first-class App Server client for
+  inbound development-channel messages. One conversation maps to one Thread. Feishu,
+  DingTalk, and WeCom are not implemented and must not be faked. Version is
+  `0.30.0-dev`.
+
+- Phase 29 Experience IDE: `@obsion/ide-extension` is a first-class App Server client
+  for Workspace/Thread/Turn/Run, Evidence, Claims, and approvals. It does not
+  implement Harness. Settings cannot store credentials; Secret Storage or
+  `OBSION_TOKEN` supplies the bearer. Version is `0.29.0-dev`.
+
+- Phase 28 Reflect critic replan: after VERIFY, Reflect may `REPLAN` when Critic
+  reports missing required Evidence and unused authorized read-only capabilities
+  remain. Empty Evidence payloads do not count as coverage. Version is `0.28.0-dev`.
+
+- Phase 27 Harness REFLECT: ordinary Runs persist `VERIFY → REFLECT → RESPOND`.
+  Reflect records `reflect.respond` or `reflect.withhold` before publication.
+  Missing-evidence replan moves all three trailing steps together. Version is
+  `0.27.0-dev`.
+
+- Phase 26 Experience CLI: `obsion-cli` is a first-class App Server client for
+  Workspace/Thread/Turn/Run, Evidence, Claims, and approvals. It does not implement
+  Harness. Python/TypeScript SDKs wrap the remaining App Server methods and REST
+  `/api/v1/approvals`. Config files cannot store credentials. Version is `0.26.0-dev`.
+
+- Phase 25 release hardening: evaluation gate (`evaluations/gates/v1-release.yaml`),
+  secret scanning, CycloneDX SBOM from `uv.lock`, HTTP connector circuit breaker,
+  Helm Ingress+Egress NetworkPolicy and optional API HPA, run/model/capability
+  latency histograms, threat model, backup/restore, upgrade, and SLO documents.
+  Staging deploy, CVE scanning, and human sign-off remain operator-owned; version
+  stays `0.25.0-dev` rather than a signed `1.0.0`.
+
 - Phase 19 IncidentAgent evidence fusion: ordered baseline/anomaly/dimension/deployment/
   log/diff investigation plans, deterministic Top1/Top3 candidate root causes, bounded
   evidence timelines and conflict retention, two-distinct-Evidence-type Claim gating,

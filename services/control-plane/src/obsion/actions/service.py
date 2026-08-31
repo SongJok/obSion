@@ -48,6 +48,7 @@ from obsion.persistence.events import EventDraft, EventStore
 from obsion.security.auth import load_principal_by_id
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_workspace_access, workspace_access_clause
+from obsion.telemetry import approval_counter
 
 _SECRET_KEY = re.compile(
     r"password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential",
@@ -510,6 +511,7 @@ class ActionService:
             approval.status.value,
             {"approval_id": str(approval.id), "purpose": approval.purpose.value},
         )
+        approval_counter.add(1, {"decision": approval.status.value, "kind": "action"})
         return approval
 
     async def request_rollback(

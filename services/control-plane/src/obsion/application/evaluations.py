@@ -31,8 +31,6 @@ from obsion.db.models import (
     ModelEndpoint,
     ModelProfile,
     ModelProfileEndpoint,
-    PromptDefinition,
-    PromptVersion,
     Run,
     RunStep,
     SkillDefinition,
@@ -47,6 +45,11 @@ from obsion.evaluations.contracts import (
 )
 from obsion.evaluations.engine import EvaluationEngine, canonical_sha256
 from obsion.persistence.audit import AuditDraft, AuditWriter
+from obsion.registry.prompt_pins import (
+    names_for_agent_spec,
+    prompt_fingerprint,
+    resolve_prompt_pins,
+)
 from obsion.security.identity import Principal
 from obsion.security.redaction import redact
 from obsion.telemetry import evaluation_case_duration, evaluation_counter
@@ -184,6 +187,7 @@ class EvaluationService:
             profile,
             request.application_revision,
             run_bindings,
+            request.prompt_pins,
         )
         baseline = await self._require_baseline(
             session,
@@ -340,6 +344,56 @@ class EvaluationService:
             )
         )
 
+    async def compare_runs(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        baseline_run_id: UUID,
+        candidate_run_id: UUID,
+    ) -> dict[str, Any]:
+        candidate = await self.get_run(session, principal, candidate_run_id)
+        if candidate.status != "COMPLETED":
+            raise ConflictError(
+                "evaluation_baseline_not_completed",
+                "Both evaluation runs must be completed before compare",
+            )
+        baseline = await self._require_baseline(
+            session,
+            principal,
+            baseline_run_id,
+            dataset_id=candidate.dataset_id,
+            dataset_snapshot_sha256=candidate.dataset_snapshot_sha256,
+        )
+        assert baseline is not None
+        candidate_results = await self.list_results(session, principal, candidate.id)
+        baseline_results = await self.list_results(session, principal, baseline.id)
+        raw_gate = candidate.metrics.get("gate") if isinstance(candidate.metrics, dict) else None
+        gate: dict[str, Any] = raw_gate if isinstance(raw_gate, dict) else {}
+        gate_configuration = {
+            "minimum_pass_rate": float(gate.get("minimum_pass_rate", 1.0)),
+            "maximum_regression_rate": float(gate.get("maximum_regression_rate", 0.0)),
+            "score_thresholds": dict(gate.get("score_thresholds") or {}),
+        }
+        metrics, gate_passed = self._aggregate(
+            candidate_results,
+            baseline_results,
+            gate_configuration=gate_configuration,
+        )
+        evaluation_counter.add(
+            1, {"operation": "compare", "gate": "PASSED" if gate_passed else "FAILED"}
+        )
+        return {
+            "baseline": baseline,
+            "candidate": candidate,
+            "gate_passed": gate_passed,
+            "metrics": metrics,
+            "agent_changed": baseline.agent_version_id != candidate.agent_version_id,
+            "prompt_changed": prompt_fingerprint(
+                (baseline.configuration_snapshot or {}).get("prompts") or []
+            )
+            != prompt_fingerprint((candidate.configuration_snapshot or {}).get("prompts") or []),
+        }
+
     async def _require_dataset(
         self, session: AsyncSession, principal: Principal, dataset_id: UUID
     ) -> EvaluationDataset:
@@ -383,10 +437,10 @@ class EvaluationService:
         profile: ModelProfile,
         application_revision: str,
         run_bindings: dict[str, UUID],
+        prompt_overrides: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         skill_names = self._string_list(agent.spec.get("skills", []))
         capability_names = self._string_list(agent.spec.get("capabilities", []))
-        prompt_names = self._string_list(agent.spec.get("prompts", agent.spec.get("prompt", [])))
         skills = await self._latest_versions(
             session,
             SkillDefinition,
@@ -403,13 +457,11 @@ class EvaluationService:
             principal.organization_id,
             capability_names,
         )
-        prompts = await self._latest_versions(
+        prompts = await resolve_prompt_pins(
             session,
-            PromptDefinition,
-            PromptVersion,
-            PromptVersion.prompt_id,
             principal.organization_id,
-            prompt_names,
+            names_for_agent_spec(agent.spec),
+            prompt_overrides,
         )
         endpoint_rows = (
             await session.execute(

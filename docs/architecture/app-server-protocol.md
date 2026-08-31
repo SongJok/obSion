@@ -7,7 +7,18 @@ clients and the Harness. Web, IDE, CLI, HTTP API, and IM adapters must not imple
 their own Thread or Run semantics. The App Server translates a versioned client
 protocol into the same application services used by the REST API; it is not a second
 runtime and it never bypasses workspace authorization, policy, approval, audit, or
-Evidence controls.
+Evidence controls. `obsion-cli` is the repository CLI for that protocol.
+`apps/ide-extension` is the repository VS Code client for the same protocol.
+`obsion-im` is the repository IM adapter for the same protocol. It translates
+documented development and vendor callback envelopes into the control-plane ingest
+contract. Inbound identity is resolved by the control plane from a stable sender id,
+not from a chat nickname. Outbound replies default to vendor-shaped local-outbox
+envelopes. Feishu may use the explicit `feishu-http` transport after Policy
+authorization. A loopback webhook may bind `127.0.0.1` only; generic vendor HTTP
+POST is not implemented.
+`obsion-desktop` is the repository Desktop client for the same protocol; its window
+host may only load the loopback desktop shell. The Java SDK is a REST client of the
+same application services; it does not speak this WebSocket protocol in V1.
 
 The public protocol is WebSocket plus JSON-RPC 2.0 at
 `/api/v1/app-server`. REST remains the management and binary-transfer surface. In

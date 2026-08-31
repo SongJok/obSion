@@ -8,9 +8,11 @@ from obsion.capabilities.observability import (
     ObservabilityResponseError,
     normalize_response,
 )
+from obsion.common.errors import ValidationError
 from obsion.config import Environment, Settings
 from obsion.db.models import Connector
-from obsion.domain.enums import ConnectorStatus
+from obsion.domain.enums import CapabilityTransport, ConnectorStatus
+from obsion.registry.builtins import _CAPABILITIES
 from obsion.security.identity import Principal
 
 
@@ -121,6 +123,75 @@ async def test_observability_http_executor_posts_bounded_operation_and_normalize
     assert result.data["count"] == 1
     assert result.data["events"][0]["severity"] == "warning"
     assert b'"operation":"metric.query"' in seen["body"]  # type: ignore[operator]
+
+
+@pytest.mark.asyncio
+async def test_metric_dimension_executes_and_filters_sensitive_labels() -> None:
+    seen: dict[str, object] = {}
+
+    async def responder(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.read()
+        return httpx.Response(
+            200,
+            json={
+                "series": [
+                    {
+                        "metric": {
+                            "service": "payments",
+                            "environment": "production",
+                            "region": "ap-southeast-1",
+                            "user_id": "sensitive-user",
+                            "api_token": "sensitive-token",
+                        },
+                        "values": [[1724889600, "12"]],
+                    }
+                ]
+            },
+        )
+
+    connector = _connector()
+    executor = HttpJsonExecutor(
+        Settings(environment=Environment.TEST), transport=httpx.MockTransport(responder)
+    )
+    result = await executor.invoke(
+        connector,
+        {
+            "operation": "metric.dimension",
+            "service": "payments",
+            "start_time": "2026-08-29T00:00:00Z",
+            "end_time": "2026-08-29T01:00:00Z",
+            "group_by": ["region"],
+        },
+        "provider-token",
+        _context(connector),
+    )
+    assert result.data["operation"] == "metric.dimension"
+    assert result.data["count"] == 1
+    labels = result.data["events"][0]["attributes"]["labels"]
+    assert labels["region"] == "ap-southeast-1"
+    assert "user_id" not in labels
+    assert "api_token" not in labels
+    assert b'"operation":"metric.dimension"' in seen["body"]  # type: ignore[operator]
+
+
+def test_metric_dimension_registry_seed_has_versioned_http_contract() -> None:
+    seed = next(item for item in _CAPABILITIES if item.name == "metric.dimension")
+    assert seed.transport == CapabilityTransport.HTTP
+    assert seed.input_schema is not None
+    assert seed.output_schema is not None
+    assert seed.input_schema["properties"]["operation"] == {"const": "metric.dimension"}
+    assert seed.output_schema["properties"]["operation"] == {"const": "metric.dimension"}
+
+
+def test_unknown_observability_operation_remains_rejected() -> None:
+    with pytest.raises(ValidationError) as caught:
+        normalize_response(
+            [],
+            operation="metric.write",
+            default_service="payments",
+            default_environment="production",
+        )
+    assert getattr(caught.value, "code", None) == "observability_operation_invalid"
 
 
 @pytest.mark.asyncio

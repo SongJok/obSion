@@ -14,7 +14,7 @@ from obsion.contracts.events.validation import (
     prepare_event_draft,
     validate_event_envelope,
 )
-from obsion.db.models import AggregateHead, Event, OutboxMessage, Run
+from obsion.db.models import AggregateHead, Event, OutboxMessage, Run, Thread, Turn
 from obsion.domain.enums import ActorType, Classification
 
 
@@ -174,6 +174,30 @@ class EventStore:
                 Event.run_sequence > after_sequence,
             )
             .order_by(Event.run_sequence)
+            .limit(limit)
+        )
+        return list(result)
+
+    async def list_workspace(
+        self,
+        session: AsyncSession,
+        organization_id: UUID,
+        workspace_id: UUID,
+        *,
+        limit: int = 500,
+    ) -> list[Event]:
+        result = await session.scalars(
+            select(Event)
+            .join(Run, Run.id == Event.run_id)
+            .join(Turn, Turn.id == Run.turn_id)
+            .join(Thread, Thread.id == Turn.thread_id)
+            .where(
+                Event.organization_id == organization_id,
+                Run.organization_id == organization_id,
+                Thread.workspace_id == workspace_id,
+                Event.run_id.is_not(None),
+            )
+            .order_by(Event.created_at.desc())
             .limit(limit)
         )
         return list(result)

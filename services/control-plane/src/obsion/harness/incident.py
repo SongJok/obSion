@@ -80,8 +80,11 @@ class IncidentEvidenceFusion:
     _PAIR_PRIORITIES: dict[frozenset[str], float] = {
         frozenset({"METRIC", "DEPLOYMENT"}): 0.72,
         frozenset({"DEPLOYMENT", "CODE"}): 0.70,
+        frozenset({"DEPLOYMENT", "GIT"}): 0.70,
+        frozenset({"METRIC", "GIT"}): 0.68,
         frozenset({"METRIC", "LOG"}): 0.66,
         frozenset({"LOG", "CODE"}): 0.64,
+        frozenset({"LOG", "GIT"}): 0.64,
         frozenset({"LOG", "DEPLOYMENT"}): 0.60,
         frozenset({"METRIC", "CONFIG"}): 0.58,
         frozenset({"TRACE", "LOG"}): 0.52,
@@ -100,7 +103,7 @@ class IncidentEvidenceFusion:
                     self._evidence_type(item)
                     for item in substantive
                     if self._evidence_type(item)
-                    in {"METRIC", "DEPLOYMENT", "LOG", "TRACE", "CODE", "CONFIG"}
+                    in {"METRIC", "DEPLOYMENT", "LOG", "TRACE", "CODE", "GIT", "CONFIG"}
                 }
             )
         )
@@ -328,7 +331,7 @@ class IncidentEvidenceFusion:
         if types == {"LOG", "CODE"}:
             suffix = f"（commit {release}）" if release else ""
             return f"{service} 的错误日志与代码差异存在时间/信号关联，{suffix}该变更是候选根因。"
-        return f"{service} 的 { ' + '.join(sorted(types)) } 证据在同一调查窗口关联，形成候选根因。"
+        return f"{service} 的 {' + '.join(sorted(types))} 证据在同一调查窗口关联，形成候选根因。"
 
     @classmethod
     def _timeline(cls, evidence: list[Evidence]) -> tuple[dict[str, Any], ...]:

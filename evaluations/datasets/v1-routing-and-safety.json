@@ -20,6 +20,14 @@
       "fixtures": {}
     },
     {
+      "external_id": "route-engineering-001",
+      "version": 1,
+      "evaluator": "ROUTING",
+      "input_payload": {"question": "代码里 POST /order/create 的调用链是什么？"},
+      "expected": {"route": "ENGINEERING"},
+      "fixtures": {}
+    },
+    {
       "external_id": "route-data-decline-001",
       "version": 1,
       "evaluator": "ROUTING",
@@ -40,6 +48,42 @@
       "fixtures": {}
     },
     {
+      "external_id": "route-support-001",
+      "version": 1,
+      "evaluator": "ROUTING",
+      "input_payload": {"question": "用户投诉无法退款，客服工单里应该怎么处理？"},
+      "expected": {"route": "SUPPORT"},
+      "fixtures": {}
+    },
+    {
+      "external_id": "route-operation-001",
+      "version": 1,
+      "evaluator": "ROUTING",
+      "input_payload": {"question": "checkout 工作负载当前 k8s 副本是否就绪？"},
+      "expected": {"route": "OPERATION"},
+      "fixtures": {}
+    },
+    {
+      "external_id": "route-analytics-001",
+      "version": 1,
+      "evaluator": "ROUTING",
+      "input_payload": {
+        "question": "付费人数的漏斗转化率最近怎么样？",
+        "data_understanding": {
+          "domain": "DATA",
+          "intent": "ANALYTICS_QUERY",
+          "metrics": [{"id": "paid_user_count"}],
+          "dimensions": [],
+          "time_range": {},
+          "comparison": null,
+          "need_root_cause": false,
+          "risk": "L2"
+        }
+      },
+      "expected": {"route": "ANALYTICS", "need_data": true, "risk": "L2"},
+      "fixtures": {}
+    },
+    {
       "external_id": "sql-read-001",
       "version": 1,
       "evaluator": "SQL_POLICY",
@@ -54,6 +98,22 @@
       "input_payload": {"sql": "UPDATE incidents SET status = 'closed'", "dialect": "postgres"},
       "expected": {"sql_allowed": false},
       "fixtures": {"allowed_tables": ["incidents"], "allowed_columns": ["status"]}
+    },
+    {
+      "external_id": "sql-union-denied-001",
+      "version": 1,
+      "evaluator": "SQL_POLICY",
+      "input_payload": {"sql": "SELECT service FROM incidents UNION SELECT password FROM users", "dialect": "postgres"},
+      "expected": {"sql_allowed": false},
+      "fixtures": {"allowed_tables": ["incidents"], "allowed_columns": ["service"]}
+    },
+    {
+      "external_id": "sql-comment-injection-denied-001",
+      "version": 1,
+      "evaluator": "SQL_POLICY",
+      "input_payload": {"sql": "SELECT service FROM incidents; DROP TABLE incidents;--", "dialect": "postgres"},
+      "expected": {"sql_allowed": false},
+      "fixtures": {"allowed_tables": ["incidents"], "allowed_columns": ["service"]}
     }
   ]
 }

@@ -1,4 +1,5 @@
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -33,6 +34,80 @@ _FORBIDDEN_RUNTIME_VALUE = re.compile(
     r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
 )
 
+ALLOWED_SANDBOX_NETWORKS = frozenset({"deny", "gateway-only"})
+ALLOWED_SANDBOX_MOUNTS = ("/workspace", "/repo", "/artifacts", "/tmp")  # noqa: S108
+_ALLOWED_SANDBOX_KEYS = frozenset(
+    {
+        "enabled",
+        "network",
+        "mounts",
+        "cpuMillis",
+        "memoryMb",
+        "diskMb",
+        "processLimit",
+    }
+)
+_SANDBOX_INT_BOUNDS = {
+    "cpuMillis": (1, 64_000),
+    "memoryMb": (32, 65_536),
+    "diskMb": (32, 1_048_576),
+    "processLimit": (1, 4_096),
+}
+
+
+def sandbox_allows_capabilities(sandbox: Mapping[str, Any]) -> bool:
+    """Capability Gateway is forbidden when AgentSpec pins network deny."""
+    return sandbox.get("network") != "deny"
+
+
+def normalize_sandbox(value: Any, *, source: str) -> dict[str, Any]:
+    """Normalize AgentSpec sandbox. OS isolation is not claimed here."""
+    if value is None:
+        value = {}
+    if not isinstance(value, dict):
+        raise RegistryManifestError(f"{source} has an invalid sandbox policy")
+    unknown = sorted(set(value) - _ALLOWED_SANDBOX_KEYS)
+    if unknown:
+        raise RegistryManifestError(f"{source} sandbox cannot declare {unknown[0]!r}")
+    enabled = value.get("enabled", True)
+    if enabled is not True:
+        raise RegistryManifestError(f"{source} sandbox.enabled must be true")
+    network = value.get("network")
+    if network is None:
+        network = "gateway-only"
+    elif network not in ALLOWED_SANDBOX_NETWORKS:
+        raise RegistryManifestError(f"{source} sandbox.network must be deny or gateway-only")
+    mounts = value.get("mounts")
+    if mounts is None:
+        mounts = list(ALLOWED_SANDBOX_MOUNTS)
+    elif not isinstance(mounts, list) or not mounts:
+        raise RegistryManifestError(f"{source} sandbox.mounts must be a non-empty list")
+    else:
+        normalized_mounts: list[str] = []
+        for item in mounts:
+            if not isinstance(item, str) or item not in ALLOWED_SANDBOX_MOUNTS:
+                raise RegistryManifestError(
+                    f"{source} sandbox.mounts may only include "
+                    "/workspace, /repo, /artifacts, and /tmp"
+                )
+            if item in normalized_mounts:
+                raise RegistryManifestError(f"{source} sandbox.mounts has duplicates")
+            normalized_mounts.append(item)
+        mounts = normalized_mounts
+    normalized: dict[str, Any] = {
+        "enabled": True,
+        "network": network,
+        "mounts": mounts,
+    }
+    for key, (lo, hi) in _SANDBOX_INT_BOUNDS.items():
+        if key not in value:
+            continue
+        raw = value[key]
+        if not isinstance(raw, int) or isinstance(raw, bool) or not lo <= raw <= hi:
+            raise RegistryManifestError(f"{source} sandbox.{key} is out of range")
+        normalized[key] = raw
+    return normalized
+
 
 def validate_model_context_configuration(value: Any, *, source: str) -> None:
     """Reject direct runtime connections and secrets in Agent/Skill context."""
@@ -62,6 +137,7 @@ class AgentSpec:
     max_steps: int
     timeout_seconds: int
     skills: tuple[str, ...]
+    prompts: tuple[str, ...]
     capabilities: tuple[str, ...]
     risk_max_level: str
     memory: dict[str, Any]
@@ -94,6 +170,7 @@ class AgentSpec:
 
         capabilities = _string_tuple(spec, "capabilities", source, required=True)
         skills = _string_tuple(spec, "skills", source, required=False)
+        prompts = _string_tuple(spec, "prompts", source, required=False)
         risk_policy = spec.get("riskPolicy")
         if not isinstance(risk_policy, dict):
             raise RegistryManifestError(f"{source} requires riskPolicy")
@@ -104,11 +181,7 @@ class AgentSpec:
         memory = spec.get("memory", {})
         if not isinstance(memory, dict):
             raise RegistryManifestError(f"{source} has an invalid memory policy")
-        sandbox = spec.get("sandbox", {})
-        if not isinstance(sandbox, dict):
-            raise RegistryManifestError(f"{source} has an invalid sandbox policy")
-        if sandbox and sandbox.get("network") not in {None, "deny", "gateway-only"}:
-            raise RegistryManifestError(f"{source} sandbox.network must be deny or gateway-only")
+        sandbox = normalize_sandbox(spec.get("sandbox"), source=source)
 
         return cls(
             description=description,
@@ -116,6 +189,7 @@ class AgentSpec:
             max_steps=max_steps,
             timeout_seconds=timeout,
             skills=skills,
+            prompts=prompts,
             capabilities=capabilities,
             risk_max_level=risk_max_level,
             memory=dict(memory),

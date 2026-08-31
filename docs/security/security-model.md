@@ -49,6 +49,31 @@ system-role name or receive the wildcard; permissions are explicit, normalized a
 identifiers. Department membership is an organization-owned reference, not free-form
 identity text.
 
+IM senders are not Principals until bound. The durable key is `(channel, sender_id)`
+to `users.id`. Chat nicknames, `display_name`, and `sender_display` have zero
+authorization weight. Unmapped senders fail closed. The bot that submits an IM message
+needs `im.delegate`; the resulting Turn is owned by the bound User. Documented vendor
+callback envelopes may be translated locally; they are not a substitute for vendor
+HTTP. Outbound replies default to local-outbox envelopes. Feishu, DingTalk, and
+WeCom HTTP are the explicit `*-http` transports after Policy authorization;
+`--deliver http` is rejected.
+`obsion-im serve --listen` binds `127.0.0.1` only. Feishu official
+`X-Lark-Signature` verification uses `OBSION_FEISHU_ENCRYPT_KEY`. WeCom
+`Encrypt` decrypts with `OBSION_WECOM_ENCODING_AES_KEY` when configured;
+ciphertext without EncodingAESKey fails closed. Optional `OBSION_IM_WEBHOOK_SECRET` verifies the
+development JSON wrapper. Feishu cloud documents are a Knowledge source, not an
+IM capability: `obsion-feishu-docs` calls `https://open.feishu.cn` only after
+`knowledge.write` and never stores app secrets on the connector. Config files
+must not contain vendor app credentials.
+
+Non-browser Experience clients (`obsion-cli`, `@obsion/ide-extension`, `obsion-im`,
+`obsion-desktop`) send an explicit Bearer. Desktop stores that bearer in
+`desktop.secret` with owner-only permissions, not in config JSON.
+
+Studio validate/publish is a registry write path. Specs cannot carry credentials or
+DSNs; Policy still decides capability permission after a version is promoted. Eval
+start/compare is an evaluation write path. Cases cannot self-report `fixtures.actual`.
+
 Tenant isolation has two independent layers:
 
 - repositories scope protected reads and writes by `Principal.organization_id` and
@@ -84,7 +109,7 @@ Production query capabilities use a dedicated read-only identity and target a re
 
 ## Credential safety
 
-Secrets are stored in an external secret manager or encrypted credential store. Agent context holds capability and connector IDs only. The execution boundary resolves a short-lived credential after authorization, passes it directly to the connector, and discards it. Secret values are redacted from logs, events, exceptions, traces, and model payloads.
+Secrets are stored in an external secret manager or encrypted credential store. Agent context holds capability and connector IDs only. The execution boundary resolves a short-lived credential after authorization, passes it directly to the connector, and discards it. Secret values are redacted from logs, events, exceptions, traces, and model payloads. MCP, SDK, gRPC, WORKFLOW, and AGENT executors must not copy the credential into JSON-RPC `tools/call` params, SDK/gRPC/workflow/agent invocation envelopes, or tool results. WORKFLOW `workflow_id` dispatch starts an `AutomationExecution` in the same Gateway transaction; it does not send connector credentials to a remote orchestrator.
 
 Model credentials follow the same rule inside the Model Gateway: only a
 `credential_ref` is persisted, the secret is resolved immediately before the provider
@@ -103,13 +128,21 @@ permission without the later Capability Gateway and Policy boundary.
 - context segments have explicit trust labels and precedence;
 - external text cannot register tools, grant permissions, or become instructions;
 - capability calls are re-authorized independently of planning output;
-- sandbox egress defaults to deny and permits only approved gateways;
+- sandbox egress defaults to `gateway-only` and is pinned on the Run; `deny` blocks
+  Capability Gateway execution. Direct `curl` of arbitrary hosts is not a Harness path;
 - DLP scans outbound model requests and connector responses;
 - sensitive resource references are scoped to the run and user authorization.
 
 ## Sandbox
 
-Execution and coding agents run with CPU, memory, disk, process, filesystem, network, and duration limits. Workspaces expose only explicit `/workspace`, `/repo`, `/artifacts`, and `/tmp` mounts. The sandbox has no direct path to production networks or long-lived credentials.
+AgentSpecs declare `sandbox.network` as `deny` or `gateway-only` (default
+`gateway-only`). The normalized policy, including allowed mounts
+(`/workspace`, `/repo`, `/artifacts`, `/tmp`), is pinned on `run.plan.sandbox`.
+Capability execution is Gateway-only; `network: deny` fails closed at the Gateway
+before the executor. Model Gateway and Artifact Store remain control-plane paths,
+not Agent-opened sockets. Optional CPU, memory, disk, and process fields are
+declared and pinned; this control plane does not apply cgroups, seccomp, or a
+container runtime. Agents never receive connector credentials.
 
 ## Audit and privacy
 
@@ -149,9 +182,17 @@ and every attempt persists a policy decision, safe event stream, audit record, a
 notification. Lost responses are recovered with the same provider key rather than by
 creating a new write.
 
+No-Run L2 Knowledge writes use a separate principal-scoped idempotency ledger. The
+claim commits before credential resolution; terminal replay never resolves a secret
+or executes a connector. The ledger stores only hashes, pins, a safe terminal result,
+and bounded error metadata. PostgreSQL rejects identity/terminal rewrites and early
+deletion. An expired in-progress lease becomes UNKNOWN and cannot be automatically
+retried. Its content-free admin projection supports investigation without exposing
+the request or result payload. This control-plane ledger is not a Run/Event history.
+
 ## Plugin supply chain
 
-Plugin promotion follows develop, scan, sign, register, approve, and deploy. Manifests declare network, filesystem, capability, secret, and risk requirements. Registry versions are immutable, signatures are verified before load, and production cannot install directly from an arbitrary URL.
+Plugin promotion follows develop, scan, sign, register, approve, and deploy. Manifests declare network, filesystem, capability, secret, and risk requirements. Registry versions are immutable, signatures are verified before load, and production cannot install directly from an arbitrary URL. V1 Connector SDK adapters are in-process registrations of `health`/`discover`/`execute`; pip install, importlib, and remote URL load remain unimplemented. V1 scan is a static declaration policy. V1 signature is HMAC-SHA256 of the canonical plugin JSON with `OBSION_CONNECTOR_MANIFEST_KEY`. L5 is denied. L3+ require `approval.decide` before ACTIVE. This is not GPG, cosign, or a malware sandbox.
 
 ## Threat-model verification
 
@@ -160,3 +201,5 @@ self-approval, immutable action plans, production/deferred-action bypass attempt
 provider idempotency recovery, SQL bypass attempts, ACL retrieval leakage, prompt
 injection through every evidence source, secret redaction, event tampering, connector
 timeout/cancellation, SSRF/egress, and malicious plugin manifests.
+
+See also the V1 [threat model](threat-model.md).

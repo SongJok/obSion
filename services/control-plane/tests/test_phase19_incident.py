@@ -186,8 +186,7 @@ def test_incident_fusion_keeps_conflicts_and_limits_candidates_to_top_three() ->
     )
     assert result.conflicts
     assert any(
-        {"METRIC", "LOG"}.issubset(set(candidate.evidence_types))
-        for candidate in result.candidates
+        {"METRIC", "LOG"}.issubset(set(candidate.evidence_types)) for candidate in result.candidates
     )
 
 

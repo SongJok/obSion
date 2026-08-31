@@ -34,8 +34,8 @@ class _ExampleEnum(StrEnum):
 def test_event_contract_registry_and_schemas_are_valid() -> None:
     summary = validate_event_contracts()
     assert summary.registry_version == 1
-    assert summary.event_count == 92
-    assert summary.version_count == 92
+    assert summary.event_count == 93
+    assert summary.version_count == 93
 
 
 def test_event_contract_canonicalization_is_deterministic_and_rejects_unsafe_values() -> None:

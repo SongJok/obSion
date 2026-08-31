@@ -3,7 +3,7 @@ from contextlib import suppress
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.schemas import ArtifactView
@@ -40,6 +40,7 @@ async def upload_artifact(
     classification: Annotated[Classification, Form()] = Classification.INTERNAL,
     run_id: Annotated[UUID | None, Form()] = None,
     lineage: Annotated[str, Form(max_length=20_000)] = "{}",
+    path: Annotated[str | None, Form(max_length=512)] = None,
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
     service: ArtifactService = Depends(get_artifact_service),
@@ -66,6 +67,7 @@ async def upload_artifact(
                 content=content,
                 classification=classification,
                 lineage={**parsed_lineage, "filename": file.filename or title},
+                path=path,
             )
     except Exception:
         if artifact is not None and artifact.storage_key is not None:
@@ -84,6 +86,56 @@ async def list_workspace_artifacts(
     service: ArtifactService = Depends(get_artifact_service),
 ) -> list[ArtifactView]:
     artifacts = await service.list_workspace(session, principal, workspace_id)
+    return [ArtifactView.model_validate(item) for item in artifacts]
+
+
+@router.get("/workspaces/{workspace_id}/files", response_model=list[ArtifactView])
+async def list_workspace_files(
+    workspace_id: UUID,
+    include_superseded: bool = Query(default=False),
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: ArtifactService = Depends(get_artifact_service),
+) -> list[ArtifactView]:
+    artifacts = await service.list_files(
+        session,
+        principal,
+        workspace_id,
+        include_superseded=include_superseded,
+    )
+    return [ArtifactView.model_validate(item) for item in artifacts]
+
+
+@router.get("/workspaces/{workspace_id}/reports", response_model=list[ArtifactView])
+async def list_workspace_reports(
+    workspace_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: ArtifactService = Depends(get_artifact_service),
+) -> list[ArtifactView]:
+    artifacts = await service.list_reports(session, principal, workspace_id)
+    return [ArtifactView.model_validate(item) for item in artifacts]
+
+
+@router.get("/workspaces/{workspace_id}/dashboards", response_model=list[ArtifactView])
+async def list_workspace_dashboards(
+    workspace_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: ArtifactService = Depends(get_artifact_service),
+) -> list[ArtifactView]:
+    artifacts = await service.list_dashboards(session, principal, workspace_id)
+    return [ArtifactView.model_validate(item) for item in artifacts]
+
+
+@router.get("/workspaces/{workspace_id}/sql", response_model=list[ArtifactView])
+async def list_workspace_sql(
+    workspace_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: ArtifactService = Depends(get_artifact_service),
+) -> list[ArtifactView]:
+    artifacts = await service.list_sql(session, principal, workspace_id)
     return [ArtifactView.model_validate(item) for item in artifacts]
 
 

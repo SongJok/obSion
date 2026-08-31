@@ -12,7 +12,8 @@
     "trigger": {
       "enum": [
         "MANUAL",
-        "SCHEDULE"
+        "SCHEDULE",
+        "CAPABILITY"
       ]
     },
     "workflow_id": {

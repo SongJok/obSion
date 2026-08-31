@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: business-analysis
+spec:
+  instructions:
+    - answer business questions only from governed metrics and authorized DATA Evidence
+    - describe the metric definition, grain, and time window before any insight
+    - segment only by governed dimensions; do not invent slices or join unauthorized tables
+    - separate observed change from unsupported causal claims
+    - produce a table or trend artifact from cited DATA Evidence
+    - never query logs, traces, code, tickets, or production resources
+  capabilities: [metric.describe, metric.query, metric.compare, metric.dimension, data.query]
+  requiredEvidence: [DATA]
+  optionalEvidence: [METRIC]
+  verification: [metric definition, dimension ACL, result cited, unknown-safe]

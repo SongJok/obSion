@@ -194,10 +194,28 @@ class AsyncObsionClient:
             await self._request("GET", "/api/v1/admin/feedback/summary"),
         )
 
+    async def get_runtime_slo(self) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("GET", "/api/v1/admin/slo"),
+        )
+
     async def list_events(self, run_id: str, *, after: int = 0) -> list[dict[str, Any]]:
         return cast(
             list[dict[str, Any]],
             await self._request("GET", f"/api/v1/runs/{run_id}/events", params={"after": after}),
+        )
+
+    async def list_workspace_timeline(
+        self, workspace_id: str, *, limit: int = 500
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET",
+                f"/api/v1/workspaces/{workspace_id}/timeline",
+                params={"limit": limit},
+            ),
         )
 
     async def list_run_steps(self, run_id: str) -> list[dict[str, Any]]:
@@ -210,6 +228,12 @@ class AsyncObsionClient:
         return cast(
             list[dict[str, Any]],
             await self._request("GET", f"/api/v1/runs/{run_id}/evidence"),
+        )
+
+    async def list_workspace_evidence(self, workspace_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/workspaces/{workspace_id}/evidence"),
         )
 
     async def list_run_claims(self, run_id: str) -> list[dict[str, Any]]:
@@ -236,6 +260,36 @@ class AsyncObsionClient:
             await self._request("GET", f"/api/v1/workspaces/{workspace_id}/artifacts"),
         )
 
+    async def list_workspace_files(
+        self, workspace_id: str, *, include_superseded: bool = False
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET",
+                f"/api/v1/workspaces/{workspace_id}/files",
+                params={"include_superseded": include_superseded},
+            ),
+        )
+
+    async def list_workspace_reports(self, workspace_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/workspaces/{workspace_id}/reports"),
+        )
+
+    async def list_workspace_dashboards(self, workspace_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/workspaces/{workspace_id}/dashboards"),
+        )
+
+    async def list_workspace_sql(self, workspace_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/workspaces/{workspace_id}/sql"),
+        )
+
     async def download_artifact(self, artifact_id: str) -> bytes:
         response = await self._client.get(f"/api/v1/artifacts/{artifact_id}/content")
         await self._raise_for_status(response)
@@ -253,6 +307,7 @@ class AsyncObsionClient:
         classification: str = "INTERNAL",
         run_id: str | None = None,
         lineage: dict[str, Any] | None = None,
+        path: str | None = None,
     ) -> dict[str, Any]:
         data = {
             "title": title,
@@ -262,6 +317,8 @@ class AsyncObsionClient:
         }
         if run_id is not None:
             data["run_id"] = run_id
+        if path is not None:
+            data["path"] = path
         return cast(
             dict[str, Any],
             await self._request(
@@ -595,6 +652,179 @@ class AsyncObsionClient:
             ),
         )
 
+    async def ingest_feishu_document(
+        self,
+        document_id: str,
+        *,
+        obj_type: str = "auto",
+        title: str | None = None,
+        classification: str = "INTERNAL",
+        acl: dict[str, Any] | None = None,
+        inherit_acl: bool = False,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "document_id": document_id,
+            "obj_type": obj_type,
+            "classification": classification,
+            "acl": acl if acl is not None else {"organization": True},
+            "inherit_acl": inherit_acl,
+        }
+        if title is not None:
+            payload["title"] = title
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/knowledge/sources/feishu/documents",
+                json=payload,
+            ),
+        )
+
+    async def list_feishu_spaces(self) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/knowledge/sources/feishu/spaces"),
+        )
+
+    async def list_feishu_wiki_nodes(self, space_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET",
+                f"/api/v1/knowledge/sources/feishu/spaces/{space_id}/nodes",
+            ),
+        )
+
+    async def sync_feishu_space(
+        self,
+        space_id: str,
+        *,
+        classification: str = "INTERNAL",
+        acl: dict[str, Any] | None = None,
+        inherit_acl: bool = False,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/knowledge/sources/feishu/spaces/{space_id}/sync",
+                json={
+                    "classification": classification,
+                    "acl": acl if acl is not None else {"organization": True},
+                    "inherit_acl": inherit_acl,
+                },
+            ),
+        )
+
+    async def ingest_confluence_page(
+        self,
+        page_id: str,
+        *,
+        title: str | None = None,
+        classification: str = "INTERNAL",
+        acl: dict[str, Any] | None = None,
+        inherit_acl: bool = False,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "page_id": page_id,
+            "classification": classification,
+            "acl": acl if acl is not None else {"organization": True},
+            "inherit_acl": inherit_acl,
+        }
+        if title is not None:
+            payload["title"] = title
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/knowledge/sources/confluence/pages",
+                json=payload,
+            ),
+        )
+
+    async def list_confluence_spaces(self) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/knowledge/sources/confluence/spaces"),
+        )
+
+    async def sync_confluence_space(
+        self,
+        space_id: str,
+        *,
+        classification: str = "INTERNAL",
+        acl: dict[str, Any] | None = None,
+        inherit_acl: bool = False,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/knowledge/sources/confluence/spaces/{space_id}/sync",
+                json={
+                    "classification": classification,
+                    "acl": acl if acl is not None else {"organization": True},
+                    "inherit_acl": inherit_acl,
+                },
+            ),
+        )
+
+    async def create_code_repository(
+        self,
+        *,
+        name: str,
+        classification: str = "INTERNAL",
+        acl: dict[str, Any] | None = None,
+        default_branch: str = "main",
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/code/repositories",
+                json={
+                    "name": name,
+                    "classification": classification,
+                    "acl": acl or {"organization": True},
+                    "default_branch": default_branch,
+                },
+            ),
+        )
+
+    async def list_code_repositories(self) -> list[dict[str, Any]]:
+        return cast(list[dict[str, Any]], await self._request("GET", "/api/v1/code/repositories"))
+
+    async def index_code_snapshot(
+        self,
+        repository_id: str,
+        *,
+        commit_id: str,
+        files: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/code/repositories/{repository_id}/snapshots",
+                json={"commit_id": commit_id, "files": files},
+            ),
+        )
+
+    async def search_code_symbols(
+        self,
+        query: str,
+        *,
+        repository: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        payload: dict[str, Any] = {"query": query, "limit": limit}
+        if repository is not None:
+            payload["repository"] = repository
+        return cast(
+            list[dict[str, Any]],
+            await self._request("POST", "/api/v1/code/symbols/search", json=payload),
+        )
+
     async def create_evaluation_dataset(
         self,
         *,
@@ -824,6 +1054,298 @@ class AsyncObsionClient:
             ),
         )
 
+    async def list_approvals(self, *, status: str | None = None) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        if status is not None:
+            params["status"] = status
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/approvals", params=params),
+        )
+
+    async def decide_approval(
+        self, approval_id: str, *, approve: bool, reason: str
+    ) -> dict[str, Any]:
+        decision = "approve" if approve else "reject"
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/approvals/{approval_id}/{decision}",
+                json={"reason": reason},
+            ),
+        )
+
+    async def list_im_bindings(self) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/admin/im-bindings"),
+        )
+
+    async def create_im_binding(
+        self, *, channel: str, sender_id: str, user_id: str
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/admin/im-bindings",
+                json={"channel": channel, "sender_id": sender_id, "user_id": user_id},
+            ),
+        )
+
+    async def revoke_im_binding(self, binding_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/admin/im-bindings/{binding_id}/revoke"),
+        )
+
+    async def create_im_message(
+        self,
+        *,
+        channel: str,
+        sender_id: str,
+        conversation_id: str,
+        text: str,
+        sender_display: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "channel": channel,
+            "sender_id": sender_id,
+            "conversation_id": conversation_id,
+            "text": text,
+        }
+        if sender_display is not None:
+            payload["sender_display"] = sender_display
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/experience/im/messages", json=payload),
+        )
+
+    async def prepare_im_delivery(self, run_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/experience/im/runs/{run_id}/deliveries",
+            ),
+        )
+
+    async def complete_im_delivery(
+        self,
+        delivery_id: str,
+        *,
+        vendor_message_id: str,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/experience/im/deliveries/{delivery_id}/complete",
+                json={"vendor_message_id": vendor_message_id},
+            ),
+        )
+
+    async def fail_im_delivery(
+        self,
+        delivery_id: str,
+        *,
+        failure_code: str = "vendor_request_failed",
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/experience/im/deliveries/{delivery_id}/fail",
+                json={"failure_code": failure_code},
+            ),
+        )
+
+    async def list_studio_catalog(self) -> dict[str, Any]:
+        return cast(dict[str, Any], await self._request("GET", "/api/v1/studio/catalog"))
+
+    async def validate_studio_document(self, document: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/studio/validate", json={"document": document}),
+        )
+
+    async def publish_studio_agent(self, document: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/studio/agents", json={"document": document}),
+        )
+
+    async def publish_studio_skill(self, document: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/studio/skills", json={"document": document}),
+        )
+
+    async def list_connectors(self) -> list[dict[str, Any]]:
+        return cast(list[dict[str, Any]], await self._request("GET", "/api/v1/admin/connectors"))
+
+    async def create_connector(self, definition: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", "/api/v1/admin/connectors", json=definition),
+        )
+
+    async def list_admin_capabilities(self) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", "/api/v1/admin/capabilities"),
+        )
+
+    async def list_operator_invocations(
+        self,
+        *,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if status is not None:
+            params["status"] = status
+        return cast(
+            list[dict[str, Any]],
+            await self._request(
+                "GET",
+                "/api/v1/admin/operator-invocations",
+                params=params,
+            ),
+        )
+
+    async def bind_capability(
+        self,
+        capability_id: str,
+        *,
+        connector_id: str,
+        environment: str,
+        resource_selector: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/admin/capabilities/{capability_id}/bindings",
+                json={
+                    "connector_id": connector_id,
+                    "environment": environment,
+                    "resource_selector": resource_selector or {},
+                },
+            ),
+        )
+
+    async def probe_connector_health(self, connector_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/admin/connectors/{connector_id}/health"),
+        )
+
+    async def discover_connector(self, connector_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/admin/connectors/{connector_id}/discover"),
+        )
+
+    async def scan_connector_plugin(self, connector_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/admin/connectors/{connector_id}/scan"),
+        )
+
+    async def promote_connector_plugin(self, connector_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/admin/connectors/{connector_id}/promote"),
+        )
+
+    async def promote_studio_version(self, *, kind: str, name: str, version: int) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/studio/promote",
+                json={"kind": kind, "name": name, "version": version},
+            ),
+        )
+
+    async def rollback_studio_version(
+        self, *, kind: str, name: str, version: int
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/studio/rollback",
+                json={"kind": kind, "name": name, "version": version},
+            ),
+        )
+
+    async def compare_studio_versions(
+        self,
+        *,
+        kind: str,
+        name: str,
+        baseline_version: int,
+        candidate_version: int,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/studio/compare",
+                json={
+                    "kind": kind,
+                    "name": name,
+                    "baseline_version": baseline_version,
+                    "candidate_version": candidate_version,
+                },
+            ),
+        )
+
+    async def list_eval_catalog(self) -> dict[str, Any]:
+        return cast(dict[str, Any], await self._request("GET", "/api/v1/eval/catalog"))
+
+    async def create_eval_dataset(
+        self, *, name: str, domain: str, description: str = ""
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/eval/datasets",
+                json={"name": name, "domain": domain, "description": description},
+            ),
+        )
+
+    async def add_eval_case(self, dataset_id: str, case: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/eval/datasets/{dataset_id}/cases", json=case),
+        )
+
+    async def start_eval_run(self, dataset_id: str, request: dict[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("POST", f"/api/v1/eval/datasets/{dataset_id}/runs", json=request),
+        )
+
+    async def compare_eval_runs(
+        self, *, baseline_run_id: str, candidate_run_id: str
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/eval/compare",
+                json={
+                    "baseline_run_id": baseline_run_id,
+                    "candidate_run_id": candidate_run_id,
+                },
+            ),
+        )
+
     async def list_action_approvals(
         self, *, status: str | None = None, limit: int = 200
     ) -> list[dict[str, Any]]:
@@ -880,6 +1402,33 @@ class AsyncObsionClient:
                 f"/api/v1/actions/{action_id}/events",
                 params={"after": after, "limit": limit},
             ),
+        )
+
+    async def get_memory(self, memory_id: str) -> dict[str, Any]:
+        return cast(dict[str, Any], await self._request("GET", f"/api/v1/memories/{memory_id}"))
+
+    async def update_memory(
+        self,
+        memory_id: str,
+        *,
+        content: dict[str, Any],
+        sensitivity: str | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"content": content}
+        if sensitivity is not None:
+            payload["sensitivity"] = sensitivity
+        if expires_at is not None:
+            payload["expires_at"] = expires_at
+        return cast(
+            dict[str, Any],
+            await self._request("PATCH", f"/api/v1/memories/{memory_id}", json=payload),
+        )
+
+    async def revoke_memory(self, memory_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("DELETE", f"/api/v1/memories/{memory_id}"),
         )
 
     async def decide_memory(self, memory_id: str, *, approve: bool, reason: str) -> dict[str, Any]:

@@ -1,0 +1,14 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-workflow-development
+spec:
+  type: workflow-development
+  environment: development
+  transport: WORKFLOW
+  grants: [workflow.invoke]
+  allowedEgress: []
+  configuration:
+    workflow: obsion.development
+    operation: echo
+  capabilities: [workflow.development.echo]

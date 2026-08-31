@@ -6,5 +6,10 @@ spec:
   description: Business metric analysis and insight agent
   modelPolicy: {profile: reasoning-high}
   maxSteps: 18
+  skills: [business-analysis, trend-analysis, funnel-analysis]
   capabilities: [metric.describe, metric.query, metric.compare, metric.dimension, data.query]
   riskPolicy: {maxLevel: L2}
+  sandbox:
+    enabled: true
+    network: gateway-only
+    mounts: [/workspace, /repo, /artifacts, /tmp]

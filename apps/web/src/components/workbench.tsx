@@ -27,10 +27,19 @@ import { AdminView } from "./admin-view";
 import { ActionsView } from "./actions-view";
 import { AutomationView } from "./automation-view";
 import { ArtifactsView } from "./artifacts-view";
+import { FilesView } from "./files-view";
+import { ReportsView } from "./reports-view";
+import { DashboardsView } from "./dashboards-view";
+import { SqlView } from "./sql-view";
+import { EvidenceView } from "./evidence-view";
+import { TimelineView } from "./timeline-view";
 import { Composer } from "./composer";
 import { Conversation } from "./conversation";
 import { CollaborationView } from "./collaboration-view";
+import { CodeView } from "./code-view";
 import { DataView } from "./data-view";
+import { EvalView } from "./eval-view";
+import { StudioView } from "./studio-view";
 import { EmptyState } from "./empty-state";
 import { KnowledgeView } from "./knowledge-view";
 import { RuntimeInspector } from "./runtime-inspector";
@@ -755,7 +764,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
               <RuntimeInspector open={inspectorOpen} mobileVisible={mobileInspectorOpen} onClose={() => { setInspectorOpen(false); setMobileInspectorOpen(false); }} onReplay={() => { if (run) void replay(run); }} replaying={Boolean(replayingRunId)} run={run} events={events} steps={steps} evidence={evidence} memories={memories} conversation={conversationContext} claims={claims} artifacts={artifacts} />
             </div>
           </>
-        ) : view === "collaboration" ? <CollaborationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "data" ? <DataView /> : <AdminView />}
+        ) : view === "collaboration" ? <CollaborationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "files" ? <FilesView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "reports" ? <ReportsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "dashboards" ? <DashboardsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "sql" ? <SqlView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "evidence" ? <EvidenceView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "timeline" ? <TimelineView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "code" ? <CodeView /> : view === "data" ? <DataView /> : view === "studio" ? <StudioView /> : view === "eval" ? <EvalView /> : <AdminView />}
       </section>
 
       {workspaceModal && (

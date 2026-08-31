@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from obsion.api.schemas import CreateMemoryRequest
+from obsion.api.schemas import CreateMemoryRequest, UpdateMemoryRequest
 from obsion.common.errors import AuthorizationError, ConflictError, NotFoundError, ValidationError
 from obsion.common.time import ensure_utc, utc_now
 from obsion.config import Settings
@@ -231,6 +231,262 @@ class MemoryService:
         if status is not None:
             memories = [memory for memory in memories if memory.status == status]
         return memories
+
+    async def get_memory(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        memory_id: UUID,
+    ) -> Memory:
+        if not principal.can("memory.read"):
+            raise AuthorizationError("memory_read_denied", "Memory access is not permitted")
+        memory = await session.scalar(
+            select(Memory)
+            .where(
+                Memory.id == memory_id,
+                Memory.organization_id == principal.organization_id,
+            )
+            .with_for_update()
+        )
+        if memory is None:
+            raise NotFoundError("Memory", memory_id)
+        await self._require_owner(session, principal, memory.scope, memory.owner_ref)
+        now = utc_now()
+        if (
+            memory.expires_at is not None
+            and ensure_utc(memory.expires_at) <= now
+            and memory.status in {MemoryStatus.CANDIDATE, MemoryStatus.APPROVED}
+        ):
+            memory.status = MemoryStatus.EXPIRED
+            await self._record(session, principal, memory, "memory.expired", "EXPIRED")
+        return memory
+
+    async def update_memory(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        memory_id: UUID,
+        request: UpdateMemoryRequest,
+    ) -> MemoryWriteResult:
+        if not principal.can("memory.write"):
+            raise AuthorizationError("memory_write_denied", "Memory updates are not permitted")
+        memory = await session.scalar(
+            select(Memory)
+            .where(
+                Memory.id == memory_id,
+                Memory.organization_id == principal.organization_id,
+            )
+            .with_for_update()
+        )
+        if memory is None:
+            raise NotFoundError("Memory", memory_id)
+        await self._require_owner(session, principal, memory.scope, memory.owner_ref, write=True)
+        now = utc_now()
+        if (
+            memory.expires_at is not None
+            and ensure_utc(memory.expires_at) <= now
+            and memory.status in {MemoryStatus.CANDIDATE, MemoryStatus.APPROVED}
+        ):
+            memory.status = MemoryStatus.EXPIRED
+            await self._record(session, principal, memory, "memory.expired", "EXPIRED")
+        if memory.status not in {MemoryStatus.CANDIDATE, MemoryStatus.APPROVED}:
+            raise ConflictError(
+                "memory_already_decided",
+                "This memory can no longer be edited",
+                status=memory.status,
+            )
+        expires_at = (
+            ensure_utc(request.expires_at)
+            if request.expires_at is not None
+            else (ensure_utc(memory.expires_at) if memory.expires_at is not None else None)
+        )
+        if expires_at is not None and expires_at <= now:
+            raise ValidationError("memory_expiry_invalid", "Memory expiry must be in the future")
+        if expires_at is not None and expires_at > now + timedelta(
+            days=self.settings.memory_max_ttl_days
+        ):
+            raise ValidationError(
+                "memory_expiry_exceeds_policy",
+                "Memory expiry exceeds the configured retention boundary",
+                max_ttl_days=self.settings.memory_max_ttl_days,
+            )
+        content = cast(dict[str, Any], redact(request.content))
+        canonical = json.dumps(content, sort_keys=True, separators=(",", ":"), default=str)
+        if len(canonical) > self.settings.memory_max_context_chars:
+            raise ValidationError(
+                "memory_content_too_large",
+                "A memory item exceeds the governed context size limit",
+                max_chars=self.settings.memory_max_context_chars,
+            )
+        dedupe_key = hashlib.sha256(canonical.encode()).hexdigest()
+        sensitivity = self._highest_classification(
+            request.sensitivity or memory.sensitivity,
+            await self._require_owner(
+                session, principal, memory.scope, memory.owner_ref, write=True
+            ),
+        )
+        existing = await session.scalar(
+            select(Memory).where(
+                Memory.organization_id == principal.organization_id,
+                Memory.scope == memory.scope,
+                Memory.owner_ref == memory.owner_ref,
+                Memory.dedupe_key == dedupe_key,
+                Memory.id != memory.id,
+            )
+        )
+        if existing is not None:
+            raise ConflictError(
+                "memory_duplicate_classification_conflict",
+                "Matching memory exists for this owner and content",
+                memory_id=str(existing.id),
+                existing_sensitivity=existing.sensitivity,
+                requested_sensitivity=sensitivity,
+            )
+        decision = await self.policy.evaluate_resource(
+            session,
+            ResourcePolicyInput(
+                principal=principal,
+                action="memory.write",
+                resource={
+                    "memory_id": str(memory.id),
+                    "scope": memory.scope,
+                    "owner_ref": memory.owner_ref,
+                    "classification": sensitivity,
+                    "content_fingerprint": dedupe_key,
+                },
+                context={
+                    "environment": self.settings.environment,
+                    "expires_at": expires_at.isoformat() if expires_at is not None else None,
+                },
+                risk_level=_CLASSIFICATION_RISK[sensitivity],
+                resource_type="memory",
+            ),
+        )
+        if decision.effect == DecisionEffect.DENY:
+            await self.audit.write(
+                session,
+                AuditDraft(
+                    organization_id=principal.organization_id,
+                    correlation_id=memory.id,
+                    actor_type=ActorType.USER,
+                    actor_id=principal.id,
+                    action="memory.write",
+                    resource_type="memory",
+                    resource_id=str(memory.id),
+                    outcome="DENIED",
+                    risk_level=_CLASSIFICATION_RISK[sensitivity],
+                    policy_decision_id=decision.id,
+                    metadata={
+                        "scope": memory.scope,
+                        "classification": sensitivity,
+                        "reason_codes": decision.reason_codes,
+                    },
+                ),
+            )
+            return MemoryWriteResult(memory, decision)
+
+        memory.content = content
+        memory.dedupe_key = dedupe_key
+        memory.sensitivity = sensitivity
+        memory.expires_at = expires_at
+        memory.status = MemoryStatus.CANDIDATE
+        memory.policy_decision_id = decision.id
+        await self._record(
+            session,
+            principal,
+            memory,
+            "memory.candidate",
+            "CANDIDATE",
+            {
+                "policy_effect": decision.effect,
+                "policy_reason_codes": decision.reason_codes,
+            },
+            policy_decision_id=decision.id,
+        )
+        return MemoryWriteResult(memory, decision)
+
+    async def revoke_memory(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        memory_id: UUID,
+    ) -> MemoryWriteResult:
+        if not principal.can("memory.write"):
+            raise AuthorizationError("memory_write_denied", "Memory deletion is not permitted")
+        memory = await session.scalar(
+            select(Memory)
+            .where(
+                Memory.id == memory_id,
+                Memory.organization_id == principal.organization_id,
+            )
+            .with_for_update()
+        )
+        if memory is None:
+            raise NotFoundError("Memory", memory_id)
+        await self._require_owner(session, principal, memory.scope, memory.owner_ref, write=True)
+        now = utc_now()
+        if (
+            memory.expires_at is not None
+            and ensure_utc(memory.expires_at) <= now
+            and memory.status in {MemoryStatus.CANDIDATE, MemoryStatus.APPROVED}
+        ):
+            memory.status = MemoryStatus.EXPIRED
+            await self._record(session, principal, memory, "memory.expired", "EXPIRED")
+        if memory.status not in {MemoryStatus.CANDIDATE, MemoryStatus.APPROVED}:
+            raise ConflictError(
+                "memory_already_decided",
+                "This memory can no longer be revoked",
+                status=memory.status,
+            )
+        decision = await self.policy.evaluate_resource(
+            session,
+            ResourcePolicyInput(
+                principal=principal,
+                action="memory.write",
+                resource={
+                    "memory_id": str(memory.id),
+                    "scope": memory.scope,
+                    "owner_ref": memory.owner_ref,
+                    "classification": memory.sensitivity,
+                },
+                context={
+                    "environment": self.settings.environment,
+                    "decision": "REVOKE",
+                },
+                risk_level=_CLASSIFICATION_RISK[memory.sensitivity],
+                resource_type="memory",
+            ),
+        )
+        if decision.effect == DecisionEffect.DENY:
+            await self.audit.write(
+                session,
+                AuditDraft(
+                    organization_id=principal.organization_id,
+                    correlation_id=memory.id,
+                    actor_type=ActorType.USER,
+                    actor_id=principal.id,
+                    action="memory.write",
+                    resource_type="memory",
+                    resource_id=str(memory.id),
+                    outcome="DENIED",
+                    risk_level=_CLASSIFICATION_RISK[memory.sensitivity],
+                    policy_decision_id=decision.id,
+                    metadata={"scope": memory.scope, "reason_codes": decision.reason_codes},
+                ),
+            )
+            return MemoryWriteResult(memory, decision)
+
+        memory.status = MemoryStatus.REVOKED
+        await self._record(
+            session,
+            principal,
+            memory,
+            "memory.revoked",
+            "REVOKED",
+            {"reason": "manual_delete"},
+            policy_decision_id=decision.id,
+        )
+        return MemoryWriteResult(memory, decision)
 
     async def decide(
         self,

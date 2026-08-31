@@ -1,0 +1,24 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-dingtalk-docs
+spec:
+  type: dingtalk-docs
+  environment: production
+  transport: HTTP
+  baseUrl: https://api.dingtalk.com
+  credentialRef: env://OBSION_DINGTALK_APP_SECRET
+  grants: [knowledge.write, knowledge.read]
+  allowedEgress: ["https://api.dingtalk.com"]
+  tlsRequired: true
+  configuration:
+    protocol: dingtalk.docs.v1
+    app_key_env: OBSION_DINGTALK_APP_KEY
+    rate_limit_per_minute: 60
+    knowledge_sync_budget:
+      max_pages: 20
+      max_nodes: 200
+      max_depth: 8
+  capabilities:
+    - knowledge.ingest
+    - knowledge.sync

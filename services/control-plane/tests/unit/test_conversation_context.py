@@ -185,3 +185,6 @@ async def test_harness_supplies_frozen_history_without_treating_it_as_evidence()
     assert "current governed evidence" in next(
         item["content"] for item in gateway.messages if "evidence-bus" in item["content"]
     )
+    assert run.conversation_compact["method"] == "extractive"
+    assert run.conversation_compact["summarized_turns"] == 0
+    assert run.conversation_compact["kept_turns"] == 2

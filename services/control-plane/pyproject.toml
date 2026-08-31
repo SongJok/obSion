@@ -37,6 +37,7 @@ dependencies = [
   "structlog>=25,<26",
   "uuid6>=2025.0.1,<2026",
   "uvicorn[standard]>=0.35,<1",
+  "obsion-sdk",
 ]
 
 [project.optional-dependencies]
@@ -63,3 +64,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/obsion"]
 artifacts = ["src/obsion/contracts/**/*.json"]
+
+[tool.uv.sources]
+obsion-sdk = { workspace = true }

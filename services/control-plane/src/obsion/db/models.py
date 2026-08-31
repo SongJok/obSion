@@ -41,6 +41,8 @@ from obsion.domain.enums import (
     AutomationTrigger,
     CapabilityTransport,
     Classification,
+    CodeRelation,
+    CodeSymbolKind,
     ConnectorStatus,
     DecisionEffect,
     EvaluationResultStatus,
@@ -50,10 +52,12 @@ from obsion.domain.enums import (
     EvidenceConflictSeverity,
     EvidenceRelation,
     EvidenceType,
+    ImDeliveryStatus,
     MemoryScope,
     MemoryStatus,
     NotificationStatus,
     ObservationValueType,
+    OperatorInvocationStatus,
     RegistryStatus,
     ReviewDecision,
     RiskLevel,
@@ -206,6 +210,105 @@ class AuthSession(Base, IdMixin, OrganizationMixin, TimestampMixin):
         DateTime(timezone=True), nullable=False, index=True
     )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class ImPrincipalBinding(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """Maps a stable IM sender id to a provisioned User. Nicknames are not stored as keys."""
+
+    __tablename__ = "im_principal_bindings"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "id", name="uq_im_principal_bindings_organization_id_id"
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "channel",
+            "sender_id",
+            name="uq_im_principal_bindings_org_channel_sender",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_principal_bindings_org_user",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "created_by"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_principal_bindings_org_creator",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("length(trim(channel)) > 0", name="nonempty_im_binding_channel"),
+        CheckConstraint("length(trim(sender_id)) > 0", name="nonempty_im_binding_sender_id"),
+    )
+
+    channel: Mapped[str] = mapped_column(String(64), nullable=False)
+    sender_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("true"),
+    )
+    created_by: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ImDelivery(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """Durable authorization and receipt ledger for one final IM Run response."""
+
+    __tablename__ = "im_deliveries"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "run_id", name="uq_im_deliveries_org_run"),
+        ForeignKeyConstraint(
+            ["organization_id", "run_id"],
+            ["runs.organization_id", "runs.id"],
+            name="fk_im_deliveries_org_run",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "requested_by"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_deliveries_org_requester",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("length(trim(channel)) > 0", name="nonempty_im_delivery_channel"),
+        CheckConstraint(
+            "length(trim(conversation_id)) > 0",
+            name="nonempty_im_delivery_conversation",
+        ),
+        CheckConstraint("attempt_count > 0", name="positive_im_delivery_attempts"),
+        CheckConstraint(
+            "status IN ('PENDING', 'SENT', 'FAILED')",
+            name="valid_status",
+        ),
+        CheckConstraint(
+            sha256_hex_check("content_fingerprint"),
+            name="im_delivery_content_fingerprint_sha256",
+        ),
+    )
+
+    run_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    channel: Mapped[str] = mapped_column(String(64), nullable=False)
+    conversation_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[ImDeliveryStatus] = mapped_column(
+        enum_type(ImDeliveryStatus),
+        nullable=False,
+        default=ImDeliveryStatus.PENDING,
+        index=True,
+    )
+    policy_decision_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("policy_decisions.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    requested_by: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    vendor_message_id: Mapped[str | None] = mapped_column(String(500))
+    failure_code: Mapped[str | None] = mapped_column(String(100))
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Workspace(Base, IdMixin, OrganizationMixin, TimestampMixin):
@@ -403,6 +506,10 @@ class Run(Base, IdMixin, OrganizationMixin, TimestampMixin):
     )
     agent_version_id: Mapped[UUID | None] = mapped_column(Uuid)
     model_profile_id: Mapped[UUID | None] = mapped_column(Uuid)
+    prompt_pins: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    context_budget: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    conversation_compact: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    workspace_context: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     intent: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     plan: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     max_steps: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
@@ -490,6 +597,11 @@ class RunStep(Base, IdMixin, OrganizationMixin, TimestampMixin):
             ["runs.organization_id", "runs.id"],
             name="fk_run_steps_organization_run",
             ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "kind IN ('OBSERVE', 'UNDERSTAND', 'PLAN', 'MODEL', 'CAPABILITY', "
+            "'VERIFY', 'REFLECT', 'RESPOND')",
+            name="ck_run_steps_kind_values",
         ),
     )
 
@@ -599,6 +711,81 @@ class AppServerRequest(Base, IdMixin, OrganizationMixin):
     )
 
 
+class OperatorCapabilityInvocation(Base, IdMixin, OrganizationMixin):
+    """无 Run Capability 写入的持久化幂等与未知结果账本。"""
+
+    __tablename__ = "operator_capability_invocations"
+
+    principal_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    request_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    capability_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    capability_version_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("capability_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    connector_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("connectors.id", ondelete="RESTRICT"), nullable=False
+    )
+    policy_decision_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("policy_decisions.id", ondelete="RESTRICT"), nullable=False
+    )
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[OperatorInvocationStatus] = mapped_column(
+        enum_type(OperatorInvocationStatus),
+        nullable=False,
+        default=OperatorInvocationStatus.IN_PROGRESS,
+        index=True,
+    )
+    result: Mapped[dict | None] = mapped_column(JSON(none_as_null=True))
+    error_code: Mapped[str | None] = mapped_column(ErrorCodeType(160))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    lease_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "principal_id",
+            "request_id",
+            name="uq_operator_capability_invocation_request",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "principal_id"],
+            ["users.organization_id", "users.id"],
+            name="fk_operator_capability_invocations_org_principal",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            sha256_hex_check("input_fingerprint"),
+            name="fingerprint_sha256",
+        ),
+        CheckConstraint(
+            "status IN ('IN_PROGRESS', 'COMPLETED', 'FAILED', 'UNKNOWN')",
+            name="valid_status",
+        ),
+        CheckConstraint(
+            "(status = 'IN_PROGRESS' AND result IS NULL AND error_code IS NULL "
+            "AND completed_at IS NULL) OR "
+            "(status = 'COMPLETED' AND result IS NOT NULL AND error_code IS NULL "
+            "AND completed_at IS NOT NULL) OR "
+            "(status = 'FAILED' AND result IS NOT NULL AND error_code IS NOT NULL "
+            "AND completed_at IS NOT NULL) OR "
+            "(status = 'UNKNOWN' AND result IS NULL AND error_code IS NOT NULL "
+            "AND completed_at IS NOT NULL)",
+            name="completion_consistent",
+        ),
+        Index(
+            "ix_operator_capability_invocations_lookup",
+            "organization_id",
+            "principal_id",
+            "request_id",
+        ),
+    )
+
+
 class Artifact(Base, IdMixin, OrganizationMixin, TimestampMixin):
     __tablename__ = "artifacts"
 
@@ -617,6 +804,32 @@ class Artifact(Base, IdMixin, OrganizationMixin, TimestampMixin):
     )
     acl: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     lineage: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    path: Mapped[str | None] = mapped_column(String(512))
+    file_version: Mapped[int | None] = mapped_column(Integer)
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "workspace_id",
+            "path",
+            "file_version",
+            name="uq_artifacts_workspace_path_version",
+        ),
+        Index(
+            "uq_artifacts_workspace_current_path",
+            "organization_id",
+            "workspace_id",
+            "path",
+            unique=True,
+            sqlite_where=text("path IS NOT NULL AND superseded_at IS NULL"),
+            postgresql_where=text("path IS NOT NULL AND superseded_at IS NULL"),
+        ),
+        CheckConstraint(
+            "path IS NULL OR (file_version IS NOT NULL AND file_version > 0)",
+            name="positive_artifact_file_version",
+        ),
+    )
 
 
 class RegistryDefinitionMixin:
@@ -630,7 +843,15 @@ class RegistryDefinitionMixin:
 
 class AgentDefinition(Base, IdMixin, OrganizationMixin, TimestampMixin, RegistryDefinitionMixin):
     __tablename__ = "agent_definitions"
-    __table_args__ = (UniqueConstraint("organization_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name"),
+        CheckConstraint(
+            "active_version IS NULL OR active_version > 0",
+            name="positive_active_agent_version",
+        ),
+    )
+
+    active_version: Mapped[int | None] = mapped_column(Integer)
 
 
 class AgentVersion(Base, IdMixin, OrganizationMixin):
@@ -650,7 +871,15 @@ class AgentVersion(Base, IdMixin, OrganizationMixin):
 
 class SkillDefinition(Base, IdMixin, OrganizationMixin, TimestampMixin, RegistryDefinitionMixin):
     __tablename__ = "skill_definitions"
-    __table_args__ = (UniqueConstraint("organization_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name"),
+        CheckConstraint(
+            "active_version IS NULL OR active_version > 0",
+            name="positive_active_skill_version",
+        ),
+    )
+
+    active_version: Mapped[int | None] = mapped_column(Integer)
 
 
 class SkillVersion(Base, IdMixin, OrganizationMixin):
@@ -859,6 +1088,11 @@ class Evidence(Base, IdMixin, OrganizationMixin):
             ["organization_id", "run_id", "step_id"],
             ["run_steps.organization_id", "run_steps.run_id", "run_steps.id"],
             name="fk_evidence_organization_run_step",
+        ),
+        CheckConstraint(
+            "evidence_type IN ('DOCUMENT', 'DATA', 'SQL', 'METRIC', 'LOG', 'TRACE', "
+            "'CODE', 'GIT', 'DEPLOYMENT', 'CONFIG', 'TOOL')",
+            name="ck_evidence_evidence_type_values",
         ),
         CheckConstraint("confidence >= 0 AND confidence <= 1", name="valid_confidence"),
         CheckConstraint(
@@ -1547,7 +1781,13 @@ class ModelCall(Base, IdMixin, OrganizationMixin):
 
 class Memory(Base, IdMixin, OrganizationMixin, TimestampMixin):
     __tablename__ = "memories"
-    __table_args__ = (UniqueConstraint("organization_id", "scope", "owner_ref", "dedupe_key"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "scope", "owner_ref", "dedupe_key"),
+        CheckConstraint(
+            "status IN ('CANDIDATE', 'APPROVED', 'REJECTED', 'EXPIRED', 'REVOKED')",
+            name="ck_memories_status_values",
+        ),
+    )
 
     scope: Mapped[MemoryScope] = mapped_column(enum_type(MemoryScope), nullable=False)
     owner_ref: Mapped[str] = mapped_column(String(300), nullable=False)
@@ -2358,3 +2598,128 @@ class NotificationDelivery(Base, IdMixin, OrganizationMixin):
     delivered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CodeRepository(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    __tablename__ = "code_repositories"
+    __table_args__ = (UniqueConstraint("organization_id", "name"),)
+
+    name: Mapped[str] = mapped_column(String(240), nullable=False)
+    default_branch: Mapped[str] = mapped_column(String(200), nullable=False, default="main")
+    classification: Mapped[Classification] = mapped_column(
+        enum_type(Classification), nullable=False
+    )
+    acl: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    current_snapshot_id: Mapped[UUID | None] = mapped_column(Uuid)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CodeSnapshot(Base, IdMixin, OrganizationMixin):
+    __tablename__ = "code_snapshots"
+    __table_args__ = (
+        UniqueConstraint("repository_id", "ordinal"),
+        CheckConstraint("ordinal > 0", name="positive_code_snapshot_ordinal"),
+        CheckConstraint("file_count >= 0", name="nonnegative_code_snapshot_file_count"),
+    )
+
+    repository_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_repositories.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    commit_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    parser_version: Mapped[str] = mapped_column(String(120), nullable=False)
+    file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    symbol_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    content_checksum_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CodeSourceFile(Base, IdMixin, OrganizationMixin):
+    __tablename__ = "code_source_files"
+    __table_args__ = (UniqueConstraint("snapshot_id", "path"),)
+
+    snapshot_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_snapshots.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    repository_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_repositories.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    language: Mapped[str] = mapped_column(String(40), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    parse_error: Mapped[str | None] = mapped_column(String(500))
+
+
+class CodeSymbol(Base, IdMixin, OrganizationMixin):
+    __tablename__ = "code_symbols"
+    __table_args__ = (Index("ix_code_symbols_qualified_name", "organization_id", "qualified_name"),)
+
+    snapshot_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_snapshots.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    repository_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_repositories.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    file_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_source_files.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[CodeSymbolKind] = mapped_column(enum_type(CodeSymbolKind), nullable=False)
+    name: Mapped[str] = mapped_column(String(400), nullable=False)
+    qualified_name: Mapped[str] = mapped_column(String(1000), nullable=False)
+    start_line: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    end_line: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    signature: Mapped[str | None] = mapped_column(String(1000))
+    attributes: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class CodeGraphEdge(Base, IdMixin, OrganizationMixin):
+    __tablename__ = "code_graph_edges"
+    __table_args__ = (
+        Index("ix_code_graph_edges_from", "organization_id", "from_symbol_id", "relation"),
+        Index("ix_code_graph_edges_to", "organization_id", "to_symbol_id", "relation"),
+    )
+
+    snapshot_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_snapshots.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    repository_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_repositories.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    from_symbol_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_symbols.id", ondelete="CASCADE"), nullable=False
+    )
+    to_symbol_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("code_symbols.id", ondelete="CASCADE")
+    )
+    relation: Mapped[CodeRelation] = mapped_column(enum_type(CodeRelation), nullable=False)
+    to_name: Mapped[str] = mapped_column(String(1000), nullable=False)
+    attributes: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class CodeRepositoryGrant(Base, OrganizationMixin):
+    __tablename__ = "code_repository_grants"
+
+    repository_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("code_repositories.id", ondelete="CASCADE"), primary_key=True
+    )
+    effect: Mapped[str] = mapped_column(String(12), primary_key=True)
+    subject_type: Mapped[str] = mapped_column(String(24), primary_key=True)
+    subject_value: Mapped[str] = mapped_column(String(300), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("effect IN ('ALLOW', 'DENY')", name="valid_code_grant_effect"),
+        CheckConstraint(
+            "subject_type IN ('USER', 'ROLE', 'DEPARTMENT', 'ORGANIZATION')",
+            name="valid_code_grant_subject_type",
+        ),
+        Index(
+            "ix_code_repository_grants_subject",
+            "organization_id",
+            "subject_type",
+            "subject_value",
+            "effect",
+        ),
+    )

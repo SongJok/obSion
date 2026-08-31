@@ -1,0 +1,14 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-sdk-development
+spec:
+  type: sdk-development
+  environment: development
+  transport: SDK
+  grants: [sdk.invoke]
+  allowedEgress: []
+  configuration:
+    sdk: obsion.development
+    method: echo
+  capabilities: [sdk.development.echo]

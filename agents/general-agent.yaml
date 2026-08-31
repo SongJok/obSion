@@ -7,11 +7,13 @@ spec:
   modelPolicy: {profile: reasoning-high}
   maxSteps: 30
   timeout: 300
-  skills: [knowledge-research, governed-analytics, incident-investigation]
+  skills: [knowledge-research, governed-analytics, incident-investigation, report-generation]
   capabilities:
     - code.search
     - code.symbol
     - code.reference
+    - code.callers
+    - code.callees
     - git.commit
     - git.diff
     - git.blame
@@ -43,4 +45,7 @@ spec:
     - k8s.status
   riskPolicy: {maxLevel: L2}
   memory: {session: true, workspace: true}
-  sandbox: {enabled: true, network: gateway-only}
+  sandbox:
+    enabled: true
+    network: gateway-only
+    mounts: [/workspace, /repo, /artifacts, /tmp]

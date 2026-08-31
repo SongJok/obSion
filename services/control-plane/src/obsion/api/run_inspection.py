@@ -18,9 +18,12 @@ from obsion.db.models import (
     Claim,
     ClaimEvidence,
     Evidence,
+    Run,
     RunConversationSnapshot,
     RunMemorySnapshot,
     RunStep,
+    Thread,
+    Turn,
 )
 from obsion.security.auth import get_principal, get_session
 from obsion.security.identity import Principal
@@ -65,6 +68,29 @@ async def list_evidence(
             Evidence.run_id == run_id,
         )
         .order_by(Evidence.ingested_at)
+    )
+    return [EvidenceView.model_validate(item) for item in evidence]
+
+
+@router.get("/workspaces/{workspace_id}/evidence", response_model=list[EvidenceView])
+async def list_workspace_evidence(
+    workspace_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> list[EvidenceView]:
+    await require_workspace_access(session, principal, workspace_id)
+    evidence = await session.scalars(
+        select(Evidence)
+        .join(Run, Run.id == Evidence.run_id)
+        .join(Turn, Turn.id == Run.turn_id)
+        .join(Thread, Thread.id == Turn.thread_id)
+        .where(
+            Evidence.organization_id == principal.organization_id,
+            Run.organization_id == principal.organization_id,
+            Thread.workspace_id == workspace_id,
+        )
+        .order_by(Evidence.ingested_at.desc())
+        .limit(500)
     )
     return [EvidenceView.model_validate(item) for item in evidence]
 

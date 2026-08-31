@@ -33,9 +33,23 @@ jobs:
       - run: npm ci
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run mypy services/control-plane/src packages/sdk-python/src
+      - run: uv run mypy services/control-plane/src packages/sdk-python/src apps/cli/src apps/im-adapter/src
       - run: uv run obsion validate-contracts
       - run: uv run obsion validate-evaluations
+      - run: uv run obsion validate-eval-gates
+      - run: uv run obsion validate-release-notes
+      - run: uv run obsion evaluate-datasets
+      - run: uv run obsion scan-secrets
+      - run: uv run obsion sbom --output "$RUNNER_TEMP/obsion.cdx.json"
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL
+          skip-dirs: .venv,node_modules,.git
       - run: >-
           uv run pytest
           services/control-plane/tests/test_contract_distribution.py
@@ -188,16 +202,44 @@ jobs:
           file: deploy/docker/control-plane.Dockerfile
           push: false
           tags: obsion/control-plane:ci
+          load: true
           cache-from: type=gha,scope=control-plane
-          cache-to: type=gha,mode=max,scope=control-plane
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: obsion/control-plane:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/docker/web.Dockerfile
           push: false
           tags: obsion/web:ci
+          load: true
           cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: obsion/web:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL
+
+  java-sdk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: packages/sdk-java/pom.xml
+      - run: ./mvnw -B test
+        working-directory: packages/sdk-java
 
   helm:
     runs-on: ubuntu-24.04

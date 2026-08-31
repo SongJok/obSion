@@ -1,0 +1,24 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: obsion-feishu-docs
+spec:
+  type: feishu-docs
+  environment: production
+  transport: HTTP
+  baseUrl: https://open.feishu.cn
+  credentialRef: env://OBSION_FEISHU_APP_SECRET
+  grants: [knowledge.write, knowledge.read]
+  allowedEgress: ["https://open.feishu.cn"]
+  tlsRequired: true
+  configuration:
+    protocol: feishu.docs.v1
+    app_id_env: OBSION_FEISHU_APP_ID
+    rate_limit_per_minute: 60
+    knowledge_sync_budget:
+      max_pages: 20
+      max_nodes: 200
+      max_depth: 8
+  capabilities:
+    - knowledge.ingest
+    - knowledge.sync

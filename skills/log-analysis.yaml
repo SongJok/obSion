@@ -1,0 +1,16 @@
+apiVersion: obsion.dev/v1
+kind: Skill
+metadata:
+  name: log-analysis
+spec:
+  instructions:
+    - search only authorized, time-bounded production logs and related read-only status
+    - redaction and ACL are applied by the Capability Gateway, not by prompt instructions
+    - correlate log volume with metric and deployment Evidence when those types are present
+    - never treat a single log line as a root cause
+    - never restart, scale, reconfigure, or otherwise write to production
+    - if the window or service is unauthorized, say unknown
+  capabilities: [log.search, log.aggregate, metric.query, deployment.list, k8s.status, config.get]
+  requiredEvidence: [LOG]
+  optionalEvidence: [METRIC, DEPLOYMENT, CONFIG, TOOL]
+  verification: [time window bounded, ACL retained, no write path]

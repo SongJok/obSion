@@ -29,7 +29,10 @@ kubectl create secret generic obsion-database \
 kubectl create secret generic obsion-object-store \
   --from-literal=access-key='ACCESS_KEY' \
   --from-literal=secret-key='SECRET_KEY'
-helm upgrade --install obsion deploy/helm/obsion --namespace obsion --create-namespace
+kubectl create secret generic obsion-encryption \
+  --from-literal=key='base64-or-raw-32-byte-key'
+helm upgrade --install obsion deploy/helm/obsion --namespace obsion --create-namespace \
+  --set encryption.existingSecret=obsion-encryption
 ```
 
 The default values deliberately fail closed with production mode and OIDC enabled.
@@ -54,3 +57,8 @@ Set `config.sqlDefaultLimit`, `config.sqlMaxLimit`, `config.sqlTimeoutSeconds`, 
 `config.sqlScanBudget` from read-replica workload statistics. Keep
 `config.sqlRequireExplicitLimit: true` for external SQL validation; semantic plans may
 use the bounded compiler default before entering the same Query Gateway.
+
+Set `config.operatorCapability.idempotencyRetentionHours` longer than the longest
+vendor Knowledge reconciliation window. Its default is 168 hours and is intentionally
+independent from `config.appServer.idempotencyRetentionHours`; reducing it does not
+authorize automatic replay of an UNKNOWN write outcome.

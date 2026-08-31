@@ -40,8 +40,79 @@ spec:
     matchLabels:
       app.kubernetes.io/name: {{ include "obsion.name" . }}
       app.kubernetes.io/instance: {{ .Release.Name }}
-  policyTypes: [Ingress]
+  policyTypes: [Ingress, Egress]
   ingress:
     - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "obsion.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3000
+    {{- if .Values.ingress.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace | default "ingress-nginx" }}
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3000
+    {{- end }}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "obsion.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+    - to:
         - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9000
+{{- end }}
+{{- if .Values.api.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "obsion.fullname" . }}-api
+  labels:
+    {{- include "obsion.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "obsion.fullname" . }}-api
+  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.api.autoscaling.targetCPUUtilizationPercentage }}
 {{- end }}

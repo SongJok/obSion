@@ -21,9 +21,12 @@ OBSERVABILITY_OPERATIONS = frozenset(
         "metric.query",
         "metric.compare",
         "metric.anomaly",
+        "metric.dimension",
         "log.search",
         "log.aggregate",
         "deployment.list",
+        "trace.search",
+        "trace.timeline",
     }
 )
 
@@ -55,6 +58,10 @@ _ATTRIBUTE_KEYS = frozenset(
         "version",
         "revision",
         "reason",
+        "span_id",
+        "parent_span_id",
+        "span_name",
+        "status_code",
     }
 )
 _SENSITIVE_LABEL = frozenset(
@@ -151,7 +158,7 @@ def _records(payload: Any) -> list[Mapping[str, Any]]:
     if not isinstance(payload, Mapping):
         raise ValueError("response must be an object or array")
 
-    for key in ("events", "items", "results", "result"):
+    for key in ("events", "items", "results", "result", "spans", "traces"):
         value = payload.get(key)
         if isinstance(value, list):
             if key == "result" and any(
@@ -186,17 +193,20 @@ def _series_records(values: list[Any]) -> list[Mapping[str, Any]]:
             raise ValueError("series records must be objects")
         labels = series.get("labels", series.get("metric", {}))
         labels_map = dict(labels) if isinstance(labels, Mapping) else {}
+        base: dict[str, Any] = dict(labels_map)
+        if labels_map:
+            base["labels"] = labels_map
         points = series.get("values")
         if isinstance(points, list):
             for point in points:
                 if isinstance(point, (list, tuple)) and len(point) == 2:
-                    records.append({**labels_map, "timestamp": point[0], "value": point[1]})
+                    records.append({**base, "timestamp": point[0], "value": point[1]})
                 elif isinstance(point, Mapping):
-                    records.append({**labels_map, **point})
+                    records.append({**base, **point})
             continue
         point = series.get("value")
         if isinstance(point, (list, tuple)) and len(point) == 2:
-            records.append({**labels_map, "timestamp": point[0], "value": point[1]})
+            records.append({**base, "timestamp": point[0], "value": point[1]})
         else:
             records.append(series)
     return records

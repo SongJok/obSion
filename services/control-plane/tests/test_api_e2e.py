@@ -41,6 +41,7 @@ def test_capability_catalog_and_data_query_contracts_are_exposed(client: TestCli
         "/api/v1/admin/data/sources",
         "/api/v1/admin/data/catalog",
         "/api/v1/admin/costs",
+        "/api/v1/admin/slo",
         "/api/v1/admin/prompts",
         "/api/v1/admin/knowledge",
         "/api/v1/admin/secrets",
@@ -327,6 +328,40 @@ def test_memory_requires_scope_and_redacts_candidates(client: TestClient) -> Non
     assert listed.status_code == 200
     assert [item["id"] for item in listed.json()] == [body["id"]]
 
+    second = client.post(
+        "/api/v1/memories",
+        json={
+            "scope": "WORKSPACE",
+            "owner_ref": workspace["id"],
+            "content": {"preference": "Keep runbooks in UTC"},
+            "sensitivity": "INTERNAL",
+        },
+    )
+    assert second.status_code == 201, second.text
+    inspected = client.get(f"/api/v1/memories/{second.json()['id']}")
+    assert inspected.status_code == 200
+    assert inspected.json()["status"] == "CANDIDATE"
+    updated = client.patch(
+        f"/api/v1/memories/{second.json()['id']}",
+        json={"content": {"preference": "Keep runbooks in UTC", "token": "must-redact"}},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["status"] == "CANDIDATE"
+    assert updated.json()["content"]["token"] == "[REDACTED]"  # noqa: S105
+    approved_edit = client.post(
+        f"/api/v1/memories/{second.json()['id']}/approve",
+        json={"reason": "Edited workspace preference"},
+    )
+    assert approved_edit.status_code == 200
+    revoked = client.delete(f"/api/v1/memories/{second.json()['id']}")
+    assert revoked.status_code == 200, revoked.text
+    assert revoked.json()["status"] == "REVOKED"
+    inspect_revoked = client.get(f"/api/v1/memories/{second.json()['id']}")
+    assert inspect_revoked.json()["status"] == "REVOKED"
+    second_delete = client.delete(f"/api/v1/memories/{second.json()['id']}")
+    assert second_delete.status_code == 409
+    assert second_delete.json()["code"] == "memory_already_decided"
+
     denied = client.post(
         "/api/v1/memories",
         json={
@@ -546,6 +581,20 @@ def test_version_pinned_evaluation_records_case_results(client: TestClient) -> N
     )
     assert fake_answer_case.status_code == 422
     assert fake_answer_case.json()["code"] == "evaluation_target_required"
+
+    leaked_actual = client.post(
+        f"/api/v1/admin/evaluations/datasets/{dataset_id}/cases",
+        json={
+            "external_id": "fake-answer-denied-actual",
+            "version": 1,
+            "evaluator": "ROUTING",
+            "input_payload": {"question": "Summarize the employee handbook"},
+            "expected": {"route": "KNOWLEDGE"},
+            "fixtures": {"actual": "fabricated"},
+        },
+    )
+    assert leaked_actual.status_code == 422, leaked_actual.text
+    assert leaked_actual.json()["code"] == "evaluation_expectation_unsupported"
 
     evaluation = client.post(
         f"/api/v1/admin/evaluations/datasets/{dataset_id}/runs",

@@ -6,6 +6,7 @@ spec:
   description: Read-only runtime and delivery operations analyst
   modelPolicy: {profile: reasoning-high}
   maxSteps: 24
+  skills: [log-analysis]
   capabilities:
     - deployment.list
     - deployment.commit
@@ -15,3 +16,7 @@ spec:
     - log.search
     - metric.query
   riskPolicy: {maxLevel: L2}
+  sandbox:
+    enabled: true
+    network: gateway-only
+    mounts: [/workspace, /repo, /artifacts, /tmp]

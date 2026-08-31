@@ -6,5 +6,10 @@ spec:
   description: Permission-aware customer support investigation agent
   modelPolicy: {profile: reasoning-high}
   maxSteps: 18
+  skills: [support-diagnosis]
   capabilities: [ticket.search, knowledge.search, document.read, log.search, trace.search]
   riskPolicy: {maxLevel: L2}
+  sandbox:
+    enabled: true
+    network: gateway-only
+    mounts: [/workspace, /repo, /artifacts, /tmp]

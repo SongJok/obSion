@@ -44,13 +44,12 @@ def test_general_agent_completes_evidence_free_greeting_loop(client: TestClient)
     assert run["status"] == "COMPLETED"
     assert run["intent"]["route"] == "CONVERSATION"
     assert run["intent"]["intent"] == "CONVERSATION"
-    assert run["plan"] == {
-        "route": "CONVERSATION",
-        "steps": [],
-        "required_evidence": [],
-        "verification": ["non_factual_response"],
-    }
-    assert run["step_count"] == 5
+    assert run["plan"]["route"] == "CONVERSATION"
+    assert run["plan"]["steps"] == []
+    assert run["plan"]["required_evidence"] == []
+    assert run["plan"]["verification"] == ["non_factual_response"]
+    assert "available_capabilities" in run["plan"]
+    assert run["step_count"] == 6
 
     steps = client.get(f"/api/v1/runs/{run_id}/steps").json()
     step_lifecycle = [
@@ -61,8 +60,10 @@ def test_general_agent_completes_evidence_free_greeting_loop(client: TestClient)
         (2, "UNDERSTAND", "COMPLETED", [1]),
         (3, "PLAN", "COMPLETED", [2]),
         (4, "VERIFY", "COMPLETED", [3]),
-        (5, "RESPOND", "COMPLETED", [4]),
+        (5, "REFLECT", "COMPLETED", [4]),
+        (6, "RESPOND", "COMPLETED", [5]),
     ]
+    assert steps[4]["output_ref"] == "reflect.respond"
     assert client.get(f"/api/v1/runs/{run_id}/evidence").json() == []
     assert client.get(f"/api/v1/runs/{run_id}/claims").json() == []
 
@@ -106,11 +107,13 @@ def test_production_database_request_fails_without_capability_binding(
         (3, "PLAN", "COMPLETED"),
         (4, "CAPABILITY", "FAILED"),
         (5, "VERIFY", "SKIPPED"),
-        (6, "RESPOND", "SKIPPED"),
+        (6, "REFLECT", "SKIPPED"),
+        (7, "RESPOND", "SKIPPED"),
     ]
     assert steps[3]["error_code"] == "resource_not_found"
     assert steps[4]["error_code"] == "dependency_failed"
     assert steps[5]["error_code"] == "dependency_failed"
+    assert steps[6]["error_code"] == "dependency_failed"
     assert client.get(f"/api/v1/runs/{run_id}/evidence").json() == []
     assert client.get(f"/api/v1/runs/{run_id}/claims").json() == []
     assert client.get(f"/api/v1/runs/{run_id}/artifacts").json() == []
