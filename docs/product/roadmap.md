@@ -297,3 +297,15 @@ wired into the existing root npm test fan-out so make test and CI run it
 unchanged. The Python static contract suites remain in force. ADR 0070
 records the decisions. Dev-only; the candidate contract, recorded
 evidence, and all six PENDING operator gates are untouched.
+
+Phase 92 closes the gap audit's top P1 item and completes the
+collaboration assignment and source-Run provenance surface:
+WorkspaceMemberView carries readable display_name and email, task
+create/edit offers a member selector with explicit-null clearing, task
+and decision creation attach a bounded newest-first source Run,
+provenance renders on every record and opens the full Runtime inspection
+bundle through the existing loadInspection path, and invalid-assignee
+or cross-workspace-Run rejections map to actionable messages. The
+Runtime inspector route labels now cover ANALYTICS, OPERATION, and
+SUPPORT. ADR 0071 records the decisions. The candidate contract,
+recorded evidence, and all six PENDING operator gates are untouched.

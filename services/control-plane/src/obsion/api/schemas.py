@@ -83,6 +83,8 @@ class SetWorkspaceMemberRequest(APIModel):
 class WorkspaceMemberView(APIModel):
     workspace_id: UUID
     user_id: UUID
+    display_name: str
+    email: str
     permissions: list[str]
     created_by: UUID
     created_at: datetime

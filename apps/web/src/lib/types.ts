@@ -147,6 +147,16 @@ export interface Workspace {
   updated_at: string;
 }
 
+export interface WorkspaceMember {
+  workspace_id: string;
+  user_id: string;
+  display_name: string;
+  email: string;
+  permissions: string[];
+  created_by: string;
+  created_at: string;
+}
+
 export interface Thread {
   id: string;
   workspace_id: string;

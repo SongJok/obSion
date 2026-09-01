@@ -9283,6 +9283,14 @@
             "title": "Created By",
             "type": "string"
           },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
           "permissions": {
             "items": {
               "type": "string"
@@ -9304,6 +9312,8 @@
         "required": [
           "workspace_id",
           "user_id",
+          "display_name",
+          "email",
           "permissions",
           "created_by",
           "created_at"

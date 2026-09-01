@@ -660,6 +660,7 @@ function statusName(status: string) {
 function routeName(route: string) {
   const values: Record<string, string> = {
     KNOWLEDGE: "知识研究", DATA: "数据分析", INCIDENT: "故障调查", ENGINEERING: "工程分析",
+    ANALYTICS: "经营分析", OPERATION: "运维分析", SUPPORT: "支持诊断",
   };
   return values[route] ?? route;
 }

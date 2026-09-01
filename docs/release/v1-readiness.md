@@ -36,6 +36,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Typed Evidence views rendering persisted Evidence envelopes (observability events, engineering change items with diff specialization, data tables, explain plans, code symbols, knowledge citations) with a preserved generic fallback and full metadata ledger
 - [x] Per-stage investigation narrative correlating steps, evidence, and claims through persisted keys (step_id, evidence_ids, timestamps) with bounded display and an explicit unattributed-evidence section
 - [x] Executable JavaScript test stack for apps/web (vitest + Testing Library, dev-only exact-pinned) covering the typed Evidence core, citation helpers, and API normalization, wired into the root npm test fan-out
+- [x] Collaboration assignment and source-Run provenance: readable member identity on the member view, member selector with explicit-null clearing, bounded source-Run selection on task/decision creation, provenance display with a Runtime inspector link, and actionable validation-error mapping
 
 ## Operator-owned (not claimed by this repository run)
 

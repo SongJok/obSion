@@ -1,0 +1,74 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-collaboration-assignment-provenance
+  version: 0.92.0-dev
+  phase: 92
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema or settings changes; WorkspaceMemberView gains two additive response fields and the Workbench completes the collaboration assignment and provenance surface.
+  documents:
+    - CHANGELOG.md
+    - docs/api/openapi.json
+    - apps/web/src/components/collaboration-view.tsx
+    - apps/web/src/components/runtime-inspector.tsx
+    - apps/web/src/components/workbench.tsx
+    - apps/web/src/lib/api.ts
+    - apps/web/src/lib/collaboration-display.ts
+    - apps/web/src/lib/types.ts
+    - apps/web/src/app/globals.css
+    - apps/web/tests/collaboration-display.test.ts
+    - apps/web/tests/use-workspace-collection.test.tsx
+    - apps/web/tests/app-server.test.ts
+    - services/control-plane/src/obsion/api/schemas.py
+    - services/control-plane/src/obsion/api/workspaces.py
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase92_collaboration_assignment.py
+    - services/control-plane/tests/test_phase81_feishu_live_reply.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - services/control-plane/tests/test_phase89_typed_evidence.py
+    - services/control-plane/tests/test_phase90_investigation_narrative.py
+    - services/control-plane/tests/test_phase91_web_test_stack.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.92.0-dev.md
+    - docs/phases/PHASE-92-REPORT.md
+    - docs/architecture/phase-92-collaboration-assignment.md
+    - docs/adr/0071-collaboration-assignment-provenance.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase adds two additive response fields to the member view and completes Web coverage of an existing collaboration contract, changing no runtime, schema, capability, or authorization rule.
+    - Assignee and source-Run validation stay entirely server-side; the member and Run selectors are UX aids and never widen who can be assigned or which Runs can be linked.
+    - Provenance rendering uses only the persisted source_run_id; a Run outside the bounded option window still renders as a truncated id and no relationship is ever inferred or fabricated.
+    - Task edits keep the optimistic-concurrency contract so only changed fields travel with expected_version, clearing an assignee is an explicit null, and source_run_id remains create-only exactly as the backend schema requires.
+    - The source-Run link reuses the Workbench loadInspection bundle; no second loading path, URL scheme, or endpoint was introduced.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required.
+  rollback:
+    - Revert the phase commits; the member view loses the two additive fields and the Workbench returns to the read-only collaboration surface.
+  verification:
+    - npm test --workspace @obsion/web
+    - uv run pytest --no-cov services/control-plane/tests/test_phase92_collaboration_assignment.py
+    - npm run typecheck --workspace @obsion/web
+    - npm run lint --workspace @obsion/web
+    - npm run build --workspace @obsion/web
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - The source-Run selector lists runs from active threads only with the newest 50 offered; older Runs remain valid provenance targets via the persisted id.
+    - Member management (add and remove members) remains API-only and is not part of this phase.
+    - All six Alpha.1 candidate gates remain PENDING operator-owned items.

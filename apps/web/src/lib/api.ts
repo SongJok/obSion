@@ -31,6 +31,7 @@ import type {
   ThreadEvent,
   Turn,
   Workspace,
+  WorkspaceMember,
   AutomationExecution,
   AutomationStep,
   ActionApproval,
@@ -160,6 +161,8 @@ export const api = {
     request<Thread[]>(
       `/workspaces/${workspaceId}/threads?include_archived=${includeArchived}`,
     ),
+  listWorkspaceMembers: (workspaceId: string) =>
+    request<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`),
   createThread: (workspaceId: string, title: string) =>
     request<Thread>("/threads", {
       method: "POST",

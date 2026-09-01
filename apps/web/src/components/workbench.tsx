@@ -157,6 +157,25 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     setArtifacts(nextArtifacts);
   }, []);
 
+  const openRunInspection = useCallback(
+    async (runId: string) => {
+      const generation = ++requestGeneration.current;
+      setError("");
+      try {
+        const target = await api.getRun(runId);
+        await loadInspection(target);
+        if (generation !== requestGeneration.current) return;
+        setStreamState("idle");
+        setView("assistant");
+        setInspectorOpen(true);
+      } catch (caught) {
+        if (generation !== requestGeneration.current) return;
+        setError(caught instanceof Error ? caught.message : "无法打开来源 Run");
+      }
+    },
+    [loadInspection],
+  );
+
   const openThread = useCallback(async (selected: Thread) => {
     const generation = ++requestGeneration.current;
     setThread(selected);
@@ -776,7 +795,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
               <RuntimeInspector open={inspectorOpen} mobileVisible={mobileInspectorOpen} onClose={() => { setInspectorOpen(false); setMobileInspectorOpen(false); }} onReplay={() => { if (run) void replay(run); }} replaying={Boolean(replayingRunId)} run={run} streamState={streamState} events={events} steps={steps} evidence={evidence} memories={memories} conversation={conversationContext} claims={claims} artifacts={artifacts} />
             </div>
           </>
-        ) : view === "collaboration" ? <CollaborationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "files" ? <FilesView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "reports" ? <ReportsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "dashboards" ? <DashboardsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "sql" ? <SqlView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "evidence" ? <EvidenceView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "timeline" ? <TimelineView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "code" ? <CodeView /> : view === "data" ? <DataView /> : view === "studio" ? <StudioView /> : view === "eval" ? <EvalView /> : <AdminView />}
+        ) : view === "collaboration" ? <CollaborationView key={workspace?.id ?? "no-workspace"} workspace={workspace} onOpenRun={(runId) => void openRunInspection(runId)} /> : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "files" ? <FilesView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "reports" ? <ReportsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "dashboards" ? <DashboardsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "sql" ? <SqlView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "evidence" ? <EvidenceView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "timeline" ? <TimelineView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "code" ? <CodeView /> : view === "data" ? <DataView /> : view === "studio" ? <StudioView /> : view === "eval" ? <EvalView /> : <AdminView />}
       </section>
 
       {workspaceModal && (

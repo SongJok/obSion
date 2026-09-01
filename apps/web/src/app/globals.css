@@ -641,3 +641,9 @@ a { color: inherit; }
 .step-evidence-chip { padding: 2px 7px; border: 1px solid var(--border); border-radius: 5px; color: var(--brand); background: var(--brand-soft); font-size: 8px; font-weight: 700; letter-spacing: .03em; cursor: pointer; }.step-evidence-chip:hover { border-color: var(--brand); }
 .step-claims { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }.step-claims button { padding: 2px 7px; border: 1px solid #bfe5d3; border-radius: 5px; color: var(--green); background: var(--green-soft); font-size: 8px; font-weight: 700; cursor: pointer; }.step-claims button:hover { border-color: var(--green); }
 .unattributed-evidence { display: grid; gap: 6px; margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; background: #fafbfc; }.unattributed-evidence > small { color: var(--muted-2); font-size: 8px; font-weight: 600; }.unattributed-evidence .step-evidence { margin-top: 0; }
+
+/* Collaboration assignment and source-Run provenance (Phase 92) */
+.task-assignee { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; color: var(--brand-dark); background: var(--brand-soft); font-weight: 600; }
+.task-source-run { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--brand); background: transparent; font-size: inherit; cursor: pointer; }.task-source-run:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }.task-source-run:disabled { color: var(--muted-2); cursor: default; }
+.task-edit-button { flex: none; }
+.decision-lineage .task-source-run { font-size: 8px; }

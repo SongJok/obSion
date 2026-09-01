@@ -7,6 +7,17 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 92 Collaboration assignment and source-Run provenance (the gap
+  audit's top P1 item): WorkspaceMemberView now carries readable
+  display_name/email, the task form gains a member selector with
+  explicit-null clearing in the new edit mode, task and decision
+  creation attach a bounded newest-first source Run, provenance renders
+  on every record and opens the full Runtime inspection bundle through
+  the existing loadInspection path, and invalid-assignee or
+  cross-workspace-Run rejections map to actionable messages. The Runtime
+  inspector also labels ANALYTICS, OPERATION, and SUPPORT routes instead
+  of falling back to raw enum names.
+
 - Phase 91 JavaScript component-test stack for apps/web (the ADR
   0067-deferred decision): exact-pinned dev-only vitest + jsdom +
   Testing Library with 34 behavior-level tests covering the typed

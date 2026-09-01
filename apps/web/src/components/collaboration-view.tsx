@@ -11,21 +11,35 @@ import {
   ListChecks,
   LoaderCircle,
   LockKeyhole,
+  PanelRightOpen,
   Pencil,
   Plus,
   RefreshCw,
   Scale,
   ShieldCheck,
+  UserRound,
   X,
   XCircle,
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { ApiError, api } from "@/lib/api";
+import {
+  buildSourceRunOptions,
+  memberDisplayName,
+  sourceRunLabel,
+  taskCreatePayload,
+  taskUpdateHasChanges,
+  taskUpdatePayload,
+  toDateTimeLocalValue,
+  type SourceRunOption,
+  type TaskDraft,
+} from "@/lib/collaboration-display";
 import type {
   Workspace,
   WorkspaceDecision,
   WorkspaceDecisionVersion,
+  WorkspaceMember,
   WorkspaceTask,
   WorkspaceTaskPriority,
   WorkspaceTaskStatus,
@@ -33,10 +47,29 @@ import type {
 
 const CLOSED_TASKS = new Set<WorkspaceTaskStatus>(["COMPLETED", "CANCELLED"]);
 
-export function CollaborationView({ workspace }: { workspace?: Workspace }) {
+async function fetchSourceRunOptions(workspaceId: string): Promise<SourceRunOption[]> {
+  const threads = await api.listThreads(workspaceId);
+  const runsByThread = await Promise.all(
+    threads.map(async (thread) => ({
+      threadId: thread.id,
+      runs: await api.listThreadRuns(thread.id),
+    })),
+  );
+  return buildSourceRunOptions(threads, runsByThread);
+}
+
+export function CollaborationView({
+  workspace,
+  onOpenRun,
+}: {
+  workspace?: Workspace;
+  onOpenRun?: (runId: string) => void;
+}) {
   const [tasks, setTasks] = useState<WorkspaceTask[]>([]);
   const [decisions, setDecisions] = useState<WorkspaceDecision[]>([]);
   const [versions, setVersions] = useState<WorkspaceDecisionVersion[]>([]);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [sourceRuns, setSourceRuns] = useState<SourceRunOption[]>([]);
   const [selectedDecisionId, setSelectedDecisionId] = useState<string>();
   const [taskFilter, setTaskFilter] = useState<"ACTIVE" | "ALL" | "CLOSED">("ACTIVE");
   const [loading, setLoading] = useState(Boolean(workspace));
@@ -44,6 +77,7 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
   const [error, setError] = useState("");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<WorkspaceTask>();
   const [editingDecision, setEditingDecision] = useState<WorkspaceDecision>();
   const [supersedesDecisionId, setSupersedesDecisionId] = useState<string>();
 
@@ -58,12 +92,16 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
     setLoading(true);
     setError("");
     try {
-      const [nextTasks, nextDecisions] = await Promise.all([
+      const [nextTasks, nextDecisions, nextMembers, nextSourceRuns] = await Promise.all([
         api.collaboration.listTasks(workspace.id),
         api.collaboration.listDecisions(workspace.id),
+        api.listWorkspaceMembers(workspace.id),
+        fetchSourceRunOptions(workspace.id),
       ]);
       setTasks(nextTasks);
       setDecisions(nextDecisions);
+      setMembers(nextMembers);
+      setSourceRuns(nextSourceRuns);
       setSelectedDecisionId((current) =>
         current && nextDecisions.some((item) => item.id === current)
           ? current
@@ -82,11 +120,15 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
     Promise.all([
       api.collaboration.listTasks(workspace.id),
       api.collaboration.listDecisions(workspace.id),
+      api.listWorkspaceMembers(workspace.id),
+      fetchSourceRunOptions(workspace.id),
     ])
-      .then(([nextTasks, nextDecisions]) => {
+      .then(([nextTasks, nextDecisions, nextMembers, nextSourceRuns]) => {
         if (!active) return;
         setTasks(nextTasks);
         setDecisions(nextDecisions);
+        setMembers(nextMembers);
+        setSourceRuns(nextSourceRuns);
         setSelectedDecisionId(nextDecisions[0]?.id);
       })
       .catch((caught: unknown) => {
@@ -129,6 +171,12 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
       } catch (caught) {
         if (caught instanceof ApiError && caught.code.endsWith("_version_conflict")) {
           setError("记录已被其他成员更新，已为你刷新到最新版本。请确认后重试。");
+          await load();
+        } else if (caught instanceof ApiError && caught.code === "workspace_task_assignee_invalid") {
+          setError("指派的成员必须是该工作空间的在职成员，请刷新成员列表后重试。");
+          await load();
+        } else if (caught instanceof ApiError && caught.code === "workspace_source_run_mismatch") {
+          setError("来源 Run 必须属于当前工作空间，请刷新后重新选择。");
           await load();
         } else {
           setError(caught instanceof Error ? caught.message : "操作未能完成");
@@ -201,7 +249,7 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
           <button className="secondary-button" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={loading ? "spin" : ""} size={14} />刷新
           </button>
-          <button className="secondary-button" onClick={() => setTaskModalOpen(true)}>
+          <button className="secondary-button" onClick={() => { setEditingTask(undefined); setTaskModalOpen(true); }}>
             <Plus size={14} />新建任务
           </button>
           <button
@@ -243,7 +291,7 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
           <section className="collaboration-panel task-panel">
             <header>
               <div><ListChecks size={17} /><span><strong>工作任务</strong><small>{workspace.name}</small></span></div>
-              <button className="icon-button" onClick={() => setTaskModalOpen(true)} aria-label="新建任务"><Plus size={16} /></button>
+              <button className="icon-button" onClick={() => { setEditingTask(undefined); setTaskModalOpen(true); }} aria-label="新建任务"><Plus size={16} /></button>
             </header>
             <div className="collaboration-tabs" aria-label="任务筛选">
               {(["ACTIVE", "ALL", "CLOSED"] as const).map((filter) => (
@@ -254,7 +302,19 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
             </div>
             <div className="task-record-list">
               {visibleTasks.map((task) => (
-                <TaskRecord key={task.id} task={task} saving={saving} onTransition={transitionTask} />
+                <TaskRecord
+                  key={task.id}
+                  task={task}
+                  members={members}
+                  sourceRuns={sourceRuns}
+                  saving={saving}
+                  onTransition={transitionTask}
+                  onEdit={(target) => {
+                    setEditingTask(target);
+                    setTaskModalOpen(true);
+                  }}
+                  onOpenRun={onOpenRun}
+                />
               ))}
               {!visibleTasks.length && (
                 <CollaborationEmpty
@@ -263,7 +323,7 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
                   title={tasks.length ? "当前筛选没有任务" : "还没有工作任务"}
                   body="把需要跟进的结论登记为任务，团队会共享同一状态。"
                   action="新建任务"
-                  onAction={() => setTaskModalOpen(true)}
+                  onAction={() => { setEditingTask(undefined); setTaskModalOpen(true); }}
                 />
               )}
             </div>
@@ -310,7 +370,9 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
                   <DecisionDetail
                     decision={selectedDecision}
                     versions={versions}
+                    sourceRuns={sourceRuns}
                     saving={saving}
+                    onOpenRun={onOpenRun}
                     onEdit={() => {
                       setEditingDecision(selectedDecision);
                       setDecisionModalOpen(true);
@@ -332,12 +394,20 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
       {taskModalOpen && (
         <TaskModal
           workspace={workspace}
+          task={editingTask}
+          members={members}
+          runOptions={sourceRuns}
           saving={saving}
           onClose={() => setTaskModalOpen(false)}
-          onCreate={(definition) =>
+          onSave={(definition) =>
             void mutate(async () => {
-              const created = await api.collaboration.createTask(workspace.id, definition);
-              setTasks((items) => [created, ...items]);
+              if (editingTask) {
+                const updated = await api.collaboration.updateTask(editingTask.id, definition);
+                setTasks((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+              } else {
+                const created = await api.collaboration.createTask(workspace.id, definition);
+                setTasks((items) => [created, ...items]);
+              }
               setTaskModalOpen(false);
             })
           }
@@ -349,6 +419,7 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
           decision={editingDecision}
           acceptedDecisions={decisions.filter((item) => item.status === "ACCEPTED")}
           supersedesDecisionId={supersedesDecisionId}
+          runOptions={sourceRuns}
           saving={saving}
           onClose={() => setDecisionModalOpen(false)}
           onSave={(definition) =>
@@ -373,12 +444,20 @@ export function CollaborationView({ workspace }: { workspace?: Workspace }) {
 
 function TaskRecord({
   task,
+  members,
+  sourceRuns,
   saving,
   onTransition,
+  onEdit,
+  onOpenRun,
 }: {
   task: WorkspaceTask;
+  members: WorkspaceMember[];
+  sourceRuns: SourceRunOption[];
   saving: boolean;
   onTransition: (task: WorkspaceTask, status: WorkspaceTaskStatus) => void;
+  onEdit: (task: WorkspaceTask) => void;
+  onOpenRun?: (runId: string) => void;
 }) {
   const transitions = taskTransitions(task.status);
   const overdue = Boolean(task.due_at && !CLOSED_TASKS.has(task.status) && new Date(task.due_at) < new Date());
@@ -388,12 +467,25 @@ function TaskRecord({
         <span className={`task-priority ${task.priority.toLowerCase()}`}>{priorityLabel(task.priority)}</span>
         <TaskStatus status={task.status} />
         <code>v{task.version}</code>
+        <button className="icon-button task-edit-button" onClick={() => onEdit(task)} aria-label="编辑任务" title="编辑任务"><Pencil size={13} /></button>
       </div>
       <h3>{task.title}</h3>
       {task.description && <p>{task.description}</p>}
       <div className="task-record-meta">
         <span className={overdue ? "overdue" : ""}><Clock3 size={12} />{task.due_at ? formatDate(task.due_at) : "未设置截止时间"}</span>
-        {task.assignee_id && <span>已指派</span>}
+        {task.assignee_id && (
+          <span className="task-assignee"><UserRound size={12} />{memberDisplayName(members, task.assignee_id)}</span>
+        )}
+        {task.source_run_id && (
+          <button
+            className="task-source-run"
+            onClick={() => onOpenRun?.(task.source_run_id!)}
+            disabled={!onOpenRun}
+            title="在 Runtime 面板中查看来源 Run"
+          >
+            <PanelRightOpen size={12} />{sourceRunLabel(sourceRuns, task.source_run_id)}
+          </button>
+        )}
       </div>
       <footer>
         {transitions.map((transition, index) => (
@@ -414,14 +506,18 @@ function TaskRecord({
 function DecisionDetail({
   decision,
   versions,
+  sourceRuns,
   saving,
+  onOpenRun,
   onEdit,
   onDecide,
   onSupersede,
 }: {
   decision: WorkspaceDecision;
   versions: WorkspaceDecisionVersion[];
+  sourceRuns: SourceRunOption[];
   saving: boolean;
+  onOpenRun?: (runId: string) => void;
   onEdit: () => void;
   onDecide: (approve: boolean) => void;
   onSupersede: () => void;
@@ -448,6 +544,20 @@ function DecisionDetail({
       )}
       {decision.supersedes_decision_id && (
         <div className="decision-lineage"><GitBranch size={14} />替代决策 {decision.supersedes_decision_id.slice(0, 8)}</div>
+      )}
+      {decision.source_run_id && (
+        <div className="decision-lineage">
+          <PanelRightOpen size={14} />
+          来源 Run
+          <button
+            className="task-source-run"
+            onClick={() => onOpenRun?.(decision.source_run_id!)}
+            disabled={!onOpenRun}
+            title="在 Runtime 面板中查看来源 Run"
+          >
+            {sourceRunLabel(sourceRuns, decision.source_run_id)}
+          </button>
+        </div>
       )}
       <div className="decision-fingerprint">
         <LockKeyhole size={13} /><span>内容指纹</span><code>{decision.checksum_sha256.slice(0, 20)}</code>
@@ -480,40 +590,68 @@ function DecisionDetail({
 
 function TaskModal({
   workspace,
+  task,
+  members,
+  runOptions,
   saving,
   onClose,
-  onCreate,
+  onSave,
 }: {
   workspace: Workspace;
+  task?: WorkspaceTask;
+  members: WorkspaceMember[];
+  runOptions: SourceRunOption[];
   saving: boolean;
   onClose: () => void;
-  onCreate: (definition: Record<string, unknown>) => void;
+  onSave: (definition: Record<string, unknown>) => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<WorkspaceTaskPriority>("NORMAL");
-  const [dueAt, setDueAt] = useState("");
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [description, setDescription] = useState(task?.description ?? "");
+  const [priority, setPriority] = useState<WorkspaceTaskPriority>(task?.priority ?? "NORMAL");
+  const [assigneeId, setAssigneeId] = useState(task?.assignee_id ?? "");
+  const [sourceRunId, setSourceRunId] = useState(task?.source_run_id ?? "");
+  const [dueAt, setDueAt] = useState(toDateTimeLocalValue(task?.due_at));
+  const draft: TaskDraft = { title, description, priority, assigneeId, dueAt };
+  const updatePayload = task ? taskUpdatePayload(task, draft) : undefined;
+  const unchanged = Boolean(task && updatePayload && !taskUpdateHasChanges(updatePayload));
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim()) return;
-    onCreate({
-      title: title.trim(),
-      description: description.trim(),
-      priority,
-      ...(dueAt ? { due_at: new Date(dueAt).toISOString() } : {}),
-    });
+    onSave(task && updatePayload ? updatePayload : taskCreatePayload(draft, sourceRunId));
   };
   return (
     <div className="modal-backdrop" role="presentation">
       <form className="workspace-modal collaboration-modal" onSubmit={submit}>
-        <header><span className="modal-icon"><ListChecks size={19} /></span><div><h2>新建工作任务</h2><p>{workspace.name} · 状态变化会同步到审计记录</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></header>
+        <header><span className="modal-icon"><ListChecks size={19} /></span><div><h2>{task ? `编辑任务 v${task.version}` : "新建工作任务"}</h2><p>{workspace.name} · 状态变化会同步到审计记录</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></header>
         <label><span>任务名称</span><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} maxLength={300} placeholder="例如：验证支付超时的客户影响" /></label>
         <label><span>说明</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={20000} rows={3} placeholder="写清完成标准、依据和需要协作的事项" /></label>
         <div className="collaboration-form-grid">
           <label><span>优先级</span><select value={priority} onChange={(event) => setPriority(event.target.value as WorkspaceTaskPriority)}><option value="LOW">低</option><option value="NORMAL">普通</option><option value="HIGH">高</option><option value="CRITICAL">紧急</option></select></label>
           <label><span>截止时间</span><input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /></label>
         </div>
-        <footer><button type="button" className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving || !title.trim()}>{saving ? "正在保存…" : "创建任务"}</button></footer>
+        <div className="collaboration-form-grid">
+          <label>
+            <span>指派给</span>
+            <select value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}>
+              <option value="">未指派</option>
+              {members.map((member) => (
+                <option key={member.user_id} value={member.user_id}>{member.display_name}</option>
+              ))}
+            </select>
+          </label>
+          {!task && (
+            <label>
+              <span>来源 Run（可选）</span>
+              <select value={sourceRunId} onChange={(event) => setSourceRunId(event.target.value)}>
+                <option value="">无来源 Run</option>
+                {runOptions.map((option) => (
+                  <option key={option.runId} value={option.runId}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        <footer><button type="button" className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving || !title.trim() || unchanged}>{saving ? "正在保存…" : task ? "保存修改" : "创建任务"}</button></footer>
       </form>
     </div>
   );
@@ -524,6 +662,7 @@ function DecisionModal({
   decision,
   acceptedDecisions,
   supersedesDecisionId,
+  runOptions,
   saving,
   onClose,
   onSave,
@@ -532,6 +671,7 @@ function DecisionModal({
   decision?: WorkspaceDecision;
   acceptedDecisions: WorkspaceDecision[];
   supersedesDecisionId?: string;
+  runOptions: SourceRunOption[];
   saving: boolean;
   onClose: () => void;
   onSave: (definition: Record<string, unknown>) => void;
@@ -541,6 +681,7 @@ function DecisionModal({
   const [rationale, setRationale] = useState(decision?.rationale ?? "");
   const [alternatives, setAlternatives] = useState(decision?.alternatives.join("\n") ?? "");
   const [supersedes, setSupersedes] = useState(supersedesDecisionId ?? "");
+  const [sourceRunId, setSourceRunId] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim() || !summary.trim() || !rationale.trim()) return;
@@ -550,6 +691,7 @@ function DecisionModal({
       rationale: rationale.trim(),
       alternatives: alternatives.split("\n").map((item) => item.trim()).filter(Boolean),
       ...(!decision && supersedes ? { supersedes_decision_id: supersedes } : {}),
+      ...(!decision && sourceRunId ? { source_run_id: sourceRunId } : {}),
     });
   };
   return (
@@ -561,6 +703,17 @@ function DecisionModal({
         <label><span>决策依据</span><textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={4} maxLength={40000} placeholder="依据、约束、证据和预期影响" /></label>
         <label><span>备选方案（每行一个）</span><textarea value={alternatives} onChange={(event) => setAlternatives(event.target.value)} rows={3} placeholder="保留当前方案&#10;采用另一种实施路径" /></label>
         {!decision && acceptedDecisions.length > 0 && <label><span>替代现有决策（可选）</span><select value={supersedes} onChange={(event) => setSupersedes(event.target.value)}><option value="">不替代现有决策</option>{acceptedDecisions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
+        {!decision && (
+          <label>
+            <span>来源 Run（可选）</span>
+            <select value={sourceRunId} onChange={(event) => setSourceRunId(event.target.value)}>
+              <option value="">无来源 Run</option>
+              {runOptions.map((option) => (
+                <option key={option.runId} value={option.runId}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="decision-modal-note"><ShieldCheck size={14} />{decision ? "原版本会永久保留，本次保存将生成下一版本。" : "决策在接受或拒绝前可以修订；形成结论后内容不再改变。"}</div>
         <footer><button type="button" className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving || !title.trim() || !summary.trim() || !rationale.trim()}>{saving ? "正在封存…" : decision ? "保存新版本" : "保存为待定决策"}</button></footer>
       </form>

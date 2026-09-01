@@ -1,5 +1,5 @@
 project: obsion
-version: 0.91.0-dev
+version: 0.92.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -94,8 +94,9 @@ completed_phases:
   - phase-89
   - phase-90
   - phase-91
+  - phase-92
 
-current_phase: phase-91
+current_phase: phase-92
 
 tests:
   unit: passed
@@ -118,20 +119,23 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-92
+  id: phase-93
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 91 executed the ADR 0067-deferred decision and gave
-    apps/web an executable test stack — exact-pinned dev-only vitest,
-    jsdom, and Testing Library with 34 behavior-level tests covering the
-    typed Evidence classifier and renderers, citation helpers, and API
-    error normalization, wired into the existing root npm test fan-out
-    so make test and CI run it unchanged. ADR 0070 records the
-    decisions. Production promotion remains fail-closed while clean
-    staging/UAT, staging-scoped timed restore, registry HIGH/CRITICAL
-    CVE policy, signatures, live OIDC/secret-manager/read-replica
-    evidence, security and data-owner approval, and maintainer
-    publication authority are PENDING. Phase 92 may consume real
-    operator evidence; it must not fabricate approval, publish with
-    ci.txt credentials, expand production writes, or add a second
-    runtime without explicit authority.
+  notes: Phase 92 closed the top P1 gap audit item and completed the
+    collaboration assignment and source-Run provenance surface —
+    WorkspaceMemberView now carries readable display_name and email,
+    task create/edit offers a member selector with explicit-null
+    clearing, task and decision creation attach a bounded newest-first
+    source Run, provenance renders on every record and opens the full
+    Runtime inspection bundle through the existing loadInspection path,
+    and invalid-assignee or cross-workspace-Run rejections map to
+    actionable messages. ADR 0071 records the decisions. Production
+    promotion remains fail-closed while clean staging/UAT,
+    staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
+    signatures, live OIDC/secret-manager/read-replica evidence,
+    security and data-owner approval, and maintainer publication
+    authority are PENDING. Phase 93 may consume real operator evidence;
+    it must not fabricate approval, publish with ci.txt credentials,
+    expand production writes, or add a second runtime without explicit
+    authority.

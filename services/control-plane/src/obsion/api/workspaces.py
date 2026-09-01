@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.dependencies import get_workspace_service
@@ -19,10 +20,40 @@ from obsion.api.schemas import (
     WorkspaceView,
 )
 from obsion.application.workspaces import WorkspaceService
+from obsion.db.models import User, WorkspaceMember
 from obsion.security.auth import get_principal, get_session
 from obsion.security.identity import Principal
 
 router = APIRouter(tags=["workspace"])
+
+
+async def _member_views(
+    session: AsyncSession,
+    principal: Principal,
+    members: list[WorkspaceMember],
+) -> list[WorkspaceMemberView]:
+    users = {
+        user.id: user
+        for user in await session.scalars(
+            select(User).where(
+                User.organization_id == principal.organization_id,
+                User.id.in_([member.user_id for member in members]),
+            )
+        )
+    }
+    return [
+        WorkspaceMemberView(
+            workspace_id=member.workspace_id,
+            user_id=member.user_id,
+            display_name=users[member.user_id].display_name,
+            email=users[member.user_id].email,
+            permissions=list(member.permissions),
+            created_by=member.created_by,
+            created_at=member.created_at,
+        )
+        for member in members
+        if member.user_id in users
+    ]
 
 
 @router.post("/workspaces", response_model=WorkspaceView, status_code=status.HTTP_201_CREATED)
@@ -64,7 +95,8 @@ async def set_workspace_member(
             request.user_id,
             request.permissions,
         )
-    return WorkspaceMemberView.model_validate(member)
+    views = await _member_views(session, principal, [member])
+    return views[0]
 
 
 @router.get("/workspaces/{workspace_id}/members", response_model=list[WorkspaceMemberView])
@@ -75,7 +107,7 @@ async def list_workspace_members(
     service: WorkspaceService = Depends(get_workspace_service),
 ) -> list[WorkspaceMemberView]:
     members = await service.list_members(session, principal, workspace_id)
-    return [WorkspaceMemberView.model_validate(item) for item in members]
+    return await _member_views(session, principal, members)
 
 
 @router.delete(

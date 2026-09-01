@@ -87,7 +87,7 @@ def test_phase81_manifest_is_valid_and_the_cli_default() -> None:
 
     args = build_parser().parse_args(["validate-release-notes"])
     assert args.manifest != "docs/release/0.81.0-dev.yaml"
-    assert args.manifest == "docs/release/0.91.0-dev.yaml"
+    assert args.manifest == "docs/release/0.92.0-dev.yaml"
 
     document = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert "repositoryEvidence" not in document["spec"]
