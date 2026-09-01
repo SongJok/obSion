@@ -1,0 +1,66 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-automation-authoring-depth
+  version: 0.94.0-dev
+  phase: 94
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema, route, or permission changes; the Workbench surfaces the automation lifecycle the backend already enforced.
+  documents:
+    - CHANGELOG.md
+    - apps/web/src/lib/automation-authoring.ts
+    - apps/web/src/lib/api.ts
+    - apps/web/src/lib/types.ts
+    - apps/web/src/components/automation-view.tsx
+    - apps/web/src/components/workbench.tsx
+    - apps/web/src/app/globals.css
+    - apps/web/tests/automation-authoring.test.ts
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase94_automation_authoring.py
+    - services/control-plane/tests/test_phase81_feishu_live_reply.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - services/control-plane/tests/test_phase89_typed_evidence.py
+    - services/control-plane/tests/test_phase90_investigation_narrative.py
+    - services/control-plane/tests/test_phase91_web_test_stack.py
+    - services/control-plane/tests/test_phase92_collaboration_assignment.py
+    - services/control-plane/tests/test_phase93_native_model_adapters.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.94.0-dev.md
+    - docs/phases/PHASE-94-REPORT.md
+    - docs/architecture/phase-94-automation-authoring.md
+    - docs/adr/0073-automation-authoring-depth.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase changes no backend route, schema, permission, or worker behaviour and surfaces only what the automation API already enforces.
+    - Workflow versions stay immutable; the Workbench derives new versions from existing specs and never mutates a published spec in place, and publishing an older version remains guarded by the backend workflow_retired rejection.
+    - Trigger and schedule input payloads are validated client-side before submission, idempotency keys keep the existing web-uuid generation, and the automation.manage permission and per-run owner checks are unchanged.
+    - No credential material is solicited, stored, or rendered anywhere in the new authoring surface; payloads are operator-supplied business parameters only.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required; the new authoring actions call existing automation endpoints.
+  rollback:
+    - Revert the phase commits; the Automation workbench returns to create, publish-latest, pause/activate, empty-payload trigger, and review only.
+  verification:
+    - npx vitest run tests/automation-authoring.test.ts
+    - uv run pytest --no-cov services/control-plane/tests/test_phase94_automation_authoring.py
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - Schedules remain enable/disable only after creation; editing a schedule means creating a new one, matching the backend contract.
+    - Step artifact output refs render as labeled chips; opening the artifact itself stays in the Artifacts view.
+    - All six Alpha.1 candidate gates remain PENDING operator-owned items.

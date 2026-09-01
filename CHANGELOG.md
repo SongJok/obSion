@@ -7,6 +7,18 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 94 Automation Web authoring depth (the gap audit's P2 item):
+  the Workbench now covers the full workflow lifecycle the backend
+  already enforced — a versions card with inspect, derive-new-version,
+  and publish/rollback actions, a read-only spec viewer, derived
+  authoring through the shared buildSpecFromDraft builder, manual
+  triggers with validated JSON input payloads and preserved
+  idempotency, post-creation schedule authoring with cron presets,
+  misfire policy, fixed-version pinning, and input payloads, a guarded
+  two-step retire, and step output refs with a Harness run link into
+  the Runtime inspector. No backend route, schema, or permission
+  changes.
+
 - Phase 93 native Anthropic and Gemini model adapters (the gap audit's
   remaining P1 model item): the Model Gateway now speaks the Messages
   API and generateContent wire contracts behind the existing provider

@@ -584,11 +584,32 @@ export interface Workflow {
   updated_at: string;
 }
 
+export type WorkflowStepType = "ANALYSIS" | "HUMAN_REVIEW" | "NOTIFICATION";
+
+export interface WorkflowStepSpec {
+  id: string;
+  name: string;
+  type: WorkflowStepType;
+  depends_on: string[];
+  prompt?: string;
+  model_profile?: string;
+  title?: string;
+  body?: string;
+  review_instructions?: string;
+  disallow_self_review?: boolean;
+}
+
+export interface WorkflowSpec {
+  steps: WorkflowStepSpec[];
+}
+
 export interface WorkflowVersion {
   id: string;
   workflow_id: string;
   version: number;
+  spec: WorkflowSpec;
   checksum_sha256: string;
+  created_by: string;
   published_at: string | null;
   created_at: string;
 }

@@ -454,6 +454,11 @@ export const api = {
       ),
     listVersions: (workflowId: string) =>
       request<WorkflowVersion[]>(`/workflows/${workflowId}/versions`),
+    createVersion: (workflowId: string, spec: Record<string, unknown>) =>
+      request<WorkflowVersion>(`/workflows/${workflowId}/versions`, {
+        method: "POST",
+        body: JSON.stringify({ spec }),
+      }),
     publishVersion: (workflowId: string, version: number) =>
       request<{ workflow: Workflow; version: WorkflowVersion }>(
         `/workflows/${workflowId}/versions/${version}/publish`,
@@ -473,12 +478,16 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ enabled }),
       }),
-    trigger: (workflowId: string, inputPayload: Record<string, unknown> = {}) =>
+    trigger: (
+      workflowId: string,
+      inputPayload: Record<string, unknown> = {},
+      idempotencyKey?: string,
+    ) =>
       request<AutomationExecution>(`/workflows/${workflowId}/trigger`, {
         method: "POST",
         body: JSON.stringify({
           input_payload: inputPayload,
-          idempotency_key: `web-${crypto.randomUUID()}`,
+          idempotency_key: idempotencyKey ?? `web-${crypto.randomUUID()}`,
         }),
       }),
     listExecutions: (workflowId: string) =>

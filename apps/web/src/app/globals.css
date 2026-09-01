@@ -647,3 +647,29 @@ a { color: inherit; }
 .task-source-run { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--brand); background: transparent; font-size: inherit; cursor: pointer; }.task-source-run:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }.task-source-run:disabled { color: var(--muted-2); cursor: default; }
 .task-edit-button { flex: none; }
 .decision-lineage .task-source-run { font-size: 8px; }
+
+/* Automation authoring depth: versions, payload, outputs (Phase 94) */
+.card-header-actions { display: inline-flex; align-items: center; gap: 6px; }
+.versions-card .version-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); }
+.versions-card .version-row:first-of-type { border-top: 0; }
+.version-index { flex: none; min-width: 34px; padding: 3px 0; border-radius: 6px; text-align: center; color: var(--brand-dark); background: var(--brand-soft); font-size: 10px; font-weight: 700; }
+.versions-card .version-row > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.versions-card .version-row strong { font-size: 11px; }
+.versions-card .version-row small { color: var(--muted-2); font-size: 9px; }
+.versions-card .version-row em { color: var(--muted-2); font-size: 9px; font-style: normal; }
+.version-actions { display: inline-flex; gap: 4px; flex: none; }
+.workflow-retired-note { display: inline-flex; align-items: center; gap: 6px; color: var(--muted-2); font-size: 10px; font-weight: 600; }
+.spec-modal .spec-step-list { display: grid; gap: 10px; max-height: 46vh; overflow-y: auto; padding-right: 4px; }
+.spec-step { display: flex; gap: 10px; align-items: flex-start; }
+.spec-step > div { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.spec-step header { display: flex; align-items: center; gap: 8px; }
+.spec-step header strong { font-size: 11px; }
+.spec-step header code { color: var(--muted-2); font-size: 9px; }
+.spec-step small { color: var(--muted-2); font-size: 9px; }
+.spec-step p { margin: 0; padding: 7px 9px; border-radius: 7px; background: #f6f8fa; color: var(--foreground); font-size: 10px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.execution-input { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #f6f8fa; }
+.execution-input span { display: inline-flex; align-items: center; gap: 5px; flex: none; color: var(--muted-2); font-size: 9px; font-weight: 700; }
+.execution-input code { flex: 1; min-width: 0; overflow-x: auto; font-size: 10px; white-space: nowrap; }
+.step-run-link { margin-top: 4px; font-size: 9px; }
+.step-outputs { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.output-ref-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid var(--border); border-radius: 5px; color: var(--brand); background: var(--brand-soft); font-size: 8px; font-weight: 700; letter-spacing: .03em; }

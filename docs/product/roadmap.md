@@ -319,3 +319,15 @@ the same SUPPORTED_PROVIDERS registry the gateway serves. The Harness,
 redaction, budgets, fingerprints, and cost accounting are unchanged.
 ADR 0072 records the decisions. The candidate contract, recorded
 evidence, and all six PENDING operator gates are untouched.
+
+Phase 94 closes the Automation Web authoring depth gap: the Workbench
+now covers the full workflow lifecycle the backend already enforced —
+immutable versions with inspect, derive-new-version, and
+publish/rollback actions, a read-only spec viewer, derived authoring
+through the shared buildSpecFromDraft builder, manual triggers with
+validated JSON input payloads and preserved idempotency, post-creation
+schedule authoring with cron presets, misfire policy, fixed-version
+pinning, and input payloads, a guarded two-step retire, and step
+output refs with a Harness run link into the Runtime inspector. ADR
+0073 records the decisions. The candidate contract, recorded evidence,
+and all six PENDING operator gates are untouched.
