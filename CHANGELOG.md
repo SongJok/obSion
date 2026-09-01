@@ -7,6 +7,16 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 95 schema-driven chart renderer (the gap audit's deferred
+  renderer item): the Workbench now honors the Vega-Lite v5 subset the
+  Harness emits for CHART artifacts — temporal series render as SVG
+  line charts with grid ticks, dot tooltips, and chronological
+  sorting, single-number text marks render as big-number KPI cards,
+  and nominal bars keep the horizontal-bar look with point caps.
+  Parsing is fail-closed (unknown marks fall back to bar, no numeric
+  values show an explicit notice), and the producer contract is pinned
+  by control-plane tests so renderer and producer cannot drift.
+
 - Phase 94 Automation Web authoring depth (the gap audit's P2 item):
   the Workbench now covers the full workflow lifecycle the backend
   already enforced — a versions card with inspect, derive-new-version,

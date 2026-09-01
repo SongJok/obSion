@@ -331,3 +331,14 @@ pinning, and input payloads, a guarded two-step retire, and step
 output refs with a Harness run link into the Runtime inspector. ADR
 0073 records the decisions. The candidate contract, recorded evidence,
 and all six PENDING operator gates are untouched.
+
+Phase 95 closes the schema-driven chart renderer gap: the Workbench
+now honors the Vega-Lite v5 subset the Harness emits for CHART
+artifacts — temporal series render as SVG line charts with grid ticks,
+dot tooltips, and chronological sorting, single-number text marks
+render as big-number KPI cards, and nominal bars keep the
+horizontal-bar look with point caps. Parsing is fail-closed and the
+producer contract is pinned by control-plane tests so renderer and
+producer cannot drift. ADR 0074 records the decisions. The candidate
+contract, recorded evidence, and all six PENDING operator gates are
+untouched.

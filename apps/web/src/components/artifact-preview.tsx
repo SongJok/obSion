@@ -3,6 +3,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import type { Artifact } from "@/lib/types";
+import {
+  buildLineGeometry,
+  formatTick,
+  parseChartSpec,
+  type ParsedChart,
+} from "@/lib/chart-spec";
 
 export function ArtifactPreview({ artifact }: { artifact: Artifact }) {
   const content = artifact.inline_content;
@@ -55,24 +61,70 @@ export function ArtifactPreview({ artifact }: { artifact: Artifact }) {
 }
 
 function ChartPreview({ artifact }: { artifact: Artifact }) {
-  const content = artifact.inline_content;
-  const values = content?.data?.values ?? [];
-  const xField = content?.encoding?.x?.field;
-  const yField = content?.encoding?.y?.field ?? content?.encoding?.text?.field;
-  const points = values
-    .map((row) => ({ label: xField ? displayValue(row[xField]) : "值", value: Number(yField ? row[yField] : undefined) }))
-    .filter((point) => Number.isFinite(point.value));
-  const maximum = Math.max(1, ...points.map((point) => Math.abs(point.value)));
-  if (!points.length) return <p className="artifact-empty">当前结果没有可绘制的数值列。</p>;
+  const chart = parseChartSpec(artifact.inline_content);
+  if (!chart) return <p className="artifact-empty">当前结果没有可绘制的数值列。</p>;
+  if (chart.mark === "text") return <ChartText chart={chart} />;
+  if (chart.mark === "line") return <ChartLine chart={chart} />;
+  return <ChartBars chart={chart} />;
+}
+
+function ChartBars({ chart }: { chart: ParsedChart }) {
+  const maximum = Math.max(1, ...chart.points.map((point) => Math.abs(point.value)));
   return (
     <div className="chart-preview">
-      {points.slice(0, 20).map((point, index) => (
+      {chart.points.map((point, index) => (
         <div key={`${point.label}-${index}`}>
           <span>{point.label}</span>
           <i><b style={{ width: `${Math.max(2, Math.abs(point.value) / maximum * 100)}%` }} /></i>
           <strong>{point.value.toLocaleString()}</strong>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ChartText({ chart }: { chart: ParsedChart }) {
+  return (
+    <div className="chart-big-number">
+      {chart.points.slice(0, 4).map((point, index) => (
+        <article key={`${point.label}-${index}`}>
+          <strong>{point.value.toLocaleString()}</strong>
+          <span>{chart.yField ?? chart.textField ?? point.label}</span>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+const LINE_WIDTH = 560;
+const LINE_HEIGHT = 220;
+const LINE_PADDING = 28;
+
+function ChartLine({ chart }: { chart: ParsedChart }) {
+  const geometry = buildLineGeometry(chart.points, LINE_WIDTH, LINE_HEIGHT, LINE_PADDING);
+  if (!geometry) return <p className="artifact-empty">当前结果没有可绘制的数值列。</p>;
+  const first = chart.points[0];
+  const last = chart.points[chart.points.length - 1];
+  return (
+    <div className="chart-line-wrap">
+      <svg className="chart-line" viewBox={`0 0 ${LINE_WIDTH} ${LINE_HEIGHT}`} role="img" aria-label={chart.yField ?? "折线图"}>
+        {geometry.yTicks.map((tick, index) => {
+          const y = LINE_PADDING + (LINE_HEIGHT - LINE_PADDING * 2) * (index / (geometry.yTicks.length - 1));
+          return (
+            <g key={tick}>
+              <line className="chart-grid" x1={LINE_PADDING} x2={LINE_WIDTH - LINE_PADDING} y1={y} y2={y} />
+              <text className="chart-tick" x={LINE_PADDING - 6} y={y + 3}>{formatTick(tick)}</text>
+            </g>
+          );
+        })}
+        <path className="chart-line-path" d={geometry.path} />
+        {geometry.dots.map((dot, index) => (
+          <circle key={`${dot.point.label}-${index}`} className="chart-line-dot" cx={dot.x} cy={dot.y} r={3}>
+            <title>{`${dot.point.label}：${dot.point.value.toLocaleString()}`}</title>
+          </circle>
+        ))}
+      </svg>
+      <div className="chart-line-axis"><span>{first.label}</span><span>{last.label}</span></div>
     </div>
   );
 }

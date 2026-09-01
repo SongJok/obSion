@@ -39,6 +39,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Collaboration assignment and source-Run provenance: readable member identity on the member view, member selector with explicit-null clearing, bounded source-Run selection on task/decision creation, provenance display with a Runtime inspector link, and actionable validation-error mapping
 - [x] Native Anthropic and Gemini model adapters behind the existing provider protocol with lossless tool_choice mapping, per-vendor json_mode, fail-closed parsing, and registry-driven admin validation
 - [x] Automation Web authoring depth: immutable version management with inspect, derive, publish and rollback, a spec viewer, validated trigger payloads with idempotency, schedule authoring with fixed-version pinning, guarded retire, and step output refs linked into the Runtime inspector
+- [x] Schema-driven chart renderer honoring the emitted Vega-Lite subset: temporal line charts with grid ticks and tooltips, big-number text marks, capped bars, fail-closed parsing, and a producer contract pinned against drift
 
 ## Operator-owned (not claimed by this repository run)
 

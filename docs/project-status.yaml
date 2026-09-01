@@ -1,5 +1,5 @@
 project: obsion
-version: 0.94.0-dev
+version: 0.95.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -97,8 +97,9 @@ completed_phases:
   - phase-92
   - phase-93
   - phase-94
+  - phase-95
 
-current_phase: phase-94
+current_phase: phase-95
 
 tests:
   unit: passed
@@ -121,21 +122,19 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-95
+  id: phase-96
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 94 closed the Automation Web authoring depth gap — the
-    Workbench now exposes the full workflow lifecycle the backend
-    already enforced with immutable versions, spec viewing, derived
-    draft editing, per-version publishing and rollback, trigger input
-    payloads with idempotency, schedule authoring with fixed-version
-    pinning and misfire policy, a guarded retire action, and step
-    output refs with a Harness run link into the Runtime inspector.
-    ADR 0073 records the decisions. Production promotion remains
-    fail-closed while clean staging/UAT, staging-scoped timed restore,
-    registry HIGH/CRITICAL CVE policy, signatures, live
-    OIDC/secret-manager/read-replica evidence, security and data-owner
-    approval, and maintainer publication authority are PENDING. Phase
-    95 may consume real operator evidence; it must not fabricate
-    approval, publish with ci.txt credentials, expand production
-    writes, or add a second runtime without explicit authority.
+  notes: Phase 95 closed the schema-driven chart renderer gap — the
+    Workbench now honors the Vega-Lite subset the Harness emits for
+    CHART artifacts with temporal line charts, big-number text marks,
+    capped bars, fail-closed parsing, and a producer contract pinned
+    against drift. ADR 0074 records the decisions. Production
+    promotion remains fail-closed while clean staging/UAT,
+    staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
+    signatures, live OIDC/secret-manager/read-replica evidence,
+    security and data-owner approval, and maintainer publication
+    authority are PENDING. Phase 96 may consume real operator
+    evidence; it must not fabricate approval, publish with ci.txt
+    credentials, expand production writes, or add a second runtime
+    without explicit authority.

@@ -322,6 +322,7 @@ export interface ArtifactContent {
   row_count?: number;
   data?: { values?: Record<string, unknown>[] };
   encoding?: Record<string, { field?: string; type?: string }>;
+  mark?: string | { type?: string; point?: boolean; tooltip?: boolean };
   validation?: { valid?: boolean };
   [key: string]: unknown;
 }
