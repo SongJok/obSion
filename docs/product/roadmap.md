@@ -263,3 +263,18 @@ reasons are operator-entered or cancelled — no canned rationale can enter
 an approval or audit record. ADR 0067 records the decisions. Client code
 only; the candidate contract, recorded evidence, and all six PENDING
 operator gates are untouched.
+
+Phase 89 delivers goal.txt section 57's Evidence Panel on persisted rows:
+Workbench Evidence details now dispatch on the normalized content envelope
+— observability event streams for METRIC/LOG/TRACE/deployment.list,
+engineering change items for GIT/CONFIG/deployment.commit/k8s.status with
+git.diff patch views and config.diff before/after pairs, HTML tables and
+explain plans for DATA, Code Graph symbol locations for CODE, citation
+provenance for knowledge hits, and readable document text for attachments —
+with a preserved raw JSON fallback for any payload no classifier
+recognizes and a full metadata ledger (observed/ingested time, confidence,
+classification, permissions, fingerprint, step, Run, lineage) rendered
+only from persisted fields. The Web Evidence type now matches the REST
+projection exactly. ADR 0068 records the decisions. Rendering only; the
+candidate contract, recorded evidence, and all six PENDING operator gates
+are untouched.

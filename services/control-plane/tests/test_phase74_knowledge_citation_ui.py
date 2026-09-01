@@ -24,12 +24,16 @@ def test_knowledge_view_renders_provenance_component() -> None:
 
 
 def test_runtime_inspector_surfaces_document_citations() -> None:
+    # Phase 89 moved the citation renderer into the shared typed Evidence
+    # content component; the inspector consumes it via EvidenceContent.
     inspector = (WEB_ROOT / "src" / "components" / "runtime-inspector.tsx").read_text(
         encoding="utf-8"
     )
-    assert "DocumentEvidenceCitations" in inspector
-    assert "hitsFromEvidenceContent" in inspector
-    assert "KnowledgeProvenance" in inspector
+    assert "EvidenceContent" in inspector
+    content = (WEB_ROOT / "src" / "components" / "evidence-content.tsx").read_text(encoding="utf-8")
+    assert "KnowledgeHits" in content
+    assert "hitsFromEvidenceContent" in content
+    assert "KnowledgeProvenance" in content
 
 
 def test_provenance_component_fail_closed_copy() -> None:

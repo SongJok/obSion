@@ -7,6 +7,18 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 89 typed Evidence views (goal.txt section 57 Evidence Panel): the
+  Workbench now renders persisted Evidence rows with envelope-driven typed
+  views — observability event streams for METRIC/LOG/TRACE/deployment.list,
+  engineering change items with git.diff/config.diff specialization for
+  GIT/CONFIG/deployment.commit/k8s.status, HTML tables and explain plans
+  for DATA, symbol locations for CODE, citation provenance for knowledge
+  hits — plus a full persisted metadata ledger (observed/ingested time,
+  confidence, classification, permissions, fingerprint, step, Run,
+  lineage). Every accessor is a type guard, unknown payloads keep the raw
+  JSON fallback, and the Web Evidence type now matches the REST projection
+  exactly.
+
 - Phase 88 Alpha.1 Workbench reliability hardening: every Workbench request
   is bounded by an explicit `AbortSignal` timeout (30s default, 120s for
   ingest and evaluation mutations) with normalized

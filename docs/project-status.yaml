@@ -1,5 +1,5 @@
 project: obsion
-version: 0.88.0-dev
+version: 0.89.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -91,8 +91,9 @@ completed_phases:
   - phase-86
   - phase-87
   - phase-88
+  - phase-89
 
-current_phase: phase-88
+current_phase: phase-89
 
 tests:
   unit: passed
@@ -115,24 +116,24 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-89
+  id: phase-90
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 88 hardened Workbench and experience-client reliability without
-    expanding the frozen Alpha.1 product surface. Every Workbench request is
-    bounded by an explicit timeout with normalized timeout/network/parse
-    errors; the route has error/loading/not-found boundaries; the admin
-    console degrades per governance domain instead of failing closed; the
-    Eval, Data, and Code views distinguish loading, empty, and no-match
-    states and guard async results with generation tokens; the Runtime
-    inspector resets detail selection on Run change and shows the live /
-    polling / interrupted sync state; governed-action preflight declarations
-    and IDE/Desktop approval reasons are operator-entered or the operation is
-    cancelled — no canned rationale can enter an audit record. ADR 0067
-    records the decisions. Production promotion remains fail-closed while
-    clean staging/UAT, staging-scoped timed restore, registry HIGH/CRITICAL
-    CVE policy, signatures, live OIDC/secret-manager/read-replica evidence,
-    security and data-owner approval, and maintainer publication authority
-    are PENDING. Phase 89 may consume real operator evidence; it must not
-    fabricate approval, publish with ci.txt credentials, expand production
-    writes, or add a second runtime without explicit authority.
+  notes: Phase 89 delivered goal.txt section 57's typed Evidence Panel on
+    persisted rows. Workbench Evidence details now dispatch on the
+    normalized content envelope — observability events[] for METRIC, LOG,
+    TRACE, and deployment.list; engineering items[] for GIT, CONFIG,
+    deployment.commit, and k8s.status with git.diff and config.diff
+    specialization; tables and explain plans for DATA; symbol locations
+    for CODE; citation provenance for knowledge hits — with a preserved
+    raw JSON fallback and a full persisted metadata ledger
+    (observed/ingested time, confidence, classification, permissions,
+    fingerprint, step, Run, lineage). No payload field is invented and no
+    API or schema changed. ADR 0068 records the decisions. Production
+    promotion remains fail-closed while clean staging/UAT, staging-scoped
+    timed restore, registry HIGH/CRITICAL CVE policy, signatures, live
+    OIDC/secret-manager/read-replica evidence, security and data-owner
+    approval, and maintainer publication authority are PENDING. Phase 90
+    may consume real operator evidence; it must not fabricate approval,
+    publish with ci.txt credentials, expand production writes, or add a
+    second runtime without explicit authority.

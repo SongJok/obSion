@@ -326,11 +326,13 @@ export interface Verification {
 
 export interface Evidence {
   id: string;
-  run_id?: string;
+  run_id: string;
+  step_id: string | null;
   evidence_type: string;
   source: string;
   resource: string;
   observed_at: string;
+  ingested_at: string;
   content: Record<string, unknown>;
   content_fingerprint: string;
   confidence: string;

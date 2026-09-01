@@ -21,8 +21,7 @@ import {
 import { useState } from "react";
 
 import type { Artifact, Claim, ConversationSnapshot, Evidence, MemorySnapshot, Run, RunEvent, RunStep } from "@/lib/types";
-import { citationLabel, hitsFromEvidenceContent } from "@/lib/knowledge-citation";
-import { KnowledgeProvenance } from "./knowledge-provenance";
+import { EvidenceContent, EvidenceMeta } from "./evidence-content";
 
 type StreamState = "idle" | "live" | "polling" | "interrupted";
 
@@ -189,13 +188,10 @@ export function RuntimeInspector({
             </button>
           </div>
           <p className="resource-path">{selectedEvidence.resource}</p>
-          <DocumentEvidenceCitations content={selectedEvidence.content} />
-          <pre>{JSON.stringify(selectedEvidence.content, null, 2)}</pre>
-          <div className="detail-footer">
-            <span>{new Date(selectedEvidence.observed_at).toLocaleString("zh-CN")}</span>
-            <span>{Math.round(Number(selectedEvidence.confidence) * 100)}% confidence</span>
-            {runId && <span title="该证据所属的 Run">Run {runId.slice(0, 8)}</span>}
+          <div className="evidence-detail-body">
+            <EvidenceContent evidence={selectedEvidence} />
           </div>
+          <EvidenceMeta evidence={selectedEvidence} />
         </div>
       )}
       {selectedArtifact && (
@@ -503,24 +499,6 @@ function ClaimList({
             })}
           </ul>
         </article>
-      ))}
-    </div>
-  );
-}
-
-function DocumentEvidenceCitations({ content }: { content: Record<string, unknown> }) {
-  const hits = hitsFromEvidenceContent(content);
-  if (!hits.length) {
-    return null;
-  }
-  return (
-    <div className="evidence-citations" aria-label="知识引用溯源">
-      <strong>引用溯源</strong>
-      {hits.map((hit, index) => (
-        <div key={`${hit.chunk_id ?? "hit"}-${index}`} className="evidence-citation-item">
-          <span>{citationLabel(hit, index + 1)}</span>
-          <KnowledgeProvenance fields={hit} compact />
-        </div>
       ))}
     </div>
   );

@@ -1,0 +1,64 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-typed-evidence-views
+  version: 0.89.0-dev
+  phase: 89
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema, settings, or API changes; Phase 89 renders already-persisted Evidence rows with typed views in the Workbench and adds documentation only.
+  documents:
+    - CHANGELOG.md
+    - apps/web/src/lib/typed-evidence.ts
+    - apps/web/src/components/evidence-content.tsx
+    - apps/web/src/components/runtime-inspector.tsx
+    - apps/web/src/components/evidence-view.tsx
+    - apps/web/src/lib/types.ts
+    - apps/web/src/app/globals.css
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase89_typed_evidence.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.89.0-dev.md
+    - docs/phases/PHASE-89-REPORT.md
+    - docs/architecture/phase-89-typed-evidence-views.md
+    - docs/adr/0068-typed-evidence-views.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase changes Workbench rendering only and adds no API, capability, schema, or runtime behavior.
+    - Typed views dispatch on the persisted evidence_type plus the normalized content envelope (events[], items[], columns/rows, plan/validation, hits, document text) that the Capability Gateway and attachment ingestion already produce; no payload field is invented, and every accessor is a type guard.
+    - goal.txt section 57 Evidence Panel coverage is delivered on real data — METRIC, LOG, TRACE, and deployment.list share the observability events[] view, GIT, CONFIG, deployment.commit, and k8s.status share the engineering items[] view with git.diff and config.diff specialization, DATA renders tables and explain plans, and CODE renders symbol locations.
+    - Unknown or dynamically-mapped capability payloads keep the generic JSON fallback so no evidence row is ever hidden, misattributed, or replaced by fabricated structure.
+    - The Evidence metadata ledger (observed_at, ingested_at, confidence, classification, permissions, content fingerprint, step_id, run_id, lineage) renders only persisted fields, keeping Claim-to-Evidence attribution auditable.
+    - Display bounds (100 table rows, 200 list entries, 12 attribute chips) are a UI ceiling on top of the control-plane payload budgets and never widen what the API returns.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required; the Workbench picks the typed views up on its next build.
+  rollback:
+    - Revert the phase commits; the Workbench falls back to the previous raw JSON detail rendering with no data or API impact.
+  verification:
+    - uv run pytest --no-cov services/control-plane/tests/test_phase89_typed_evidence.py
+    - npm run typecheck --workspace @obsion/web
+    - npm run lint --workspace @obsion/web
+    - npm run build --workspace @obsion/web
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - Evidence payload shapes are capability-defined; the typed views cover the normalized envelopes and fall back to raw JSON for anything else, so a future capability with a novel envelope shows JSON until a renderer is added.
+    - EvidenceObservation remains an internal model with no REST projection and is deliberately not visualized in this phase.
+    - The schema-driven chart renderer, per-stage investigation narrative, and post-conclusion context actions from the Phase 88 audit remain candidates for later phases.
+    - All six Alpha.1 candidate gates remain PENDING operator-owned items.

@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { useWorkspaceCollection } from "@/hooks/use-workspace-collection";
 import { api } from "@/lib/api";
 import type { Evidence, Workspace } from "@/lib/types";
+import { EvidenceContent, EvidenceMeta } from "./evidence-content";
 
 export function EvidenceView({ workspace }: { workspace?: Workspace }) {
   const [selected, setSelected] = useState<Evidence>();
@@ -87,11 +88,12 @@ export function EvidenceView({ workspace }: { workspace?: Workspace }) {
               </header>
               <div className="artifact-detail-meta">
                 <span>{detail.classification}</span>
-                <span>{detail.run_id ? "运行写入" : "无 Run"}</span>
+                <span title={detail.run_id}>Run {detail.run_id.slice(0, 8)} 写入</span>
               </div>
               <div className="artifact-detail-preview">
-                <pre className="sql-preview">{JSON.stringify(detail.content, null, 2)}</pre>
+                <EvidenceContent evidence={detail} />
               </div>
+              <EvidenceMeta evidence={detail} />
               <footer>
                 <code>{detail.id}</code>
               </footer>
