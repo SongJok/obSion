@@ -1,5 +1,5 @@
 project: obsion
-version: 0.90.0-dev
+version: 0.91.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -93,8 +93,9 @@ completed_phases:
   - phase-88
   - phase-89
   - phase-90
+  - phase-91
 
-current_phase: phase-90
+current_phase: phase-91
 
 tests:
   unit: passed
@@ -117,21 +118,20 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-91
+  id: phase-92
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 90 turned the Runtime timeline into a per-stage
-    investigation narrative projected from persisted keys only —
-    RunStep timestamps for duration, Evidence.step_id for step
-    attribution, and Claim.evidence_ids for conclusion support — with
-    bounded evidence chips, claim badges that jump to the Claims tab,
-    and an explicit section for evidence without a step. No link is
-    inferred, no prose is generated, and no API or schema changed. ADR
-    0069 records the decisions. Production promotion remains fail-closed
-    while clean staging/UAT, staging-scoped timed restore, registry
-    HIGH/CRITICAL CVE policy, signatures, live
-    OIDC/secret-manager/read-replica evidence, security and data-owner
-    approval, and maintainer publication authority are PENDING. Phase 91
-    may consume real operator evidence; it must not fabricate approval,
-    publish with ci.txt credentials, expand production writes, or add a
-    second runtime without explicit authority.
+  notes: Phase 91 executed the ADR 0067-deferred decision and gave
+    apps/web an executable test stack — exact-pinned dev-only vitest,
+    jsdom, and Testing Library with 34 behavior-level tests covering the
+    typed Evidence classifier and renderers, citation helpers, and API
+    error normalization, wired into the existing root npm test fan-out
+    so make test and CI run it unchanged. ADR 0070 records the
+    decisions. Production promotion remains fail-closed while clean
+    staging/UAT, staging-scoped timed restore, registry HIGH/CRITICAL
+    CVE policy, signatures, live OIDC/secret-manager/read-replica
+    evidence, security and data-owner approval, and maintainer
+    publication authority are PENDING. Phase 92 may consume real
+    operator evidence; it must not fabricate approval, publish with
+    ci.txt credentials, expand production writes, or add a second
+    runtime without explicit authority.

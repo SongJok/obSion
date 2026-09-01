@@ -7,6 +7,14 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 91 JavaScript component-test stack for apps/web (the ADR
+  0067-deferred decision): exact-pinned dev-only vitest + jsdom +
+  Testing Library with 34 behavior-level tests covering the typed
+  Evidence classifier and renderers, knowledge citation helpers, and API
+  error normalization (timeout/cancel/network/parse plus session
+  transport invariants), wired into the existing root npm test fan-out
+  so make test and CI execute it unchanged.
+
 - Phase 90 per-stage investigation narrative: the Runtime timeline now
   correlates each step with its persisted duration
   (started_at/completed_at), the Evidence rows carrying its step_id

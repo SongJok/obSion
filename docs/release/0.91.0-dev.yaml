@@ -1,0 +1,67 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-web-test-stack
+  version: 0.91.0-dev
+  phase: 91
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema, settings, or API changes; Phase 91 adds a dev-only vitest and Testing Library stack for apps/web plus tests and documentation.
+  documents:
+    - CHANGELOG.md
+    - apps/web/package.json
+    - apps/web/vitest.config.mts
+    - apps/web/tests/typed-evidence.test.ts
+    - apps/web/tests/knowledge-citation.test.ts
+    - apps/web/tests/api.test.ts
+    - apps/web/tests/evidence-content.test.tsx
+    - package-lock.json
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase91_web_test_stack.py
+    - services/control-plane/tests/test_phase81_feishu_live_reply.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - services/control-plane/tests/test_phase89_typed_evidence.py
+    - services/control-plane/tests/test_phase90_investigation_narrative.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.91.0-dev.md
+    - docs/phases/PHASE-91-REPORT.md
+    - docs/architecture/phase-91-web-test-stack.md
+    - docs/adr/0070-web-test-stack.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase adds dev-only test dependencies and tests, changing no runtime, API, schema, capability, or shipped client behavior.
+    - The new dependencies (vitest, jsdom, Testing Library) are exact-pinned devDependencies of apps/web only; they are not bundled into the Next.js production build and do not enter the release artifact manifest.
+    - Tests assert real behavior of the Phase 88-90 work — typed Evidence classification and rendering, citation helpers, and API error normalization — and never mock the control plane contract into a shape the backend does not produce.
+    - The Python static boundary suites remain the source of truth for cross-file contracts; the vitest suite adds executable coverage for pure logic and component rendering, it does not replace the established verification pattern.
+    - The suite runs through the existing root npm test fan-out, so make test and the CI quality job execute it with no workflow change.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required; contributors run the suite via npm test.
+  rollback:
+    - Revert the phase commits; the web workspace returns to lint, typecheck, and build verification only.
+  verification:
+    - npm test --workspace @obsion/web
+    - uv run pytest --no-cov services/control-plane/tests/test_phase91_web_test_stack.py
+    - npm run typecheck --workspace @obsion/web
+    - npm run lint --workspace @obsion/web
+    - npm run build --workspace @obsion/web
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - Component coverage targets the Evidence rendering and pure-logic core; full Workbench view interaction coverage (routing, streaming, forms) remains a later increment on the same stack.
+    - Post-conclusion context actions, the operations analytics loop, full admin CRUD, and a schema-driven chart renderer remain deferred candidates.
+    - All six Alpha.1 candidate gates remain PENDING operator-owned items.

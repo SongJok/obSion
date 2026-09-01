@@ -288,3 +288,12 @@ a step stays visible in an explicit unattributed section. No link is
 inferred and no prose is generated. ADR 0069 records the decisions.
 Rendering only; the candidate contract, recorded evidence, and all six
 PENDING operator gates are untouched.
+
+Phase 91 executes the ADR 0067-deferred decision and gives apps/web an
+executable test stack: exact-pinned dev-only vitest, jsdom, and Testing
+Library with 34 behavior-level tests covering the typed Evidence
+classifier and renderers, citation helpers, and API error normalization,
+wired into the existing root npm test fan-out so make test and CI run it
+unchanged. The Python static contract suites remain in force. ADR 0070
+records the decisions. Dev-only; the candidate contract, recorded
+evidence, and all six PENDING operator gates are untouched.

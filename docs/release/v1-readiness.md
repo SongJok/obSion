@@ -35,6 +35,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Workbench and experience-client reliability hardening: bounded normalized requests, route-level error boundaries, per-domain admin degradation, generation-guarded async state, visible stream fallback, and operator-entered governance declarations
 - [x] Typed Evidence views rendering persisted Evidence envelopes (observability events, engineering change items with diff specialization, data tables, explain plans, code symbols, knowledge citations) with a preserved generic fallback and full metadata ledger
 - [x] Per-stage investigation narrative correlating steps, evidence, and claims through persisted keys (step_id, evidence_ids, timestamps) with bounded display and an explicit unattributed-evidence section
+- [x] Executable JavaScript test stack for apps/web (vitest + Testing Library, dev-only exact-pinned) covering the typed Evidence core, citation helpers, and API normalization, wired into the root npm test fan-out
 
 ## Operator-owned (not claimed by this repository run)
 
