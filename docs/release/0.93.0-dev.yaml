@@ -1,0 +1,61 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-native-model-adapters
+  version: 0.93.0-dev
+  phase: 93
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema or settings changes; the Model Gateway gains native Anthropic and Gemini adapters behind the existing provider protocol and admin validation now derives from the same registry.
+  documents:
+    - CHANGELOG.md
+    - services/control-plane/src/obsion/model_gateway/providers.py
+    - services/control-plane/src/obsion/api/admin.py
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase93_native_model_adapters.py
+    - services/control-plane/tests/test_phase81_feishu_live_reply.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - services/control-plane/tests/test_phase89_typed_evidence.py
+    - services/control-plane/tests/test_phase90_investigation_narrative.py
+    - services/control-plane/tests/test_phase91_web_test_stack.py
+    - services/control-plane/tests/test_phase92_collaboration_assignment.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.93.0-dev.md
+    - docs/phases/PHASE-93-REPORT.md
+    - docs/architecture/phase-93-native-model-adapters.md
+    - docs/adr/0072-native-model-adapters.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; the Harness never imports provider APIs and both new adapters implement the existing ModelProviderAdapter boundary without touching the gateway pipeline.
+    - Redaction, budget estimation, request fingerprints, credential resolution, tool validation, and cost accounting are byte-for-byte unchanged; credentials travel only in vendor auth headers and never enter payloads, events, or telemetry.
+    - Response parsing is fail-closed for both vendors so malformed blocks, non-object arguments, negative token counts, and unknown part types raise ProviderProtocolError into the existing fallback path.
+    - Admin provider validation derives from the same SUPPORTED_PROVIDERS registry the gateway serves, so the API can never accept a provider the runtime cannot serve.
+    - Live Anthropic and Gemini verification with real credentials remains operator-owned, matching the Feishu live-ladder precedent; this phase ships the protocol implementation and its tests, not a vendor attestation.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required; endpoints opt in by setting the provider field to anthropic or gemini.
+  rollback:
+    - Revert the phase commits; the gateway returns to OpenAI-compatible providers only and admin validation rejects anthropic or gemini again.
+  verification:
+    - uv run pytest --no-cov services/control-plane/tests/test_phase93_native_model_adapters.py
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - Anthropic json_mode is instruction-based because the Messages API has no response-format switch; the gateway JSON validation remains the enforcement point.
+    - Gemini function calls carry no provider-assigned ids, so the adapter synthesizes ordinal ids for gateway uniqueness checks and downstream correlation.
+    - Live vendor verification with real Anthropic or Gemini credentials is operator-owned.
+    - All six Alpha.1 candidate gates remain PENDING operator-owned items.

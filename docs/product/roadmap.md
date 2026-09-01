@@ -309,3 +309,13 @@ or cross-workspace-Run rejections map to actionable messages. The
 Runtime inspector route labels now cover ANALYTICS, OPERATION, and
 SUPPORT. ADR 0071 records the decisions. The candidate contract,
 recorded evidence, and all six PENDING operator gates are untouched.
+
+Phase 93 closes the remaining P1 model gap: the Model Gateway gains
+native Anthropic and Gemini adapters behind the existing provider
+protocol — Messages API and generateContent wire contracts, lossless
+tool_choice mapping, honest per-vendor json_mode, fail-closed response
+parsing, synthesized Gemini call ids, and admin validation derived from
+the same SUPPORTED_PROVIDERS registry the gateway serves. The Harness,
+redaction, budgets, fingerprints, and cost accounting are unchanged.
+ADR 0072 records the decisions. The candidate contract, recorded
+evidence, and all six PENDING operator gates are untouched.

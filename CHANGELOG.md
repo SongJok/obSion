@@ -7,6 +7,14 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 93 native Anthropic and Gemini model adapters (the gap audit's
+  remaining P1 model item): the Model Gateway now speaks the Messages
+  API and generateContent wire contracts behind the existing provider
+  protocol, with lossless tool_choice mapping, honest per-vendor
+  json_mode, fail-closed response parsing, synthesized Gemini call ids,
+  and admin provider validation derived from the same
+  SUPPORTED_PROVIDERS registry the gateway serves.
+
 - Phase 92 Collaboration assignment and source-Run provenance (the gap
   audit's top P1 item): WorkspaceMemberView now carries readable
   display_name/email, the task form gains a member selector with

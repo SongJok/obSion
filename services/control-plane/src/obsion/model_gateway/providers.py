@@ -187,10 +187,272 @@ OPENAI_COMPATIBLE_PROVIDERS = frozenset(
     }
 )
 
+ANTHROPIC_PROVIDERS = frozenset({"anthropic"})
+GEMINI_PROVIDERS = frozenset({"gemini"})
+SUPPORTED_PROVIDERS = OPENAI_COMPATIBLE_PROVIDERS | ANTHROPIC_PROVIDERS | GEMINI_PROVIDERS
+
+_ANTHROPIC_VERSION = "2023-06-01"
+_JSON_MODE_INSTRUCTION = (
+    "Respond with exactly one valid JSON object and no other text, markdown fences, or commentary."
+)
+
+
+def _split_system_messages(
+    messages: list[dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]]]:
+    """Separates system-role content from the conversational messages.
+
+    The Harness renders system, user, and assistant string messages;
+    Anthropic and Gemini both lift system content out of the message list.
+    """
+
+    system_parts: list[str] = []
+    conversation: list[dict[str, Any]] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            raise ProviderProtocolError("messages must be objects")
+        role = message.get("role")
+        content = message.get("content")
+        if not isinstance(content, str):
+            raise ProviderProtocolError("message content must be a string")
+        if role == "system":
+            system_parts.append(content)
+        elif role in {"user", "assistant"}:
+            conversation.append({"role": role, "content": content})
+        else:
+            raise ProviderProtocolError(f"unsupported message role: {role!r}")
+    return "\n\n".join(system_parts), conversation
+
+
+class AnthropicAdapter:
+    """Adapter for the Anthropic Messages API (Claude models)."""
+
+    def build_completion_request(
+        self,
+        request: ProviderCompletionRequest,
+        *,
+        credential: str | None,
+    ) -> ProviderHTTPRequest:
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "anthropic-version": _ANTHROPIC_VERSION,
+        }
+        if credential:
+            headers["x-api-key"] = credential
+        system, conversation = _split_system_messages(request.messages)
+        if request.json_mode:
+            system = f"{system}\n\n{_JSON_MODE_INSTRUCTION}" if system else _JSON_MODE_INSTRUCTION
+        payload: dict[str, Any] = {
+            "model": request.model_id,
+            "max_tokens": request.max_output_tokens,
+            "temperature": request.temperature,
+            "messages": [
+                {"role": message["role"], "content": message["content"]} for message in conversation
+            ],
+        }
+        if system:
+            payload["system"] = system
+        if request.tools:
+            payload["tools"] = [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "input_schema": tool.input_schema,
+                }
+                for tool in request.tools
+            ]
+            if request.tool_choice == "auto":
+                payload["tool_choice"] = {"type": "auto"}
+            elif request.tool_choice == "required":
+                payload["tool_choice"] = {"type": "any"}
+            elif request.tool_choice == "none":
+                payload["tool_choice"] = {"type": "none"}
+            elif request.tool_choice is not None:
+                payload["tool_choice"] = {"type": "tool", "name": request.tool_choice}
+        return ProviderHTTPRequest(path="v1/messages", headers=headers, payload=payload)
+
+    def parse_completion_response(self, response: httpx.Response) -> ProviderCompletion:
+        try:
+            body = response.json()
+            blocks = body["content"]
+            if not isinstance(blocks, list):
+                raise ProviderProtocolError("content must be an array of blocks")
+            text_parts: list[str] = []
+            tool_calls: list[ModelToolCall] = []
+            for block in blocks:
+                if not isinstance(block, dict):
+                    raise ProviderProtocolError("content block must be an object")
+                block_type = block.get("type")
+                if block_type == "text":
+                    text = block.get("text")
+                    if not isinstance(text, str):
+                        raise ProviderProtocolError("text block content must be a string")
+                    text_parts.append(text)
+                elif block_type == "tool_use":
+                    tool_calls.append(self._parse_tool_use(block))
+                else:
+                    raise ProviderProtocolError(f"unsupported content block type: {block_type!r}")
+            usage = body.get("usage", {})
+            input_tokens = _nonnegative_int(usage.get("input_tokens", 0), "input_tokens")
+            output_tokens = _nonnegative_int(usage.get("output_tokens", 0), "output_tokens")
+            finish_reason = body.get("stop_reason")
+            if finish_reason is not None and not isinstance(finish_reason, str):
+                raise ProviderProtocolError("stop_reason must be a string or null")
+        except (KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise ProviderProtocolError("invalid Anthropic messages response") from exc
+        return ProviderCompletion(
+            content="".join(text_parts),
+            tool_calls=tuple(tool_calls),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            finish_reason=finish_reason,
+        )
+
+    @staticmethod
+    def _parse_tool_use(block: dict[str, Any]) -> ModelToolCall:
+        call_id = block.get("id")
+        name = block.get("name")
+        arguments = block.get("input")
+        if not isinstance(call_id, str) or not call_id:
+            raise ProviderProtocolError("tool_use block id is required")
+        if not isinstance(name, str) or not _TOOL_NAME.fullmatch(name):
+            raise ProviderProtocolError("tool_use block name is invalid")
+        if not isinstance(arguments, dict):
+            raise ProviderProtocolError("tool_use block input must be an object")
+        return ModelToolCall(id=call_id, name=name, arguments=arguments)
+
+
+class GeminiAdapter:
+    """Adapter for the Gemini generateContent API."""
+
+    def build_completion_request(
+        self,
+        request: ProviderCompletionRequest,
+        *,
+        credential: str | None,
+    ) -> ProviderHTTPRequest:
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if credential:
+            headers["x-goog-api-key"] = credential
+        system, conversation = _split_system_messages(request.messages)
+        generation_config: dict[str, Any] = {
+            "temperature": request.temperature,
+            "maxOutputTokens": request.max_output_tokens,
+        }
+        if request.json_mode:
+            generation_config["responseMimeType"] = "application/json"
+        payload: dict[str, Any] = {
+            "contents": [
+                {
+                    "role": "user" if message["role"] == "user" else "model",
+                    "parts": [{"text": message["content"]}],
+                }
+                for message in conversation
+            ],
+            "generationConfig": generation_config,
+        }
+        if system:
+            payload["systemInstruction"] = {"parts": [{"text": system}]}
+        if request.tools:
+            payload["tools"] = [
+                {
+                    "functionDeclarations": [
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.input_schema,
+                        }
+                        for tool in request.tools
+                    ]
+                }
+            ]
+            calling_config: dict[str, Any]
+            if request.tool_choice == "required":
+                calling_config = {"mode": "ANY"}
+            elif request.tool_choice == "none":
+                calling_config = {"mode": "NONE"}
+            elif request.tool_choice is None or request.tool_choice == "auto":
+                calling_config = {"mode": "AUTO"}
+            else:
+                calling_config = {
+                    "mode": "ANY",
+                    "allowedFunctionNames": [request.tool_choice],
+                }
+            payload["toolConfig"] = {"functionCallingConfig": calling_config}
+        return ProviderHTTPRequest(
+            path=f"v1beta/models/{request.model_id}:generateContent",
+            headers=headers,
+            payload=payload,
+        )
+
+    def parse_completion_response(self, response: httpx.Response) -> ProviderCompletion:
+        try:
+            body = response.json()
+            candidates = body["candidates"]
+            if not isinstance(candidates, list) or not candidates:
+                raise ProviderProtocolError("candidates must be a non-empty array")
+            candidate = candidates[0]
+            parts = candidate["content"]["parts"]
+            if not isinstance(parts, list):
+                raise ProviderProtocolError("content parts must be an array")
+            text_parts: list[str] = []
+            tool_calls: list[ModelToolCall] = []
+            for part in parts:
+                if not isinstance(part, dict):
+                    raise ProviderProtocolError("content part must be an object")
+                if "text" in part:
+                    text = part["text"]
+                    if not isinstance(text, str):
+                        raise ProviderProtocolError("text part content must be a string")
+                    text_parts.append(text)
+                elif "functionCall" in part:
+                    tool_calls.append(
+                        self._parse_function_call(part["functionCall"], len(tool_calls))
+                    )
+                else:
+                    raise ProviderProtocolError("content part must be text or functionCall")
+            usage = body.get("usageMetadata", {})
+            input_tokens = _nonnegative_int(usage.get("promptTokenCount", 0), "promptTokenCount")
+            output_tokens = _nonnegative_int(
+                usage.get("candidatesTokenCount", 0), "candidatesTokenCount"
+            )
+            finish_reason = candidate.get("finishReason")
+            if finish_reason is not None and not isinstance(finish_reason, str):
+                raise ProviderProtocolError("finishReason must be a string or null")
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+            raise ProviderProtocolError("invalid Gemini generateContent response") from exc
+        return ProviderCompletion(
+            content="".join(text_parts),
+            tool_calls=tuple(tool_calls),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            finish_reason=finish_reason,
+        )
+
+    @staticmethod
+    def _parse_function_call(value: Any, ordinal: int) -> ModelToolCall:
+        if not isinstance(value, dict):
+            raise ProviderProtocolError("functionCall must be an object")
+        name = value.get("name")
+        arguments = value.get("args", {})
+        if not isinstance(name, str) or not _TOOL_NAME.fullmatch(name):
+            raise ProviderProtocolError("functionCall name is invalid")
+        if not isinstance(arguments, dict):
+            raise ProviderProtocolError("functionCall args must be an object")
+        # Gemini does not assign call ids; the ordinal keeps ids unique per completion.
+        return ModelToolCall(id=f"call_{ordinal}", name=name, arguments=arguments)
+
 
 def builtin_provider_adapters() -> dict[str, ModelProviderAdapter]:
-    adapter = OpenAICompatibleAdapter()
-    return {provider: adapter for provider in OPENAI_COMPATIBLE_PROVIDERS}
+    adapters: dict[str, ModelProviderAdapter] = {
+        provider: OpenAICompatibleAdapter() for provider in OPENAI_COMPATIBLE_PROVIDERS
+    }
+    anthropic = AnthropicAdapter()
+    adapters.update({provider: anthropic for provider in ANTHROPIC_PROVIDERS})
+    gemini = GeminiAdapter()
+    adapters.update({provider: gemini for provider in GEMINI_PROVIDERS})
+    return adapters
 
 
 def validate_tools(tools: tuple[ModelTool, ...], tool_choice: str | None) -> None:

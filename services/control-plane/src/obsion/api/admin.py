@@ -103,7 +103,7 @@ from obsion.domain.enums import (
     SideEffect,
 )
 from obsion.feedback.schemas import FeedbackSummaryView
-from obsion.model_gateway.providers import OPENAI_COMPATIBLE_PROVIDERS
+from obsion.model_gateway.providers import SUPPORTED_PROVIDERS
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.security.auth import get_app_settings, get_principal, get_session
 from obsion.security.egress import validate_model_endpoint
@@ -802,7 +802,7 @@ async def create_model_profile(
     unsupported = {
         provider.casefold()
         for provider in request.requirements.providers
-        if provider.casefold() not in OPENAI_COMPATIBLE_PROVIDERS
+        if provider.casefold() not in SUPPORTED_PROVIDERS
     }
     if unsupported:
         raise ValidationError(
@@ -901,7 +901,7 @@ async def create_model_endpoint(
     _require_admin(principal, "models.write")
     _safe_endpoint(request.base_url)
     provider = request.provider.casefold()
-    if provider not in OPENAI_COMPATIBLE_PROVIDERS:
+    if provider not in SUPPORTED_PROVIDERS:
         raise ValidationError(
             "model_endpoint_invalid",
             "Model endpoint provider protocol is not supported",

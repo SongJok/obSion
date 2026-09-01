@@ -1,5 +1,5 @@
 project: obsion
-version: 0.92.0-dev
+version: 0.93.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -95,8 +95,9 @@ completed_phases:
   - phase-90
   - phase-91
   - phase-92
+  - phase-93
 
-current_phase: phase-92
+current_phase: phase-93
 
 tests:
   unit: passed
@@ -119,23 +120,21 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-93
+  id: phase-94
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 92 closed the top P1 gap audit item and completed the
-    collaboration assignment and source-Run provenance surface —
-    WorkspaceMemberView now carries readable display_name and email,
-    task create/edit offers a member selector with explicit-null
-    clearing, task and decision creation attach a bounded newest-first
-    source Run, provenance renders on every record and opens the full
-    Runtime inspection bundle through the existing loadInspection path,
-    and invalid-assignee or cross-workspace-Run rejections map to
-    actionable messages. ADR 0071 records the decisions. Production
+  notes: Phase 93 closed the remaining P1 model gap and gave the Model
+    Gateway native Anthropic and Gemini adapters behind the existing
+    provider protocol — Messages API and generateContent wire contracts
+    with lossless tool_choice mapping, honest per-vendor json_mode,
+    fail-closed parsing, synthesized Gemini call ids, and admin
+    validation derived from the same SUPPORTED_PROVIDERS registry the
+    gateway serves. ADR 0072 records the decisions. Production
     promotion remains fail-closed while clean staging/UAT,
     staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
     signatures, live OIDC/secret-manager/read-replica evidence,
     security and data-owner approval, and maintainer publication
-    authority are PENDING. Phase 93 may consume real operator evidence;
+    authority are PENDING. Phase 94 may consume real operator evidence;
     it must not fabricate approval, publish with ci.txt credentials,
     expand production writes, or add a second runtime without explicit
     authority.
