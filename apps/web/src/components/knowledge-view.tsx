@@ -12,6 +12,7 @@ export function KnowledgeView() {
   const [results, setResults] = useState<KnowledgeSearchHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [feishuToken, setFeishuToken] = useState("");
   const [ingestingFeishu, setIngestingFeishu] = useState(false);
   const [feishuSpaceId, setFeishuSpaceId] = useState("");
@@ -40,6 +41,8 @@ export function KnowledgeView() {
   };
 
   const upload = async (file: File) => {
+    if (uploading) return;
+    setUploading(true);
     const form = new FormData();
     form.set("file", file);
     form.set("source", "workbench-upload");
@@ -55,6 +58,10 @@ export function KnowledgeView() {
     } catch (caught) {
       setUploadMessage("");
       setError(caught instanceof Error ? caught.message : "上传失败");
+    } finally {
+      setUploading(false);
+      // 允许同名文件在处理完成后再次选择上传。
+      if (fileRef.current) fileRef.current.value = "";
     }
   };
 
@@ -66,14 +73,15 @@ export function KnowledgeView() {
           <h1>企业知识</h1>
           <p>文档权限在分块和检索阶段继承。飞书、钉钉、企微与 Confluence 云文档经 Capability Gateway 进入同一条 Knowledge Pipeline，检索结果与回答引用展示连接器溯源，不编造缺失字段。</p>
         </div>
-        <button className="primary-button" onClick={() => fileRef.current?.click()}>
-          <UploadCloud size={17} /> 上传文档
+        <button className="primary-button" onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <UploadCloud size={17} /> {uploading ? "正在上传…" : "上传文档"}
         </button>
         <input
           ref={fileRef}
           hidden
           type="file"
           accept=".pdf,.docx,.xlsx,.md,.txt,.html"
+          disabled={uploading}
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) void upload(file);

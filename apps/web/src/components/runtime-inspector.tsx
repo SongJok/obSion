@@ -24,6 +24,8 @@ import type { Artifact, Claim, ConversationSnapshot, Evidence, MemorySnapshot, R
 import { citationLabel, hitsFromEvidenceContent } from "@/lib/knowledge-citation";
 import { KnowledgeProvenance } from "./knowledge-provenance";
 
+type StreamState = "idle" | "live" | "polling" | "interrupted";
+
 interface RuntimeInspectorProps {
   open: boolean;
   mobileVisible?: boolean;
@@ -31,6 +33,7 @@ interface RuntimeInspectorProps {
   onReplay: () => void;
   replaying?: boolean;
   run?: Run;
+  streamState?: StreamState;
   events: RunEvent[];
   steps: RunStep[];
   evidence: Evidence[];
@@ -49,6 +52,7 @@ export function RuntimeInspector({
   onReplay,
   replaying,
   run,
+  streamState = "idle",
   events,
   steps,
   evidence,
@@ -60,6 +64,14 @@ export function RuntimeInspector({
   const [tab, setTab] = useState<Tab>("runtime");
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence>();
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact>();
+  const runId = run?.id;
+  const [lastRunId, setLastRunId] = useState(runId);
+  if (lastRunId !== runId) {
+    // 渲染期间随 Run 切换丢弃上一个 Run 的详情选中态，避免跨 Run 错误归因。
+    setLastRunId(runId);
+    setSelectedEvidence(undefined);
+    setSelectedArtifact(undefined);
+  }
   if (!open) return null;
 
   return (
@@ -90,6 +102,9 @@ export function RuntimeInspector({
       <div className="inspector-summary">
         <StatusBadge status={run?.status ?? "IDLE"} />
         <span>{run?.plan.route ? routeName(run.plan.route) : "等待任务"}</span>
+        {run && !["COMPLETED", "FAILED", "CANCELLED"].includes(run.status) && streamState !== "idle" && (
+          <StreamStateChip state={streamState} />
+        )}
         {typeof run?.plan.sandbox?.network === "string" && (
           <span className="sandbox-chip" title="钉死在本次 Run 计划上的网络策略">
             沙箱 {run.plan.sandbox.network}
@@ -179,6 +194,7 @@ export function RuntimeInspector({
           <div className="detail-footer">
             <span>{new Date(selectedEvidence.observed_at).toLocaleString("zh-CN")}</span>
             <span>{Math.round(Number(selectedEvidence.confidence) * 100)}% confidence</span>
+            {runId && <span title="该证据所属的 Run">Run {runId.slice(0, 8)}</span>}
           </div>
         </div>
       )}
@@ -517,6 +533,25 @@ function InspectorEmpty({ icon, text }: { icon: React.ReactNode; text: string })
 function StatusBadge({ status }: { status: string }) {
   const active = ["RUNNING", "PENDING", "REPLANNING"].includes(status);
   return <span className={`status-badge ${status.toLowerCase()}`}>{active && <i />}{statusName(status)}</span>;
+}
+
+function StreamStateChip({ state }: { state: StreamState }) {
+  const labels: Record<Exclude<StreamState, "idle">, string> = {
+    live: "实时流",
+    polling: "轮询同步",
+    interrupted: "同步中断",
+  };
+  const hints: Record<Exclude<StreamState, "idle">, string> = {
+    live: "事件通过 App Server 实时流推送",
+    polling: "实时流不可用，正通过 REST 游标轮询对账，事件可能有秒级延迟",
+    interrupted: "状态同步暂时中断，运行仍在后台继续，恢复后自动对齐",
+  };
+  if (state === "idle") return null;
+  return (
+    <span className={`stream-state-chip ${state}`} title={hints[state]}>
+      {labels[state]}
+    </span>
+  );
 }
 
 function statusName(status: string) {

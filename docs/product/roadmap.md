@@ -248,3 +248,18 @@ pull request), carries no credentials or write permissions, and never
 overwrites the committed operator-recorded ledgers. ADR 0066 records the
 decision. CI-generated evidence never feeds `promotion_eligible`; all six
 operator gates remain PENDING.
+
+Phase 88 hardens the experience layer without expanding the frozen Alpha.1
+surface: every Workbench request is bounded by an explicit timeout with
+normalized timeout/network/parse errors, the single-page app gains
+route-level error/loading/not-found boundaries, the governance console
+degrades per domain instead of failing closed on any one of its 22
+endpoints, Eval results are generation-guarded against stale overwrites,
+Data and Code views distinguish loading/empty/no-match states, the Runtime
+inspector resets detail selection on Run change and shows the
+live/polling/interrupted sync state instead of hiding the REST fallback,
+and governed-action preflight declarations plus Desktop/IDE approval
+reasons are operator-entered or cancelled — no canned rationale can enter
+an approval or audit record. ADR 0067 records the decisions. Client code
+only; the candidate contract, recorded evidence, and all six PENDING
+operator gates are untouched.

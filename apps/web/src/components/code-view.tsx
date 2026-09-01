@@ -11,15 +11,26 @@ export function CodeView() {
   const [repositories, setRepositories] = useState<CodeRepository[]>([]);
   const [results, setResults] = useState<CodeSymbolHit[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     api
       .listCodeRepositories()
-      .then(setRepositories)
+      .then((next) => {
+        if (!cancelled) setRepositories(next);
+      })
       .catch((caught: unknown) => {
-        setError(caught instanceof Error ? caught.message : "无法读取代码仓库");
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "无法读取代码仓库");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const search = async (event: FormEvent) => {
@@ -29,6 +40,7 @@ export function CodeView() {
     setError("");
     try {
       setResults(await api.searchCodeSymbols(query));
+      setSearched(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "检索失败");
     } finally {
@@ -45,7 +57,7 @@ export function CodeView() {
           <p>静态索引授权仓库中的符号、调用链与 SQL 引用。检索前完成 ACL，仓库代码永不执行。</p>
         </div>
         <span className="catalog-count">
-          <GitBranch size={17} /> {repositories.length} 个授权仓库
+          <GitBranch size={17} /> {loading ? "正在加载仓库…" : `${repositories.length} 个授权仓库`}
         </span>
       </header>
 
@@ -66,7 +78,15 @@ export function CodeView() {
         </div>
       )}
 
-      {!results.length ? (
+      {!results.length && searched && !searching ? (
+        <div className="feature-empty-grid">
+          <article>
+            <Search size={22} />
+            <strong>没有匹配的授权符号</strong>
+            <p>当前快照中没有符合该关键词且你有权访问的符号，请调整检索词。</p>
+          </article>
+        </div>
+      ) : !results.length ? (
         <div className="feature-empty-grid">
           <article>
             <Code2 size={22} />

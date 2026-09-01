@@ -48,6 +48,8 @@ import { ThreadLifecycleModal } from "./thread-lifecycle-modal";
 
 const TERMINAL = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 
+type StreamState = "idle" | "live" | "polling" | "interrupted";
+
 interface WorkbenchProps {
   principal: SessionPrincipal;
   onSignOut: () => Promise<void>;
@@ -94,6 +96,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
   const [contextLoading, setContextLoading] = useState(false);
   const [replayingRunId, setReplayingRunId] = useState<string>();
   const [feedbackPendingRunId, setFeedbackPendingRunId] = useState<string>();
+  const [streamState, setStreamState] = useState<StreamState>("idle");
   const requestGeneration = useRef(0);
   const threadLifecycleGeneration = useRef(0);
 
@@ -112,6 +115,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     setClaims([]);
     setArtifacts([]);
     setFeedbackByRun({});
+    setStreamState("idle");
   }, []);
 
   const resetThread = useCallback(() => {
@@ -359,6 +363,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     let consecutiveFailures = 0;
     let stopStream: (() => void) | undefined;
     let acceptStream = true;
+    if (generation === requestGeneration.current) setStreamState("polling");
     void streamRunEvents(current.id, cursor, (event) => {
         if (generation !== requestGeneration.current) return;
         cursor = Math.max(cursor, event.run_sequence ?? 0);
@@ -372,12 +377,17 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         );
       })
       .then((stop) => {
-        if (acceptStream) stopStream = stop;
-        else stop();
+        if (acceptStream) {
+          stopStream = stop;
+          if (generation === requestGeneration.current) setStreamState("live");
+        } else {
+          stop();
+        }
       })
       .catch(() => {
         // REST cursor reconciliation below remains the compatibility path when a
         // proxy does not support WebSocket upgrade or browser OIDC initialization.
+        if (generation === requestGeneration.current) setStreamState("polling");
       });
     try {
       while (generation === requestGeneration.current) {
@@ -443,6 +453,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
           consecutiveFailures += 1;
           if (consecutiveFailures >= 4) {
             if (generation === requestGeneration.current) {
+              setStreamState("interrupted");
               setError(
                 caught instanceof Error
                   ? `运行仍在后台继续，但状态同步暂时中断：${caught.message}`
@@ -459,6 +470,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     } finally {
       acceptStream = false;
       stopStream?.();
+      if (generation === requestGeneration.current) setStreamState("idle");
     }
   }, []);
 
@@ -761,7 +773,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
                   aria-label="关闭运行详情"
                 />
               )}
-              <RuntimeInspector open={inspectorOpen} mobileVisible={mobileInspectorOpen} onClose={() => { setInspectorOpen(false); setMobileInspectorOpen(false); }} onReplay={() => { if (run) void replay(run); }} replaying={Boolean(replayingRunId)} run={run} events={events} steps={steps} evidence={evidence} memories={memories} conversation={conversationContext} claims={claims} artifacts={artifacts} />
+              <RuntimeInspector open={inspectorOpen} mobileVisible={mobileInspectorOpen} onClose={() => { setInspectorOpen(false); setMobileInspectorOpen(false); }} onReplay={() => { if (run) void replay(run); }} replaying={Boolean(replayingRunId)} run={run} streamState={streamState} events={events} steps={steps} evidence={evidence} memories={memories} conversation={conversationContext} claims={claims} artifacts={artifacts} />
             </div>
           </>
         ) : view === "collaboration" ? <CollaborationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "files" ? <FilesView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "reports" ? <ReportsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "dashboards" ? <DashboardsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "sql" ? <SqlView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "evidence" ? <EvidenceView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "timeline" ? <TimelineView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "code" ? <CodeView /> : view === "data" ? <DataView /> : view === "studio" ? <StudioView /> : view === "eval" ? <EvalView /> : <AdminView />}

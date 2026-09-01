@@ -85,10 +85,18 @@ export class IdeSession {
       const pending = await runtime.listApprovals("PENDING");
       const first = pending[0];
       if (!first) throw new IdeError("No waiting approvals");
-      const reason =
-        (await this.host.showInput({
-          prompt: approve ? "Approval reason" : "Rejection reason",
-        })) ?? (approve ? "Approved from IDE" : "Rejected from IDE");
+      const entered = await this.host.showInput({
+        prompt: approve ? "Approval reason" : "Rejection reason",
+      });
+      if (entered === undefined) {
+        // 取消输入即取消审批：绝不替用户生成兜底理由进入审计记录。
+        this.host.appendOutput("Approval decision cancelled; no reason was entered.");
+        return;
+      }
+      const reason = entered.trim();
+      if (!reason) {
+        throw new IdeError("An approval decision requires a human-entered reason");
+      }
       const decided = await runtime.decideApproval(String(first.id), { approve, reason });
       this.host.appendOutput(renderApproval(decided));
     } finally {

@@ -37,7 +37,7 @@ def test_real_alpha1_candidate_contract_maps_every_requirement_and_artifact() ->
 
     assert result == {
         "release_line": "alpha.1",
-        "version": "0.87.0-dev",
+        "version": "0.88.0-dev",
         "requirements": 37,
         "coverage_surfaces": 4,
         "expected_artifacts": 12,
@@ -168,7 +168,7 @@ def test_phase83_release_contract_cli_ci_and_status() -> None:
     assert result["vendors"] == []
 
     args = build_parser().parse_args(["validate-release-notes"])
-    assert args.manifest == "docs/release/0.87.0-dev.yaml"
+    assert args.manifest == "docs/release/0.88.0-dev.yaml"
     candidate_args = build_parser().parse_args(["validate-release-candidate"])
     assert candidate_args.contract == "docs/release/alpha1-candidate-gates.yaml"
     assert candidate_args.contract_only is False
@@ -186,10 +186,10 @@ def test_phase83_release_contract_cli_ci_and_status() -> None:
     status = yaml.safe_load(
         (REPOSITORY_ROOT / "docs/project-status.yaml").read_text(encoding="utf-8")
     )
-    assert status["current_phase"] == "phase-87"
-    assert status["completed_phases"][-1] == "phase-87"
+    assert status["current_phase"] == "phase-88"
+    assert status["completed_phases"][-1] == "phase-88"
     assert status["next_phase"] == {
-        "id": "phase-88",
+        "id": "phase-89",
         "name": "alpha1-operator-promotion",
         "blocked": True,
         "notes": status["next_phase"]["notes"],

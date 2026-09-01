@@ -83,24 +83,56 @@ const EMPTY: AdminData = {
   },
 };
 
-async function loadControlPlane(): Promise<AdminData> {
-  const [
-    users, roles, departments, connectors, capabilities, profiles, agents, skills,
-    dataSources, dataCatalog, policies, approvals, evaluations, costs, prompts,
-    knowledge, secrets, audit, operatorInvocations, imBindings, feedback, slo,
-  ] = await Promise.all([
-    api.admin.users(), api.admin.roles(), api.admin.departments(), api.admin.connectors(),
-    api.admin.capabilities(), api.admin.modelProfiles(), api.admin.agents(), api.admin.skills(),
-    api.admin.dataSources(), api.admin.dataCatalog(), api.admin.policies(), api.admin.approvals(),
-    api.admin.evaluations(), api.admin.costs(), api.admin.prompts(), api.admin.knowledge(),
-    api.admin.secrets(), api.admin.audit(), api.admin.operatorInvocations(),
-    api.admin.imBindings(), api.admin.feedbackSummary(), api.admin.runtimeSlo(),
-  ]);
-  return {
-    users, roles, departments, connectors, capabilities, profiles, agents, skills,
-    dataSources, dataCatalog, policies, approvals, evaluations, costs, prompts,
-    knowledge, secrets, audit, operatorInvocations, imBindings, feedback, slo,
-  };
+interface AdminDomainSpec<K extends keyof AdminData = keyof AdminData> {
+  key: K;
+  label: string;
+  load: () => Promise<AdminData[K]>;
+}
+
+const ADMIN_DOMAINS: AdminDomainSpec[] = [
+  { key: "users", label: "用户", load: () => api.admin.users() },
+  { key: "roles", label: "角色", load: () => api.admin.roles() },
+  { key: "departments", label: "部门", load: () => api.admin.departments() },
+  { key: "connectors", label: "连接器", load: () => api.admin.connectors() },
+  { key: "capabilities", label: "能力", load: () => api.admin.capabilities() },
+  { key: "profiles", label: "模型配置", load: () => api.admin.modelProfiles() },
+  { key: "agents", label: "Agents", load: () => api.admin.agents() },
+  { key: "skills", label: "Skills", load: () => api.admin.skills() },
+  { key: "dataSources", label: "数据源", load: () => api.admin.dataSources() },
+  { key: "dataCatalog", label: "数据目录", load: () => api.admin.dataCatalog() },
+  { key: "policies", label: "策略", load: () => api.admin.policies() },
+  { key: "approvals", label: "审批", load: () => api.admin.approvals() },
+  { key: "evaluations", label: "评测", load: () => api.admin.evaluations() },
+  { key: "costs", label: "成本", load: () => api.admin.costs() },
+  { key: "prompts", label: "Prompts", load: () => api.admin.prompts() },
+  { key: "knowledge", label: "Knowledge", load: () => api.admin.knowledge() },
+  { key: "secrets", label: "Secrets", load: () => api.admin.secrets() },
+  { key: "audit", label: "审计", load: () => api.admin.audit() },
+  { key: "operatorInvocations", label: "操作调用", load: () => api.admin.operatorInvocations() },
+  { key: "imBindings", label: "IM 绑定", load: () => api.admin.imBindings() },
+  { key: "feedback", label: "满意度", load: () => api.admin.feedbackSummary() },
+  { key: "slo", label: "运行 SLO", load: () => api.admin.runtimeSlo() },
+];
+
+interface ControlPlaneSnapshot {
+  data: AdminData;
+  failures: string[];
+}
+
+async function loadControlPlane(): Promise<ControlPlaneSnapshot> {
+  const settled = await Promise.allSettled(ADMIN_DOMAINS.map((domain) => domain.load()));
+  const data: AdminData = { ...EMPTY };
+  const failures: string[] = [];
+  settled.forEach((outcome, index) => {
+    const domain = ADMIN_DOMAINS[index];
+    if (!domain) return;
+    if (outcome.status === "fulfilled") {
+      (data as unknown as Record<string, unknown>)[domain.key] = outcome.value;
+    } else {
+      failures.push(domain.label);
+    }
+  });
+  return { data, failures };
 }
 
 export function AdminView() {
@@ -108,6 +140,7 @@ export function AdminView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState<string[]>([]);
   const [channel, setChannel] = useState("development");
   const [senderId, setSenderId] = useState("");
   const [userId, setUserId] = useState("");
@@ -119,26 +152,40 @@ export function AdminView() {
   );
   const activeBindings = data.imBindings.filter((item) => item.active);
 
+  const refresh = useCallback(async () => {
+    const next = await loadControlPlane();
+    setData(next.data);
+    setFailures(next.failures);
+    if (next.failures.length === ADMIN_DOMAINS.length) {
+      setError("无法读取治理状态：所有治理域请求均失败，请检查控制面连接与权限");
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setData(await loadControlPlane());
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法读取治理状态");
+      await refresh();
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   useEffect(() => {
     let active = true;
-    loadControlPlane()
-      .then((next) => { if (active) setData(next); })
-      .catch((caught: unknown) => {
-        if (active) setError(caught instanceof Error ? caught.message : "无法读取治理状态");
-      })
-      .finally(() => { if (active) setLoading(false); });
+    void (async () => {
+      try {
+        const next = await loadControlPlane();
+        if (!active) return;
+        setData(next.data);
+        setFailures(next.failures);
+        if (next.failures.length === ADMIN_DOMAINS.length) {
+          setError("无法读取治理状态：所有治理域请求均失败，请检查控制面连接与权限");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
     return () => { active = false; };
   }, []);
 
@@ -168,7 +215,7 @@ export function AdminView() {
         user_id: userId,
       });
       setSenderId("");
-      setData(await loadControlPlane());
+      await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法创建 IM 绑定");
     } finally {
@@ -181,7 +228,7 @@ export function AdminView() {
     setError("");
     try {
       await api.admin.revokeImBinding(bindingId);
-      setData(await loadControlPlane());
+      await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法撤销 IM 绑定");
     } finally {
@@ -194,7 +241,7 @@ export function AdminView() {
     setError("");
     try {
       await api.admin.probeConnectorHealth(connectorId);
-      setData(await loadControlPlane());
+      await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法探测连接器健康");
     } finally {
@@ -227,7 +274,7 @@ export function AdminView() {
     setError("");
     try {
       await api.admin.scanConnectorPlugin(connectorId);
-      setData(await loadControlPlane());
+      await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法扫描连接器插件");
     } finally {
@@ -240,7 +287,7 @@ export function AdminView() {
     setError("");
     try {
       await api.admin.promoteConnectorPlugin(connectorId);
-      setData(await loadControlPlane());
+      await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法晋升连接器插件");
     } finally {
@@ -255,6 +302,15 @@ export function AdminView() {
         <button className="secondary-button" onClick={() => void load()} disabled={loading}><RefreshCw size={16} className={loading ? "spin" : ""} /> 刷新</button>
       </header>
       {error && <div className="notice error"><LockKeyhole size={17} />{error}</div>}
+      {!error && failures.length > 0 && (
+        <div className="notice warning" role="alert">
+          <Activity size={17} />
+          <span>部分治理域暂时不可用：{failures.join("、")}。其余数据为当前真实投影。</span>
+          <button type="button" className="secondary-button" onClick={() => void load()} disabled={loading}>
+            重试
+          </button>
+        </div>
+      )}
 
       <div className="admin-stats">
         <Stat icon={<UsersRound />} label="活跃用户" value={data.users.filter((item) => item.active).length} sub={`${data.roles.length} 个角色 · ${data.departments.length} 个部门`} />

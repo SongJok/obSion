@@ -56,6 +56,8 @@ export function ActionsView({ workspace }: { workspace?: Workspace }) {
   const [decisionReason, setDecisionReason] = useState("");
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [rollbackReason, setRollbackReason] = useState("");
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const [preflightReason, setPreflightReason] = useState("");
 
   const loadOverview = useCallback(async () => {
     if (!workspace) return;
@@ -144,12 +146,12 @@ export function ActionsView({ workspace }: { workspace?: Workspace }) {
   }, []);
 
   const runPreflight = () => {
-    if (!detail) return;
+    if (!detail || preflightReason.trim().length < 10) return;
+    const declaration = preflightReason.trim();
     void act(async () => {
-      const checked = await api.actions.preflight(
-        detail.action.id,
-        "已核对目标、变更内容、影响范围和补偿方案，申请独立审批。",
-      );
+      const checked = await api.actions.preflight(detail.action.id, declaration);
+      setPreflightOpen(false);
+      setPreflightReason("");
       setDetail(checked);
       await loadOverview();
     });
@@ -250,7 +252,7 @@ export function ActionsView({ workspace }: { workspace?: Workspace }) {
           </aside>
 
           <section className="workflow-detail-panel action-detail-panel">
-            {detail && <ActionDetailPanel detail={detail} saving={saving} onPreflight={runPreflight} onCancel={cancel} onReview={(approval) => { setDecision(approval); setDecisionReason(""); }} onRollback={() => { setRollbackOpen(true); setRollbackReason(""); }} />}
+            {detail && <ActionDetailPanel detail={detail} saving={saving} onPreflight={() => { setPreflightOpen(true); setPreflightReason(""); }} onCancel={cancel} onReview={(approval) => { setDecision(approval); setDecisionReason(""); }} onRollback={() => { setRollbackOpen(true); setRollbackReason(""); }} />}
           </section>
         </section>
       )}
@@ -258,6 +260,20 @@ export function ActionsView({ workspace }: { workspace?: Workspace }) {
       {createOpen && <CreateActionModal workspace={workspace} saving={saving} onClose={() => setCreateOpen(false)} onCreate={(definition) => void act(async () => { const created = await api.actions.create(workspace.id, definition); setCreateOpen(false); setActions((items) => [created, ...items.filter((item) => item.id !== created.id)]); setSelectedId(created.id); await loadDetail(created.id); })} />}
       {decision && <DecisionModal approval={decision} reason={decisionReason} saving={saving} onReason={setDecisionReason} onClose={() => setDecision(undefined)} onDecision={decideApproval} />}
       {rollbackOpen && <ReasonModal title="申请回滚" body="回滚也需要独立审批，并调用计划中已经固定的补偿能力。" reason={rollbackReason} saving={saving} onReason={setRollbackReason} onClose={() => setRollbackOpen(false)} onSubmit={requestRollback} />}
+      {preflightOpen && (
+        <ReasonModal
+          title="预检并提交审批"
+          body="预检会真实核对连接器、权限与回滚能力。请亲自填写你已完成的核对内容，该声明会进入审批与审计记录。"
+          label="核对声明"
+          placeholder="例如：已核对目标仓库与分支、变更内容、影响范围和补偿方案，确认无误，申请独立审批。"
+          submitLabel="预检并提交"
+          reason={preflightReason}
+          saving={saving}
+          onReason={setPreflightReason}
+          onClose={() => setPreflightOpen(false)}
+          onSubmit={runPreflight}
+        />
+      )}
     </main>
   );
 }
@@ -355,7 +371,7 @@ function DecisionModal({ approval, reason, saving, onReason, onClose, onDecision
   return <div className="modal-backdrop" role="presentation"><div className="workspace-modal review-modal"><header><span className="modal-icon"><ShieldCheck size={19} /></span><div><h2>{approval.purpose === "EXECUTE" ? "审批动作执行" : "审批动作回滚"}</h2><p>申请人不能审批自己的动作；你的决定会绑定当前计划指纹</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></header><div className="approval-reason"><strong>申请理由</strong><p>{approval.reason}</p></div><label><span>审批意见</span><textarea autoFocus rows={4} value={reason} onChange={(event) => onReason(event.target.value)} placeholder="说明核对了哪些目标、影响和回滚条件。" /></label><footer><button className="secondary-button danger-button" onClick={() => onDecision(false)} disabled={saving || reason.trim().length < 3}>拒绝</button><button className="primary-button" onClick={() => onDecision(true)} disabled={saving || reason.trim().length < 3}>批准</button></footer></div></div>;
 }
 
-function ReasonModal({ title, body, reason, saving, onReason, onClose, onSubmit }: { title: string; body: string; reason: string; saving: boolean; onReason: (value: string) => void; onClose: () => void; onSubmit: () => void }) { return <div className="modal-backdrop"><div className="workspace-modal review-modal"><header><span className="modal-icon"><RotateCcw size={19} /></span><div><h2>{title}</h2><p>{body}</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></header><label><span>回滚原因</span><textarea autoFocus rows={4} value={reason} onChange={(event) => onReason(event.target.value)} placeholder="说明为什么需要撤销原动作，以及已经确认的影响。" /></label><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={onSubmit} disabled={saving || reason.trim().length < 10}>提交回滚审批</button></footer></div></div>; }
+function ReasonModal({ title, body, label = "回滚原因", placeholder = "说明为什么需要撤销原动作，以及已经确认的影响。", submitLabel = "提交回滚审批", reason, saving, onReason, onClose, onSubmit }: { title: string; body: string; label?: string; placeholder?: string; submitLabel?: string; reason: string; saving: boolean; onReason: (value: string) => void; onClose: () => void; onSubmit: () => void }) { return <div className="modal-backdrop"><div className="workspace-modal review-modal"><header><span className="modal-icon"><RotateCcw size={19} /></span><div><h2>{title}</h2><p>{body}</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></header><label><span>{label}</span><textarea autoFocus rows={4} value={reason} onChange={(event) => onReason(event.target.value)} placeholder={placeholder} /></label><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={onSubmit} disabled={saving || reason.trim().length < 10}>{submitLabel}</button></footer></div></div>; }
 
 function ActionStatusBadge({ status }: { status: ActionStatus }) { const running = ACTIVE.has(status); return <span className={`action-status ${status.toLowerCase()}`}>{running && <LoaderCircle className="spin" size={10} />}{status === "COMPLETED" || status === "ROLLED_BACK" ? <Check size={10} /> : null}{actionStatusLabel(status)}</span>; }
 function ActionAttemptStatus({ status }: { status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" }) { return <span className={`action-status ${status.toLowerCase()}`}>{status === "RUNNING" && <LoaderCircle className="spin" size={10} />}{({ PENDING: "等待", RUNNING: "调用中", COMPLETED: "已完成", FAILED: "失败" } as const)[status]}</span>; }

@@ -240,6 +240,45 @@ test("approve decides the first pending capability approval", async () => {
   assert.equal(host.output.some((line) => line.includes("evidence is sufficient")), false);
 });
 
+test("dismissing the reason input cancels the decision without a fallback reason", async () => {
+  const host = new MemoryHost();
+  host.inputs.push(undefined);
+  let decided = 0;
+  const session = new IdeSession(host, async (settings) => ({
+    settings,
+    close() {},
+    async listApprovals() {
+      return [{ id: "approval-1", status: "PENDING", capability: "metrics.query" }];
+    },
+    async decideApproval() {
+      decided += 1;
+      throw new Error("decideApproval must not run when the operator cancels");
+    },
+  }));
+  await session.decide(true);
+  assert.equal(decided, 0);
+  assert.match(host.output.at(-1), /cancelled/);
+});
+
+test("a blank approval reason is rejected instead of replaced by a canned string", async () => {
+  const host = new MemoryHost();
+  host.inputs.push("   ");
+  let decided = 0;
+  const session = new IdeSession(host, async (settings) => ({
+    settings,
+    close() {},
+    async listApprovals() {
+      return [{ id: "approval-1", status: "PENDING", capability: "metrics.query" }];
+    },
+    async decideApproval() {
+      decided += 1;
+      throw new Error("decideApproval must not run for a blank reason");
+    },
+  }));
+  await assert.rejects(session.decide(false), /human-entered reason/);
+  assert.equal(decided, 0);
+});
+
 test("loadSettings used by the session factory matches host configuration", () => {
   const settings = loadSettings({ baseUrl: "http://obsion.example", protocol: "rest" }, {});
   assert.equal(settings.protocol, "rest");

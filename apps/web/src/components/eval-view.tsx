@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, CheckCircle2, FlaskConical } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { api, ApiError } from "@/lib/api";
 import type {
@@ -48,6 +48,8 @@ export function EvalView() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const resultsGeneration = useRef(0);
 
   const datasets = catalog?.datasets ?? [];
   const agents = catalog?.agents ?? [];
@@ -88,7 +90,28 @@ export function EvalView() {
       setCases([]);
       return;
     }
-    setCases(await api.eval.cases(id));
+    try {
+      setCases(await api.eval.cases(id));
+    } catch (caught: unknown) {
+      setCases([]);
+      setError(caught instanceof Error ? caught.message : "无法读取评测案例");
+    }
+  };
+
+  const loadResults = async (runId: string) => {
+    const generation = ++resultsGeneration.current;
+    setResultsLoading(true);
+    setResults([]);
+    try {
+      const next = await api.eval.results(runId);
+      if (generation === resultsGeneration.current) setResults(next);
+    } catch (caught: unknown) {
+      if (generation === resultsGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法读取评测结果");
+      }
+    } finally {
+      if (generation === resultsGeneration.current) setResultsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -163,7 +186,7 @@ export function EvalView() {
         setSelectedRunId(started.id);
         const next = await load(datasetId);
         if (next) await loadCases(datasetId);
-        setResults(await api.eval.results(started.id));
+        await loadResults(started.id);
         return;
       }
       if (!selectedRunId || !baselineRunId) throw new Error("请选择基线评测和候选评测");
@@ -217,7 +240,9 @@ export function EvalView() {
                   onClick={() => {
                     setDatasetId(item.id);
                     setSelectedRunId("");
+                    ++resultsGeneration.current;
                     setResults([]);
+                    setResultsLoading(false);
                     setCompare(undefined);
                   }}
                 >
@@ -340,7 +365,7 @@ export function EvalView() {
                   className={selectedRunId === item.id ? "active" : ""}
                   onClick={() => {
                     setSelectedRunId(item.id);
-                    void api.eval.results(item.id).then(setResults);
+                    void loadResults(item.id);
                   }}
                 >
                   <strong>{item.application_revision}</strong>
@@ -352,7 +377,13 @@ export function EvalView() {
             </div>
           </article>
 
-          {results.length > 0 && (
+          {resultsLoading && (
+            <article className="eval-results">
+              <h2>案例结果</h2>
+              <p className="studio-hint">正在加载案例结果…</p>
+            </article>
+          )}
+          {!resultsLoading && results.length > 0 && (
             <article className="eval-results">
               <h2>案例结果</h2>
               {results.map((item) => (

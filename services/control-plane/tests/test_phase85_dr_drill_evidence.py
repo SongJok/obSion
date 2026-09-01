@@ -442,8 +442,8 @@ def test_release_notes_and_project_status_track_phase85() -> None:
     result = validate_release_notes(ROOT / "docs" / "release" / "0.85.0-dev.yaml", ROOT)
     assert result["version"] == "0.85.0-dev"
     status = yaml.safe_load((ROOT / "docs" / "project-status.yaml").read_text(encoding="utf-8"))
-    assert status["version"] == "0.87.0-dev"
-    assert status["current_phase"] == "phase-87"
+    assert status["version"] == "0.88.0-dev"
+    assert status["current_phase"] == "phase-88"
     assert "phase-85" in status["completed_phases"]
 
 

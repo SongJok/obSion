@@ -10,6 +10,7 @@ export function DataView() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Metric>();
   const [detailMode, setDetailMode] = useState<"definition" | "lineage">("definition");
   const [lineage, setLineage] = useState<MetricLineage>();
@@ -17,9 +18,21 @@ export function DataView() {
   const [detailError, setDetailError] = useState("");
 
   useEffect(() => {
-    api.listMetrics().then(setMetrics).catch((caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : "无法读取指标目录");
-    });
+    let cancelled = false;
+    api
+      .listMetrics()
+      .then((next) => {
+        if (!cancelled) setMetrics(next);
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "无法读取指标目录");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -71,11 +84,23 @@ export function DataView() {
       </div>
       {error && <div className="notice error"><Database size={17} />{error}</div>}
 
-      {!metrics.length && !error ? (
+      {loading ? (
+        <div className="catalog-empty">
+          <div><Database size={29} /></div>
+          <h2>正在加载指标目录…</h2>
+          <p>正在读取已验证指标与负责人信息。</p>
+        </div>
+      ) : !metrics.length && !error ? (
         <div className="catalog-empty">
           <div><Database size={29} /></div>
           <h2>还没有已验证指标</h2>
           <p>管理员可通过治理 API 接入只读数据源，登记表、列、指标定义与负责人。</p>
+        </div>
+      ) : !filtered.length ? (
+        <div className="catalog-empty">
+          <div><Search size={29} /></div>
+          <h2>没有匹配的已验证指标</h2>
+          <p>请调整关键词，或联系管理员登记新的指标定义。</p>
         </div>
       ) : (
         <div className="metric-grid">

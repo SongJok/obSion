@@ -64,6 +64,7 @@ export class ApiError extends Error {
 
 interface RequestOptions {
   notifyAuthenticationFailure?: boolean;
+  timeoutMs?: number;
 }
 
 const SESSION_ERROR_CODES = new Set([
@@ -72,21 +73,38 @@ const SESSION_ERROR_CODES = new Set([
   "unknown_principal",
 ]);
 
+const DEFAULT_TIMEOUT_MS = 30_000;
+const LONG_RUNNING_TIMEOUT_MS = 120_000;
+
 async function request<T>(
   path: string,
   init?: RequestInit,
   options?: RequestOptions,
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    cache: "no-store",
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      ...(init?.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers,
-    },
-  });
+  const signals = [AbortSignal.timeout(options?.timeoutMs ?? DEFAULT_TIMEOUT_MS)];
+  if (init?.signal) signals.push(init.signal);
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      signal: signals.length === 1 ? signals[0] : AbortSignal.any(signals),
+      cache: "no-store",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        ...(init?.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+        ...init?.headers,
+      },
+    });
+  } catch (caught) {
+    if (caught instanceof DOMException && caught.name === "TimeoutError") {
+      throw new ApiError("request_timeout", "请求超时，请稍后重试");
+    }
+    if (caught instanceof DOMException && caught.name === "AbortError") {
+      throw new ApiError("request_cancelled", "请求已取消");
+    }
+    throw new ApiError("network_error", "无法连接控制面，请检查网络后重试");
+  }
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as Record<string, string>;
     const code = body.code ?? "request_failed";
@@ -103,7 +121,11 @@ async function request<T>(
     );
   }
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new ApiError("invalid_response", "控制面返回了无法解析的响应");
+  }
 }
 
 export const api = {
@@ -233,6 +255,7 @@ export const api = {
     request<{ document: { id: string; title: string }; chunk_count: number }>(
       "/knowledge/documents",
       { method: "POST", body: form },
+      { timeoutMs: LONG_RUNNING_TIMEOUT_MS },
     ),
   knowledgeSearch: (query: string) =>
     request<
@@ -277,7 +300,7 @@ export const api = {
         inherit_acl: false,
         ...input,
       }),
-    }),
+    }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
   ingestDingTalkDocument: (input: {
     document_id: string;
     title?: string;
@@ -298,7 +321,7 @@ export const api = {
         inherit_acl: false,
         ...input,
       }),
-    }),
+    }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
   ingestWeComDocument: (input: {
     document_id: string;
     title?: string;
@@ -319,7 +342,7 @@ export const api = {
         inherit_acl: false,
         ...input,
       }),
-    }),
+    }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
   listFeishuSpaces: () =>
     request<Array<{ space_id: string; name: string; description: string }>>(
       "/knowledge/sources/feishu/spaces",
@@ -355,7 +378,7 @@ export const api = {
         inherit_acl: false,
         ...input,
       }),
-    }),
+    }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
   ingestConfluencePage: (input: {
     page_id: string;
     title?: string;
@@ -376,7 +399,7 @@ export const api = {
         inherit_acl: false,
         ...input,
       }),
-    }),
+    }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
   listCodeRepositories: () => request<CodeRepository[]>("/code/repositories"),
   searchCodeSymbols: (query: string) =>
     request<CodeSymbolHit[]>("/code/symbols/search", {
@@ -621,7 +644,7 @@ export const api = {
       request<EvalRun>(`/eval/datasets/${datasetId}/runs`, {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
     results: (runId: string) => request<EvalResult[]>(`/eval/runs/${runId}/results`),
     compare: (input: { baseline_run_id: string; candidate_run_id: string }) =>
       request<EvalCompare>("/eval/compare", {

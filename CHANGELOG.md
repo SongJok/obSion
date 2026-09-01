@@ -7,6 +7,27 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 88 Alpha.1 Workbench reliability hardening: every Workbench request
+  is bounded by an explicit `AbortSignal` timeout (30s default, 120s for
+  ingest and evaluation mutations) with normalized
+  `request_timeout`/`request_cancelled`/`network_error`/`invalid_response`
+  errors; the single-page app gains route-level `error.tsx`/`not-found.tsx`/
+  `loading.tsx` boundaries; the governance console degrades per domain via
+  `Promise.allSettled` with a named-failure warning and retry instead of
+  failing closed on any one of its 22 endpoints; Eval results are
+  generation-guarded against stale overwrites and every event-handler
+  promise is caught; Data and Code views distinguish loading, empty, and
+  no-match states; the Runtime inspector resets detail selection on Run
+  change and shows the live / polling / interrupted synchronization state
+  instead of hiding the REST fallback; Knowledge upload is single-flight
+  with a re-armed file input. Governed-action preflight declarations and
+  Desktop/IDE approval reasons are operator-entered (minimum length
+  enforced) or the operation is cancelled — no canned rationale can enter an
+  approval or audit record. ADR 0067 records the decisions. Client code
+  only: no API, schema, capability, or runtime change, and nothing feeds
+  `promotion_eligible`; all six operator gates remain PENDING. Version is
+  `0.88.0-dev`.
+
 - Phase 87 Alpha.1 drill CI signal: `.github/workflows/drill.yml` runs both
   drill ladders nightly (`17 3 * * *`) and on `workflow_dispatch` on
   docker-capable hosted runners with `OBSION_DR_DRILL=1`, writing fresh

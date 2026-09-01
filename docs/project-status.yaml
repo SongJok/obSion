@@ -1,5 +1,5 @@
 project: obsion
-version: 0.87.0-dev
+version: 0.88.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -90,8 +90,9 @@ completed_phases:
   - phase-85
   - phase-86
   - phase-87
+  - phase-88
 
-current_phase: phase-87
+current_phase: phase-88
 
 tests:
   unit: passed
@@ -114,22 +115,24 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-88
+  id: phase-89
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 87 makes restore-path health a continuous CI-detectable signal. A
-    scheduled drill workflow runs both drill ladders nightly and on manual
-    dispatch on docker-capable hosted runners, writing fresh ledgers to the
-    runner temp directory and uploading them as 14-day CI artifacts; the
-    recorders' fail-closed exit codes are the signal, so a restore-path
-    regression turns red within one schedule tick. The workflow is
-    deliberately not a merge gate, carries no credentials or repository write
-    permissions, and never overwrites the committed operator-recorded
-    ledgers; ADR 0066 records the decision. CI-generated drill evidence never
-    feeds promotion eligibility. Production promotion remains fail-closed
-    while clean staging/UAT, staging-scoped timed restore, registry
-    HIGH/CRITICAL CVE policy, signatures, live OIDC/secret-manager/read-replica
-    evidence, security and data-owner approval, and maintainer publication
-    authority are PENDING. Phase 88 may consume real operator evidence; it must
-    not fabricate approval, publish with ci.txt credentials, expand production
+  notes: Phase 88 hardened Workbench and experience-client reliability without
+    expanding the frozen Alpha.1 product surface. Every Workbench request is
+    bounded by an explicit timeout with normalized timeout/network/parse
+    errors; the route has error/loading/not-found boundaries; the admin
+    console degrades per governance domain instead of failing closed; the
+    Eval, Data, and Code views distinguish loading, empty, and no-match
+    states and guard async results with generation tokens; the Runtime
+    inspector resets detail selection on Run change and shows the live /
+    polling / interrupted sync state; governed-action preflight declarations
+    and IDE/Desktop approval reasons are operator-entered or the operation is
+    cancelled — no canned rationale can enter an audit record. ADR 0067
+    records the decisions. Production promotion remains fail-closed while
+    clean staging/UAT, staging-scoped timed restore, registry HIGH/CRITICAL
+    CVE policy, signatures, live OIDC/secret-manager/read-replica evidence,
+    security and data-owner approval, and maintainer publication authority
+    are PENDING. Phase 89 may consume real operator evidence; it must not
+    fabricate approval, publish with ci.txt credentials, expand production
     writes, or add a second runtime without explicit authority.

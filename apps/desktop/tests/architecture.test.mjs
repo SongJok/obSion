@@ -82,3 +82,14 @@ test("sources do not import a second Harness, control plane, or Electron outside
   }
   assert.deepEqual(violations, []);
 });
+
+test("desktop shell guards every action and requires a human approval reason", () => {
+  const shell = readFileSync(join(ROOT, "src", "shell.ts"), "utf8");
+  assert.match(shell, /async function guard\(action\)/);
+  assert.match(shell, /button\.disabled = true/);
+  assert.match(shell, /catch \(error\)/);
+  assert.equal(shell.includes("Approved from Desktop"), false);
+  assert.match(shell, /请填写审批说明/);
+  // No fire-and-forget API calls may bypass the guard's error handling.
+  assert.equal(/\.then\(\(body\) =>/.test(shell), false);
+});

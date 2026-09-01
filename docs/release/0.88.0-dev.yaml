@@ -1,0 +1,74 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-workbench-reliability
+  version: 0.88.0-dev
+  phase: 88
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema, settings, or API changes; Phase 88 hardens Workbench, Desktop, and IDE client code plus documentation only.
+  documents:
+    - CHANGELOG.md
+    - apps/web/src/app/error.tsx
+    - apps/web/src/app/not-found.tsx
+    - apps/web/src/app/loading.tsx
+    - apps/web/src/app/globals.css
+    - apps/web/src/lib/api.ts
+    - apps/web/src/components/eval-view.tsx
+    - apps/web/src/components/admin-view.tsx
+    - apps/web/src/components/data-view.tsx
+    - apps/web/src/components/code-view.tsx
+    - apps/web/src/components/runtime-inspector.tsx
+    - apps/web/src/components/workbench.tsx
+    - apps/web/src/components/actions-view.tsx
+    - apps/web/src/components/knowledge-view.tsx
+    - apps/desktop/src/shell.ts
+    - apps/desktop/tests/architecture.test.mjs
+    - apps/ide-extension/src/commands.ts
+    - apps/ide-extension/tests/commands.test.mjs
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.88.0-dev.md
+    - docs/phases/PHASE-88-REPORT.md
+    - docs/architecture/phase-88-workbench-reliability.md
+    - docs/adr/0067-alpha1-workbench-reliability.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol centered on Workspace, Thread, Turn, Run, Step, and Event; this phase changes client code only and adds no API, capability, or runtime.
+    - Every Workbench request is bounded by an explicit AbortSignal timeout (30s default, 120s for ingest and evaluation mutations) and failures normalize to request_timeout, request_cancelled, network_error, or invalid_response; the HttpOnly cookie session contract is unchanged and no token is ever persisted in the browser.
+    - The admin console degrades per governance domain via Promise.allSettled so one failing endpoint never blanks the console, failed domains are named with a retry action, and only a total outage raises the page-level error.
+    - Async results in the Eval view are generation-guarded so stale responses can never overwrite a newer selection, and every event-handler promise is caught into the page error state.
+    - The Runtime inspector shows the live / polling / interrupted synchronization state instead of hiding the REST fallback, and detail selections reset when the inspected Run changes so evidence can never be attributed across Runs.
+    - Governed-action preflight declarations and IDE/Desktop approval reasons are operator-entered free text (minimum length enforced) or the operation is cancelled; no canned rationale can enter an approval or audit record.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required; the Workbench and experience clients pick the hardening up on their next build.
+  rollback:
+    - Revert the Phase 88 commits; no data, schema, or release-evidence artifacts are affected.
+  verification:
+    - make check
+    - make test-java
+    - make migration-check
+    - make validate-release-candidate-contract
+    - uv run pytest --no-cov services/control-plane/tests/test_phase88_workbench_reliability.py
+    - npm test --workspace @obsion/desktop
+    - npm test --workspace @obsion/ide-extension
+  knownLimitations:
+    - The repository does not claim a staging deployment, UAT, staging-scoped timed DR drill, live OIDC or secret-manager validation, signed image, signed tag, external package, or production promotion.
+    - The Runtime inspector still presents the generic step list; goal.txt's per-stage investigation narrative, typed Evidence views, and post-conclusion context actions remain candidates for later phases and are deliberately out of this phase's frozen-surface scope.
+    - apps/web keeps the repository's established verification pattern (lint, typecheck, production build, and Python static boundary tests); a component-level JavaScript test stack remains a candidate for a later phase.
+    - Package versions remain 0.1.0 while the development release line is 0.88.0-dev; external version alignment requires a separately authorized publication phase.

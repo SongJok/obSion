@@ -25,6 +25,7 @@ export const DESKTOP_SHELL_HTML = `<!DOCTYPE html>
     input { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; }
     .status { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
     .error { color: #a54343; }
+    button:disabled { opacity: .55; cursor: default; }
   </style>
 </head>
 <body>
@@ -55,7 +56,7 @@ export const DESKTOP_SHELL_HTML = `<!DOCTYPE html>
         </form>
         <p class="status" id="token-status"></p>
         <form id="approve-form" style="margin-top:18px">
-          <label>审批说明<input name="reason" placeholder="Approved from Desktop" /></label>
+          <label>审批说明（必填，进入审计记录）<input name="reason" placeholder="说明批准或拒绝的依据" /></label>
           <div class="row" style="margin-top:8px">
             <button type="submit">批准</button>
             <button class="secondary" type="button" id="reject">拒绝</button>
@@ -85,41 +86,79 @@ export const DESKTOP_SHELL_HTML = `<!DOCTYPE html>
       connection.textContent = status.baseUrl;
       tokenStatus.textContent = status.hasToken ? "已保存令牌" : "尚未保存令牌";
     }
-    document.getElementById("ask-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
+    const buttons = Array.from(document.querySelectorAll("button"));
+    function fail(error) {
+      notice.className = "status error";
+      notice.textContent = error && error.message ? error.message : "操作未能完成";
+    }
+    async function guard(action) {
+      notice.className = "status";
       notice.textContent = "";
-      const question = event.target.question.value;
+      buttons.forEach((button) => { button.disabled = true; });
       try {
+        await action();
+      } catch (error) {
+        fail(error);
+      } finally {
+        buttons.forEach((button) => { button.disabled = false; });
+      }
+    }
+    document.getElementById("ask-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const question = event.target.question.value;
+      void guard(async () => {
         const result = await api("/api/ask", { method: "POST", body: JSON.stringify({ text: question }) });
         output.textContent = result.rendered;
-      } catch (error) {
-        notice.className = "status error";
-        notice.textContent = error.message;
+      });
+    });
+    document.getElementById("token-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const token = event.target.token.value.trim();
+      if (!token) {
+        fail(new Error("请输入访问令牌"));
+        return;
       }
+      void guard(async () => {
+        await api("/api/token", { method: "POST", body: JSON.stringify({ token }) });
+        event.target.token.value = "";
+        await refresh();
+      });
     });
-    document.getElementById("token-form").addEventListener("submit", async (event) => {
+    document.getElementById("clear-token").addEventListener("click", () => {
+      void guard(async () => {
+        await api("/api/token", { method: "DELETE" });
+        await refresh();
+      });
+    });
+    document.getElementById("cancel").addEventListener("click", () => {
+      void guard(async () => {
+        const body = await api("/api/cancel", { method: "POST", body: "{}" });
+        output.textContent = body.rendered;
+      });
+    });
+    document.getElementById("replay").addEventListener("click", () => {
+      void guard(async () => {
+        const body = await api("/api/replay", { method: "POST", body: "{}" });
+        output.textContent = body.rendered;
+      });
+    });
+    function approvalReason() {
+      const reason = document.querySelector("#approve-form input[name=reason]").value.trim();
+      if (!reason) throw new Error("请填写审批说明，说明会进入审计记录");
+      return reason;
+    }
+    document.getElementById("approve-form").addEventListener("submit", (event) => {
       event.preventDefault();
-      const token = event.target.token.value;
-      await api("/api/token", { method: "POST", body: JSON.stringify({ token }) });
-      event.target.token.value = "";
-      await refresh();
+      void guard(async () => {
+        const body = await api("/api/approve", { method: "POST", body: JSON.stringify({ reason: approvalReason() }) });
+        output.textContent = body.rendered;
+      });
     });
-    document.getElementById("clear-token").addEventListener("click", async () => {
-      await api("/api/token", { method: "DELETE" });
-      await refresh();
-    });
-    document.getElementById("cancel").addEventListener("click", () => api("/api/cancel", { method: "POST", body: "{}" }).then((body) => { output.textContent = body.rendered; }));
-    document.getElementById("replay").addEventListener("click", () => api("/api/replay", { method: "POST", body: "{}" }).then((body) => { output.textContent = body.rendered; }));
-    document.getElementById("approve-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const reason = event.target.reason.value;
-      const body = await api("/api/approve", { method: "POST", body: JSON.stringify({ reason }) });
-      output.textContent = body.rendered;
-    });
-    document.getElementById("reject").addEventListener("click", async () => {
-      const reason = document.querySelector("#approve-form input[name=reason]").value;
-      const body = await api("/api/reject", { method: "POST", body: JSON.stringify({ reason }) });
-      output.textContent = body.rendered;
+    document.getElementById("reject").addEventListener("click", () => {
+      void guard(async () => {
+        const body = await api("/api/reject", { method: "POST", body: JSON.stringify({ reason: approvalReason() }) });
+        output.textContent = body.rendered;
+      });
     });
     refresh().catch((error) => { notice.className = "status error"; notice.textContent = error.message; });
   </script>
