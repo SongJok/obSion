@@ -169,15 +169,18 @@ export function CollaborationView({
       try {
         await operation();
       } catch (caught) {
+        // load() clears the notice at its start, so refresh first and then
+        // surface the actionable message — otherwise the guidance flashes
+        // and disappears before the operator can read it.
         if (caught instanceof ApiError && caught.code.endsWith("_version_conflict")) {
+          await load();
           setError("记录已被其他成员更新，已为你刷新到最新版本。请确认后重试。");
-          await load();
         } else if (caught instanceof ApiError && caught.code === "workspace_task_assignee_invalid") {
+          await load();
           setError("指派的成员必须是该工作空间的在职成员，请刷新成员列表后重试。");
-          await load();
         } else if (caught instanceof ApiError && caught.code === "workspace_source_run_mismatch") {
-          setError("来源 Run 必须属于当前工作空间，请刷新后重新选择。");
           await load();
+          setError("来源 Run 必须属于当前工作空间，请刷新后重新选择。");
         } else {
           setError(caught instanceof Error ? caught.message : "操作未能完成");
         }

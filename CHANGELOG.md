@@ -7,6 +7,16 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 97 broader Workbench interaction tests (the Phase 88 audit's
+  last open reliability item): a new suite mounts real components and
+  drives them with fireEvent against a production-typed mocked API
+  boundary — composer keyboard/stop/attachment behaviour, claim →
+  task provenance with source-Run pinning, and collaboration task
+  creation with all three actionable error branches. Writing the
+  suite surfaced a real defect: collaboration error guidance was
+  erased by its own follow-up refresh, so the mutation handler now
+  refreshes first and surfaces the message after, pinned by tests.
+
 - Phase 96 post-conclusion context actions (the gap audit's deferred
   investigation-loop item): each Critic-verified claim on a completed
   run now offers 转为任务 and 记录决策 in the Runtime inspector, with

@@ -41,6 +41,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Automation Web authoring depth: immutable version management with inspect, derive, publish and rollback, a spec viewer, validated trigger payloads with idempotency, schedule authoring with fixed-version pinning, guarded retire, and step output refs linked into the Runtime inspector
 - [x] Schema-driven chart renderer honoring the emitted Vega-Lite subset: temporal line charts with grid ticks and tooltips, big-number text marks, capped bars, fail-closed parsing, and a producer contract pinned against drift
 - [x] Post-conclusion context actions: verified claims become workspace tasks or decision records from the Runtime inspector with editable prefilled payloads, source-Run provenance, and run-pinned workspace targeting
+- [x] Broader Workbench interaction tests: composer, claim-action, and collaboration flows driven through mounted components with a production-typed mocked API boundary, plus a fixed defect where collaboration error guidance was erased by its own follow-up refresh
 
 ## Operator-owned (not claimed by this repository run)
 

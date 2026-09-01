@@ -351,3 +351,15 @@ workspace pinning from the run's context, and a one-click jump into
 the collaboration view. ADR 0075 records the decisions. The candidate
 contract, recorded evidence, and all six PENDING operator gates are
 untouched.
+
+Phase 97 closes the broader Workbench interaction tests gap: a new
+suite mounts real components and drives them with fireEvent against
+a production-typed mocked API boundary — composer keyboard/stop/
+attachment behaviour, claim → task provenance with source-Run
+pinning, and collaboration task creation with all three actionable
+error branches. Writing the suite surfaced a real defect where
+collaboration error guidance was erased by its own follow-up
+refresh; the mutation handler now refreshes first and surfaces the
+message after, pinned by tests. ADR 0076 records the decisions. The
+candidate contract, recorded evidence, and all six PENDING operator
+gates are untouched.
