@@ -1,5 +1,5 @@
 project: obsion
-version: 0.95.0-dev
+version: 0.96.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -98,8 +98,9 @@ completed_phases:
   - phase-93
   - phase-94
   - phase-95
+  - phase-96
 
-current_phase: phase-95
+current_phase: phase-96
 
 tests:
   unit: passed
@@ -122,19 +123,19 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-96
+  id: phase-97
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 95 closed the schema-driven chart renderer gap — the
-    Workbench now honors the Vega-Lite subset the Harness emits for
-    CHART artifacts with temporal line charts, big-number text marks,
-    capped bars, fail-closed parsing, and a producer contract pinned
-    against drift. ADR 0074 records the decisions. Production
+  notes: Phase 96 closed the post-conclusion context actions gap —
+    verified claims on completed runs now become workspace tasks or
+    decision records from the Runtime inspector with editable
+    prefilled payloads, source-Run provenance, and run-pinned
+    workspace targeting. ADR 0075 records the decisions. Production
     promotion remains fail-closed while clean staging/UAT,
     staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
     signatures, live OIDC/secret-manager/read-replica evidence,
     security and data-owner approval, and maintainer publication
-    authority are PENDING. Phase 96 may consume real operator
+    authority are PENDING. Phase 97 may consume real operator
     evidence; it must not fabricate approval, publish with ci.txt
     credentials, expand production writes, or add a second runtime
     without explicit authority.

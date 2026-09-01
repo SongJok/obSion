@@ -342,3 +342,12 @@ producer contract is pinned by control-plane tests so renderer and
 producer cannot drift. ADR 0074 records the decisions. The candidate
 contract, recorded evidence, and all six PENDING operator gates are
 untouched.
+
+Phase 96 closes the post-conclusion context actions gap: each
+Critic-verified claim on a completed run now offers 转为任务 and
+记录决策 in the Runtime inspector, with prefilled editable payloads,
+source_run_id provenance carried into the collaboration ledger,
+workspace pinning from the run's context, and a one-click jump into
+the collaboration view. ADR 0075 records the decisions. The candidate
+contract, recorded evidence, and all six PENDING operator gates are
+untouched.

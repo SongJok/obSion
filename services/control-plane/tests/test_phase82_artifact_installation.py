@@ -102,7 +102,7 @@ def test_phase82_manifest_remains_valid_after_the_cli_default_advances() -> None
     assert result["vendors"] == []
 
     args = build_parser().parse_args(["validate-release-notes"])
-    assert args.manifest == "docs/release/0.95.0-dev.yaml"
+    assert args.manifest == "docs/release/0.96.0-dev.yaml"
 
     document = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert "repositoryEvidence" not in document["spec"]
@@ -113,5 +113,5 @@ def test_project_status_preserves_phase82_after_phase83_completion() -> None:
         (REPOSITORY_ROOT / "docs/project-status.yaml").read_text(encoding="utf-8")
     )
     assert "phase-82" in status["completed_phases"]
-    assert status["current_phase"] == "phase-95"
-    assert status["next_phase"]["id"] == "phase-96"
+    assert status["current_phase"] == "phase-96"
+    assert status["next_phase"]["id"] == "phase-97"

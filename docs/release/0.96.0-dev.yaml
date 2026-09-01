@@ -1,0 +1,65 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-post-conclusion-context-actions
+  version: 0.96.0-dev
+  phase: 96
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema or settings changes; the Runtime inspector composes the existing collaboration endpoints with source-Run provenance.
+  documents:
+    - CHANGELOG.md
+    - apps/web/src/lib/claim-actions.ts
+    - apps/web/src/components/runtime-inspector.tsx
+    - apps/web/src/components/workbench.tsx
+    - apps/web/src/app/globals.css
+    - apps/web/tests/claim-actions.test.ts
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase96_claim_actions.py
+    - services/control-plane/tests/test_phase81_feishu_live_reply.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - services/control-plane/tests/test_phase89_typed_evidence.py
+    - services/control-plane/tests/test_phase90_investigation_narrative.py
+    - services/control-plane/tests/test_phase91_web_test_stack.py
+    - services/control-plane/tests/test_phase92_collaboration_assignment.py
+    - services/control-plane/tests/test_phase93_native_model_adapters.py
+    - services/control-plane/tests/test_phase94_automation_authoring.py
+    - services/control-plane/tests/test_phase95_chart_renderer.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.96.0-dev.md
+    - docs/phases/PHASE-96-REPORT.md
+    - docs/architecture/phase-96-claim-actions.md
+    - docs/adr/0075-post-conclusion-context-actions.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase changes no backend route, schema, or permission and composes the existing collaboration endpoints.
+    - Claim actions appear only for COMPLETED runs pinned to a workspace context, and the target workspace always comes from the run's pinned context rather than ambient session state.
+    - Created tasks and decisions carry source_run_id so provenance survives into the collaboration ledger; cross-workspace attempts keep failing closed with workspace_source_run_mismatch.
+    - Claims are rendered and never altered; the modal edits only the new record's payload, and nothing is written without operator confirmation.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required; the actions call existing collaboration endpoints.
+  rollback:
+    - Revert the phase commits; the claims tab returns to read-only rendering.
+  verification:
+    - npx vitest run tests/claim-actions.test.ts
+    - uv run pytest --no-cov services/control-plane/tests/test_phase96_claim_actions.py
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - Actions appear only for COMPLETED runs pinned to a workspace context; ad-hoc runs outside a workspace stay read-only.
+    - All six Alpha.1 candidate gates remain PENDING operator-owned items.

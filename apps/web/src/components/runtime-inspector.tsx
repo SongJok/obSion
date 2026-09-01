@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BookCheck,
   BrainCircuit,
   Check,
   ChevronRight,
@@ -11,15 +12,23 @@ import {
   FileCheck2,
   Files,
   Gauge,
+  ListTodo,
   MessagesSquare,
   PanelRightClose,
   RotateCcw,
   ShieldCheck,
   Wrench,
   X,
+  XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 
+import { ApiError, api } from "@/lib/api";
+import {
+  claimDecisionPayload,
+  claimTaskPayload,
+  truncateClaim,
+} from "@/lib/claim-actions";
 import type { Artifact, Claim, ConversationSnapshot, Evidence, MemorySnapshot, Run, RunEvent, RunStep } from "@/lib/types";
 import { EvidenceContent, EvidenceMeta } from "./evidence-content";
 
@@ -40,6 +49,7 @@ interface RuntimeInspectorProps {
   conversation: ConversationSnapshot[];
   claims: Claim[];
   artifacts: Artifact[];
+  onOpenCollaboration?: () => void;
 }
 
 type Tab = "runtime" | "context" | "evidence" | "memory" | "claims" | "artifacts";
@@ -59,10 +69,12 @@ export function RuntimeInspector({
   conversation,
   claims,
   artifacts,
+  onOpenCollaboration,
 }: RuntimeInspectorProps) {
   const [tab, setTab] = useState<Tab>("runtime");
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence>();
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact>();
+  const [claimAction, setClaimAction] = useState<{ claim: Claim; index: number; mode: "task" | "decision" }>();
   const runId = run?.id;
   const [lastRunId, setLastRunId] = useState(runId);
   if (lastRunId !== runId) {
@@ -70,6 +82,7 @@ export function RuntimeInspector({
     setLastRunId(runId);
     setSelectedEvidence(undefined);
     setSelectedArtifact(undefined);
+    setClaimAction(undefined);
   }
   if (!open) return null;
 
@@ -172,11 +185,13 @@ export function RuntimeInspector({
           <ClaimList
             claims={claims}
             evidence={evidence}
+            run={run}
             onSelectEvidence={(item) => {
               setSelectedArtifact(undefined);
               setSelectedEvidence(item);
               setTab("evidence");
             }}
+            onClaimAction={(claim, index, mode) => setClaimAction({ claim, index, mode })}
           />
         )}
         {tab === "artifacts" && (
@@ -225,7 +240,124 @@ export function RuntimeInspector({
           </div>
         </div>
       )}
+      {claimAction && run && (
+        <ClaimActionModal
+          run={run}
+          claim={claimAction.claim}
+          index={claimAction.index}
+          mode={claimAction.mode}
+          evidence={evidence}
+          onClose={() => setClaimAction(undefined)}
+          onOpenCollaboration={onOpenCollaboration}
+        />
+      )}
     </aside>
+  );
+}
+
+function ClaimActionModal({
+  run,
+  claim,
+  index,
+  mode,
+  evidence,
+  onClose,
+  onOpenCollaboration,
+}: {
+  run: Run;
+  claim: Claim;
+  index: number;
+  mode: "task" | "decision";
+  evidence: Evidence[];
+  onClose: () => void;
+  onOpenCollaboration?: () => void;
+}) {
+  const workspaceId = run.workspace_context?.workspace_id;
+  const [initial] = useState(() =>
+    mode === "task"
+      ? claimTaskPayload(claim, run.id, index)
+      : claimDecisionPayload(claim, evidence, run.id, index),
+  );
+  const [title, setTitle] = useState(String(initial.title ?? ""));
+  const [body, setBody] = useState(
+    String(mode === "task" ? initial.description : initial.rationale),
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState("");
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!workspaceId || !title.trim() || !body.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      if (mode === "task") {
+        await api.collaboration.createTask(workspaceId, {
+          title: title.trim(),
+          description: body.trim(),
+          source_run_id: run.id,
+        });
+        setDone("任务已创建，并带来源 Run 溯源");
+      } else {
+        await api.collaboration.createDecision(workspaceId, {
+          title: title.trim(),
+          summary: truncateClaim(claim.statement, 240),
+          rationale: body.trim(),
+          source_run_id: run.id,
+        });
+        setDone("决策已记录，并带来源 Run 溯源");
+      }
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "workspace_source_run_mismatch") {
+        setError("来源 Run 必须属于当前工作空间，请刷新后重试。");
+      } else {
+        setError(caught instanceof Error ? caught.message : "操作未能完成");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <form className="workspace-modal claim-action-modal" onSubmit={(event) => void submit(event)}>
+        <header>
+          <span className="modal-icon">{mode === "task" ? <ListTodo size={19} /> : <BookCheck size={19} />}</span>
+          <div>
+            <h2>{mode === "task" ? "结论转为任务" : "结论记录为决策"}</h2>
+            <p>来源 Run {run.id.slice(0, 8)} 与证据链会随记录保留</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose}><X size={18} /></button>
+        </header>
+        {done ? (
+          <>
+            <div className="notice success"><Check size={15} />{done}</div>
+            <footer>
+              <button type="button" className="secondary-button" onClick={onClose}>关闭</button>
+              {onOpenCollaboration && (
+                <button type="button" className="primary-button" onClick={() => { onClose(); onOpenCollaboration(); }}>在协作中查看</button>
+              )}
+            </footer>
+          </>
+        ) : (
+          <>
+            <label><span>标题</span><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} maxLength={300} /></label>
+            <label>
+              <span>{mode === "task" ? "任务描述" : "决策理由"}</span>
+              <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={7} maxLength={mode === "task" ? 20000 : 40000} />
+            </label>
+            {error && <div className="notice error"><XCircle size={14} />{error}</div>}
+            <footer>
+              <button type="button" className="secondary-button" onClick={onClose}>取消</button>
+              <button className="primary-button" disabled={saving || !title.trim() || !body.trim() || !workspaceId}>
+                {saving ? "正在保存…" : mode === "task" ? "创建任务" : "记录决策"}
+              </button>
+            </footer>
+          </>
+        )}
+      </form>
+    </div>
   );
 }
 
@@ -575,15 +707,22 @@ function EvidenceList({ evidence, onSelect }: { evidence: Evidence[]; onSelect: 
 function ClaimList({
   claims,
   evidence,
+  run,
   onSelectEvidence,
+  onClaimAction,
 }: {
   claims: Claim[];
   evidence: Evidence[];
+  run?: Run;
   onSelectEvidence: (item: Evidence) => void;
+  onClaimAction?: (claim: Claim, index: number, mode: "task" | "decision") => void;
 }) {
   if (!claims.length) {
     return <InspectorEmpty icon={<ShieldCheck size={22} />} text="经过 Critic 验证的结论会显示在这里" />;
   }
+  const actionable = Boolean(
+    run && run.status === "COMPLETED" && run.workspace_context?.workspace_id && onClaimAction,
+  );
   return (
     <div className="claim-list">
       {claims.map((claim, index) => (
@@ -614,6 +753,16 @@ function ClaimList({
               ) : null;
             })}
           </ul>
+          {actionable && (
+            <div className="claim-actions">
+              <button type="button" onClick={() => onClaimAction?.(claim, index, "task")}>
+                <ListTodo size={13} />转为任务
+              </button>
+              <button type="button" onClick={() => onClaimAction?.(claim, index, "decision")}>
+                <BookCheck size={13} />记录决策
+              </button>
+            </div>
+          )}
         </article>
       ))}
     </div>

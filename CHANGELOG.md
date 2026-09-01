@@ -7,6 +7,15 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 96 post-conclusion context actions (the gap audit's deferred
+  investigation-loop item): each Critic-verified claim on a completed
+  run now offers 转为任务 and 记录决策 in the Runtime inspector, with
+  prefilled editable payloads (ordinal titles, statement, provenance
+  line, verification status, evidence-cited rationale), source_run_id
+  provenance carried into the collaboration ledger, workspace pinning
+  from the run's context, and a one-click jump into the collaboration
+  view.
+
 - Phase 95 schema-driven chart renderer (the gap audit's deferred
   renderer item): the Workbench now honors the Vega-Lite v5 subset the
   Harness emits for CHART artifacts — temporal series render as SVG
