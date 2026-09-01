@@ -278,3 +278,13 @@ only from persisted fields. The Web Evidence type now matches the REST
 projection exactly. ADR 0068 records the decisions. Rendering only; the
 candidate contract, recorded evidence, and all six PENDING operator gates
 are untouched.
+
+Phase 90 turns the Runtime timeline into a per-stage investigation
+narrative projected from persisted keys only: each step shows its
+persisted duration, the Evidence rows carrying its step_id as bounded
+typed chips that open the Phase 89 typed detail, and the claims that
+evidence supports as badges jumping to the Claims tab; evidence without
+a step stays visible in an explicit unattributed section. No link is
+inferred and no prose is generated. ADR 0069 records the decisions.
+Rendering only; the candidate contract, recorded evidence, and all six
+PENDING operator gates are untouched.

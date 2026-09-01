@@ -7,6 +7,15 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 90 per-stage investigation narrative: the Runtime timeline now
+  correlates each step with its persisted duration
+  (started_at/completed_at), the Evidence rows carrying its step_id
+  (bounded typed chips that open the Phase 89 typed detail), and the
+  claims that evidence supports (badges jumping to the Claims tab).
+  Evidence without a step_id stays visible in an explicit unattributed
+  section; every link is a persisted key and nothing is inferred or
+  generated.
+
 - Phase 89 typed Evidence views (goal.txt section 57 Evidence Panel): the
   Workbench now renders persisted Evidence rows with envelope-driven typed
   views — observability event streams for METRIC/LOG/TRACE/deployment.list,

@@ -314,7 +314,7 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-release-notes",
         help="Validate the current operator release-note contract",
     )
-    release_notes.add_argument("--manifest", default="docs/release/0.89.0-dev.yaml")
+    release_notes.add_argument("--manifest", default="docs/release/0.90.0-dev.yaml")
     release_notes.add_argument("--root", default=".")
     release_notes.set_defaults(handler=_validate_release_notes)
 

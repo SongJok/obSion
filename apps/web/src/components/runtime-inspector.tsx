@@ -141,7 +141,19 @@ export function RuntimeInspector({
 
       <div className="inspector-content">
         {tab === "runtime" && (
-          <RuntimeTimeline run={run} steps={steps} events={events} />
+          <RuntimeTimeline
+            run={run}
+            steps={steps}
+            events={events}
+            evidence={evidence}
+            claims={claims}
+            onSelectEvidence={(item) => {
+              setSelectedArtifact(undefined);
+              setSelectedEvidence(item);
+              setTab("evidence");
+            }}
+            onOpenClaims={() => setTab("claims")}
+          />
         )}
         {tab === "context" && (
           <ConversationContextList
@@ -391,8 +403,47 @@ function stepKindLabel(kind: string): string {
   return kind;
 }
 
-function RuntimeTimeline({ run, steps, events }: { run?: Run; steps: RunStep[]; events: RunEvent[] }) {
+const MAX_STEP_EVIDENCE_CHIPS = 6;
+
+function stepDurationLabel(step: RunStep): string | undefined {
+  if (!step.started_at || !step.completed_at) {
+    return undefined;
+  }
+  const ms = new Date(step.completed_at).getTime() - new Date(step.started_at).getTime();
+  if (!Number.isFinite(ms) || ms < 0) {
+    return undefined;
+  }
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+function RuntimeTimeline({
+  run,
+  steps,
+  events,
+  evidence,
+  claims,
+  onSelectEvidence,
+  onOpenClaims,
+}: {
+  run?: Run;
+  steps: RunStep[];
+  events: RunEvent[];
+  evidence: Evidence[];
+  claims: Claim[];
+  onSelectEvidence: (item: Evidence) => void;
+  onOpenClaims: () => void;
+}) {
   const latestEvent = events.at(-1);
+  const stepIds = new Set(steps.map((step) => step.id));
+  const unattributed = evidence.filter((item) => !item.step_id || !stepIds.has(item.step_id));
+  const claimIndexByEvidenceId = new Map<string, number[]>();
+  claims.forEach((claim, index) => {
+    claim.evidence_ids.forEach((id) => {
+      const list = claimIndexByEvidenceId.get(id) ?? [];
+      list.push(index);
+      claimIndexByEvidenceId.set(id, list);
+    });
+  });
   return (
     <div className="timeline-wrap">
       <div className="plan-heading">
@@ -400,16 +451,59 @@ function RuntimeTimeline({ run, steps, events }: { run?: Run; steps: RunStep[]; 
         <small>{steps.length ? `${steps.filter((step) => step.status === "COMPLETED").length}/${steps.length}` : "—"}</small>
       </div>
       <ol className="runtime-timeline">
-        {steps.map((step) => (
-          <li key={step.id} className={step.status.toLowerCase()}>
-            <span className="timeline-state">{stepIcon(step.status)}</span>
-            <div>
-              <strong>{step.name}</strong>
-              <small>{stepKindLabel(step.kind)}</small>
-              {step.error_code && <em>{step.error_code}</em>}
-            </div>
-          </li>
-        ))}
+        {steps.map((step) => {
+          const stepEvidence = evidence.filter((item) => item.step_id === step.id);
+          const stepClaims = [
+            ...new Set(stepEvidence.flatMap((item) => claimIndexByEvidenceId.get(item.id) ?? [])),
+          ].sort((a, b) => a - b);
+          const duration = stepDurationLabel(step);
+          const visibleEvidence = stepEvidence.slice(0, MAX_STEP_EVIDENCE_CHIPS);
+          return (
+            <li key={step.id} className={step.status.toLowerCase()}>
+              <span className="timeline-state">{stepIcon(step.status)}</span>
+              <div>
+                <strong>{step.name}</strong>
+                <small>
+                  {stepKindLabel(step.kind)}
+                  {duration ? ` · ${duration}` : ""}
+                </small>
+                {step.error_code && <em>{step.error_code}</em>}
+                {stepEvidence.length > 0 && (
+                  <div className="step-evidence" aria-label={`步骤「${step.name}」产生的证据`}>
+                    {visibleEvidence.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`step-evidence-chip type-${item.evidence_type.toLowerCase()}`}
+                        onClick={() => onSelectEvidence(item)}
+                        title={`${item.evidence_type} · ${item.source} · ${item.resource}`}
+                      >
+                        {item.evidence_type}
+                      </button>
+                    ))}
+                    {stepEvidence.length > visibleEvidence.length && (
+                      <small>+{stepEvidence.length - visibleEvidence.length}</small>
+                    )}
+                  </div>
+                )}
+                {stepClaims.length > 0 && (
+                  <div className="step-claims">
+                    {stepClaims.map((index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={onOpenClaims}
+                        title="该步骤的证据支撑了此结论，点击打开结论页"
+                      >
+                        结论 C{index + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
         {!steps.length && (
           <li className="pending">
             <span className="timeline-state"><Circle size={14} /></span>
@@ -417,6 +511,28 @@ function RuntimeTimeline({ run, steps, events }: { run?: Run; steps: RunStep[]; 
           </li>
         )}
       </ol>
+
+      {unattributed.length > 0 && (
+        <div className="unattributed-evidence">
+          <small>未关联步骤的证据（{unattributed.length}）</small>
+          <div className="step-evidence">
+            {unattributed.slice(0, MAX_STEP_EVIDENCE_CHIPS).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`step-evidence-chip type-${item.evidence_type.toLowerCase()}`}
+                onClick={() => onSelectEvidence(item)}
+                title={`${item.evidence_type} · ${item.source} · ${item.resource}`}
+              >
+                {item.evidence_type}
+              </button>
+            ))}
+            {unattributed.length > MAX_STEP_EVIDENCE_CHIPS && (
+              <small>+{unattributed.length - MAX_STEP_EVIDENCE_CHIPS}</small>
+            )}
+          </div>
+        </div>
+      )}
 
       {run && (
         <div className="run-metrics">

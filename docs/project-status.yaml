@@ -1,5 +1,5 @@
 project: obsion
-version: 0.89.0-dev
+version: 0.90.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -92,8 +92,9 @@ completed_phases:
   - phase-87
   - phase-88
   - phase-89
+  - phase-90
 
-current_phase: phase-89
+current_phase: phase-90
 
 tests:
   unit: passed
@@ -116,24 +117,21 @@ known_issues:
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
 
 next_phase:
-  id: phase-90
+  id: phase-91
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 89 delivered goal.txt section 57's typed Evidence Panel on
-    persisted rows. Workbench Evidence details now dispatch on the
-    normalized content envelope — observability events[] for METRIC, LOG,
-    TRACE, and deployment.list; engineering items[] for GIT, CONFIG,
-    deployment.commit, and k8s.status with git.diff and config.diff
-    specialization; tables and explain plans for DATA; symbol locations
-    for CODE; citation provenance for knowledge hits — with a preserved
-    raw JSON fallback and a full persisted metadata ledger
-    (observed/ingested time, confidence, classification, permissions,
-    fingerprint, step, Run, lineage). No payload field is invented and no
-    API or schema changed. ADR 0068 records the decisions. Production
-    promotion remains fail-closed while clean staging/UAT, staging-scoped
-    timed restore, registry HIGH/CRITICAL CVE policy, signatures, live
+  notes: Phase 90 turned the Runtime timeline into a per-stage
+    investigation narrative projected from persisted keys only —
+    RunStep timestamps for duration, Evidence.step_id for step
+    attribution, and Claim.evidence_ids for conclusion support — with
+    bounded evidence chips, claim badges that jump to the Claims tab,
+    and an explicit section for evidence without a step. No link is
+    inferred, no prose is generated, and no API or schema changed. ADR
+    0069 records the decisions. Production promotion remains fail-closed
+    while clean staging/UAT, staging-scoped timed restore, registry
+    HIGH/CRITICAL CVE policy, signatures, live
     OIDC/secret-manager/read-replica evidence, security and data-owner
-    approval, and maintainer publication authority are PENDING. Phase 90
+    approval, and maintainer publication authority are PENDING. Phase 91
     may consume real operator evidence; it must not fabricate approval,
     publish with ci.txt credentials, expand production writes, or add a
     second runtime without explicit authority.

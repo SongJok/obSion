@@ -1,0 +1,61 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-investigation-narrative
+  version: 0.90.0-dev
+  phase: 90
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89]
+  migration:
+    database: none
+    revisions: []
+    notes: No schema, settings, or API changes; Phase 90 projects persisted step, evidence, and claim rows into a correlated timeline in the Workbench plus documentation.
+  documents:
+    - CHANGELOG.md
+    - apps/web/src/components/runtime-inspector.tsx
+    - apps/web/src/app/globals.css
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/tests/test_phase90_investigation_narrative.py
+    - services/control-plane/tests/test_phase82_artifact_installation.py
+    - services/control-plane/tests/test_phase83_alpha1_release_candidate.py
+    - services/control-plane/tests/test_phase84_live_tenant_evidence.py
+    - services/control-plane/tests/test_phase85_dr_drill_evidence.py
+    - services/control-plane/tests/test_phase86_artifact_drill_evidence.py
+    - services/control-plane/tests/test_phase87_drill_ci_signal.py
+    - services/control-plane/tests/test_phase88_workbench_reliability.py
+    - services/control-plane/tests/test_phase89_typed_evidence.py
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+    - docs/release/0.90.0-dev.md
+    - docs/phases/PHASE-90-REPORT.md
+    - docs/architecture/phase-90-investigation-narrative.md
+    - docs/adr/0069-investigation-narrative.md
+  boundaries:
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase changes Workbench timeline rendering only and adds no API, capability, schema, or runtime behavior.
+    - The per-stage narrative correlates rows exclusively through persisted keys — RunStep.started_at/completed_at for duration, Evidence.step_id for step attribution, and Claim.evidence_ids for conclusion support; no link is inferred, guessed, or fabricated.
+    - Evidence without a step_id (for example document attachments ingested at Run start) stays visible in an explicit unattributed section instead of being dropped or force-attributed.
+    - Missing timestamps yield no duration label; the display never synthesizes timing, operation names, or verdict text the control plane did not persist.
+    - Step evidence chips and claim badges navigate to the existing Evidence and Claims tabs, reusing the Phase 89 typed views and the Phase 88 cross-Run selection reset; attribution integrity is unchanged.
+    - Display is bounded (six evidence chips per step with an explicit overflow count) and never widens what the API returns.
+    - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
+  vendors: []
+  rollout:
+    - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
+    - No migration, environment, or configuration change is required; the Workbench picks the narrative timeline up on its next build.
+  rollback:
+    - Revert the phase commits; the timeline falls back to the previous step list with no data or API impact.
+  verification:
+    - uv run pytest --no-cov services/control-plane/tests/test_phase90_investigation_narrative.py
+    - npm run typecheck --workspace @obsion/web
+    - npm run lint --workspace @obsion/web
+    - npm run build --workspace @obsion/web
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - The narrative correlates but does not summarize; a generated investigation story would require model output and remains a separate, gated capability.
+    - Steps that produce no evidence show no chips by design; absence of evidence is rendered as absence, never backfilled.
+    - Post-conclusion context actions, the operations analytics loop, full admin CRUD, a schema-driven chart renderer, and a JavaScript component-test stack remain deferred candidates.
+    - All six Alpha.1 candidate gates remain PENDING operator-owned items.

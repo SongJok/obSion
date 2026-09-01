@@ -635,3 +635,9 @@ a { color: inherit; }
 .evidence-meta { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .evidence-meta dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 0; }.evidence-meta dl > div { display: grid; gap: 2px; min-width: 0; }.evidence-meta dt { color: var(--muted-2); font-size: 8px; }.evidence-meta dd { margin: 0; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .ev-lineage { display: grid; gap: 5px; }.ev-lineage > small { color: var(--muted-2); font-size: 8px; font-weight: 600; }
+
+/* Per-stage investigation narrative (Phase 90) — step-to-evidence-to-claim correlation */
+.step-evidence { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 6px; }.step-evidence > small { color: var(--muted-2); font-size: 8px; }
+.step-evidence-chip { padding: 2px 7px; border: 1px solid var(--border); border-radius: 5px; color: var(--brand); background: var(--brand-soft); font-size: 8px; font-weight: 700; letter-spacing: .03em; cursor: pointer; }.step-evidence-chip:hover { border-color: var(--brand); }
+.step-claims { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }.step-claims button { padding: 2px 7px; border: 1px solid #bfe5d3; border-radius: 5px; color: var(--green); background: var(--green-soft); font-size: 8px; font-weight: 700; cursor: pointer; }.step-claims button:hover { border-color: var(--green); }
+.unattributed-evidence { display: grid; gap: 6px; margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; background: #fafbfc; }.unattributed-evidence > small { color: var(--muted-2); font-size: 8px; font-weight: 600; }.unattributed-evidence .step-evidence { margin-top: 0; }
