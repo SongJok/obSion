@@ -158,6 +158,12 @@
       "version": "0.16.0"
     },
     {
+      "name": "hatchling",
+      "purl": "pkg:pypi/hatchling@1.32.0",
+      "type": "library",
+      "version": "1.32.0"
+    },
+    {
       "name": "httpcore",
       "purl": "pkg:pypi/httpcore@1.0.9",
       "type": "library",
@@ -566,6 +572,18 @@
       "version": "25.5.0"
     },
     {
+      "name": "tomlkit",
+      "purl": "pkg:pypi/tomlkit@0.15.1",
+      "type": "library",
+      "version": "0.15.1"
+    },
+    {
+      "name": "trove-classifiers",
+      "purl": "pkg:pypi/trove-classifiers@2026.6.1.19",
+      "type": "library",
+      "version": "2026.6.1.19"
+    },
+    {
       "name": "truststore",
       "purl": "pkg:pypi/truststore@0.10.4",
       "type": "library",
@@ -639,7 +657,7 @@
       "version": "0.97.0-dev"
     }
   },
-  "serialNumber": "urn:uuid:6f243916a44b898b910013950dff3bf5",
+  "serialNumber": "urn:uuid:b6779d21960b8695d05f73e7c2bac6e2",
   "specVersion": "1.5",
   "version": 1
 }

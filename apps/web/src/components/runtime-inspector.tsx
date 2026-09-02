@@ -21,7 +21,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useState } from "react";
 
 import { ApiError, api } from "@/lib/api";
 import {
@@ -54,6 +54,24 @@ interface RuntimeInspectorProps {
 
 type Tab = "runtime" | "context" | "evidence" | "memory" | "claims" | "artifacts";
 
+const INSPECTOR_TABS: readonly Tab[] = [
+  "runtime",
+  "context",
+  "evidence",
+  "memory",
+  "claims",
+  "artifacts",
+];
+
+const INSPECTOR_TAB_LABELS: Record<Tab, string> = {
+  runtime: "轨迹",
+  context: "上下文",
+  evidence: "证据",
+  memory: "记忆",
+  claims: "结论",
+  artifacts: "产物",
+};
+
 export function RuntimeInspector({
   open,
   mobileVisible,
@@ -85,6 +103,32 @@ export function RuntimeInspector({
     setClaimAction(undefined);
   }
   if (!open) return null;
+
+  const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = INSPECTOR_TABS.indexOf(tab);
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % INSPECTOR_TABS.length;
+    if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + INSPECTOR_TABS.length) % INSPECTOR_TABS.length;
+    }
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = INSPECTOR_TABS.length - 1;
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    const nextTab = INSPECTOR_TABS[nextIndex];
+    setTab(nextTab);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-runtime-tab="${nextTab}"]`)
+      ?.focus();
+  };
+  const tabCounts: Record<Tab, number | undefined> = {
+    runtime: undefined,
+    context: conversation.length,
+    evidence: evidence.length,
+    memory: memories.length,
+    claims: claims.length,
+    artifacts: artifacts.length,
+  };
 
   return (
     <aside className={`runtime-inspector ${mobileVisible ? "mobile-visible" : ""}`}>
@@ -131,28 +175,34 @@ export function RuntimeInspector({
         {run?.cost_amount && <small>成本 ${Number(run.cost_amount).toFixed(4)}</small>}
       </div>
 
-      <div className="inspector-tabs" role="tablist">
-        <button className={tab === "runtime" ? "active" : ""} onClick={() => setTab("runtime")}>
-          轨迹
-        </button>
-        <button className={tab === "context" ? "active" : ""} onClick={() => setTab("context")}>
-          上下文 <span>{conversation.length}</span>
-        </button>
-        <button className={tab === "evidence" ? "active" : ""} onClick={() => setTab("evidence")}>
-          证据 <span>{evidence.length}</span>
-        </button>
-        <button className={tab === "memory" ? "active" : ""} onClick={() => setTab("memory")}>
-          记忆 <span>{memories.length}</span>
-        </button>
-        <button className={tab === "claims" ? "active" : ""} onClick={() => setTab("claims")}>
-          结论 <span>{claims.length}</span>
-        </button>
-        <button className={tab === "artifacts" ? "active" : ""} onClick={() => setTab("artifacts")}>
-          产物 <span>{artifacts.length}</span>
-        </button>
+      <div className="inspector-tabs" role="tablist" aria-label="运行详情页签">
+        {INSPECTOR_TABS.map((item) => (
+          <button
+            key={item}
+            type="button"
+            role="tab"
+            id={`runtime-tab-${item}`}
+            aria-controls="runtime-panel"
+            aria-selected={tab === item}
+            tabIndex={tab === item ? 0 : -1}
+            data-runtime-tab={item}
+            className={tab === item ? "active" : ""}
+            onKeyDown={handleTabKeyDown}
+            onClick={() => setTab(item)}
+          >
+            {INSPECTOR_TAB_LABELS[item]}
+            {tabCounts[item] !== undefined && <span>{tabCounts[item]}</span>}
+          </button>
+        ))}
       </div>
 
-      <div className="inspector-content">
+      <div
+        className="inspector-content"
+        role="tabpanel"
+        id="runtime-panel"
+        aria-labelledby={`runtime-tab-${tab}`}
+        tabIndex={0}
+      >
         {tab === "runtime" && (
           <RuntimeTimeline
             run={run}

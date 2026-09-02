@@ -360,6 +360,37 @@ pinning, and collaboration task creation with all three actionable
 error branches. Writing the suite surfaced a real defect where
 collaboration error guidance was erased by its own follow-up
 refresh; the mutation handler now refreshes first and surfaces the
-message after, pinned by tests. ADR 0076 records the decisions. The
+message after, pinned by tests. A companion AutomationView suite
+drives immutable version derivation/publication, validated manual
+triggers, schedule creation, and guarded retirement while keeping
+mock responses aligned with the production API types. ADR 0076
+also records the Runtime inspector's accessible tab semantics and
+ArrowLeft/ArrowRight/Home/End roving-focus contract, exercised across
+context, Evidence, Memory, Claims, and Artifact details. A governance
+console suite additionally pins partial-domain degradation, stable IM
+sender binding/revocation, and Connector SDK health/discovery/scan/
+promotion while proving discovery does not auto-bind a Capability. A
+governed Action suite pins development/staging-only draft creation,
+idempotency, operator preflight declarations, independent approval,
+rollback reasoning, and API-mediated cancellation with no production
+option; its three high-risk modal surfaces expose named dialog
+semantics. Studio and Eval interaction suites further pin immutable
+registry publication/promotion/rollback, no-traffic-split comparison,
+accessible Studio kind tabs, dataset-scoped Evaluation state, one
+initial case fetch, object-shaped JSON inputs, fully pinned Runs, and
+distinct same-dataset baselines. Knowledge and Data suites additionally
+pin normalized ACL-aware retrieval, stale-Evidence invalidation,
+provenance, ACL upload/vendor ingestion, verified metric definitions,
+accessible detail tabs, and generation-scoped read-only lineage. The
+Code and Workspace asset suites additionally pin normalized
+generation-scoped symbol search, authorized-empty/error distinction,
+immutable file history, filename-derived paths, classified uploads,
+downloads, Artifact filters/previews, and ID-preserving refresh. The
+remaining Workspace fact projections now have mounted contracts for
+persisted Reports, validated non-executing SQL, immutable Evidence,
+Event Store Timeline payloads, and Dashboards that resolve only unique
+valid Artifact references while recovering from panel errors. Contract
+distribution is also reproducible offline with a locked Hatchling backend
+and exact frozen-resource wheel inspection. The
 candidate contract, recorded evidence, and all six PENDING operator
 gates are untouched.

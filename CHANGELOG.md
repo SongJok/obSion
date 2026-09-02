@@ -15,7 +15,44 @@ project follows Semantic Versioning.
   creation with all three actionable error branches. Writing the
   suite surfaced a real defect: collaboration error guidance was
   erased by its own follow-up refresh, so the mutation handler now
-  refreshes first and surfaces the message after, pinned by tests.
+  refreshes first and surfaces the message after, pinned by tests. A
+  companion AutomationView interaction suite now covers immutable
+  version derivation/publication, validated manual triggers, schedule
+  creation, and guarded retirement against the production API types.
+  Runtime inspector tabs now expose the complete accessible
+  tablist/tab/tabpanel and roving-keyboard-focus contract, with
+  interaction coverage across context, evidence, memory, claims, and
+  artifact details. The governance console now has mounted interaction
+  coverage for per-domain degradation, stable-sender IM binding and
+  revocation, and Connector SDK health/discovery/scan/promotion without
+  treating discovery as a Capability binding. The governed Action
+  lifecycle is now covered from development/staging-only draft creation
+  through idempotent preflight, independent approval, rollback request,
+  and API-mediated cancellation; production remains absent from the UI.
+  Its draft, approval, and reason modals now expose named accessible
+  dialog semantics. Studio now has accessible kind tabs, clears stale
+  comparison state across kind/version changes, and is covered through
+  immutable validate/publish/promote/rollback/no-traffic-split compare.
+  Eval now eliminates duplicate initial case reads, scopes baseline and
+  candidate state to the dataset, excludes self-comparison, validates
+  JSON object shapes, and is covered through pinned runs and comparison.
+  Knowledge now clears stale Evidence before each normalized authorized
+  query and is covered across provenance, ACL upload, vendor ingestion,
+  and Feishu space sync. Data metric detail now uses accessible tabs and
+  generation-scoped lineage requests so late responses cannot be
+  attributed to a newly selected metric. Code symbol search now clears
+  stale results, normalizes the term, distinguishes empty from failed,
+  and ignores older overlapping responses. Workspace Files no longer
+  defaults every upload to notes.txt; Files and Artifacts now have
+  accessible upload inputs and interaction coverage for history, paths,
+  classification, lineage, filters, previews, download, and refresh.
+  Reports, Dashboards, SQL, Evidence, and Timeline now have mounted
+  fact-projection contracts; Dashboard panel IDs are validated and
+  deduplicated, and stale panel errors clear on successful selection.
+  Frozen-contract wheel validation now uses a locked dev-only Hatchling
+  backend in offline/no-isolation mode, removing accidental PyPI
+  dependence while preserving exact wheel-resource verification; the
+  SBOM is regenerated from the updated lock.
 
 - Phase 96 post-conclusion context actions (the gap audit's deferred
   investigation-loop item): each Critic-verified claim on a completed

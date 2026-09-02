@@ -133,7 +133,7 @@ export function ArtifactsView({ workspace }: { workspace?: Workspace }) {
           <button className="primary-button" onClick={() => fileRef.current?.click()} disabled={!workspace || uploading}>
             <UploadCloud size={17} /> {uploading ? "上传中…" : "上传文件"}
           </button>
-          <input ref={fileRef} hidden type="file" onChange={(event) => {
+          <input ref={fileRef} hidden type="file" aria-label="上传工作区产物" onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) void upload(file);
           }} />

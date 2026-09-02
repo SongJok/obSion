@@ -1,10 +1,14 @@
 "use client";
 
 import { ArrowRight, BadgeCheck, Database, GitBranch, Search, Sigma, TableProperties, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import type { Metric, MetricLineage } from "@/lib/types";
+
+type DetailMode = "definition" | "lineage";
+
+const DETAIL_MODES: readonly DetailMode[] = ["definition", "lineage"];
 
 export function DataView() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -12,10 +16,11 @@ export function DataView() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Metric>();
-  const [detailMode, setDetailMode] = useState<"definition" | "lineage">("definition");
+  const [detailMode, setDetailMode] = useState<DetailMode>("definition");
   const [lineage, setLineage] = useState<MetricLineage>();
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const lineageGeneration = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,24 +52,63 @@ export function DataView() {
   }, [metrics, query]);
 
   const showDefinition = (metric: Metric) => {
+    ++lineageGeneration.current;
     setSelected(metric);
     setDetailMode("definition");
+    setLineage(undefined);
+    setDetailLoading(false);
     setDetailError("");
   };
 
   const showLineage = async (metric: Metric) => {
+    const generation = ++lineageGeneration.current;
     setSelected(metric);
     setDetailMode("lineage");
     setLineage(undefined);
     setDetailLoading(true);
     setDetailError("");
     try {
-      setLineage(await api.getMetricLineage(metric.id));
+      const next = await api.getMetricLineage(metric.id);
+      if (generation === lineageGeneration.current) setLineage(next);
     } catch (caught) {
-      setDetailError(caught instanceof Error ? caught.message : "无法读取指标血缘");
+      if (generation === lineageGeneration.current) {
+        setDetailError(caught instanceof Error ? caught.message : "无法读取指标血缘");
+      }
     } finally {
-      setDetailLoading(false);
+      if (generation === lineageGeneration.current) setDetailLoading(false);
     }
+  };
+
+  const closeDetail = () => {
+    ++lineageGeneration.current;
+    setSelected(undefined);
+    setLineage(undefined);
+    setDetailLoading(false);
+    setDetailError("");
+  };
+
+  const changeDetailMode = (nextMode: DetailMode) => {
+    if (!selected) return;
+    if (nextMode === "definition") showDefinition(selected);
+    else void showLineage(selected);
+  };
+
+  const handleDetailKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = DETAIL_MODES.indexOf(detailMode);
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % DETAIL_MODES.length;
+    if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + DETAIL_MODES.length) % DETAIL_MODES.length;
+    }
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = DETAIL_MODES.length - 1;
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    const nextMode = DETAIL_MODES[nextIndex];
+    changeDetailMode(nextMode);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-metric-detail="${nextMode}"]`)
+      ?.focus();
   };
 
   return (
@@ -122,12 +166,13 @@ export function DataView() {
             <header>
               <span className="modal-icon">{detailMode === "lineage" ? <GitBranch size={19} /> : <TableProperties size={19} />}</span>
               <div><h2>{selected.display_name}</h2><p>{selected.name} · v{selected.version} · {selected.owner}</p></div>
-              <button type="button" className="icon-button" onClick={() => setSelected(undefined)} aria-label="关闭指标详情"><X size={18} /></button>
+              <button type="button" className="icon-button" onClick={closeDetail} aria-label="关闭指标详情"><X size={18} /></button>
             </header>
-            <div className="metric-detail-tabs" role="tablist">
-              <button type="button" className={detailMode === "definition" ? "active" : ""} onClick={() => setDetailMode("definition")}>指标定义</button>
-              <button type="button" className={detailMode === "lineage" ? "active" : ""} onClick={() => void showLineage(selected)}>数据血缘</button>
+            <div className="metric-detail-tabs" role="tablist" aria-label="指标详情页签">
+              <button type="button" role="tab" id="metric-detail-definition" aria-controls="metric-detail-panel" aria-selected={detailMode === "definition"} tabIndex={detailMode === "definition" ? 0 : -1} data-metric-detail="definition" className={detailMode === "definition" ? "active" : ""} onKeyDown={handleDetailKeyDown} onClick={() => changeDetailMode("definition")}>指标定义</button>
+              <button type="button" role="tab" id="metric-detail-lineage" aria-controls="metric-detail-panel" aria-selected={detailMode === "lineage"} tabIndex={detailMode === "lineage" ? 0 : -1} data-metric-detail="lineage" className={detailMode === "lineage" ? "active" : ""} onKeyDown={handleDetailKeyDown} onClick={() => changeDetailMode("lineage")}>数据血缘</button>
             </div>
+            <div role="tabpanel" id="metric-detail-panel" aria-labelledby={`metric-detail-${detailMode}`}>
             {detailMode === "definition" ? (
               <div className="metric-definition">
                 <dl>
@@ -152,6 +197,7 @@ export function DataView() {
                 <LineageNode icon={<Sigma size={17} />} label="业务指标" name={lineage.metric.name} meta={`版本 ${lineage.metric.version}`} />
               </div>
             )}
+            </div>
           </section>
         </div>
       )}

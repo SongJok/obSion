@@ -10,7 +10,7 @@ import { ArtifactPreview, artifactIcon } from "./artifact-preview";
 
 export function FilesView({ workspace }: { workspace?: Workspace }) {
   const [selected, setSelected] = useState<Artifact>();
-  const [path, setPath] = useState("/uploads/notes.txt");
+  const [path, setPath] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -97,6 +97,7 @@ export function FilesView({ workspace }: { workspace?: Workspace }) {
             ref={fileRef}
             hidden
             type="file"
+            aria-label="上传工作区文件"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) {

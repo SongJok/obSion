@@ -12,6 +12,9 @@ import { CollaborationView } from "@/components/collaboration-view";
 import type {
   Artifact,
   Claim,
+  ConversationSnapshot,
+  Evidence,
+  MemorySnapshot,
   Run,
   Thread,
   Workspace,
@@ -107,6 +110,64 @@ function claim(partial: Partial<Claim> = {}): Claim {
     confidence: "HIGH",
     verification_status: "VERIFIED",
     evidence_ids: [],
+    ...partial,
+  };
+}
+
+function evidence(partial: Partial<Evidence> = {}): Evidence {
+  return {
+    id: "evidence-1",
+    run_id: "123e4567-e89b-42d3-a456-426614174000",
+    step_id: null,
+    evidence_type: "METRIC",
+    source: "prometheus",
+    resource: "payment_success_rate",
+    observed_at: "2026-08-20T08:00:00Z",
+    ingested_at: "2026-08-20T08:00:01Z",
+    content: { summary: "支付成功率下降 12%" },
+    content_fingerprint: "a".repeat(64),
+    confidence: "HIGH",
+    classification: "INTERNAL",
+    permissions: ["metrics.read"],
+    lineage: {},
+    ...partial,
+  };
+}
+
+function memory(partial: Partial<MemorySnapshot> = {}): MemorySnapshot {
+  return {
+    id: "memory-snapshot-1",
+    run_id: "123e4567-e89b-42d3-a456-426614174000",
+    memory_id: "memory-1",
+    principal_id: "user-1",
+    ordinal: 1,
+    scope: "WORKSPACE",
+    owner_ref: "ws-1",
+    content: { preference: "使用支付平台告警阈值" },
+    content_fingerprint: "b".repeat(64),
+    sensitivity: "INTERNAL",
+    policy_decision_id: "policy-1",
+    memory_updated_at: "2026-08-20T07:59:00Z",
+    captured_at: "2026-08-20T08:00:00Z",
+    ...partial,
+  };
+}
+
+function conversation(partial: Partial<ConversationSnapshot> = {}): ConversationSnapshot {
+  return {
+    id: "conversation-1",
+    run_id: "123e4567-e89b-42d3-a456-426614174000",
+    source_thread_id: "thread-1",
+    source_turn_id: "turn-previous",
+    source_run_id: "run-previous",
+    source_artifact_id: null,
+    source_principal_id: "user-1",
+    ordinal: 1,
+    user_content: "最近的支付成功率如何？",
+    assistant_content: "最近一周保持稳定。",
+    content_fingerprint: "c".repeat(64),
+    classification: "INTERNAL",
+    captured_at: "2026-08-20T08:00:00Z",
     ...partial,
   };
 }
@@ -255,7 +316,7 @@ describe("RuntimeInspector claim actions", () => {
   it("turns a verified claim into a task with source-Run provenance", async () => {
     createTask.mockResolvedValue(task());
     const props = renderInspector();
-    fireEvent.click(screen.getByRole("button", { name: /结论/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /结论/ }));
     fireEvent.click(screen.getByRole("button", { name: /转为任务/ }));
 
     const titleInput = screen.getByDisplayValue(/结论 C1：支付成功率下降/);
@@ -275,7 +336,7 @@ describe("RuntimeInspector claim actions", () => {
 
   it("hides claim actions while the run is not completed", () => {
     renderInspector({ run: run({ status: "RUNNING" }) });
-    fireEvent.click(screen.getByRole("button", { name: /结论/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /结论/ }));
     expect(screen.queryByRole("button", { name: /转为任务/ })).toBeNull();
   });
 
@@ -284,10 +345,75 @@ describe("RuntimeInspector claim actions", () => {
       new ApiError("workspace_source_run_mismatch", "The source run belongs elsewhere"),
     );
     renderInspector();
-    fireEvent.click(screen.getByRole("button", { name: /结论/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /结论/ }));
     fireEvent.click(screen.getByRole("button", { name: /转为任务/ }));
     fireEvent.click(screen.getByRole("button", { name: "创建任务" }));
     await screen.findByText("来源 Run 必须属于当前工作空间，请刷新后重试。");
+  });
+});
+
+describe("RuntimeInspector tabs", () => {
+  function renderInspector() {
+    render(
+      <RuntimeInspector
+        open
+        onClose={vi.fn()}
+        onReplay={vi.fn()}
+        run={run()}
+        events={[]}
+        steps={[]}
+        evidence={[evidence()]}
+        memories={[memory()]}
+        conversation={[conversation()]}
+        claims={[claim({ evidence_ids: ["evidence-1"] })]}
+        artifacts={[artifact()]}
+      />,
+    );
+  }
+
+  it("exposes tabs with roving keyboard focus", () => {
+    renderInspector();
+    const runtimeTab = screen.getByRole("tab", { name: "轨迹" });
+    expect(runtimeTab.getAttribute("aria-selected")).toBe("true");
+
+    runtimeTab.focus();
+    fireEvent.keyDown(runtimeTab, { key: "ArrowRight" });
+    const contextTab = screen.getByRole("tab", { name: /上下文/ });
+    expect(contextTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(contextTab);
+
+    fireEvent.keyDown(contextTab, { key: "End" });
+    const artifactsTab = screen.getByRole("tab", { name: /产物/ });
+    expect(artifactsTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(artifactsTab);
+
+    fireEvent.keyDown(artifactsTab, { key: "Home" });
+    expect(runtimeTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(runtimeTab);
+  });
+
+  it("opens the context, evidence, memory, claim evidence, and artifact details", () => {
+    renderInspector();
+
+    fireEvent.click(screen.getByRole("tab", { name: /上下文/ }));
+    expect(screen.getByText("最近的支付成功率如何？")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("tab", { name: /证据/ }));
+    fireEvent.click(screen.getByRole("button", { name: /prometheus/ }));
+    expect(screen.getByLabelText("关闭证据详情")).toBeDefined();
+    fireEvent.click(screen.getByLabelText("关闭证据详情"));
+
+    fireEvent.click(screen.getByRole("tab", { name: /记忆/ }));
+    expect(screen.getByText("工作空间记忆")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("tab", { name: /结论/ }));
+    fireEvent.click(screen.getByLabelText("查看证据：prometheus"));
+    expect(screen.getByRole("tab", { name: /证据/ }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(screen.getByLabelText("关闭证据详情"));
+
+    fireEvent.click(screen.getByRole("tab", { name: /产物/ }));
+    fireEvent.click(screen.getByRole("button", { name: /支付周报/ }));
+    expect(screen.getByLabelText("关闭产物详情")).toBeDefined();
   });
 });
 

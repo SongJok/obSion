@@ -43,6 +43,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "aiosqlite>=0.21,<1",
+  "hatchling>=1.27,<2",
   "hypothesis>=6.135,<7",
   "httpx2>=2.12,<3",
   "mypy>=1.16,<2",

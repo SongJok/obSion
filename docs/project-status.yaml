@@ -128,10 +128,30 @@ next_phase:
   name: alpha1-operator-promotion
   blocked: true
   notes: Phase 97 closed the broader Workbench interaction tests gap —
-    the composer, claim-action, and collaboration flows now have
-    executable interaction contracts, and the suite surfaced and
-    fixed a defect where collaboration error guidance was erased by
-    its own follow-up refresh. ADR 0076 records the decisions. Production
+    the composer, claim-action, collaboration, and Automation lifecycle
+    flows now have executable interaction contracts, and the suite surfaced
+    and fixed a defect where collaboration error guidance was erased by
+    its own follow-up refresh. Strict TypeScript checking also pins the
+    Automation publish response envelope, while Runtime inspector tabs now
+    expose accessible semantics and roving keyboard focus with deep interaction
+    coverage. Governance-console interactions now pin partial-domain degradation,
+    stable IM sender binding/revocation, and Connector SDK lifecycle calls without
+    Capability auto-binding. Governed Action interactions now pin the
+    development/staging-only, idempotent preflight, independent approval,
+    rollback, and cancellation boundary, with named accessible dialogs for
+    each high-risk decision surface. Studio and Eval interactions now pin
+    accessible kind tabs, immutable version operations, no-traffic-split
+    comparison, dataset-scoped state, JSON object validation, and fully pinned
+    Evaluation Runs. Knowledge and Data interactions now prevent stale Evidence
+    or lineage attribution, normalize authorized queries, exercise ACL/vendor
+    ingestion, and expose accessible read-only metric lineage. Code and
+    Workspace asset interactions now prevent cross-query symbol attribution,
+    derive safe file paths, and pin classified history/upload/download/filter/
+    preview/refresh behavior. Reports, Dashboards, SQL, Evidence, and Timeline
+    now have persisted-fact interaction contracts with validated Dashboard
+    references and panel-error recovery. Frozen-contract wheel validation now
+    uses a locked offline Hatchling backend and regenerated SBOM rather than
+    depending on PyPI availability. ADR 0076 records the decisions. Production
     promotion remains fail-closed while clean staging/UAT,
     staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
     signatures, live OIDC/secret-manager/read-replica evidence,

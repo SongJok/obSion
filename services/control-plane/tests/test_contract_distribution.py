@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -29,8 +28,6 @@ def test_wheel_contains_every_frozen_contract_resource() -> None:
     }
 
     with TemporaryDirectory() as output_directory:
-        environment = os.environ.copy()
-        environment["UV_CACHE_DIR"] = str(Path(output_directory) / "uv-cache")
         uv = shutil.which("uv")
         assert uv is not None
         subprocess.run(  # noqa: S603 -- fixed build command; no untrusted input
@@ -40,11 +37,12 @@ def test_wheel_contains_every_frozen_contract_resource() -> None:
                 "--package",
                 "obsion-control-plane",
                 "--wheel",
+                "--no-build-isolation",
+                "--offline",
                 "--out-dir",
                 output_directory,
             ],
             cwd=_REPOSITORY_ROOT,
-            env=environment,
             check=True,
             capture_output=True,
             text=True,

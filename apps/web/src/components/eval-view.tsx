@@ -29,6 +29,27 @@ function regressionsOf(metrics: Record<string, unknown>): string[] {
   return Array.isArray(regressions) ? regressions.map(String) : [];
 }
 
+function parseObjectJson(value: string, label: string): Record<string, unknown> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error(`${label}不是合法的 JSON，请检查逗号、引号与括号。`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`${label}必须是 JSON 对象。`);
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function parseRunBindings(value: string): Record<string, string> {
+  const parsed = parseObjectJson(value || "{}", "run_bindings");
+  if (Object.values(parsed).some((item) => typeof item !== "string")) {
+    throw new Error("run_bindings 的每个值都必须是 Run ID 字符串。");
+  }
+  return parsed as Record<string, string>;
+}
+
 export function EvalView() {
   const [catalog, setCatalog] = useState<EvalCatalog>();
   const [datasetId, setDatasetId] = useState("");
@@ -116,8 +137,7 @@ export function EvalView() {
 
   useEffect(() => {
     void (async () => {
-      const next = await load();
-      if (next?.selected) await loadCases(next.selected);
+      await load();
     })();
   }, []);
 
@@ -152,12 +172,18 @@ export function EvalView() {
           description: "Workbench Eval dataset",
         });
         setNotice(`已创建数据集 ${created.name}`);
+        setSelectedRunId("");
+        setBaselineRunId("");
+        ++resultsGeneration.current;
+        setResults([]);
+        setResultsLoading(false);
+        setCompare(undefined);
         await load(created.id);
         return;
       }
       if (!datasetId) throw new Error("请先选择或创建数据集");
       if (action === "case") {
-        const payload = JSON.parse(caseDocument) as Record<string, unknown>;
+        const payload = parseObjectJson(caseDocument, "评测案例");
         const created = await api.eval.addCase(datasetId, payload);
         setNotice(`已添加案例 ${created.external_id}`);
         await loadCases(datasetId);
@@ -169,7 +195,7 @@ export function EvalView() {
           model_profile_id: profileId,
           application_revision: revision.trim() || "workbench",
           baseline_run_id: baselineRunId || undefined,
-          run_bindings: JSON.parse(bindings || "{}") as Record<string, string>,
+          run_bindings: parseRunBindings(bindings),
           prompt_pins: promptVersion
             ? {
                 [promptVersion.split(":")[0] ?? "obsion-system-policy"]: Number(
@@ -240,6 +266,7 @@ export function EvalView() {
                   onClick={() => {
                     setDatasetId(item.id);
                     setSelectedRunId("");
+                    setBaselineRunId("");
                     ++resultsGeneration.current;
                     setResults([]);
                     setResultsLoading(false);
@@ -334,7 +361,7 @@ export function EvalView() {
                 基线评测
                 <select value={baselineRunId} onChange={(event) => setBaselineRunId(event.target.value)}>
                   <option value="">无</option>
-                  {runs.map((item) => (
+                  {runs.filter((item) => item.id !== selectedRunId).map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.application_revision}
                     </option>
@@ -364,6 +391,7 @@ export function EvalView() {
                   key={item.id}
                   className={selectedRunId === item.id ? "active" : ""}
                   onClick={() => {
+                    if (baselineRunId === item.id) setBaselineRunId("");
                     setSelectedRunId(item.id);
                     void loadResults(item.id);
                   }}

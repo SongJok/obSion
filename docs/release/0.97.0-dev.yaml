@@ -9,12 +9,34 @@ spec:
   migration:
     database: none
     revisions: []
-    notes: No schema, route, or settings changes; the phase adds Web interaction tests and reorders two statements in the collaboration mutation handler.
+    notes: No schema, route, or settings changes; the phase adds Web interaction tests, scoped client fixes, and a locked dev-only Hatchling backend for offline wheel contract validation.
   documents:
     - CHANGELOG.md
+    - apps/web/src/components/actions-view.tsx
     - apps/web/src/components/collaboration-view.tsx
+    - apps/web/src/components/code-view.tsx
+    - apps/web/src/components/data-view.tsx
+    - apps/web/src/components/dashboards-view.tsx
+    - apps/web/src/components/eval-view.tsx
+    - apps/web/src/components/files-view.tsx
+    - apps/web/src/components/knowledge-view.tsx
+    - apps/web/src/components/artifacts-view.tsx
+    - apps/web/src/components/runtime-inspector.tsx
+    - apps/web/src/components/studio-view.tsx
+    - apps/web/tests/actions-interactions.test.tsx
+    - apps/web/tests/admin-interactions.test.tsx
+    - apps/web/tests/automation-interactions.test.tsx
+    - apps/web/tests/code-interactions.test.tsx
+    - apps/web/tests/data-interactions.test.tsx
+    - apps/web/tests/eval-interactions.test.tsx
+    - apps/web/tests/knowledge-interactions.test.tsx
+    - apps/web/tests/studio-interactions.test.tsx
+    - apps/web/tests/workspace-assets-interactions.test.tsx
+    - apps/web/tests/workspace-projections-interactions.test.tsx
     - apps/web/tests/workbench-interactions.test.tsx
     - services/control-plane/src/obsion/cli.py
+    - services/control-plane/pyproject.toml
+    - services/control-plane/tests/test_contract_distribution.py
     - services/control-plane/tests/test_phase97_workbench_interactions.py
     - services/control-plane/tests/test_phase81_feishu_live_reply.py
     - services/control-plane/tests/test_phase82_artifact_installation.py
@@ -40,9 +62,23 @@ spec:
     - docs/phases/PHASE-97-REPORT.md
     - docs/architecture/phase-97-workbench-interactions.md
     - docs/adr/0076-workbench-interaction-testing.md
+    - uv.lock
   boundaries:
-    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase changes no backend route, schema, or permission and adds tests plus a two-statement reorder in the Web mutation handler.
-    - The interaction suite mocks only the API boundary with production-identical types and ApiError identity, and asserts the exact payloads crossing it.
+    - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase changes no backend route, schema, or permission and adds tests plus scoped Workbench interaction and accessibility fixes.
+    - The interaction suites mock only the API boundary with production-identical types and ApiError identity, and assert the exact payloads and response envelopes crossing it.
+    - Automation lifecycle interactions cover immutable version derivation and publication, validated manual triggers, schedule creation, and guarded retirement; strict TypeScript checking pins the production publish response envelope.
+    - Runtime inspector tabs implement one selected and keyboard-focusable tab, tab-to-panel association, and ArrowLeft/ArrowRight/Home/End navigation without introducing a second state source.
+    - Governance-console interactions exercise independent domain degradation, stable-sender IM binding and revocation, and Connector SDK health/discovery/scan/promotion through the typed Admin API boundary; discovery remains non-binding and backend Policy/approval/audit controls remain authoritative.
+    - Governed Action interactions expose only development/staging draft creation and preserve idempotency, operator preflight declarations, independent approval reasons, rollback reasons, and API-mediated cancellation; production remains absent from the form and backend Policy remains authoritative.
+    - Governed Action draft, approval, and reason surfaces expose named dialog roles and modal semantics without changing validation or authorization.
+    - Studio kind and version selection clears comparison state, uses accessible roving tabs, and keeps Workflow validation-only plus comparison traffic_split=false.
+    - Eval initial cases load once; dataset changes clear candidate/baseline/results/compare state; self-comparison is excluded; case and run-binding JSON must be objects with string Run IDs before transport.
+    - Knowledge clears prior Evidence before each trimmed authorized query, keeps failed searches empty, and exercises ACL-bearing upload plus vendor-specific Gateway routes without reading credentials.
+    - Data lineage is generation-scoped so close or metric switches invalidate late responses; definition and lineage modes use accessible roving tabs and render only API-provided read-only lineage.
+    - Code search clears old symbols, trims the query, distinguishes authorized-empty from transport failure, and accepts results only from the latest request generation.
+    - Workspace Files derives a safe path from the selected filename instead of a fabricated default; Files and Artifacts preserve Workspace classification/lineage metadata, expose named upload inputs, and exercise history/filter/preview/download/ID-preserving refresh.
+    - Reports, Dashboards, SQL, Evidence, and Timeline render scoped persisted Artifact/Evidence/Event facts; Dashboard references are non-empty strings, trimmed and deduplicated, and a new successful detail clears a prior panel error without inventing panels.
+    - Frozen-contract wheel validation uses the real locked Hatchling backend with no build isolation and offline mode; exact packaged-resource equality remains mandatory and the regenerated SBOM records the updated dev build closure.
     - No new dependency — interactions use fireEvent from the already pinned Testing Library, and globals stay off with explicit cleanup.
     - Collaboration error guidance now survives the follow-up refresh it triggers; the ordering is pinned by tests.
     - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
@@ -51,13 +87,24 @@ spec:
     - Merge only after the ordinary quality, migration, Java SDK, Helm, filesystem scan, and evaluation jobs pass.
     - No migration, environment, or configuration change is required.
   rollback:
-    - Revert the phase commits; the mutation handler returns to message-then-refresh ordering and the interaction suite is removed.
+    - Revert the phase commits; the mutation handler returns to message-then-refresh ordering, Runtime inspector tabs return to pointer-only visual buttons, and the interaction suites are removed.
   verification:
     - npx vitest run tests/workbench-interactions.test.tsx
+    - npx vitest run tests/automation-interactions.test.tsx
+    - npx vitest run tests/admin-interactions.test.tsx
+    - npx vitest run tests/actions-interactions.test.tsx
+    - npx vitest run tests/studio-interactions.test.tsx
+    - npx vitest run tests/eval-interactions.test.tsx
+    - npx vitest run tests/knowledge-interactions.test.tsx
+    - npx vitest run tests/data-interactions.test.tsx
+    - npx vitest run tests/code-interactions.test.tsx
+    - npx vitest run tests/workspace-assets-interactions.test.tsx
+    - npx vitest run tests/workspace-projections-interactions.test.tsx
+    - uv run pytest --no-cov services/control-plane/tests/test_contract_distribution.py
     - uv run pytest --no-cov services/control-plane/tests/test_phase97_workbench_interactions.py
     - make check
     - make test-java
     - make validate-release-candidate-contract
   knownLimitations:
-    - Interaction coverage targets the three most operator-critical surfaces; deeper suites for automation authoring and inspector tabs remain incremental work.
+    - Interaction coverage targets nineteen operator-critical surfaces; additional domain-view suites remain incremental work.
     - All six Alpha.1 candidate gates remain PENDING operator-owned items.

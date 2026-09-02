@@ -1,12 +1,14 @@
 "use client";
 
 import { AlertTriangle, CheckCircle2, PencilRuler, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { KeyboardEvent as ReactKeyboardEvent, useEffect, useState } from "react";
 
 import { api, ApiError } from "@/lib/api";
 import type { StudioCompare, StudioValidateResult, StudioVersion } from "@/lib/types";
 
 type StudioKind = "Agent" | "Skill" | "Workflow";
+
+const STUDIO_KINDS: readonly StudioKind[] = ["Agent", "Skill", "Workflow"];
 
 const TEMPLATES: Record<StudioKind, string> = {
   Agent: `apiVersion: obsion.dev/v1
@@ -85,23 +87,22 @@ export function StudioView() {
   const items = catalog;
 
   const applyKind = (nextKind: StudioKind, nextAgents: StudioVersion[], nextSkills: StudioVersion[]) => {
+    setCompareVersion("");
+    setCompare(undefined);
     if (nextKind === "Workflow") {
       setSelected(undefined);
       setDocument(TEMPLATES.Workflow);
-      setCompare(undefined);
       return;
     }
     const list = nextKind === "Skill" ? nextSkills : nextAgents;
     if (!list.length) {
       setSelected(undefined);
       setDocument(TEMPLATES[nextKind]);
-      setCompare(undefined);
       return;
     }
     const current = list.find((item) => item.promoted) ?? list[0];
     setSelected(current);
     setDocument(toManifest(current));
-    setCompare(undefined);
   };
 
   const selectVersion = (
@@ -115,6 +116,7 @@ export function StudioView() {
     if (!item) return;
     setSelected(item);
     setDocument(toManifest(item));
+    setCompareVersion("");
     setCompare(undefined);
   };
 
@@ -216,6 +218,32 @@ export function StudioView() {
     }
   };
 
+  const changeKind = (nextKind: StudioKind) => {
+    setKind(nextKind);
+    setPreview(undefined);
+    setError("");
+    setNotice("");
+    applyKind(nextKind, agents, skills);
+  };
+
+  const handleKindKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = STUDIO_KINDS.indexOf(kind);
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % STUDIO_KINDS.length;
+    if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + STUDIO_KINDS.length) % STUDIO_KINDS.length;
+    }
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = STUDIO_KINDS.length - 1;
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    const nextKind = STUDIO_KINDS[nextIndex];
+    changeKind(nextKind);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-studio-kind="${nextKind}"]`)
+      ?.focus();
+  };
+
   return (
     <main className="feature-page studio-page">
       <header className="feature-header">
@@ -234,17 +262,20 @@ export function StudioView() {
 
       <div className="studio-layout">
         <aside className="studio-catalog">
-          <div className="studio-kind-tabs">
-            {(["Agent", "Skill", "Workflow"] as const).map((item) => (
+          <div className="studio-kind-tabs" role="tablist" aria-label="Studio 清单类型">
+            {STUDIO_KINDS.map((item) => (
               <button
                 key={item}
+                type="button"
+                role="tab"
+                id={`studio-kind-${item}`}
+                aria-controls="studio-kind-panel"
+                aria-selected={kind === item}
+                tabIndex={kind === item ? 0 : -1}
+                data-studio-kind={item}
                 className={kind === item ? "active" : ""}
-                onClick={() => {
-                  setKind(item);
-                  setPreview(undefined);
-                  setError("");
-                  applyKind(item, agents, skills);
-                }}
+                onKeyDown={handleKindKeyDown}
+                onClick={() => changeKind(item)}
               >
                 {item}
               </button>
@@ -266,6 +297,8 @@ export function StudioView() {
                     setSelected(item);
                     setDocument(toManifest(item));
                     setPreview(undefined);
+                    setCompareVersion("");
+                    setCompare(undefined);
                     setError("");
                     setNotice("");
                   }}
@@ -281,7 +314,12 @@ export function StudioView() {
           )}
         </aside>
 
-        <section className="studio-editor">
+        <section
+          className="studio-editor"
+          role="tabpanel"
+          id="studio-kind-panel"
+          aria-labelledby={`studio-kind-${kind}`}
+        >
           <label>
             清单（YAML 或 JSON）
             <textarea

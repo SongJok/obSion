@@ -31,8 +31,9 @@ export function KnowledgeView() {
     if (!query.trim()) return;
     setSearching(true);
     setError("");
+    setResults([]);
     try {
-      setResults(await api.knowledgeSearch(query));
+      setResults(await api.knowledgeSearch(query.trim()));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "检索失败");
     } finally {
@@ -80,6 +81,7 @@ export function KnowledgeView() {
           ref={fileRef}
           hidden
           type="file"
+          aria-label="上传知识文档"
           accept=".pdf,.docx,.xlsx,.md,.txt,.html"
           disabled={uploading}
           onChange={(event) => {

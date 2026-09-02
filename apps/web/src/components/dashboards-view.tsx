@@ -34,10 +34,16 @@ export function DashboardsView({ workspace }: { workspace?: Workspace }) {
     const refs = Array.isArray(detail.inline_content?.panels)
       ? detail.inline_content.panels
       : [];
-    const ids = refs
-      .map((panel) => (panel as { artifact_id?: string }).artifact_id)
-      .filter((id): id is string => Boolean(id));
+    const ids = [
+      ...new Set(
+        refs
+          .map((panel) => (panel as { artifact_id?: unknown }).artifact_id)
+          .filter((id): id is string => typeof id === "string" && Boolean(id.trim()))
+          .map((id) => id.trim()),
+      ),
+    ];
     let cancelled = false;
+    reportError("");
     void Promise.all(ids.map((id) => api.getArtifact(id)))
       .then((loaded) => {
         if (!cancelled) setPanelState({ dashboardId: detail.id, items: loaded });
@@ -116,7 +122,7 @@ export function DashboardsView({ workspace }: { workspace?: Workspace }) {
                   <strong>{detail.title}</strong>
                   <small>{detail.media_type}</small>
                 </div>
-                <button className="icon-button" onClick={() => setSelected(undefined)} aria-label="关闭详情">
+                <button className="icon-button" onClick={() => { reportError(""); setSelected(undefined); }} aria-label="关闭详情">
                   <X size={17} />
                 </button>
               </header>

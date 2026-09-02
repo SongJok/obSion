@@ -1,7 +1,7 @@
 "use client";
 
 import { Code2, FileCode2, GitBranch, Search, ShieldCheck } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import type { CodeRepository, CodeSymbolHit } from "@/lib/types";
@@ -14,6 +14,7 @@ export function CodeView() {
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const searchGeneration = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,15 +37,20 @@ export function CodeView() {
   const search = async (event: FormEvent) => {
     event.preventDefault();
     if (!query.trim()) return;
+    const generation = ++searchGeneration.current;
     setSearching(true);
+    setSearched(true);
     setError("");
+    setResults([]);
     try {
-      setResults(await api.searchCodeSymbols(query));
-      setSearched(true);
+      const next = await api.searchCodeSymbols(query.trim());
+      if (generation === searchGeneration.current) setResults(next);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "检索失败");
+      if (generation === searchGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "检索失败");
+      }
     } finally {
-      setSearching(false);
+      if (generation === searchGeneration.current) setSearching(false);
     }
   };
 
@@ -78,7 +84,7 @@ export function CodeView() {
         </div>
       )}
 
-      {!results.length && searched && !searching ? (
+      {!results.length && searched && !searching && !error ? (
         <div className="feature-empty-grid">
           <article>
             <Search size={22} />
