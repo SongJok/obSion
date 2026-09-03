@@ -183,7 +183,10 @@ export interface Turn {
   id: string;
   thread_id: string;
   ordinal: number;
+  created_by: string;
   input_text: string;
+  context_refs: Array<Record<string, unknown>>;
+  attachment_refs: Array<Record<string, unknown>>;
   created_at: string;
 }
 
@@ -245,6 +248,8 @@ export interface Run {
     steps?: PlanStep[];
     sandbox?: { network?: string; enabled?: boolean; mounts?: string[] };
   };
+  max_steps: number;
+  timeout_seconds: number;
   step_count: number;
   max_input_tokens: number;
   max_output_tokens: number;
@@ -252,10 +257,14 @@ export interface Run {
   input_tokens: number;
   output_tokens: number;
   cost_amount: string;
+  started_at: string | null;
+  completed_at: string | null;
+  cancellation_requested_at: string | null;
   error_code: string | null;
   error_message: string | null;
   replay_of_run_id: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface PlanStep {
@@ -266,11 +275,15 @@ export interface PlanStep {
 
 export interface RunStep {
   id: string;
+  run_id: string;
   ordinal: number;
   name: string;
   kind: string;
   status: string;
+  depends_on: number[];
   capability_version_id: string | null;
+  output_ref: string | null;
+  retry_count: number;
   error_code: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -496,9 +509,12 @@ export interface WorkspaceDecisionVersion {
 
 export interface Claim {
   id: string;
+  run_id: string;
+  ordinal: number;
   statement: string;
   confidence: string;
   verification_status: string;
+  critic_notes: Record<string, unknown>;
   evidence_ids: string[];
 }
 

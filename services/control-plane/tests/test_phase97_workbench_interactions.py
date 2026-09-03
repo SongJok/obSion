@@ -51,6 +51,56 @@ def test_interaction_suite_covers_workbench_surfaces() -> None:
         assert marker in suite
 
 
+def test_root_orchestration_suite_pins_generation_and_ownership_boundaries() -> None:
+    suite = _read("tests/workbench-orchestration-interactions.test.tsx")
+    for marker in (
+        "Workbench root orchestration ownership",
+        "keeps only the newest Workspace thread response",
+        "commits one complete Thread and inspection snapshot after reverse completion",
+        "ignores a slower source-Run inspection after a newer source Run commits",
+        "rejects a mismatched inspection atomically without replacing the prior Run",
+        "does not continue loading a superseded source Run",
+        "ignores stream events that belong to another Run",
+        "resumes stream and REST reconciliation when opening a Thread with an active Run",
+        "rejects Thread history feedback owned by another Run atomically",
+        "ignores a stale submit after switching Workspace",
+        "ignores a stale cancel response after switching Workspace",
+        "ignores stale replay pending and errors after switching Workspace",
+        "ignores stale feedback pending and errors after switching Workspace",
+        "rejects feedback returned for another Run without committing it",
+        "keeps Context Picker results scoped to the newest Workspace",
+        "stops a stale multi-file upload and never attaches it to another Workspace",
+        "allows only one submit while Thread and Run creation are in flight",
+        "does not expose a server-created Thread until its first Run exists",
+        "opens a Collaboration source Run through its owning Thread",
+        "deferred<",
+    ):
+        assert marker in suite
+
+    workbench = _read("src/components/workbench.tsx")
+    for marker in (
+        "interface InspectionSnapshot",
+        "const selectionGeneration = useRef(0)",
+        "const contextGeneration = useRef(0)",
+        "const uploadGeneration = useRef(0)",
+        "const feedbackGeneration = useRef(0)",
+        "const threadLifecycleGeneration = useRef(0)",
+        "const submitInFlight = useRef(false)",
+        "const pollRunRef = useRef<(",
+        "pollRunRef.current = pollRun",
+        "[pollRun]",
+        "submitting={submitting}",
+        "const openScopedRun",
+        "await openThread(selected, runId)",
+        "const keepsVerifiedProjection = thread?.id === selected.id",
+        "assertInspectionOwnership(snapshot)",
+        "applyInspection(snapshot)",
+        "event.run_id !== expectedRunId",
+        "assertRunFeedback(item.id, feedback)",
+    ):
+        assert marker in workbench
+
+
 def test_interaction_suite_pins_notice_survival_after_refresh() -> None:
     suite = _read("tests/workbench-interactions.test.tsx")
     assert "keeps the version-conflict guidance visible after the refresh" in suite

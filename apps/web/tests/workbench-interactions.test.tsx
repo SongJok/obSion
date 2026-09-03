@@ -106,9 +106,12 @@ function run(partial: Partial<Run> = {}): Run {
 function claim(partial: Partial<Claim> = {}): Claim {
   return {
     id: "claim-1",
+    run_id: "123e4567-e89b-42d3-a456-426614174000",
+    ordinal: 1,
     statement: "支付成功率下降主要由渠道 B 的 5xx 激增导致",
     confidence: "HIGH",
     verification_status: "VERIFIED",
+    critic_notes: {},
     evidence_ids: [],
     ...partial,
   };

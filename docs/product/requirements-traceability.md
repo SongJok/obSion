@@ -80,7 +80,7 @@ requirement, not an incomplete implementation.
 
 | Blueprint area | V1 implementation commitment | Primary verification |
 | --- | --- | --- |
-| Product positioning | One identity-gated assistant over governed enterprise capabilities, presented through one responsive left-navigation/center-conversation/right-Runtime shell | Workbench composition, real Turn timeline, mobile geometry, and API acceptance tests |
+| Product positioning | One identity-gated assistant over governed enterprise capabilities, presented through one responsive left-navigation/center-conversation/right-Runtime shell; selection-sensitive projections commit only complete, owner-validated Workspace/Thread/Run snapshots | Workbench composition, reverse-completion root-orchestration interactions, real Turn timeline, mobile geometry, and API acceptance tests |
 | Identity and tenancy | Explicitly authenticated provisioned users, organization-owned departments, six stable system roles, custom-role safety, digest-only revocable browser sessions shared by REST/App Server, Origin controls, and repository plus composite-foreign-key tenant isolation | Missing/invalid credential, browser exchange/revoke, REST/WebSocket parity, Origin denial, role/department API, cross-Workspace, PostgreSQL adversarial-write/session, downgrade/re-upgrade, and schema-drift tests |
 | Workspace lifecycle | Workspace, Thread, Turn, Run, Step, Event and artifacts | State-machine and repository tests |
 | Workspace collaboration | Versioned task state machine; immutable decision revisions, disposition, and supersession lineage | API/SDK, tenant-isolation, PostgreSQL invariant, migration, and responsive Workbench tests |

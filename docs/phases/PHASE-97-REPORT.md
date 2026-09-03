@@ -10,6 +10,16 @@ interaction tests — is closed:
   and accessible queries, mocking only the `@/lib/api` boundary via
   `importOriginal` spread (types and `ApiError` identity stay
   production-identical).
+- **Root orchestration reliability suite**:
+  `tests/workbench-orchestration-interactions.test.tsx` mounts the complete
+  Workbench and deterministically reverses Workspace, Thread, and source-Run
+  request completion. Selection-sensitive loaders capture immutable identity
+  snapshots, validate generation plus resource ownership, and commit a whole
+  inspection only after every Event, Step, Evidence, Memory, Conversation,
+  Claim, Artifact, and feedback record agrees with the selected Run and
+  Workspace. Independent Context/upload generations and guarded submit,
+  cancel, replay, feedback, and App Server stream paths prevent stale data,
+  errors, loading, and pending indicators from leaking into a newer context.
 - **Automation interaction suite**:
   `tests/automation-interactions.test.tsx` drives the version,
   trigger, schedule, retirement, and immutable-authoring lifecycle
@@ -135,6 +145,23 @@ tests existed but were never opted into by CI. Both passed against independent
 disposable PostgreSQL databases, and the new matrix makes those proofs
 mandatory without risking a shared development database.
 
+The root-orchestration reliability amendment found a P1 attribution hazard:
+async inspection requests directly updated independent React projections, so a
+slower old Workspace, Thread, or source Run could overwrite the current Run's
+Claims, Evidence, and Artifacts. Workbench now constructs a complete immutable
+snapshot, validates the captured selection generation and every persisted
+owner field, and only then commits. Workspace changes invalidate selection,
+context, upload, feedback, and lifecycle operations; stale catch/finally paths
+cannot overwrite current errors, loading, or pending indicators. Source-Run
+reads stop early when superseded, stream Events are checked against the pinned
+Run, and feedback returned for another Run fails closed. Submission uses a
+synchronous single-flight guard, newly created Threads remain uncommitted until
+the first Turn/Run exists, reopening an active Run restarts App Server streaming
+and REST reconciliation, and Collaboration source Runs open through their owning
+Thread. Same-Thread inspection keeps the last verified projection until the new
+snapshot passes ownership validation. Eighteen mounted, deferred-promise
+interactions pin these boundaries.
+
 ## Architecture decisions
 
 ADR 0076 records fourteen Workbench decisions: Testing Library interactions
@@ -158,25 +185,18 @@ reverting the phase commits.
 
 ## Validation
 
-- `apps/web/tests/workbench-interactions.test.tsx` and
-  `apps/web/tests/automation-interactions.test.tsx` plus
-  `apps/web/tests/admin-interactions.test.tsx` and
-  `apps/web/tests/actions-interactions.test.tsx` plus
-  `apps/web/tests/studio-interactions.test.tsx` and
-  `apps/web/tests/eval-interactions.test.tsx` plus
-  `apps/web/tests/knowledge-interactions.test.tsx` and
-  `apps/web/tests/data-interactions.test.tsx` plus
-  `apps/web/tests/code-interactions.test.tsx` and
-  `apps/web/tests/workspace-assets-interactions.test.tsx` plus
-  `apps/web/tests/workspace-projections-interactions.test.tsx` — 67
-  interaction cases across nineteen surfaces; full Web suite 162 passed.
+- `apps/web/tests/workbench-orchestration-interactions.test.tsx` plus the
+  existing Workbench, Automation, Admin, Action, Studio, Eval, Knowledge,
+  Data, Code, Workspace asset, and Workspace projection interaction suites —
+  85 cases across twenty operator-critical surfaces; the full Web suite passes
+  181 tests in 22 files.
 - `services/control-plane/tests/test_phase97_workbench_interactions.py`
-  — 17 tests: Workbench, Automation, Admin, Action, Studio, Eval,
-  Knowledge, Data, Code, Files, and Artifacts suite coverage markers;
-  Reports/Dashboards/SQL/Evidence/Timeline fact-projection markers;
-  accessible tab/dialog contracts; scoped async/input/path pins;
-  notice-survival;
-  refresh-before-message ordering; and bookkeeping.
+  — 18 tests: root Workbench generation/ownership markers plus Automation,
+  Admin, Action, Studio, Eval, Knowledge, Data, Code, Files, and Artifacts suite
+  coverage; Reports/Dashboards/SQL/Evidence/Timeline fact projections;
+  accessible tab/dialog contracts; immutable inspection snapshots, scoped
+  async/input/path pins, stream and feedback ownership, notice survival,
+  refresh-before-message ordering, and bookkeeping.
 - `test_postgres_phase5_auth_session_migration.py` and
   `test_postgres_operator_invocation_migration.py` pass in separate disposable
   PostgreSQL databases; `.github/workflows/ci.yml` now reproduces both through

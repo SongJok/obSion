@@ -28,6 +28,7 @@ import {
   buildSourceRunOptions,
   memberDisplayName,
   sourceRunLabel,
+  sourceRunThreadId,
   taskCreatePayload,
   taskUpdateHasChanges,
   taskUpdatePayload,
@@ -63,7 +64,7 @@ export function CollaborationView({
   onOpenRun,
 }: {
   workspace?: Workspace;
-  onOpenRun?: (runId: string) => void;
+  onOpenRun?: (runId: string, threadId?: string) => void;
 }) {
   const [tasks, setTasks] = useState<WorkspaceTask[]>([]);
   const [decisions, setDecisions] = useState<WorkspaceDecision[]>([]);
@@ -460,7 +461,7 @@ function TaskRecord({
   saving: boolean;
   onTransition: (task: WorkspaceTask, status: WorkspaceTaskStatus) => void;
   onEdit: (task: WorkspaceTask) => void;
-  onOpenRun?: (runId: string) => void;
+  onOpenRun?: (runId: string, threadId?: string) => void;
 }) {
   const transitions = taskTransitions(task.status);
   const overdue = Boolean(task.due_at && !CLOSED_TASKS.has(task.status) && new Date(task.due_at) < new Date());
@@ -482,7 +483,10 @@ function TaskRecord({
         {task.source_run_id && (
           <button
             className="task-source-run"
-            onClick={() => onOpenRun?.(task.source_run_id!)}
+            onClick={() => onOpenRun?.(
+              task.source_run_id!,
+              sourceRunThreadId(sourceRuns, task.source_run_id),
+            )}
             disabled={!onOpenRun}
             title="在 Runtime 面板中查看来源 Run"
           >
@@ -520,7 +524,7 @@ function DecisionDetail({
   versions: WorkspaceDecisionVersion[];
   sourceRuns: SourceRunOption[];
   saving: boolean;
-  onOpenRun?: (runId: string) => void;
+  onOpenRun?: (runId: string, threadId?: string) => void;
   onEdit: () => void;
   onDecide: (approve: boolean) => void;
   onSupersede: () => void;
@@ -554,7 +558,10 @@ function DecisionDetail({
           来源 Run
           <button
             className="task-source-run"
-            onClick={() => onOpenRun?.(decision.source_run_id!)}
+            onClick={() => onOpenRun?.(
+              decision.source_run_id!,
+              sourceRunThreadId(sourceRuns, decision.source_run_id),
+            )}
             disabled={!onOpenRun}
             title="在 Runtime 面板中查看来源 Run"
           >

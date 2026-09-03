@@ -20,6 +20,7 @@ import type {
   SessionPrincipal,
   Thread,
   ThreadEvent,
+  Turn,
   ViewName,
   Workspace,
 } from "@/lib/types";
@@ -53,6 +54,24 @@ type StreamState = "idle" | "live" | "polling" | "interrupted";
 interface WorkbenchProps {
   principal: SessionPrincipal;
   onSignOut: () => Promise<void>;
+}
+
+interface InspectionSnapshot {
+  run: Run;
+  events: RunEvent[];
+  steps: RunStep[];
+  evidence: Evidence[];
+  memories: MemorySnapshot[];
+  conversation: ConversationSnapshot[];
+  claims: Claim[];
+  artifacts: Artifact[];
+}
+
+class InspectionOwnershipError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InspectionOwnershipError";
+  }
 }
 
 export function Workbench({ principal, onSignOut }: WorkbenchProps) {
@@ -97,11 +116,24 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
   const [replayingRunId, setReplayingRunId] = useState<string>();
   const [feedbackPendingRunId, setFeedbackPendingRunId] = useState<string>();
   const [streamState, setStreamState] = useState<StreamState>("idle");
-  const requestGeneration = useRef(0);
+  const [submitting, setSubmitting] = useState(false);
+  const submitInFlight = useRef(false);
+  const pollRunRef = useRef<(
+    initial: Run,
+    generation: number,
+    expectedWorkspaceId: string,
+  ) => Promise<void>>(undefined);
+  const selectionGeneration = useRef(0);
+  const contextGeneration = useRef(0);
+  const uploadGeneration = useRef(0);
+  const feedbackGeneration = useRef(0);
   const threadLifecycleGeneration = useRef(0);
 
   useEffect(() => () => {
-    ++requestGeneration.current;
+    ++selectionGeneration.current;
+    ++contextGeneration.current;
+    ++uploadGeneration.current;
+    ++feedbackGeneration.current;
     ++threadLifecycleGeneration.current;
   }, []);
 
@@ -118,18 +150,41 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     setStreamState("idle");
   }, []);
 
+  const closeContextPicker = useCallback(() => {
+    ++contextGeneration.current;
+    setContextPickerOpen(false);
+    setContextArtifacts([]);
+    setContextLoading(false);
+  }, []);
+
   const resetThread = useCallback(() => {
-    ++requestGeneration.current;
+    ++selectionGeneration.current;
+    ++uploadGeneration.current;
+    ++feedbackGeneration.current;
+    ++threadLifecycleGeneration.current;
     setThread(undefined);
     setMessages([]);
     setAttachments([]);
-    setContextPickerOpen(false);
-    setContextArtifacts([]);
+    setUploading(false);
+    closeContextPicker();
+    setThreadListLoading(false);
+    setManagedThread(undefined);
+    setThreadEvents([]);
+    setThreadLifecycleLoading(false);
+    setThreadLifecycleAction(undefined);
+    setFeedbackPendingRunId(undefined);
+    setReplayingRunId(undefined);
+    submitInFlight.current = false;
+    setSubmitting(false);
     setValue("");
     clearInspection();
-  }, [clearInspection]);
+  }, [clearInspection, closeContextPicker]);
 
-  const loadInspection = useCallback(async (target: Run) => {
+  const loadInspection = useCallback(async (
+    target: Run,
+    expectedWorkspaceId: string,
+  ): Promise<InspectionSnapshot> => {
+    assertRunWorkspace(target, expectedWorkspaceId);
     const [
       nextEvents,
       nextSteps,
@@ -147,38 +202,85 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       api.listClaims(target.id),
       api.listArtifacts(target.id),
     ]);
-    setRun(target);
-    setEvents(nextEvents);
-    setSteps(nextSteps);
-    setEvidence(nextEvidence);
-    setMemories(nextMemories);
-    setConversationContext(nextConversation);
-    setClaims(nextClaims);
-    setArtifacts(nextArtifacts);
+    const snapshot = {
+      run: target,
+      events: nextEvents,
+      steps: nextSteps,
+      evidence: nextEvidence,
+      memories: nextMemories,
+      conversation: nextConversation,
+      claims: nextClaims,
+      artifacts: nextArtifacts,
+    };
+    assertInspectionOwnership(snapshot);
+    return snapshot;
+  }, []);
+
+  const applyInspection = useCallback((snapshot: InspectionSnapshot) => {
+    setRun(snapshot.run);
+    setEvents(snapshot.events);
+    setSteps(snapshot.steps);
+    setEvidence(snapshot.evidence);
+    setMemories(snapshot.memories);
+    setConversationContext(snapshot.conversation);
+    setClaims(snapshot.claims);
+    setArtifacts(snapshot.artifacts);
   }, []);
 
   const openRunInspection = useCallback(
     async (runId: string) => {
-      const generation = ++requestGeneration.current;
+      const generation = ++selectionGeneration.current;
+      const workspaceId = workspace?.id;
+      setLoading(true);
       setError("");
       try {
         const target = await api.getRun(runId);
-        await loadInspection(target);
-        if (generation !== requestGeneration.current) return;
-        setStreamState("idle");
+        if (generation !== selectionGeneration.current) return;
+        if (target.id !== runId) {
+          throw new InspectionOwnershipError("来源 Run 响应与所选 Run 不一致");
+        }
+        if (!workspaceId) {
+          throw new InspectionOwnershipError("当前未选择工作空间");
+        }
+        assertRunWorkspace(target, workspaceId);
+        const snapshot = await loadInspection(target, workspaceId);
+        if (generation !== selectionGeneration.current) return;
+        applyInspection(snapshot);
         setView("assistant");
         setInspectorOpen(true);
+        if (TERMINAL.has(target.status)) setStreamState("idle");
+        else void pollRunRef.current?.(target, generation, workspaceId);
       } catch (caught) {
-        if (generation !== requestGeneration.current) return;
+        if (generation !== selectionGeneration.current) return;
         setError(caught instanceof Error ? caught.message : "无法打开来源 Run");
+      } finally {
+        if (generation === selectionGeneration.current) setLoading(false);
       }
     },
-    [loadInspection],
+    [applyInspection, loadInspection, workspace?.id],
   );
 
-  const openThread = useCallback(async (selected: Thread) => {
-    const generation = ++requestGeneration.current;
-    setThread(selected);
+  const openThread = useCallback(async (selected: Thread, inspectRunId?: string) => {
+    const workspaceId = workspace?.id;
+    if (!workspaceId || selected.workspace_id !== workspaceId) {
+      setError("任务不属于当前工作空间");
+      return;
+    }
+    const generation = ++selectionGeneration.current;
+    const keepsVerifiedProjection = thread?.id === selected.id;
+    ++uploadGeneration.current;
+    ++feedbackGeneration.current;
+    if (!keepsVerifiedProjection) {
+      setThread(selected);
+      setMessages([]);
+      setFeedbackByRun({});
+      clearInspection();
+    }
+    setAttachments([]);
+    setUploading(false);
+    setFeedbackPendingRunId(undefined);
+    setReplayingRunId(undefined);
+    closeContextPicker();
     setView("assistant");
     setLoading(true);
     setError("");
@@ -187,16 +289,28 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         api.listTurns(selected.id),
         api.listThreadRuns(selected.id),
       ]);
+      assertThreadOwnership(selected, workspaceId, turns, runs);
       const detailsByRun = await Promise.all(
         runs.map(async (item) => {
           const [runArtifacts, feedback] = await Promise.all([
             api.listArtifacts(item.id),
             api.getRunFeedback(item.id),
           ]);
+          assertRunArtifacts(item.id, workspaceId, runArtifacts);
+          assertRunFeedback(item.id, feedback);
           return { runArtifacts, feedback };
         }),
       );
-      if (generation !== requestGeneration.current) return;
+      const inspectedRun = inspectRunId
+        ? runs.find((item) => item.id === inspectRunId)
+        : runs.at(-1);
+      if (inspectRunId && !inspectedRun) {
+        throw new InspectionOwnershipError("来源 Run 不属于所选任务");
+      }
+      const inspection = inspectedRun
+        ? await loadInspection(inspectedRun, workspaceId)
+        : undefined;
+      if (generation !== selectionGeneration.current) return;
       const runByTurn = new Map(runs.map((item, index) => [item.turn_id, {
         item,
         artifacts: detailsByRun[index].runArtifacts,
@@ -211,31 +325,72 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         artifact: runByTurn.get(turn.id)?.artifact,
         artifacts: runByTurn.get(turn.id)?.artifacts,
       })));
-      const latest = runs.at(-1);
-      if (latest) await loadInspection(latest);
+      if (inspection) applyInspection(inspection);
       else clearInspection();
+      setLoading(false);
+      if (inspection && !TERMINAL.has(inspection.run.status)) {
+        void pollRunRef.current?.(inspection.run, generation, workspaceId);
+      }
     } catch (caught) {
-      if (generation === requestGeneration.current) {
+      if (generation === selectionGeneration.current) {
         setError(caught instanceof Error ? caught.message : "无法打开任务");
       }
     } finally {
-      if (generation === requestGeneration.current) setLoading(false);
+      if (generation === selectionGeneration.current) setLoading(false);
     }
-  }, [clearInspection, loadInspection]);
+  }, [applyInspection, clearInspection, closeContextPicker, loadInspection, thread?.id, workspace?.id]);
+
+  const openScopedRun = useCallback(async (runId: string, threadId?: string) => {
+    if (!workspace) {
+      setError("当前未选择工作空间");
+      return;
+    }
+    if (!threadId) {
+      await openRunInspection(runId);
+      return;
+    }
+    const generation = ++selectionGeneration.current;
+    const workspaceId = workspace.id;
+    setLoading(true);
+    setError("");
+    try {
+      const items = await api.listThreads(workspaceId);
+      assertWorkspaceThreads(workspaceId, items);
+      if (generation !== selectionGeneration.current) return;
+      const selected = items.find((item) => item.id === threadId);
+      if (!selected) {
+        throw new InspectionOwnershipError("来源 Run 不属于当前工作空间中的任务");
+      }
+      await openThread(selected, runId);
+    } catch (caught) {
+      if (generation === selectionGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法打开来源 Run");
+      }
+    } finally {
+      if (generation === selectionGeneration.current) setLoading(false);
+    }
+  }, [openRunInspection, openThread, workspace]);
 
   const selectWorkspace = useCallback(async (selected: Workspace) => {
-    setWorkspace(selected);
     resetThread();
+    const generation = selectionGeneration.current;
+    setWorkspace(selected);
+    setThreads([]);
     setShowArchivedThreads(false);
     setManagedThread(undefined);
     setLoading(true);
     setError("");
     try {
-      setThreads(await api.listThreads(selected.id));
+      const items = await api.listThreads(selected.id);
+      assertWorkspaceThreads(selected.id, items);
+      if (generation !== selectionGeneration.current) return;
+      setThreads(items.filter((item) => item.status === "ACTIVE"));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法读取工作空间");
+      if (generation === selectionGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法读取工作空间");
+      }
     } finally {
-      setLoading(false);
+      if (generation === selectionGeneration.current) setLoading(false);
     }
   }, [resetThread]);
 
@@ -264,17 +419,24 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     if (!workspace) return;
     const archived = !showArchivedThreads;
     resetThread();
+    const generation = selectionGeneration.current;
+    const workspaceId = workspace.id;
     setManagedThread(undefined);
     setShowArchivedThreads(archived);
+    setThreads([]);
     setThreadListLoading(true);
     setError("");
     try {
-      const items = await api.listThreads(workspace.id, archived);
+      const items = await api.listThreads(workspaceId, archived);
+      assertWorkspaceThreads(workspaceId, items);
+      if (generation !== selectionGeneration.current) return;
       setThreads(items.filter((item) => item.status === (archived ? "ARCHIVED" : "ACTIVE")));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法读取任务列表");
+      if (generation === selectionGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法读取任务列表");
+      }
     } finally {
-      setThreadListLoading(false);
+      if (generation === selectionGeneration.current) setThreadListLoading(false);
     }
   }, [resetThread, showArchivedThreads, workspace]);
 
@@ -298,93 +460,148 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     }
   }, []);
 
-  const refreshManagedThreadEvents = useCallback(async (target: Thread) => {
-    const generation = ++threadLifecycleGeneration.current;
-    setThreadLifecycleLoading(true);
-    try {
-      const items = await api.listThreadEvents(target.id);
-      if (generation === threadLifecycleGeneration.current) setThreadEvents(items);
-    } finally {
-      if (generation === threadLifecycleGeneration.current) setThreadLifecycleLoading(false);
-    }
-  }, []);
-
   const archiveManagedThread = useCallback(async () => {
     if (!managedThread) return;
     if (thread?.id === managedThread.id && run && !TERMINAL.has(run.status)) return;
+    const generation = ++threadLifecycleGeneration.current;
+    const workspaceId = workspace?.id;
+    const targetThreadId = managedThread.id;
     setThreadLifecycleAction("archive");
     setError("");
     try {
-      const archived = await api.archiveThread(managedThread.id);
+      if (!workspaceId || managedThread.workspace_id !== workspaceId) {
+        throw new InspectionOwnershipError("待归档任务不属于当前工作空间");
+      }
+      const archived = await api.archiveThread(targetThreadId);
+      if (generation !== threadLifecycleGeneration.current) return;
+      assertThreadWorkspace(archived, workspaceId);
+      if (archived.id !== targetThreadId || archived.status !== "ARCHIVED") {
+        throw new InspectionOwnershipError("归档响应与所选任务不一致");
+      }
+      const [items, nextEvents] = await Promise.all([
+        api.listThreads(workspaceId, true),
+        api.listThreadEvents(archived.id),
+      ]);
+      assertWorkspaceThreads(workspaceId, items);
+      if (generation !== threadLifecycleGeneration.current) return;
       setManagedThread(archived);
       if (thread?.id === archived.id) setThread(archived);
       setShowArchivedThreads(true);
-      if (workspace) {
-        const items = await api.listThreads(workspace.id, true);
-        setThreads(items.filter((item) => item.status === "ARCHIVED"));
-      }
-      await refreshManagedThreadEvents(archived);
+      setThreads(items.filter((item) => item.status === "ARCHIVED"));
+      setThreadEvents(nextEvents);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法归档任务");
+      if (generation === threadLifecycleGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法归档任务");
+      }
     } finally {
-      setThreadLifecycleAction(undefined);
+      if (generation === threadLifecycleGeneration.current) {
+        setThreadLifecycleAction(undefined);
+      }
     }
-  }, [managedThread, refreshManagedThreadEvents, run, thread, workspace]);
+  }, [managedThread, run, thread, workspace?.id]);
 
   const resumeManagedThread = useCallback(async () => {
     if (!managedThread) return;
+    const generation = ++threadLifecycleGeneration.current;
+    const workspaceId = workspace?.id;
+    const targetThreadId = managedThread.id;
     setThreadLifecycleAction("resume");
     setError("");
     try {
-      const resumed = await api.resumeThread(managedThread.id);
-      setShowArchivedThreads(false);
-      if (workspace) {
-        const items = await api.listThreads(workspace.id);
-        setThreads(items.filter((item) => item.status === "ACTIVE"));
+      if (!workspaceId || managedThread.workspace_id !== workspaceId) {
+        throw new InspectionOwnershipError("待恢复任务不属于当前工作空间");
       }
+      const resumed = await api.resumeThread(targetThreadId);
+      if (generation !== threadLifecycleGeneration.current) return;
+      assertThreadWorkspace(resumed, workspaceId);
+      if (resumed.id !== targetThreadId || resumed.status !== "ACTIVE") {
+        throw new InspectionOwnershipError("恢复响应与所选任务不一致");
+      }
+      const items = await api.listThreads(workspaceId);
+      assertWorkspaceThreads(workspaceId, items);
+      if (generation !== threadLifecycleGeneration.current) return;
+      setShowArchivedThreads(false);
+      setThreads(items.filter((item) => item.status === "ACTIVE"));
       setManagedThread(undefined);
       await openThread(resumed);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法恢复任务");
+      if (generation === threadLifecycleGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法恢复任务");
+      }
     } finally {
-      setThreadLifecycleAction(undefined);
+      if (generation === threadLifecycleGeneration.current) {
+        setThreadLifecycleAction(undefined);
+      }
     }
-  }, [managedThread, openThread, workspace]);
+  }, [managedThread, openThread, workspace?.id]);
 
   const forkManagedThread = useCallback(async (title: string) => {
     if (!managedThread) return;
+    const generation = ++threadLifecycleGeneration.current;
+    const workspaceId = workspace?.id;
+    const targetThreadId = managedThread.id;
     setThreadLifecycleAction("fork");
     setError("");
     try {
-      const turns = await api.listTurns(managedThread.id);
+      if (!workspaceId || managedThread.workspace_id !== workspaceId) {
+        throw new InspectionOwnershipError("分支源任务不属于当前工作空间");
+      }
+      const turns = await api.listTurns(targetThreadId);
+      if (generation !== threadLifecycleGeneration.current) return;
+      if (turns.some((item) => item.thread_id !== targetThreadId)) {
+        throw new InspectionOwnershipError("分支源对话不属于所选任务");
+      }
       const fromTurnId = turns.at(-1)?.id;
-      const forked = await api.forkThread(managedThread.id, {
+      const forked = await api.forkThread(targetThreadId, {
         title,
         ...(fromTurnId ? { from_turn_id: fromTurnId } : {}),
       });
-      setShowArchivedThreads(false);
-      if (workspace) {
-        const items = await api.listThreads(workspace.id);
-        setThreads(items.filter((item) => item.status === "ACTIVE"));
+      if (generation !== threadLifecycleGeneration.current) return;
+      assertThreadWorkspace(forked, workspaceId);
+      if (forked.parent_thread_id !== targetThreadId) {
+        throw new InspectionOwnershipError("任务分支响应与所选源任务不一致");
       }
+      const items = await api.listThreads(workspaceId);
+      assertWorkspaceThreads(workspaceId, items);
+      if (generation !== threadLifecycleGeneration.current) return;
+      setShowArchivedThreads(false);
+      setThreads(items.filter((item) => item.status === "ACTIVE"));
       setManagedThread(undefined);
       await openThread(forked);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法建立任务分支");
+      if (generation === threadLifecycleGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法建立任务分支");
+      }
     } finally {
-      setThreadLifecycleAction(undefined);
+      if (generation === threadLifecycleGeneration.current) {
+        setThreadLifecycleAction(undefined);
+      }
     }
-  }, [managedThread, openThread, workspace]);
+  }, [managedThread, openThread, workspace?.id]);
 
-  const pollRun = useCallback(async (initial: Run, generation: number) => {
+  const pollRun = useCallback(async (
+    initial: Run,
+    generation: number,
+    expectedWorkspaceId: string,
+  ) => {
+    const expectedRunId = initial.id;
+    if (initial.workspace_context?.workspace_id !== expectedWorkspaceId) {
+      if (generation === selectionGeneration.current) {
+        setError("运行不属于当前工作空间");
+      }
+      return;
+    }
     let current = initial;
     let cursor = 0;
     let consecutiveFailures = 0;
     let stopStream: (() => void) | undefined;
     let acceptStream = true;
-    if (generation === requestGeneration.current) setStreamState("polling");
+    if (generation === selectionGeneration.current) setStreamState("polling");
     void streamRunEvents(current.id, cursor, (event) => {
-        if (generation !== requestGeneration.current) return;
+        if (
+          generation !== selectionGeneration.current
+          || event.run_id !== expectedRunId
+        ) return;
         cursor = Math.max(cursor, event.run_sequence ?? 0);
         setEvents((previous) =>
           previous.some((item) => item.id === event.id)
@@ -398,7 +615,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       .then((stop) => {
         if (acceptStream) {
           stopStream = stop;
-          if (generation === requestGeneration.current) setStreamState("live");
+          if (generation === selectionGeneration.current) setStreamState("live");
         } else {
           stop();
         }
@@ -406,10 +623,10 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       .catch(() => {
         // REST cursor reconciliation below remains the compatibility path when a
         // proxy does not support WebSocket upgrade or browser OIDC initialization.
-        if (generation === requestGeneration.current) setStreamState("polling");
+        if (generation === selectionGeneration.current) setStreamState("polling");
       });
     try {
-      while (generation === requestGeneration.current) {
+      while (generation === selectionGeneration.current) {
         try {
           const [
             nextRun,
@@ -430,7 +647,24 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
             api.listClaims(current.id),
             api.listArtifacts(current.id),
           ]);
-          if (generation !== requestGeneration.current) return;
+          if (generation !== selectionGeneration.current) return;
+          if (nextRun.id !== expectedRunId) {
+            throw new InspectionOwnershipError("运行状态响应与当前 Run 不一致");
+          }
+          if (nextRun.workspace_context?.workspace_id !== expectedWorkspaceId) {
+            throw new InspectionOwnershipError("运行状态不属于当前工作空间");
+          }
+          const snapshot = {
+            run: nextRun,
+            events: nextEvents,
+            steps: nextSteps,
+            evidence: nextEvidence,
+            memories: nextMemories,
+            conversation: nextConversation,
+            claims: nextClaims,
+            artifacts: nextArtifacts,
+          };
+          assertInspectionOwnership(snapshot);
           consecutiveFailures = 0;
           current = nextRun;
           if (nextEvents.length) {
@@ -471,7 +705,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         } catch (caught) {
           consecutiveFailures += 1;
           if (consecutiveFailures >= 4) {
-            if (generation === requestGeneration.current) {
+            if (generation === selectionGeneration.current) {
               setStreamState("interrupted");
               setError(
                 caught instanceof Error
@@ -489,13 +723,17 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     } finally {
       acceptStream = false;
       stopStream?.();
-      if (generation === requestGeneration.current) setStreamState("idle");
+      if (generation === selectionGeneration.current) setStreamState("idle");
     }
   }, []);
 
+  useEffect(() => {
+    pollRunRef.current = pollRun;
+  }, [pollRun]);
+
   const submit = useCallback(async () => {
     const input = value.trim();
-    if (!input || run && !TERMINAL.has(run.status)) return;
+    if (submitInFlight.current || !input || run && !TERMINAL.has(run.status)) return;
     if (thread?.status === "ARCHIVED") {
       setError("此任务已归档，请先从任务生命周期面板恢复后继续。");
       return;
@@ -504,67 +742,108 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       setWorkspaceModal(true);
       return;
     }
+    const generation = ++selectionGeneration.current;
+    const workspaceId = workspace.id;
+    const selectedThreadId = thread?.id;
+    const attachmentSnapshot = [...attachments];
+    submitInFlight.current = true;
+    setSubmitting(true);
+    let createdThread: Thread | undefined;
     setError("");
     setValue("");
     setView("assistant");
     setInspectorOpen(true);
     try {
+      assertWorkspaceArtifacts(workspaceId, attachmentSnapshot);
       let activeThread = thread;
       if (!activeThread) {
-        activeThread = await api.createThread(workspace.id, input.slice(0, 48));
-        setThread(activeThread);
-        setShowArchivedThreads(false);
-        setThreads((previous) => [activeThread!, ...previous]);
+        activeThread = await api.createThread(workspaceId, input.slice(0, 48));
+        if (generation !== selectionGeneration.current) return;
+        assertThreadWorkspace(activeThread, workspaceId);
+        createdThread = activeThread;
       }
       const created = await api.createTurn(
         activeThread.id,
         input,
-        attachments.map((artifact) => ({
+        attachmentSnapshot.map((artifact) => ({
           type: "artifact",
           artifact_id: artifact.id,
           media_type: artifact.media_type,
           title: artifact.title,
         })),
       );
-      const generation = ++requestGeneration.current;
+      if (generation !== selectionGeneration.current) return;
+      assertTurnRunOwnership(activeThread.id, created.turn, created.run);
+      assertRunWorkspace(created.run, workspaceId);
+      if (selectedThreadId && activeThread.id !== selectedThreadId) {
+        throw new InspectionOwnershipError("新运行不属于提交时选择的任务");
+      }
+      if (createdThread) {
+        const committedThread = createdThread;
+        setThread(committedThread);
+        setShowArchivedThreads(false);
+        setThreads((previous) => previous.some((item) => item.id === committedThread.id)
+          ? previous
+          : [committedThread, ...previous]);
+      }
       setMessages((previous) => [...previous, { turn: created.turn, run: created.run }]);
       setRun(created.run);
       setEvents([]);
       setSteps([]);
       setEvidence([]);
       setMemories([]);
+      setConversationContext([]);
       setClaims([]);
+      setArtifacts([]);
       setAttachments([]);
-      setContextPickerOpen(false);
-      void pollRun(created.run, generation);
+      closeContextPicker();
+      void pollRun(created.run, generation, workspaceId);
     } catch (caught) {
-      setValue(input);
-      setError(caught instanceof Error ? caught.message : "任务创建失败");
+      if (generation === selectionGeneration.current) {
+        setValue(input);
+        setError(caught instanceof Error ? caught.message : "任务创建失败");
+      }
+    } finally {
+      if (generation === selectionGeneration.current && submitInFlight.current) {
+        submitInFlight.current = false;
+        setSubmitting(false);
+      }
     }
-  }, [attachments, pollRun, run, thread, value, workspace]);
+  }, [attachments, closeContextPicker, pollRun, run, thread, value, workspace]);
 
   const attachFiles = useCallback(async (files: File[]) => {
     if (!workspace) {
       setWorkspaceModal(true);
       return;
     }
+    const generation = ++uploadGeneration.current;
+    const workspaceId = workspace.id;
     setUploading(true);
     setError("");
     try {
       const uploaded: Artifact[] = [];
       for (const file of files) {
+        if (generation !== uploadGeneration.current) return;
         const form = new FormData();
         form.set("file", file);
         form.set("title", file.name);
         form.set("kind", "FILE");
         form.set("classification", workspace.classification || "INTERNAL");
-        uploaded.push(await api.uploadArtifact(workspace.id, form));
+        const artifact = await api.uploadArtifact(workspaceId, form);
+        if (generation !== uploadGeneration.current) return;
+        if (artifact.workspace_id !== workspaceId) {
+          throw new InspectionOwnershipError("上传产物不属于当前工作空间");
+        }
+        uploaded.push(artifact);
       }
+      if (generation !== uploadGeneration.current) return;
       setAttachments((previous) => [...previous, ...uploaded]);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "附件上传失败");
+      if (generation === uploadGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "附件上传失败");
+      }
     } finally {
-      setUploading(false);
+      if (generation === uploadGeneration.current) setUploading(false);
     }
   }, [workspace]);
 
@@ -573,44 +852,82 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       setWorkspaceModal(true);
       return;
     }
+    const generation = ++contextGeneration.current;
+    const workspaceId = workspace.id;
     setContextPickerOpen(true);
+    setContextArtifacts([]);
     setContextLoading(true);
     setError("");
     try {
-      setContextArtifacts(await api.listWorkspaceArtifacts(workspace.id));
+      const items = await api.listWorkspaceArtifacts(workspaceId);
+      assertWorkspaceArtifacts(workspaceId, items);
+      if (generation !== contextGeneration.current) return;
+      setContextArtifacts(items);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法读取工作区上下文");
+      if (generation === contextGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法读取工作区上下文");
+      }
     } finally {
-      setContextLoading(false);
+      if (generation === contextGeneration.current) setContextLoading(false);
     }
   }, [workspace]);
 
   const cancel = useCallback(async () => {
     if (!run || TERMINAL.has(run.status)) return;
+    const generation = ++selectionGeneration.current;
+    const targetRunId = run.id;
+    const workspaceId = workspace?.id;
+    setError("");
     try {
-      const cancelled = await api.cancelRun(run.id);
-      ++requestGeneration.current;
+      const cancelled = await api.cancelRun(targetRunId);
+      if (generation !== selectionGeneration.current) return;
+      if (cancelled.id !== targetRunId) {
+        throw new InspectionOwnershipError("停止运行响应与当前 Run 不一致");
+      }
+      if (!workspaceId) {
+        throw new InspectionOwnershipError("当前运行缺少工作空间归属");
+      }
+      assertRunWorkspace(cancelled, workspaceId);
       setRun(cancelled);
       setMessages((previous) => previous.map((bundle) =>
         bundle.run?.id === cancelled.id ? { ...bundle, run: cancelled } : bundle,
       ));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法停止运行");
+      if (generation === selectionGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法停止运行");
+      }
     }
-  }, [run]);
+  }, [run, workspace?.id]);
 
   const replay = useCallback(async (target: Run) => {
     if (!TERMINAL.has(target.status) || run && !TERMINAL.has(run.status)) return;
+    const workspaceId = workspace?.id;
+    const targetThread = thread;
+    if (
+      !workspaceId
+      || !targetThread
+      || target.workspace_context?.workspace_id !== workspaceId
+      || !messages.some((bundle) => bundle.turn.id === target.turn_id)
+    ) {
+      setError("待回放 Run 不属于当前任务");
+      return;
+    }
+    const generation = ++selectionGeneration.current;
     setReplayingRunId(target.id);
     setError("");
     try {
       const replayed = await api.replayRun(target.id);
-      const generation = ++requestGeneration.current;
+      if (generation !== selectionGeneration.current) return;
+      if (replayed.replay_of_run_id !== target.id || replayed.turn_id !== target.turn_id) {
+        throw new InspectionOwnershipError("回放响应与所选 Run 不一致");
+      }
+      assertRunWorkspace(replayed, workspaceId);
       setRun(replayed);
       setEvents([]);
       setSteps([]);
       setEvidence([]);
       setMemories([]);
+      setConversationContext([]);
       setClaims([]);
       setArtifacts([]);
       setFeedbackByRun((previous) => ({ ...previous, [replayed.id]: null }));
@@ -619,19 +936,28 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
           ? { ...bundle, run: replayed, artifact: undefined, artifacts: [] }
           : bundle,
       ));
-      void pollRun(replayed, generation);
+      void pollRun(replayed, generation, workspaceId);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法回放运行快照");
+      if (generation === selectionGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法回放运行快照");
+      }
     } finally {
-      setReplayingRunId(undefined);
+      if (generation === selectionGeneration.current) setReplayingRunId(undefined);
     }
-  }, [pollRun, run]);
+  }, [messages, pollRun, run, thread, workspace?.id]);
 
   const recordFeedback = useCallback(async (
     target: Run,
     rating: RunFeedbackRating,
     reason: string,
   ) => {
+    const generation = ++feedbackGeneration.current;
+    const selection = selectionGeneration.current;
+    const workspaceId = workspace?.id;
+    if (!workspaceId || target.workspace_context?.workspace_id !== workspaceId) {
+      setError("待评价 Run 不属于当前工作空间");
+      return false;
+    }
     setFeedbackPendingRunId(target.id);
     setError("");
     try {
@@ -641,31 +967,58 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         reason,
         ...(current ? { expected_version: current.version } : {}),
       });
+      if (
+        generation !== feedbackGeneration.current
+        || selection !== selectionGeneration.current
+      ) return false;
+      if (recorded.run_id !== target.id) {
+        throw new InspectionOwnershipError("反馈响应与所选 Run 不一致");
+      }
       setFeedbackByRun((previous) => ({ ...previous, [target.id]: recorded }));
       return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法保存反馈");
+      if (
+        generation === feedbackGeneration.current
+        && selection === selectionGeneration.current
+      ) {
+        setError(caught instanceof Error ? caught.message : "无法保存反馈");
+      }
       return false;
     } finally {
-      setFeedbackPendingRunId(undefined);
+      if (
+        generation === feedbackGeneration.current
+        && selection === selectionGeneration.current
+      ) {
+        setFeedbackPendingRunId(undefined);
+      }
     }
-  }, [feedbackByRun]);
+  }, [feedbackByRun, workspace?.id]);
 
-  const newThread = () => {
+  const newThread = useCallback(async () => {
+    const shouldRefresh = Boolean(showArchivedThreads && workspace);
+    const workspaceId = workspace?.id;
     resetThread();
+    const generation = selectionGeneration.current;
     setView("assistant");
     setManagedThread(undefined);
-    if (showArchivedThreads && workspace) {
-      setShowArchivedThreads(false);
-      setThreadListLoading(true);
-      void api.listThreads(workspace.id)
-        .then((items) => setThreads(items.filter((item) => item.status === "ACTIVE")))
-        .catch((caught: unknown) => {
-          setError(caught instanceof Error ? caught.message : "无法读取任务列表");
-        })
-        .finally(() => setThreadListLoading(false));
+    if (!shouldRefresh || !workspaceId) return;
+    setShowArchivedThreads(false);
+    setThreads([]);
+    setThreadListLoading(true);
+    setError("");
+    try {
+      const items = await api.listThreads(workspaceId);
+      assertWorkspaceThreads(workspaceId, items);
+      if (generation !== selectionGeneration.current) return;
+      setThreads(items.filter((item) => item.status === "ACTIVE"));
+    } catch (caught) {
+      if (generation === selectionGeneration.current) {
+        setError(caught instanceof Error ? caught.message : "无法读取任务列表");
+      }
+    } finally {
+      if (generation === selectionGeneration.current) setThreadListLoading(false);
     }
-  };
+  }, [resetThread, showArchivedThreads, workspace]);
 
   const running = Boolean(run && !TERMINAL.has(run.status));
 
@@ -688,7 +1041,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         showArchivedThreads={showArchivedThreads}
         onToggleArchivedThreads={() => void toggleArchivedThreads()}
         threadListLoading={threadListLoading}
-        onNewThread={() => { newThread(); setMobileNavOpen(false); }}
+        onNewThread={() => { void newThread(); setMobileNavOpen(false); }}
         onNewWorkspace={() => { setWorkspaceModal(true); setMobileNavOpen(false); }}
         view={view}
         onView={(nextView) => { setView(nextView); setMobileNavOpen(false); }}
@@ -761,6 +1114,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
                   onSubmit={() => void submit()}
                   onCancel={() => void cancel()}
                   running={running}
+                  submitting={submitting}
                   disabled={loading || thread?.status === "ARCHIVED"}
                   placeholder={thread?.status === "ARCHIVED" ? "此任务已归档，恢复后可以继续…" : undefined}
                   note={thread?.status === "ARCHIVED"
@@ -776,7 +1130,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
                   contextOpen={contextPickerOpen}
                   contextLoading={contextLoading}
                   onOpenContext={() => void openContextPicker()}
-                  onCloseContext={() => setContextPickerOpen(false)}
+                  onCloseContext={closeContextPicker}
                   onAddContext={(artifact) =>
                     setAttachments((items) => items.some((item) => item.id === artifact.id)
                       ? items
@@ -795,7 +1149,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
               <RuntimeInspector open={inspectorOpen} mobileVisible={mobileInspectorOpen} onClose={() => { setInspectorOpen(false); setMobileInspectorOpen(false); }} onReplay={() => { if (run) void replay(run); }} replaying={Boolean(replayingRunId)} run={run} streamState={streamState} events={events} steps={steps} evidence={evidence} memories={memories} conversation={conversationContext} claims={claims} artifacts={artifacts} onOpenCollaboration={() => { setInspectorOpen(false); setMobileInspectorOpen(false); setView("collaboration"); }} />
             </div>
           </>
-        ) : view === "collaboration" ? <CollaborationView key={workspace?.id ?? "no-workspace"} workspace={workspace} onOpenRun={(runId) => void openRunInspection(runId)} /> : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} onOpenRun={(runId) => void openRunInspection(runId)} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "files" ? <FilesView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "reports" ? <ReportsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "dashboards" ? <DashboardsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "sql" ? <SqlView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "evidence" ? <EvidenceView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "timeline" ? <TimelineView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "code" ? <CodeView /> : view === "data" ? <DataView /> : view === "studio" ? <StudioView /> : view === "eval" ? <EvalView /> : <AdminView />}
+        ) : view === "collaboration" ? <CollaborationView key={workspace?.id ?? "no-workspace"} workspace={workspace} onOpenRun={(runId, threadId) => void openScopedRun(runId, threadId)} /> : view === "automation" ? <AutomationView key={workspace?.id ?? "no-workspace"} workspace={workspace} onOpenRun={(runId) => void openRunInspection(runId)} /> : view === "actions" ? <ActionsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "artifacts" ? <ArtifactsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "files" ? <FilesView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "reports" ? <ReportsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "dashboards" ? <DashboardsView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "sql" ? <SqlView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "evidence" ? <EvidenceView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "timeline" ? <TimelineView key={workspace?.id ?? "no-workspace"} workspace={workspace} /> : view === "knowledge" ? <KnowledgeView /> : view === "code" ? <CodeView /> : view === "data" ? <DataView /> : view === "studio" ? <StudioView /> : view === "eval" ? <EvalView /> : <AdminView />}
       </section>
 
       {workspaceModal && (
@@ -832,6 +1186,95 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       )}
     </div>
   );
+}
+
+function assertThreadWorkspace(thread: Thread, workspaceId: string) {
+  if (thread.workspace_id !== workspaceId) {
+    throw new InspectionOwnershipError("任务不属于当前工作空间");
+  }
+}
+
+function assertRunWorkspace(run: Run, workspaceId: string) {
+  if (run.workspace_context?.workspace_id !== workspaceId) {
+    throw new InspectionOwnershipError("Run 不属于当前工作空间");
+  }
+}
+
+function assertTurnRunOwnership(threadId: string, turn: Turn, run: Run) {
+  if (turn.thread_id !== threadId) {
+    throw new InspectionOwnershipError("新对话不属于当前任务");
+  }
+  if (run.turn_id !== turn.id) {
+    throw new InspectionOwnershipError("新运行不属于新建对话");
+  }
+}
+
+function assertWorkspaceThreads(workspaceId: string, threads: Thread[]) {
+  if (threads.some((item) => item.workspace_id !== workspaceId)) {
+    throw new InspectionOwnershipError("任务列表包含其他工作空间的数据");
+  }
+}
+
+function assertThreadOwnership(
+  selected: Thread,
+  workspaceId: string,
+  turns: Turn[],
+  runs: Run[],
+) {
+  assertThreadWorkspace(selected, workspaceId);
+  if (turns.some((item) => item.thread_id !== selected.id)) {
+    throw new InspectionOwnershipError("对话记录不属于当前任务");
+  }
+  const turnIds = new Set(turns.map((item) => item.id));
+  if (runs.some((item) => !turnIds.has(item.turn_id))) {
+    throw new InspectionOwnershipError("运行记录不属于当前任务");
+  }
+  for (const item of runs) assertRunWorkspace(item, workspaceId);
+}
+
+function assertWorkspaceArtifacts(workspaceId: string, artifacts: Artifact[]) {
+  if (artifacts.some((item) => item.workspace_id !== workspaceId)) {
+    throw new InspectionOwnershipError("产物列表包含其他工作空间的数据");
+  }
+}
+
+function assertRunArtifacts(runId: string, workspaceId: string, artifacts: Artifact[]) {
+  if (artifacts.some((item) => item.run_id !== runId || item.workspace_id !== workspaceId)) {
+    throw new InspectionOwnershipError("运行产物归属与所选 Run 不一致");
+  }
+}
+
+function assertRunFeedback(runId: string, feedback: RunFeedback | null) {
+  if (feedback && feedback.run_id !== runId) {
+    throw new InspectionOwnershipError("运行反馈归属与所选 Run 不一致");
+  }
+}
+
+function assertInspectionOwnership(snapshot: InspectionSnapshot) {
+  const runId = snapshot.run.id;
+  const workspaceId = snapshot.run.workspace_context?.workspace_id;
+  if (!workspaceId) {
+    throw new InspectionOwnershipError("Run 缺少已固化的工作空间归属");
+  }
+  if (snapshot.events.some((item) => item.run_id !== runId)) {
+    throw new InspectionOwnershipError("运行事件归属与所选 Run 不一致");
+  }
+  if (snapshot.steps.some((item) => item.run_id !== runId)) {
+    throw new InspectionOwnershipError("运行步骤归属与所选 Run 不一致");
+  }
+  if (snapshot.evidence.some((item) => item.run_id !== runId)) {
+    throw new InspectionOwnershipError("证据归属与所选 Run 不一致");
+  }
+  if (snapshot.memories.some((item) => item.run_id !== runId)) {
+    throw new InspectionOwnershipError("记忆快照归属与所选 Run 不一致");
+  }
+  if (snapshot.conversation.some((item) => item.run_id !== runId)) {
+    throw new InspectionOwnershipError("会话快照归属与所选 Run 不一致");
+  }
+  if (snapshot.claims.some((item) => item.run_id !== runId)) {
+    throw new InspectionOwnershipError("结论归属与所选 Run 不一致");
+  }
+  assertRunArtifacts(runId, workspaceId, snapshot.artifacts);
 }
 
 function primaryArtifact(items: Artifact[] | undefined) {

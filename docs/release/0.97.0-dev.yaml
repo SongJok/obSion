@@ -9,7 +9,7 @@ spec:
   migration:
     database: none
     revisions: []
-    notes: No schema, route, or settings changes; the phase adds Web interaction tests, scoped client fixes, and a locked dev-only Hatchling backend for offline wheel contract validation.
+    notes: No schema, route, or settings changes; the phase adds Web interaction tests, selection-generation and ownership-scoped Workbench fixes, and a locked dev-only Hatchling backend for offline wheel contract validation.
   documents:
     - CHANGELOG.md
     - .github/workflows/ci.yml
@@ -24,6 +24,8 @@ spec:
     - apps/web/src/components/artifacts-view.tsx
     - apps/web/src/components/runtime-inspector.tsx
     - apps/web/src/components/studio-view.tsx
+    - apps/web/src/components/workbench.tsx
+    - apps/web/src/lib/types.ts
     - apps/web/tests/actions-interactions.test.tsx
     - apps/web/tests/admin-interactions.test.tsx
     - apps/web/tests/automation-interactions.test.tsx
@@ -35,6 +37,7 @@ spec:
     - apps/web/tests/workspace-assets-interactions.test.tsx
     - apps/web/tests/workspace-projections-interactions.test.tsx
     - apps/web/tests/workbench-interactions.test.tsx
+    - apps/web/tests/workbench-orchestration-interactions.test.tsx
     - services/control-plane/src/obsion/cli.py
     - services/control-plane/pyproject.toml
     - services/control-plane/tests/test_contract_distribution.py
@@ -84,6 +87,9 @@ spec:
     - Phase 5 auth-session and Phase 79 operator-invocation destructive migration tests run only in separate disposable PostgreSQL CI matrix jobs; both perform upgrade/downgrade/re-upgrade plus Alembic drift detection and gate candidate artifact construction.
     - No new dependency — interactions use fireEvent from the already pinned Testing Library, and globals stay off with explicit cleanup.
     - Collaboration error guidance now survives the follow-up refresh it triggers; the ordering is pinned by tests.
+    - Root Workbench selection, context, upload, feedback, and lifecycle operations use scoped generations; Run inspection constructs and owner-validates one complete snapshot before commit, stale requests cannot change current data/error/loading/pending state, and stream Events plus feedback fail closed on Run-owner mismatch.
+    - Submit uses a synchronous single-flight guard and does not expose a newly created Thread before the first Turn/Run passes ownership validation; reopening non-terminal Runs resumes App Server streaming plus REST reconciliation.
+    - Collaboration source links resolve and open the Run's owning Thread; same-Thread replacement inspections preserve the last verified snapshot until the replacement passes every ownership check.
     - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
   vendors: []
   rollout:
@@ -93,6 +99,7 @@ spec:
     - Revert the phase commits; the mutation handler returns to message-then-refresh ordering, Runtime inspector tabs return to pointer-only visual buttons, and the interaction suites are removed.
   verification:
     - npx vitest run tests/workbench-interactions.test.tsx
+    - npx vitest run tests/workbench-orchestration-interactions.test.tsx
     - npx vitest run tests/automation-interactions.test.tsx
     - npx vitest run tests/admin-interactions.test.tsx
     - npx vitest run tests/actions-interactions.test.tsx
@@ -111,5 +118,5 @@ spec:
     - OBSION_RUN_PHASE5_MIGRATION_TEST=1 uv run pytest --no-cov services/control-plane/tests/integration/test_postgres_phase5_auth_session_migration.py
     - OBSION_RUN_PHASE79_MIGRATION_TEST=1 uv run pytest --no-cov services/control-plane/tests/integration/test_postgres_operator_invocation_migration.py
   knownLimitations:
-    - Interaction coverage targets nineteen operator-critical surfaces; additional domain-view suites remain incremental work.
+    - Interaction coverage targets twenty operator-critical surfaces; additional domain-view suites remain incremental work.
     - All six Alpha.1 candidate gates remain PENDING operator-owned items.

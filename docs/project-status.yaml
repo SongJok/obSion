@@ -121,7 +121,7 @@ known_issues:
   - The Java SDK is a REST client of the Python control plane. It does not speak App Server WebSocket and is not a second backend. The Connector SDK SPI is Python-only (`health`/`discover`/`execute`); it does not pip-install tenant modules or load remote connectors. Plugin scan is static HMAC over the declaration, not binary/GPG provenance.
   - Agent sandbox CPU/memory/disk/process fields are declared and pinned; this control plane does not apply cgroups or start a container runtime.
   - Studio compare/rollback does not split Harness traffic. Prompt templates are immutable snapshots pinned on each Turn/Run; they are not rewritten in place. Template interpolation is schema-bound and does not accept user-turn variables.
-  - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows.
+  - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows. Phase 97 root-orchestration hardening makes Workspace/Thread/Run inspection fail closed: selection-sensitive requests use scoped generations, commit only complete owner-validated snapshots, and cannot let stale data/error/loading/pending state cross the active context.
 
 next_phase:
   id: phase-98
@@ -154,8 +154,13 @@ next_phase:
     depending on PyPI availability. The Phase 5 auth-session and Phase 79
     operator-invocation destructive migration round trips now run in isolated
     PostgreSQL CI matrix jobs and gate candidate artifact construction; ADR 0077
-    records the isolation decision. ADR 0076 records the Workbench decisions. Production
-    promotion remains fail-closed while clean staging/UAT,
+    records the isolation decision. The Phase 97 reliability amendment also pins
+    root Workbench Workspace/Thread/Run generations, immutable inspection snapshots,
+    complete resource ownership checks, synchronous submit single-flight, deferred new-
+    Thread visibility, active-Run stream/reconciliation recovery, owning-Thread source-
+    Run routing, and stale data/error/loading/pending rejection with 18 mounted
+    orchestration interactions. ADR 0076 records the Workbench decisions.
+    Production promotion remains fail-closed while clean staging/UAT,
     staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
     signatures, live OIDC/secret-manager/read-replica evidence,
     security and data-owner approval, and maintainer publication

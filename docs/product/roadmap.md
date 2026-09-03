@@ -395,6 +395,23 @@ and exact frozen-resource wheel inspection. The
 candidate contract, recorded evidence, and all six PENDING operator
 gates are untouched.
 
+The Phase 97 Workbench root-orchestration reliability amendment closes a
+cross-context attribution hazard in the mounted application shell. Workspace,
+Thread, source-Run, submit, cancel, replay, feedback, Context Picker, upload,
+and stream operations now capture scoped generations and immutable identity
+snapshots. A Run inspection is constructed in full, checked against every
+persisted owner field, and only then committed; stale requests cannot alter the
+newest selection's data, errors, loading state, or pending indicators. Submit
+has a synchronous single-flight boundary; an uncommitted new Thread is not
+exposed before its first Turn/Run exists; reopening an active Run restores App
+Server streaming and REST reconciliation; and Collaboration resolves a source
+Run's owning Thread before opening it. Same-Thread replacement inspection keeps
+the last verified snapshot until the new snapshot passes validation. Eighteen
+complete-Workbench interactions reverse promise completion, inject mismatched
+ownership, and verify the fail-closed boundary. This remains Phase 97 hardening:
+the candidate contract, recorded evidence, and all six PENDING operator gates
+are unchanged.
+
 The Phase 97 Alpha.1 test-completeness amendment closes a migration CI gap:
 Phase 5 auth-session and Phase 79 operator-invocation upgrade/downgrade/
 re-upgrade tests now run in a dedicated two-entry PostgreSQL matrix. Each entry

@@ -6,7 +6,7 @@ Goal rule 11 requires complete testing of all features. Until this
 phase the Web suite covered pure helpers, hooks, and parsers, but no
 test mounted a component and drove it the way an operator does — the
 Phase 88 audit's last open reliability item. Phase 97 closes it with
-interaction suites over nineteen operator-critical surfaces, and fixes
+interaction suites over twenty operator-critical surfaces, and fixes
 the defect the suites discovered.
 
 ## What changed
@@ -30,6 +30,36 @@ the defect the suites discovered.
     ArrowLeft, ArrowRight, Home, and End. Interactions traverse
     Context, Evidence, Memory, Claims, and Artifacts, including detail
     drawers and Claim-to-Evidence navigation.
+- **`tests/workbench-orchestration-interactions.test.tsx`**
+  (Phase 97 reliability amendment, 18 cases):
+  - Mounts the complete `Workbench`, not an extracted helper, and drives real
+    Workspace, Thread, source-Run, Composer, Context Picker, upload, cancel,
+    replay, feedback, Collaboration, and Runtime-inspector entry points.
+  - Every selection-sensitive request captures an immutable generation plus
+    Workspace/Thread/Run identity. Inspection loaders build a complete
+    snapshot, validate every Event/Step/Evidence/Memory/Conversation/Claim/
+    Artifact owner, then commit it; no loader mutates partial inspector state.
+  - Deferred promises complete Workspace, Thread, and source-Run requests in
+    reverse order to prove that older data, error, loading, and pending state
+    cannot cross into the newest selection. A superseded source-Run is stopped
+    before issuing its seven inspection reads.
+  - Context and upload use independent generations; switching Workspace closes
+    stale context, stops a multi-file upload before the next file, and prevents
+    old Artifacts from becoming attachments in the new Workspace.
+  - Thread history and feedback mutations validate feedback `run_id`; submit,
+    cancel, replay, and feedback responses are ignored after a selection
+    change. Run streaming also rejects an Event whose `run_id` differs from
+    the pinned Run even if a transport adapter regresses.
+  - A synchronous submit ref closes the Enter/click window before React can
+    commit pending state. A newly created Thread remains local until its first
+    Turn/Run response passes ownership checks, preventing visible empty tasks.
+  - Opening a Thread with a non-terminal Run restarts the App Server stream and
+    REST reconciliation loop. Collaboration source links carry the owning
+    Thread ID, switch the complete Thread projection, and inspect the requested
+    historical Run instead of mixing it with the previous Thread.
+  - Replacing an inspection inside the already selected Thread retains the last
+    owner-validated snapshot until the replacement is complete; a mismatched
+    resource fails closed without partially clearing or replacing that snapshot.
 - **`tests/automation-interactions.test.tsx`** (new, 7 cases):
   - *AutomationView*: overview/detail loading, older-version
     publication, validated manual triggers, malformed JSON rejection,
@@ -148,10 +178,16 @@ the defect the suites discovered.
 
 ## Boundary compliance
 
-- Both suites mock only the API boundary (`@/lib/api` via
-  `importOriginal` spread); `ApiError` class identity and all types
-  are production-identical, and assertions target the exact payloads
-  crossing the boundary.
+- All interaction suites mock only the API boundary (`@/lib/api` via
+  `importOriginal` spread); the root-orchestration suite additionally mocks
+  only the App Server stream transport. `ApiError` class identity and all
+  types are production-identical, and assertions target the exact payloads
+  crossing those boundaries.
+- Root Workbench inspection state follows one contract: construct a complete
+  immutable snapshot, validate the selection generation and all persisted
+  ownership fields, then commit. Historical Runs without a pinned
+  `workspace_context.workspace_id` fail closed rather than weakening tenant
+  attribution.
 - No new dependency: interactions use `fireEvent` from the already
   pinned Testing Library; `globals: false` stays, with explicit
   `afterEach(cleanup)`.
@@ -168,14 +204,15 @@ the defect the suites discovered.
 
 ## Testing
 
-- 67 vitest interaction cases across nineteen surfaces.
-- 17 control-plane tests: Workbench, Automation, Admin, Action, Studio,
-  Eval, Knowledge, Data, Code, Files, and Artifacts suite surface
-  coverage plus Reports/Dashboards/SQL/Evidence/Timeline projection
-  markers; accessible tab/dialog contracts; scoped async, input, and
-  path validation; the
-  notice-survival pin, refresh-before-message ordering in the mutation
-  handler, and bookkeeping.
+- 85 vitest interaction cases across twenty operator-critical surfaces,
+  including 18 complete-Workbench generation and ownership cases; the full
+  Web suite passes 181 tests in 22 files.
+- 18 control-plane tests: Workbench root-orchestration, Automation, Admin,
+  Action, Studio, Eval, Knowledge, Data, Code, Files, and Artifacts suite
+  surface coverage plus Reports/Dashboards/SQL/Evidence/Timeline projection
+  markers; accessible tab/dialog contracts; immutable inspection snapshot,
+  selection-generation, stream-owner, feedback-owner, input/path pins;
+  notice-survival, refresh-before-message ordering, and bookkeeping.
 - Full gates: `make check`, `make test-java`, and
   `make validate-release-candidate-contract` (2 live ledgers, 2 drill
   ladders, 16 checks, 6 PENDING operator gates).

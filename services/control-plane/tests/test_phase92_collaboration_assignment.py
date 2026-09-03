@@ -198,19 +198,24 @@ def test_collaboration_view_wires_assignment_and_provenance() -> None:
         "指派给",
         "来源 Run（可选）",
         "task-source-run",
-        "onOpenRun",
+        "onOpenRun?: (runId: string, threadId?: string) => void",
+        "sourceRunThreadId(sourceRuns, task.source_run_id)",
+        "sourceRunThreadId(sourceRuns, decision.source_run_id)",
         "workspace_task_assignee_invalid",
         "workspace_source_run_mismatch",
     ):
         assert marker in view
 
 
-def test_workbench_opens_source_runs_in_the_runtime_inspector() -> None:
+def test_workbench_opens_source_runs_through_their_owning_thread() -> None:
     workbench = _read("src/components/workbench.tsx")
-    assert "openRunInspection" in workbench
-    assert "api.getRun(runId)" in workbench
-    assert "loadInspection(target)" in workbench
-    assert "onOpenRun={(runId) => void openRunInspection(runId)}" in workbench
+    assert "const openScopedRun" in workbench
+    assert "api.listThreads(workspaceId)" in workbench
+    assert "await openThread(selected, runId)" in workbench
+    assert "loadInspection(target, workspaceId)" in workbench
+    assert "assertRunWorkspace(target, workspaceId)" in workbench
+    assert "generation !== selectionGeneration.current" in workbench
+    assert "onOpenRun={(runId, threadId) => void openScopedRun(runId, threadId)}" in workbench
 
 
 def test_display_helpers_and_styles_exist() -> None:
@@ -221,6 +226,8 @@ def test_display_helpers_and_styles_exist() -> None:
         "payload.assignee_id = assigneeId",
         "toDateTimeLocalValue",
         "sourceRunLabel",
+        "sourceRunThreadId",
+        "threadId",
     ):
         assert marker in helpers
     styles = _read("src/app/globals.css")

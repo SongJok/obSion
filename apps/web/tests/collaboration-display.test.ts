@@ -5,6 +5,7 @@ import {
   buildSourceRunOptions,
   memberDisplayName,
   sourceRunLabel,
+  sourceRunThreadId,
   taskCreatePayload,
   taskUpdateHasChanges,
   taskUpdatePayload,
@@ -144,6 +145,14 @@ describe("sourceRunLabel", () => {
   it("falls back to a truncated id when the persisted run left the option window", () => {
     expect(sourceRunLabel([], "cafe0001-run")).toBe("Run cafe0001");
     expect(sourceRunLabel([], null)).toBe("");
+  });
+});
+
+describe("sourceRunThreadId", () => {
+  it("resolves the owning Thread for a loaded source Run", () => {
+    const options = buildSourceRunOptions([thread()], [{ threadId: "thread-1", runs: [run()] }]);
+    expect(sourceRunThreadId(options, "run-1")).toBe("thread-1");
+    expect(sourceRunThreadId(options, "unknown-run")).toBeUndefined();
   });
 });
 

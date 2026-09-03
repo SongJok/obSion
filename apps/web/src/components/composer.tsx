@@ -11,6 +11,7 @@ interface ComposerProps {
   onSubmit: () => void;
   onCancel?: () => void;
   running: boolean;
+  submitting?: boolean;
   disabled?: boolean;
   placeholder?: string;
   note?: string;
@@ -32,6 +33,7 @@ export function Composer({
   onSubmit,
   onCancel,
   running,
+  submitting = false,
   disabled,
   placeholder = "询问知识、指标、代码，或调查线上异常…",
   note = "Obsion 可能出错。关键结论请检查右侧证据与验证状态。",
@@ -72,7 +74,7 @@ export function Composer({
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (!running && value.trim()) onSubmit();
+      if (!running && !submitting && value.trim()) onSubmit();
     }
   };
 
@@ -179,7 +181,7 @@ export function Composer({
               aria-label="添加附件"
               title="添加附件"
               onClick={() => fileInput.current?.click()}
-              disabled={disabled || uploading || running}
+              disabled={disabled || uploading || running || submitting}
             >
               <Paperclip size={18} />
             </button>
@@ -190,7 +192,7 @@ export function Composer({
               title="从工作区产物添加上下文"
               aria-expanded={contextOpen}
               onClick={contextOpen ? closeContext : onOpenContext}
-              disabled={disabled || uploading || running}
+              disabled={disabled || uploading || running || submitting}
             >
               <AtSign size={18} />
             </button>
@@ -199,7 +201,7 @@ export function Composer({
           <button
             className={`send-button ${running ? "stop" : ""}`}
             onClick={running ? onCancel : onSubmit}
-            disabled={!running && (!value.trim() || disabled || uploading)}
+            disabled={!running && (!value.trim() || disabled || uploading || submitting)}
             aria-label={running ? "停止运行" : "发送"}
           >
             {running ? <Square size={14} fill="currentColor" /> : <ArrowUp size={18} />}

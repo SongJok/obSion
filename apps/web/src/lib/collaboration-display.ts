@@ -66,6 +66,14 @@ export function sourceRunLabel(
   return options.find((option) => option.runId === runId)?.label ?? `Run ${runId.slice(0, 8)}`;
 }
 
+export function sourceRunThreadId(
+  options: SourceRunOption[],
+  runId: string | null | undefined,
+): string | undefined {
+  if (!runId) return undefined;
+  return options.find((option) => option.runId === runId)?.threadId;
+}
+
 export function toDateTimeLocalValue(iso: string | null | undefined): string {
   if (!iso) return "";
   const date = new Date(iso);

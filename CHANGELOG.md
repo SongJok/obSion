@@ -7,6 +7,22 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 97 Workbench root-orchestration reliability amendment: all
+  selection-sensitive Workspace, Thread, source-Run, submit, cancel, replay,
+  feedback, Context Picker, upload, and stream operations now capture scoped
+  generations and immutable identity snapshots. Inspection reads validate
+  every Event, Step, Evidence, Memory, Conversation, Claim, Artifact, and
+  feedback owner before committing the complete snapshot, preventing stale
+  requests from crossing Workspace/Thread/Run boundaries or changing current
+  data, error, loading, and pending state. Submission now has a synchronous
+  single-flight gate, active Runs resume App Server streaming plus REST
+  reconciliation when reopened, and Collaboration source Runs open through
+  their owning Thread. Same-Thread inspection transitions retain the last
+  verified projection until the replacement snapshot passes ownership checks.
+  An 18-case complete-Workbench suite uses reverse-order deferred promises and
+  fail-closed ownership responses to pin the contract; the full Web suite now
+  passes 181 tests.
+
 - Phase 97 Alpha.1 migration-CI completeness amendment: the existing Phase 5
   browser-session and Phase 79 operator-invocation destructive migration tests
   now run in separate PostgreSQL matrix jobs with paired opt-in flags,
