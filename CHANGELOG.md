@@ -7,6 +7,13 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 97 Alpha.1 migration-CI completeness amendment: the existing Phase 5
+  browser-session and Phase 79 operator-invocation destructive migration tests
+  now run in separate PostgreSQL matrix jobs with paired opt-in flags,
+  upgrade/downgrade/re-upgrade coverage, post-test Alembic drift detection, and
+  an explicit dependency from candidate artifact construction. Shared developer
+  databases remain protected from destructive test downgrades.
+
 - Phase 97 broader Workbench interaction tests (the Phase 88 audit's
   last open reliability item): a new suite mounts real components and
   drives them with fireEvent against a production-typed mocked API

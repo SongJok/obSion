@@ -140,6 +140,11 @@ the defect the suites discovered.
   and continues to inspect the produced wheel's complete frozen contract
   resource set. This removes the hidden PyPI dependency without replacing
   the real build backend or weakening resource equality.
+- **Migration CI completion**: the Phase 5 auth-session and Phase 79
+  operator-invocation upgrade/downgrade/re-upgrade tests now run in a dedicated
+  two-entry PostgreSQL matrix. Each entry owns a fresh database and opt-in flag,
+  runs Alembic drift detection, and gates the container candidate job. ADR 0077
+  records why destructive migration tests remain isolated.
 
 ## Boundary compliance
 
@@ -158,11 +163,13 @@ the defect the suites discovered.
   API shape changes.
 - The release-candidate contract, recorded evidence, and the six
   PENDING operator gates are untouched.
+- Destructive migration tests never target the shared migrations service or a
+  developer database; their CI services are entry-scoped and disposable.
 
 ## Testing
 
 - 67 vitest interaction cases across nineteen surfaces.
-- 16 control-plane tests: Workbench, Automation, Admin, Action, Studio,
+- 17 control-plane tests: Workbench, Automation, Admin, Action, Studio,
   Eval, Knowledge, Data, Code, Files, and Artifacts suite surface
   coverage plus Reports/Dashboards/SQL/Evidence/Timeline projection
   markers; accessible tab/dialog contracts; scoped async, input, and
@@ -172,3 +179,6 @@ the defect the suites discovered.
 - Full gates: `make check`, `make test-java`, and
   `make validate-release-candidate-contract` (2 live ledgers, 2 drill
   ladders, 16 checks, 6 PENDING operator gates).
+- Phase 5 and Phase 79 migration round trips pass against separately created,
+  disposable PostgreSQL databases; the CI matrix and container dependency are
+  pinned by the Phase 97 contract test.

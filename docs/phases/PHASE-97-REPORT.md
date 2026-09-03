@@ -82,6 +82,11 @@ interaction tests — is closed:
   directory is still inspected byte-for-byte; PyPI availability is no
   longer an accidental test prerequisite. The CycloneDX SBOM is regenerated
   from the updated lock.
+- **Complete migration CI coverage**: Phase 5 browser-session and Phase 79
+  operator-invocation migration tests now execute in a two-entry CI matrix.
+  Each job owns a fresh PostgreSQL database, sets only its paired opt-in flag,
+  exercises upgrade/downgrade/re-upgrade, runs Alembic drift detection, and must
+  pass before the Alpha.1 container candidate job starts.
 
 ## Defect found and fixed
 
@@ -125,10 +130,14 @@ uv cache and downloaded Hatchling during the test. A PyPI timeout failed an
 otherwise valid build. Locking the backend in the dev environment and using
 offline/no-isolation mode fixes the reproducibility boundary without
 weakening the packaged-resource equality assertion.
+The comprehensive migration audit also found that two destructive round-trip
+tests existed but were never opted into by CI. Both passed against independent
+disposable PostgreSQL databases, and the new matrix makes those proofs
+mandatory without risking a shared development database.
 
 ## Architecture decisions
 
-ADR 0076 records fourteen decisions: Testing Library interactions
+ADR 0076 records fourteen Workbench decisions: Testing Library interactions
 with no new dependency, one mocked API boundary per suite, explicit
 cleanup under `globals: false`, and treating a failing interaction
 test as a defect report, plus the accessible Runtime inspector tab
@@ -137,13 +146,15 @@ dataset-scoped Eval state/input validation, stale-Evidence prevention,
 generation-scoped metric lineage, generation-scoped Code search, and
 path/ACL-governed Workspace assets, and persisted-fact-only Workspace
 projections, and offline reproducible contract-wheel validation.
+ADR 0077 records the separate migration-test isolation decision.
 
 ## Migration
 
 None. No backend route, schema, permission, or API shape change.
 Hatchling is added to the development-only dependency set and `uv.lock`;
-there is no runtime dependency or database migration. Rollback is reverting
-the phase commits.
+there is no runtime dependency or database migration. The CI change only
+executes existing migration tests in disposable databases. Rollback is
+reverting the phase commits.
 
 ## Validation
 
@@ -160,12 +171,16 @@ the phase commits.
   `apps/web/tests/workspace-projections-interactions.test.tsx` — 67
   interaction cases across nineteen surfaces; full Web suite 162 passed.
 - `services/control-plane/tests/test_phase97_workbench_interactions.py`
-  — 16 tests: Workbench, Automation, Admin, Action, Studio, Eval,
+  — 17 tests: Workbench, Automation, Admin, Action, Studio, Eval,
   Knowledge, Data, Code, Files, and Artifacts suite coverage markers;
   Reports/Dashboards/SQL/Evidence/Timeline fact-projection markers;
   accessible tab/dialog contracts; scoped async/input/path pins;
   notice-survival;
   refresh-before-message ordering; and bookkeeping.
+- `test_postgres_phase5_auth_session_migration.py` and
+  `test_postgres_operator_invocation_migration.py` pass in separate disposable
+  PostgreSQL databases; `.github/workflows/ci.yml` now reproduces both through
+  the `migration-round-trips` matrix before candidate artifact construction.
 - `make check` and `make test-java` pass.
 - `services/control-plane/tests/test_contract_distribution.py` builds the
   wheel offline and confirms every frozen Event/Error JSON resource is

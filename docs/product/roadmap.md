@@ -394,3 +394,10 @@ distribution is also reproducible offline with a locked Hatchling backend
 and exact frozen-resource wheel inspection. The
 candidate contract, recorded evidence, and all six PENDING operator
 gates are untouched.
+
+The Phase 97 Alpha.1 test-completeness amendment closes a migration CI gap:
+Phase 5 auth-session and Phase 79 operator-invocation upgrade/downgrade/
+re-upgrade tests now run in a dedicated two-entry PostgreSQL matrix. Each entry
+owns a fresh database and opt-in flag, performs Alembic drift detection, and
+must pass before candidate artifact construction. ADR 0077 records why these
+destructive tests remain isolated from shared development databases.

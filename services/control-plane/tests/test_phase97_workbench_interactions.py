@@ -307,6 +307,26 @@ def test_mutation_handler_refreshes_before_surfacing_guidance() -> None:
     assert 'setError("来源 Run 必须属于当前工作空间' in view
 
 
+def test_ci_executes_every_destructive_migration_round_trip() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    matrix_job = workflow.split("  migration-round-trips:", 1)[1].split("\n  containers:", 1)[0]
+    for marker in (
+        "phase5-auth-session",
+        "obsion_phase5_auth_session",
+        "OBSION_RUN_PHASE5_MIGRATION_TEST",
+        "test_postgres_phase5_auth_session_migration.py",
+        "phase79-operator-invocation",
+        "obsion_phase79_operator_invocation",
+        "OBSION_RUN_PHASE79_MIGRATION_TEST",
+        "test_postgres_operator_invocation_migration.py",
+        'env "${{ matrix.opt_in }}=1"',
+        "alembic -c services/control-plane/alembic.ini check",
+    ):
+        assert marker in matrix_job
+    containers = workflow.split("  containers:", 1)[1].split("\n  java-sdk:", 1)[0]
+    assert "migration-round-trips" in containers.split("needs:", 1)[1].split("\n", 1)[0]
+
+
 def test_release_notes_and_project_status_track_phase97() -> None:
     result = validate_release_notes(ROOT / "docs" / "release" / "0.97.0-dev.yaml", ROOT)
     assert result["version"] == "0.97.0-dev"

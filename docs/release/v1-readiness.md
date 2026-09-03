@@ -54,6 +54,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Workspace Files and Artifacts interactions: immutable history, filename-derived paths, classification/lineage metadata, accessible uploads, governed downloads, filters, previews, and Artifact-ID-preserving refresh are mounted and driven
 - [x] Workspace fact projections: persisted Reports, unique valid Dashboard panel references with error recovery, validated SQL text without execution, immutable Evidence envelopes, and Event Store Timeline payloads are mounted and driven by persisted IDs
 - [x] Offline contract distribution: Hatchling and its build closure are locked dev dependencies; a real wheel is built with no isolation and offline mode, then checked for exact frozen Event/Error resources; the SBOM reflects the lock
+- [x] Every destructive PostgreSQL migration round trip has an isolated CI database; Phase 5 auth sessions and Phase 79 operator invocations now join the existing audit-log and identity migration gates before candidate artifact construction
 
 ## Operator-owned (not claimed by this repository run)
 

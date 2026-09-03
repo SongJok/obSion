@@ -151,7 +151,10 @@ next_phase:
     now have persisted-fact interaction contracts with validated Dashboard
     references and panel-error recovery. Frozen-contract wheel validation now
     uses a locked offline Hatchling backend and regenerated SBOM rather than
-    depending on PyPI availability. ADR 0076 records the decisions. Production
+    depending on PyPI availability. The Phase 5 auth-session and Phase 79
+    operator-invocation destructive migration round trips now run in isolated
+    PostgreSQL CI matrix jobs and gate candidate artifact construction; ADR 0077
+    records the isolation decision. ADR 0076 records the Workbench decisions. Production
     promotion remains fail-closed while clean staging/UAT,
     staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
     signatures, live OIDC/secret-manager/read-replica evidence,

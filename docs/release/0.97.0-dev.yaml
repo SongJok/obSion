@@ -12,6 +12,7 @@ spec:
     notes: No schema, route, or settings changes; the phase adds Web interaction tests, scoped client fixes, and a locked dev-only Hatchling backend for offline wheel contract validation.
   documents:
     - CHANGELOG.md
+    - .github/workflows/ci.yml
     - apps/web/src/components/actions-view.tsx
     - apps/web/src/components/collaboration-view.tsx
     - apps/web/src/components/code-view.tsx
@@ -62,6 +63,7 @@ spec:
     - docs/phases/PHASE-97-REPORT.md
     - docs/architecture/phase-97-workbench-interactions.md
     - docs/adr/0076-workbench-interaction-testing.md
+    - docs/adr/0077-migration-round-trip-ci-isolation.md
     - uv.lock
   boundaries:
     - Alpha.1 remains one Python control plane, one App Server, one Harness, and one versioned Event protocol; this phase changes no backend route, schema, or permission and adds tests plus scoped Workbench interaction and accessibility fixes.
@@ -79,6 +81,7 @@ spec:
     - Workspace Files derives a safe path from the selected filename instead of a fabricated default; Files and Artifacts preserve Workspace classification/lineage metadata, expose named upload inputs, and exercise history/filter/preview/download/ID-preserving refresh.
     - Reports, Dashboards, SQL, Evidence, and Timeline render scoped persisted Artifact/Evidence/Event facts; Dashboard references are non-empty strings, trimmed and deduplicated, and a new successful detail clears a prior panel error without inventing panels.
     - Frozen-contract wheel validation uses the real locked Hatchling backend with no build isolation and offline mode; exact packaged-resource equality remains mandatory and the regenerated SBOM records the updated dev build closure.
+    - Phase 5 auth-session and Phase 79 operator-invocation destructive migration tests run only in separate disposable PostgreSQL CI matrix jobs; both perform upgrade/downgrade/re-upgrade plus Alembic drift detection and gate candidate artifact construction.
     - No new dependency — interactions use fireEvent from the already pinned Testing Library, and globals stay off with explicit cleanup.
     - Collaboration error guidance now survives the follow-up refresh it triggers; the ordering is pinned by tests.
     - Recorded evidence, the candidate contract, and the six PENDING operator gates are untouched; nothing in this phase feeds promotion eligibility.
@@ -105,6 +108,8 @@ spec:
     - make check
     - make test-java
     - make validate-release-candidate-contract
+    - OBSION_RUN_PHASE5_MIGRATION_TEST=1 uv run pytest --no-cov services/control-plane/tests/integration/test_postgres_phase5_auth_session_migration.py
+    - OBSION_RUN_PHASE79_MIGRATION_TEST=1 uv run pytest --no-cov services/control-plane/tests/integration/test_postgres_operator_invocation_migration.py
   knownLimitations:
     - Interaction coverage targets nineteen operator-critical surfaces; additional domain-view suites remain incremental work.
     - All six Alpha.1 candidate gates remain PENDING operator-owned items.

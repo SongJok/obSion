@@ -190,10 +190,61 @@ jobs:
           services/control-plane/tests/integration/test_postgres_phase2_identity_migration.py
       - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
 
+  # These migrations also downgrade and re-upgrade schema state, so each matrix
+  # entry owns a fresh PostgreSQL database instead of touching the shared
+  # migrations job. Keep the opt-in flag and test path paired in the matrix.
+  migration-round-trips:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: phase5-auth-session
+            database: obsion_phase5_auth_session
+            opt_in: OBSION_RUN_PHASE5_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_phase5_auth_session_migration.py
+          - name: phase79-operator-invocation
+            database: obsion_phase79_operator_invocation
+            opt_in: OBSION_RUN_PHASE79_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_operator_invocation_migration.py
+    name: migration-round-trip (${{ matrix.name }})
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg17-bookworm
+        env:
+          POSTGRES_DB: ${{ matrix.database }}
+          POSTGRES_USER: obsion
+          POSTGRES_PASSWORD: obsion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U obsion -d ${{ matrix.database }}"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OBSION_DATABASE_URL: postgresql+asyncpg://obsion:obsion@localhost:5432/${{ matrix.database }}
+      OBSION_ENVIRONMENT: test
+      OBSION_AUTH_MODE: development
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.16"
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+      - run: uv sync --locked --all-packages --all-extras
+      - name: Exercise upgrade, downgrade, and re-upgrade
+        run: env "${{ matrix.opt_in }}=1" uv run pytest "${{ matrix.test }}"
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
+
   containers:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    needs: [quality, migrations, audit-log-migration, phase2-identity-migration, java-sdk, helm]
+    needs: [quality, migrations, audit-log-migration, phase2-identity-migration, migration-round-trips, java-sdk, helm]
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -218,7 +269,9 @@ jobs:
       - run: make validate-release-artifacts
       - run: make validate-release-candidate
       - id: release
-        run: echo "version=$(sed -n 's/^version: *//p' docs/project-status.yaml)" >> "$GITHUB_OUTPUT"
+        run: >-
+          echo "version=$(sed -n 's/^version: *//p' docs/project-status.yaml)"
+          >> "$GITHUB_OUTPUT"
       - uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: obsion-control-plane:${{ steps.release.outputs.version }}
