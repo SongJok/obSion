@@ -36,7 +36,7 @@ jobs:
         run: >-
           uv run obsion record-artifact-drill-evidence
           --output "$RUNNER_TEMP/artifact-store-drill.yaml"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: drill-ledgers
