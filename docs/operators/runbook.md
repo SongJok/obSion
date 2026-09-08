@@ -29,6 +29,15 @@ credential from REST/SDK/App Server clients. The checked-in example value is
 intentionally public and must never be reused in a shared or remote environment. A
 missing token or session does not resolve the seeded user.
 
+The first local administrator can instead be enrolled with `obsion provision-user`.
+The password is never a command-line argument: provide it through a hidden prompt,
+piped stdin, or the one-use `OBSION_PROVISION_PASSWORD` process environment variable.
+The command is idempotent and rotates an existing local credential. A weak-password
+override is hard-rejected outside development/test. Browser password exchange uses the
+same revocable session and authorization path as bearer exchange; set
+`OBSION_PASSWORD_AUTH_ENABLED=false` to refuse it entirely. Repeated failures lock the
+credential row for the configured interval.
+
 Configure model egress with exact authorities in `OBSION_MODEL_ALLOWED_HOSTS`; HTTP is
 accepted only for loopback development/test endpoints.
 `OBSION_MODEL_REQUEST_TIMEOUT_SECONDS` is the per-attempt deadline. Keep
@@ -38,6 +47,13 @@ endpoints whose limits declare `private=true`. `CONFIDENTIAL` or `RESTRICTED` ca
 fail closed when that Profile or endpoint is absent. Store provider secrets behind
 `credential_ref`; never put them in Helm values, endpoint limits, Profile requirements,
 or frontend configuration.
+
+Local Compose optionally loads the ignored `.env` into the API process so an
+`env://OBSION_AI_API_KEY` reference can resolve inside Model Gateway. The migration
+container does not receive that file, and explicit Compose values replace host-side
+database, Redis, object-store, and browser-origin addresses with service-network
+addresses. Keep a local `.env` key-for-key aligned with `.env.example`; production
+continues to use Helm and the organization secret manager.
 
 Create the logical `fast`, `reasoning-high`, and `private` profiles independently of
 provider model IDs. An endpoint must declare every capability it actually supports:

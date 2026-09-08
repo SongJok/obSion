@@ -1,11 +1,12 @@
 "use client";
 
 import { ArrowUp, AtSign, FileText, LoaderCircle, Paperclip, Search, Square, X } from "lucide-react";
-import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, KeyboardEvent, RefObject, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Artifact } from "@/lib/types";
 
 interface ComposerProps {
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
@@ -28,6 +29,7 @@ interface ComposerProps {
 }
 
 export function Composer({
+  inputRef,
   value,
   onChange,
   onSubmit,
@@ -48,7 +50,8 @@ export function Composer({
   onCloseContext,
   onAddContext,
 }: ComposerProps) {
-  const textarea = useRef<HTMLTextAreaElement>(null);
+  const localInputRef = useRef<HTMLTextAreaElement>(null);
+  const textarea = inputRef ?? localInputRef;
   const fileInput = useRef<HTMLInputElement>(null);
   const [contextQuery, setContextQuery] = useState("");
 
@@ -57,7 +60,7 @@ export function Composer({
     if (!element) return;
     element.style.height = "auto";
     element.style.height = `${Math.min(element.scrollHeight, 180)}px`;
-  }, [value]);
+  }, [value, textarea]);
 
   const availableContext = useMemo(() => {
     const selected = new Set(attachments.map((artifact) => artifact.id));
@@ -74,7 +77,7 @@ export function Composer({
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (!running && !submitting && value.trim()) onSubmit();
+      if (!running && !submitting && !disabled && !uploading && value.trim()) onSubmit();
     }
   };
 
@@ -177,35 +180,38 @@ export function Composer({
             />
             <button
               type="button"
-              className="icon-button"
+              className="icon-button composer-tool"
               aria-label="添加附件"
               title="添加附件"
               onClick={() => fileInput.current?.click()}
               disabled={disabled || uploading || running || submitting}
             >
-              <Paperclip size={18} />
+              <Paperclip size={18} /><span>附件</span>
             </button>
             <button
               type="button"
-              className={`icon-button ${contextOpen ? "active" : ""}`}
+              className={`icon-button composer-tool ${contextOpen ? "active" : ""}`}
               aria-label="添加上下文"
               title="从工作区产物添加上下文"
               aria-expanded={contextOpen}
               onClick={contextOpen ? closeContext : onOpenContext}
               disabled={disabled || uploading || running || submitting}
             >
-              <AtSign size={18} />
+              <AtSign size={18} /><span>上下文</span>
             </button>
             <span className="model-pill">自动路由</span>
           </div>
-          <button
-            className={`send-button ${running ? "stop" : ""}`}
-            onClick={running ? onCancel : onSubmit}
-            disabled={!running && (!value.trim() || disabled || uploading || submitting)}
-            aria-label={running ? "停止运行" : "发送"}
-          >
-            {running ? <Square size={14} fill="currentColor" /> : <ArrowUp size={18} />}
-          </button>
+          <div className="composer-submit-tools">
+            <span className="composer-shortcut">Enter 发送 · Shift + Enter 换行</span>
+            <button
+              className={`send-button ${running ? "stop" : ""}`}
+              onClick={running ? onCancel : onSubmit}
+              disabled={!running && (!value.trim() || disabled || uploading || submitting)}
+              aria-label={running ? "停止运行" : "发送"}
+            >
+              {running ? <Square size={14} fill="currentColor" /> : submitting ? <LoaderCircle className="spin" size={18} /> : <ArrowUp size={18} />}
+            </button>
+          </div>
         </div>
       </div>
       <p className="composer-note">{note}</p>

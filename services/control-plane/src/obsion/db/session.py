@@ -1,5 +1,7 @@
 from collections.abc import AsyncIterator
+from typing import Protocol, cast
 
+from sqlalchemy import Connection, event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -8,6 +10,18 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from obsion.config import Settings
+
+
+class _SQLiteTransactionState(Protocol):
+    @property
+    def in_transaction(self) -> bool: ...
+
+
+def _begin_sqlite_savepoint(connection: Connection, name: str | None) -> None:
+    # legacy 驱动不为 SAVEPOINT 开启事务；只在此边界补齐，保留普通读取行为。
+    driver = cast(_SQLiteTransactionState, connection.connection.driver_connection)
+    if not driver.in_transaction:
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
 
 
 class Database:
@@ -22,6 +36,8 @@ class Database:
                 max_overflow=settings.database_pool_max_overflow,
             )
         self.engine: AsyncEngine = create_async_engine(settings.database_url, **engine_kwargs)
+        if self.engine.dialect.name == "sqlite":
+            event.listen(self.engine.sync_engine, "savepoint", _begin_sqlite_savepoint)
         self.sessions = async_sessionmaker(
             bind=self.engine,
             class_=AsyncSession,

@@ -64,13 +64,33 @@ class Settings(BaseSettings):
     )
     auth_session_ttl_seconds: int = Field(default=8 * 60 * 60, ge=300, le=7 * 24 * 60 * 60)
     auth_session_retention_days: int = Field(default=30, ge=1, le=365)
+    # Local password credentials exist for deployments without an identity
+    # provider and for the first administrator, who must be able to sign in
+    # before OIDC is wired. They never replace OIDC where one is configured.
+    password_auth_enabled: bool = True
+    password_min_length: int = Field(default=12, ge=6, le=256)
+    password_max_length: int = Field(default=256, ge=16, le=1024)
+    password_max_failed_attempts: int = Field(default=5, ge=1, le=100)
+    password_lockout_seconds: int = Field(default=900, ge=30, le=24 * 60 * 60)
+    password_scrypt_cost: int = Field(default=2**14, ge=2**10, le=2**20)
+    password_scrypt_block_size: int = Field(default=8, ge=1, le=64)
+    password_scrypt_parallelism: int = Field(default=1, ge=1, le=16)
     run_max_steps: int = Field(default=30, ge=1, le=200)
     run_max_critic_replans: int = Field(default=1, ge=0, le=3)
     run_timeout_seconds: int = Field(default=300, ge=10, le=3600)
+    run_clarification_ttl_seconds: int = Field(
+        default=24 * 60 * 60,
+        ge=60,
+        le=7 * 24 * 60 * 60,
+    )
     run_max_input_tokens: int = Field(default=120_000, ge=1_000, le=10_000_000)
     run_max_output_tokens: int = Field(default=16_000, ge=256, le=1_000_000)
     run_max_cost_amount: Decimal = Field(default=Decimal("10"), gt=0, le=1_000_000)
     run_worker_concurrency: int = Field(default=8, ge=1, le=128)
+    dingtalk_outbox_enabled: bool = False
+    dingtalk_outbox_poll_interval_seconds: float = Field(default=1.0, ge=0.1, le=30)
+    dingtalk_outbox_lease_seconds: int = Field(default=60, ge=10, le=900)
+    dingtalk_outbox_max_attempts: int = Field(default=3, ge=1, le=10)
     automation_enabled: bool = True
     automation_worker_concurrency: int = Field(default=4, ge=1, le=64)
     automation_poll_interval_seconds: float = Field(default=0.5, ge=0.1, le=30)
@@ -156,6 +176,12 @@ class Settings(BaseSettings):
             raise ValueError("OIDC mode requires issuer, audience, and JWKS URL")
         if self.sql_default_limit > self.sql_max_limit:
             raise ValueError("sql_default_limit cannot exceed sql_max_limit")
+        if self.password_min_length > self.password_max_length:
+            raise ValueError("password_min_length cannot exceed password_max_length")
+        if self.password_scrypt_cost & (self.password_scrypt_cost - 1):
+            raise ValueError("password_scrypt_cost must be a power of two")
+        if 128 * self.password_scrypt_block_size * self.password_scrypt_cost > 128 * 1024 * 1024:
+            raise ValueError("password scrypt parameters exceed the permitted memory bound")
         if self.automation_lease_seconds <= self.automation_poll_interval_seconds:
             raise ValueError("automation lease must exceed the polling interval")
         if self.action_lease_seconds <= self.action_poll_interval_seconds:

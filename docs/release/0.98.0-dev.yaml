@@ -1,0 +1,86 @@
+apiVersion: obsion.ai/v1
+kind: ReleaseNotes
+metadata:
+  name: alpha1-local-operator-access
+  version: 0.98.0-dev
+  phase: 98
+spec:
+  consolidates: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97]
+  migration:
+    database: alembic
+    revisions: [d7f31a9c4b28]
+    notes: Adds one organization-scoped user_credentials table; no existing row or identity mapping is rewritten.
+  documents:
+    - .env.example
+    - .github/workflows/ci.yml
+    - CHANGELOG.md
+    - README.md
+    - docker-compose.yml
+    - apps/web/src/app/globals.css
+    - apps/web/src/components/session-gate.tsx
+    - apps/web/src/lib/api.ts
+    - apps/web/tests/session-gate-interactions.test.tsx
+    - services/control-plane/alembic/versions/d7f31a9c4b28_add_local_password_credentials.py
+    - services/control-plane/src/obsion/api/auth.py
+    - services/control-plane/src/obsion/api/schemas.py
+    - services/control-plane/src/obsion/cli.py
+    - services/control-plane/src/obsion/config.py
+    - services/control-plane/src/obsion/contracts/errors/catalog.json
+    - services/control-plane/src/obsion/db/models.py
+    - services/control-plane/src/obsion/persistence/user_credentials.py
+    - services/control-plane/src/obsion/security/auth.py
+    - services/control-plane/src/obsion/security/passwords.py
+    - services/control-plane/src/obsion/security/provisioning.py
+    - services/control-plane/tests/error_producer_manifest.py
+    - services/control-plane/tests/integration/test_postgres_phase98_user_credential_migration.py
+    - services/control-plane/tests/test_contract_quality_gates.py
+    - services/control-plane/tests/test_phase25_release_hardening.py
+    - services/control-plane/tests/test_phase98_password_authentication.py
+    - docs/adr/0077-migration-round-trip-ci-isolation.md
+    - docs/adr/0078-local-password-credential-exchange.md
+    - docs/api/openapi.json
+    - docs/architecture/phase-98-local-password-credentials.md
+    - docs/operators/runbook.md
+    - docs/phases/PHASE-98-REPORT.md
+    - docs/product/roadmap.md
+    - docs/project-status.yaml
+    - docs/release/0.98.0-dev.md
+    - docs/release/sbom.cdx.json
+    - docs/release/v1-readiness.md
+  boundaries:
+    - Password login is an additional credential exchange into the existing Principal and revocable browser session; it is not a new AuthMode or authorization path.
+    - Enrollment remains local CLI only and never accepts a password process argument; no unauthenticated HTTP endpoint can create a user or grant a role.
+    - PostgreSQL stores salted scrypt derivations only, with bounded parameters, row-locked failure accounting, committed lockout updates, and equivalent KDF work for identity misses.
+    - Workbench password and token tabs converge on the same session, and secret state is cleared on rejection or mode change.
+    - The ignored local .env and checked-in example have identical key sets; the example covers every Settings field, while Compose loads the optional file only into the API.
+    - Model credentials stay behind env references inside Model Gateway. The validated local non-private endpoint is not bound to the private profile.
+    - The Harness remains Workspace to Thread to Turn to Run to Step to Event; no client, login mode, or model endpoint implements a second loop.
+    - Production actions, database writes, deployments, restarts, automatic repair, direct Agent credentials, and policy-by-prompt remain forbidden.
+    - Existing Alpha.1 promotion evidence and operator-owned approvals remain fail-closed; this phase does not publish, sign, deploy to staging, or use ci.txt.
+  vendors: []
+  rollout:
+    - Run the ordinary quality gates and the isolated Phase 98 PostgreSQL migration round trip.
+    - Apply Alembic revision d7f31a9c4b28 before enabling password exchange.
+    - Provision or rotate the first administrator through obsion provision-user using stdin, a one-use process environment value, or the hidden prompt.
+    - Configure exact model egress and an env credential reference through the authenticated admin API; bind only approved logical profiles.
+    - Leave OBSION_PASSWORD_AUTH_ENABLED false on deployments that require identity-provider-only login.
+  rollback:
+    - Disable password exchange before application rollback so no new local sessions are issued.
+    - Preserve an OIDC or development-bearer administrator before removing the credential table.
+    - Downgrade from d7f31a9c4b28 only when deletion of local credential derivations and lockout state is explicitly accepted.
+    - Remove local model bindings through the audited admin path; do not delete model call or Run evidence.
+  verification:
+    - uv run pytest services/control-plane/tests/test_phase98_password_authentication.py
+    - npm run test --workspace @obsion/web -- --run tests/session-gate-interactions.test.tsx
+    - OBSION_RUN_PHASE98_MIGRATION_TEST=1 uv run pytest services/control-plane/tests/integration/test_postgres_phase98_user_credential_migration.py
+    - make validate-feishu-live with process-injected operator credentials
+    - make check
+    - make test-java
+    - make validate-release-candidate-contract
+  knownLimitations:
+    - Password reset remains an operator-driven credential rotation; no email recovery channel is implemented.
+    - DingTalk and WeCom live tenants remain untested because no credentials are available.
+    - Clean staging deploy and UAT remain operator-owned.
+    - Staging-scoped timed restore remains operator-owned.
+    - Registry HIGH and CRITICAL CVE policy, signatures, and publication authority remain operator-owned.
+    - Live OIDC, secret manager, read replicas, security approval, and data-owner approval remain operator-owned.

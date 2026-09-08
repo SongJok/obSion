@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import re
 from typing import Any
 from urllib.parse import urlparse
@@ -39,6 +40,8 @@ from obsion.api.admin_schemas import (
 from obsion.api.dependencies import get_connector_sdk_runtime
 from obsion.application.slo import RuntimeSloService
 from obsion.capabilities.connector_spi import ConnectorSdkRuntime
+from obsion.capabilities.connectors import CredentialBroker
+from obsion.capabilities.dingtalk_robot import DINGTALK_ROBOT_PROTOCOL
 from obsion.capabilities.plugin_governance import (
     enforce_plugin_governance,
     inspect_plugin,
@@ -525,6 +528,127 @@ async def probe_connector_health(
     return {"id": str(connector_id), "health": health_payload}
 
 
+@router.post("/connectors/{connector_id}/activate")
+async def activate_connector(
+    connector_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    """Activate a DingTalk robot connector after validating its deployment inputs.
+
+    Robot activation is intentionally separate from generic plugin promotion:
+    the operator must prove that the public app/robot identities and secret
+    reference are available in the current control-plane environment before a
+    write-capability binding can be used.
+    """
+
+    _require_admin(principal, "connectors.write")
+    async with session.begin():
+        connector = await session.scalar(
+            select(Connector).where(
+                Connector.id == connector_id,
+                Connector.organization_id == principal.organization_id,
+            )
+        )
+        if connector is None:
+            raise NotFoundError("Connector", connector_id)
+        try:
+            _validate_dingtalk_robot_activation(connector)
+            await CredentialBroker().resolve(
+                connector.credential_ref,
+                session=session,
+                organization_id=principal.organization_id,
+            )
+        except ObsionError as exc:
+            await _audit_admin(
+                session,
+                principal,
+                "connector.activate",
+                "connector",
+                connector.id,
+                outcome="FAILED",
+                metadata={"error_code": exc.code},
+            )
+            raise
+        connector.status = ConnectorStatus.ACTIVE
+        connector.last_health = {
+            "status": "ready",
+            "activation": "operator-validated",
+            "protocol": DINGTALK_ROBOT_PROTOCOL,
+            "credential": "available",
+        }
+        await _audit_admin(
+            session,
+            principal,
+            "connector.activate",
+            "connector",
+            connector.id,
+            metadata={"protocol": DINGTALK_ROBOT_PROTOCOL},
+        )
+        binding_count = await session.scalar(
+            select(func.count())
+            .select_from(CapabilityBinding)
+            .where(
+                CapabilityBinding.organization_id == principal.organization_id,
+                CapabilityBinding.connector_id == connector.id,
+                CapabilityBinding.enabled.is_(True),
+            )
+        )
+    return {
+        "id": str(connector_id),
+        "status": connector.status,
+        "health": connector.last_health,
+        "enabled_binding_count": int(binding_count or 0),
+    }
+
+
+def _validate_dingtalk_robot_activation(connector: Connector) -> None:
+    if connector.connector_type != "dingtalk-robot":
+        raise ValidationError(
+            "connector_egress_invalid",
+            "Only DingTalk robot connectors may use this activation endpoint",
+        )
+    configuration = connector.configuration if isinstance(connector.configuration, dict) else {}
+    if configuration.get("protocol") != DINGTALK_ROBOT_PROTOCOL:
+        raise ValidationError(
+            "connector_egress_invalid",
+            "The DingTalk robot protocol declaration is invalid",
+        )
+    if connector.endpoint != "https://api.dingtalk.com":
+        raise ValidationError(
+            "connector_egress_invalid",
+            "DingTalk robot egress must use https://api.dingtalk.com",
+        )
+    if "https://api.dingtalk.com" not in connector.allowed_egress:
+        raise ValidationError(
+            "connector_egress_invalid",
+            "DingTalk robot egress must be explicitly allowlisted",
+        )
+    if "im.reply.deliver" not in connector.declared_grants:
+        raise ValidationError(
+            "connector_grant_missing",
+            "The DingTalk robot connector must declare im.reply.deliver",
+        )
+    if not connector.credential_ref:
+        raise ValidationError(
+            "credential_unavailable",
+            "The DingTalk robot connector requires a credential reference",
+        )
+    for key in ("app_key_env", "robot_code_env"):
+        value = configuration.get(key)
+        if value is not None:
+            if not isinstance(value, str) or not re.fullmatch(r"OBSION_[A-Z][A-Z0-9_]*", value):
+                raise ValidationError(
+                    "connector_egress_invalid",
+                    "DingTalk identity references must use OBSION_* environment names",
+                )
+            if not os.environ.get(value, "").strip():
+                raise ValidationError(
+                    "credential_unavailable",
+                    "A configured DingTalk identity environment variable is unavailable",
+                )
+
+
 @router.post("/connectors/{connector_id}/discover")
 async def discover_connector(
     connector_id: UUID,
@@ -752,7 +876,16 @@ async def bind_capability(
             )
         if version.side_effect != SideEffect.NONE:
             _require_admin(principal, "actions.configure")
-            if (
+            is_dingtalk_robot_outbox = (
+                definition.name == "im.dingtalk.robot.reply"
+                and version.risk_level == RiskLevel.L2
+                and version.side_effect == SideEffect.WRITE
+                and version.transport == CapabilityTransport.HTTP
+                and version.permission_action == "im.reply.deliver"
+                and connector.connector_type == "dingtalk-robot"
+                and connector.configuration.get("protocol") == "dingtalk.robot.oto.v1"
+            )
+            if not is_dingtalk_robot_outbox and (
                 definition.name
                 not in {
                     "action.pr.create",
@@ -767,7 +900,8 @@ async def bind_capability(
             ):
                 raise ValidationError(
                     "v1_action_binding_boundary",
-                    "V1 only binds approved L3 idempotent PR and ticket action capabilities",
+                    "Only approved actions and the constrained DingTalk Outbox capability "
+                    "may bind writes",
                 )
             if version.permission_action not in connector.declared_grants:
                 raise ValidationError(

@@ -2369,6 +2369,26 @@ def _object_mapping_setitem_receivers(
     return receivers or None
 
 
+def _is_builtin_object_reference(
+    node: ast.expr,
+    bindings: Mapping[str, str],
+    state: _AnalysisState,
+    function: _FunctionInfo | None,
+) -> bool:
+    root = node
+    while isinstance(root, ast.Attribute):
+        root = root.value
+    if not isinstance(root, ast.Name) or function is None:
+        return False
+    if _function_binding(function.node, root.id) is not None:
+        return False
+    if _module_builtin_binding_is_shadowed(function.relative_path, root.id, state):
+        return False
+    if isinstance(node, ast.Name) and node.id == "object" and node.id not in bindings:
+        return True
+    return _resolved_imported_expression(node, bindings) == "builtins.object"
+
+
 def _dynamic_setattr_error_fields(
     call: ast.Call,
     bindings: Mapping[str, str],
@@ -2382,7 +2402,13 @@ def _dynamic_setattr_error_fields(
             return None
         receiver, key = call.args[:2]
     elif isinstance(call.func, ast.Attribute) and call.func.attr == "__setattr__" and call.args:
-        receiver, key = call.func.value, call.args[0]
+        if _is_builtin_object_reference(call.func.value, bindings, state, function):
+            # 未绑定 object.__setattr__ 的前两项是对象与字段，而不是字段与值。
+            if len(call.args) < 2:
+                return _ERROR_FIELD_NAMES
+            receiver, key = call.args[:2]
+        else:
+            receiver, key = call.func.value, call.args[0]
     else:
         return None
     fields = _receiver_error_fields(
@@ -2662,7 +2688,7 @@ def _is_fastapi_error_response_model_reference(
     for call in calls:
         if not isinstance(call.func, ast.Name):
             continue
-        if bindings.get(call.func.id, "") != _FASTAPI_APPLICATION:
+        if bindings.get(call.func.id, "") not in {_FASTAPI_APPLICATION, "fastapi.APIRouter"}:
             continue
         if _function_binding(function, call.func.id) is not None:
             continue

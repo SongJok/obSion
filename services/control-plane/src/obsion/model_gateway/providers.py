@@ -168,11 +168,10 @@ class OpenAICompatibleAdapter:
         if not isinstance(raw_arguments, str):
             raise ProviderProtocolError("tool call arguments must be JSON text")
         try:
-            arguments = json.loads(raw_arguments)
-        except json.JSONDecodeError as exc:
+            arguments = json.loads(raw_arguments, object_pairs_hook=_unique_json_object)
+        except (ValueError, RecursionError) as exc:
             raise ProviderProtocolError("tool call arguments are not valid JSON") from exc
-        if not isinstance(arguments, dict):
-            raise ProviderProtocolError("tool call arguments must decode to an object")
+        arguments = _validate_arguments(arguments)
         return ModelToolCall(id=call_id, name=name, arguments=arguments)
 
 
@@ -200,28 +199,84 @@ _JSON_MODE_INSTRUCTION = (
 def _split_system_messages(
     messages: list[dict[str, Any]],
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Separates system-role content from the conversational messages.
+    """提取系统文本，保留已经验证的工具调用和结果关联。"""
+    from obsion.model_gateway.tool_history import validate_tool_history
 
-    The Harness renders system, user, and assistant string messages;
-    Anthropic and Gemini both lift system content out of the message list.
-    """
-
+    validate_tool_history(messages)
     system_parts: list[str] = []
     conversation: list[dict[str, Any]] = []
     for message in messages:
-        if not isinstance(message, dict):
-            raise ProviderProtocolError("messages must be objects")
-        role = message.get("role")
-        content = message.get("content")
-        if not isinstance(content, str):
-            raise ProviderProtocolError("message content must be a string")
-        if role == "system":
-            system_parts.append(content)
-        elif role in {"user", "assistant"}:
-            conversation.append({"role": role, "content": content})
+        if message["role"] == "system":
+            system_parts.append(message["content"])
         else:
-            raise ProviderProtocolError(f"unsupported message role: {role!r}")
+            conversation.append(message)
     return "\n\n".join(system_parts), conversation
+
+
+def _anthropic_conversation(conversation: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
+    for message in conversation:
+        role = message["role"]
+        if role == "tool":
+            block = {
+                "type": "tool_result",
+                "tool_use_id": message["tool_call_id"],
+                "content": message["content"],
+            }
+            # 并行工具的全部结果必须放在同一个 user turn。
+            if (
+                messages
+                and messages[-1]["role"] == "user"
+                and isinstance(messages[-1]["content"], list)
+            ):
+                messages[-1]["content"].append(block)
+            else:
+                messages.append({"role": "user", "content": [block]})
+        elif message.get("tool_calls"):
+            blocks: list[dict[str, Any]] = []
+            if message.get("content"):
+                blocks.append({"type": "text", "text": message["content"]})
+            for value in message["tool_calls"]:
+                call = OpenAICompatibleAdapter._parse_tool_call(value)
+                blocks.append(
+                    {"type": "tool_use", "id": call.id, "name": call.name, "input": call.arguments}
+                )
+            messages.append({"role": "assistant", "content": blocks})
+        else:
+            messages.append({"role": role, "content": message["content"]})
+    return messages
+
+
+def _gemini_conversation(conversation: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    contents: list[dict[str, Any]] = []
+    names: dict[str, str] = {}
+    previous_role: str | None = None
+    for message in conversation:
+        role = message["role"]
+        parts: list[dict[str, Any]] = []
+        if role == "tool":
+            parts.append(
+                {
+                    "functionResponse": {
+                        "name": names[message["tool_call_id"]],
+                        "response": {"result": message["content"]},
+                    }
+                }
+            )
+            if previous_role == "tool":
+                contents[-1]["parts"].extend(parts)
+            else:
+                contents.append({"role": "user", "parts": parts})
+        else:
+            if message.get("content") or not message.get("tool_calls"):
+                parts.append({"text": message["content"]})
+            for value in message.get("tool_calls", []):
+                call = OpenAICompatibleAdapter._parse_tool_call(value)
+                names[call.id] = call.name
+                parts.append({"functionCall": {"name": call.name, "args": call.arguments}})
+            contents.append({"role": "model" if role == "assistant" else "user", "parts": parts})
+        previous_role = role
+    return contents
 
 
 class AnthropicAdapter:
@@ -247,9 +302,7 @@ class AnthropicAdapter:
             "model": request.model_id,
             "max_tokens": request.max_output_tokens,
             "temperature": request.temperature,
-            "messages": [
-                {"role": message["role"], "content": message["content"]} for message in conversation
-            ],
+            "messages": _anthropic_conversation(conversation),
         }
         if system:
             payload["system"] = system
@@ -318,8 +371,7 @@ class AnthropicAdapter:
             raise ProviderProtocolError("tool_use block id is required")
         if not isinstance(name, str) or not _TOOL_NAME.fullmatch(name):
             raise ProviderProtocolError("tool_use block name is invalid")
-        if not isinstance(arguments, dict):
-            raise ProviderProtocolError("tool_use block input must be an object")
+        arguments = _validate_arguments(arguments)
         return ModelToolCall(id=call_id, name=name, arguments=arguments)
 
 
@@ -343,13 +395,7 @@ class GeminiAdapter:
         if request.json_mode:
             generation_config["responseMimeType"] = "application/json"
         payload: dict[str, Any] = {
-            "contents": [
-                {
-                    "role": "user" if message["role"] == "user" else "model",
-                    "parts": [{"text": message["content"]}],
-                }
-                for message in conversation
-            ],
+            "contents": _gemini_conversation(conversation),
             "generationConfig": generation_config,
         }
         if system:
@@ -438,8 +484,7 @@ class GeminiAdapter:
         arguments = value.get("args", {})
         if not isinstance(name, str) or not _TOOL_NAME.fullmatch(name):
             raise ProviderProtocolError("functionCall name is invalid")
-        if not isinstance(arguments, dict):
-            raise ProviderProtocolError("functionCall args must be an object")
+        arguments = _validate_arguments(arguments)
         # Gemini does not assign call ids; the ordinal keeps ids unique per completion.
         return ModelToolCall(id=f"call_{ordinal}", name=name, arguments=arguments)
 
@@ -506,6 +551,25 @@ def validate_tool_calls(
         not calls or any(call.name != tool_choice for call in calls)
     ):
         raise ProviderProtocolError("provider did not honor the selected tool")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ProviderProtocolError("tool arguments contain duplicate JSON keys")
+        result[key] = value
+    return result
+
+
+def _validate_arguments(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ProviderProtocolError("tool call arguments must be an object")
+    try:
+        json.dumps(value, allow_nan=False)
+    except (ValueError, TypeError, RecursionError) as exc:
+        raise ProviderProtocolError("tool call arguments must be finite JSON") from exc
+    return value
 
 
 def _nonnegative_int(value: Any, field: str) -> int:

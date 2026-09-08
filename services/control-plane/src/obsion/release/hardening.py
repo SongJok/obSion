@@ -21,6 +21,14 @@ _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("mysql_dsn", re.compile(r"mysql://[^:\s/]+:[^@\s/]+@")),
     ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("pem_literal", re.compile(r"(?i)api[_-]?key\s*[:=]\s*['\"]?(?:sk|rk)-live")),
+    ("codeup_personal_access_token", re.compile(r"\bpt-[A-Za-z0-9_-]{32,}\b")),
+    (
+        "im_application_secret",
+        re.compile(
+            r"(?i)\bOBSION_(?:DINGTALK_APP_SECRET|FEISHU_APP_SECRET|WECOM_CORP_SECRET)"
+            r"\b[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9+/=_-]{24,}"
+        ),
+    ),
 )
 _SKIP_PARTS = {
     ".git",
@@ -32,7 +40,19 @@ _SKIP_PARTS = {
     ".mypy_cache",
     ".ruff_cache",
 }
-_SCAN_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".yml", ".yaml", ".json", ".env", ".toml", ".md"}
+_SCAN_SUFFIXES = {
+    ".py",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".yml",
+    ".yaml",
+    ".json",
+    ".env",
+    ".toml",
+    ".md",
+    ".sh",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,11 +62,29 @@ class SecretFinding:
     kind: str
 
 
+def scan_secret_text(text: str, *, path: str) -> list[SecretFinding]:
+    """扫描已取得的文本，不读取路径；结果不包含匹配到的凭据值。"""
+    findings: list[SecretFinding] = []
+    for index, line in enumerate(text.splitlines(), start=1):
+        for kind, pattern in _SECRET_PATTERNS:
+            if pattern.search(line):
+                findings.append(SecretFinding(path=path, line=index, kind=kind))
+                break
+    return findings
+
+
 def scan_secrets(root: Path) -> list[SecretFinding]:
     findings: list[SecretFinding] = []
     resolved = root.resolve()
     for path in sorted(resolved.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in _SCAN_SUFFIXES:
+        if not path.is_file():
+            continue
+        if (
+            path.suffix
+            and path.suffix.lower() not in _SCAN_SUFFIXES
+            and path.name != ".env.example"
+            and not path.name.startswith(("Dockerfile.", "Containerfile.", "Makefile."))
+        ):
             continue
         if any(part in _SKIP_PARTS for part in path.parts):
             continue
@@ -59,11 +97,7 @@ def scan_secrets(root: Path) -> list[SecretFinding]:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        for index, line in enumerate(text.splitlines(), start=1):
-            for kind, pattern in _SECRET_PATTERNS:
-                if pattern.search(line):
-                    findings.append(SecretFinding(path=relative, line=index, kind=kind))
-                    break
+        findings.extend(scan_secret_text(text, path=relative))
     return findings
 
 

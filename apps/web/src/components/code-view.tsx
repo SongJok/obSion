@@ -4,6 +4,7 @@ import { Code2, FileCode2, GitBranch, Search, ShieldCheck } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
+import { CodeupReader } from "@/components/codeup-reader";
 import type { CodeRepository, CodeSymbolHit } from "@/lib/types";
 
 export function CodeView() {
@@ -66,6 +67,8 @@ export function CodeView() {
           <GitBranch size={17} /> {loading ? "正在加载仓库…" : `${repositories.length} 个授权仓库`}
         </span>
       </header>
+
+      {!loading && <CodeupReader repositories={repositories} />}
 
       <form className="feature-search" onSubmit={search}>
         <Search size={19} />

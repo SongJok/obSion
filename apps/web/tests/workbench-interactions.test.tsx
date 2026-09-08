@@ -261,6 +261,22 @@ describe("Composer interactions", () => {
     expect(empty.onSubmit).not.toHaveBeenCalled();
   });
 
+  it.each(["uploading", "submitting", "disabled", "running"])("%s 时回车不会绕过发送限制", (state) => {
+    const props = composerProps({ value: "分析支付成功率", [state]: true });
+    render(<Composer {...props} />);
+    fireEvent.keyDown(screen.getByLabelText("向 Obsion 提问"), { key: "Enter" });
+    expect(props.onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("中文输入法确认候选词时不会提交", () => {
+    const props = composerProps({ value: "分析支付成功率" });
+    render(<Composer {...props} />);
+    fireEvent.keyDown(screen.getByLabelText("向 Obsion 提问"), { key: "Enter", isComposing: true });
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("附件")).toBeTruthy();
+    expect(screen.getByText("Enter 发送 · Shift + Enter 换行")).toBeTruthy();
+  });
+
   it("turns the send button into a stop action while running", () => {
     const props = composerProps({ value: "分析", running: true });
     render(<Composer {...props} />);

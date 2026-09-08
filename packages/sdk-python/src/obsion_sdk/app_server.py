@@ -345,6 +345,29 @@ class AsyncObsionAppServerClient:
             ),
         )
 
+    async def answer_run_clarification(
+        self,
+        run_id: str,
+        clarification_id: str,
+        *,
+        expected_intent_revision: int,
+        answers: list[dict[str, Any]],
+        client_request_id: str,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self.request(
+                "run.clarification.answer",
+                {
+                    "client_request_id": client_request_id,
+                    "run_id": run_id,
+                    "clarification_id": clarification_id,
+                    "expected_intent_revision": expected_intent_revision,
+                    "answers": answers,
+                },
+            ),
+        )
+
     async def list_run_events(
         self, run_id: str, *, after_sequence: int = 0, limit: int = 500
     ) -> list[dict[str, Any]]:

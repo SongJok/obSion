@@ -22,6 +22,7 @@ from obsion.api import (
     automation,
     capabilities,
     code,
+    codeup,
     collaboration,
     data,
     eval_console,
@@ -30,8 +31,10 @@ from obsion.api import (
     feedback,
     health,
     im_identity,
+    im_inbox,
     knowledge,
     memory,
+    project_sources,
     run_inspection,
     studio,
     workspaces,
@@ -39,8 +42,11 @@ from obsion.api import (
 from obsion.api.schemas import ErrorBody
 from obsion.app_server import websocket as app_server
 from obsion.application.app_server import AppServerApplication
+from obsion.application.dingtalk_outbox import DingTalkOutboxService
+from obsion.application.dingtalk_outbox_worker import DingTalkOutboxWorker
 from obsion.application.im_delivery import ImDeliveryService
 from obsion.application.im_identity import ImIdentityService
+from obsion.application.im_inbox import ImInboxService
 from obsion.application.workspaces import WorkspaceService
 from obsion.artifacts.service import ArtifactService
 from obsion.artifacts.store import InMemoryObjectStore, MinioObjectStore
@@ -208,6 +214,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.settings = resolved_settings
         app.state.workspace_service = WorkspaceService(resolved_settings)
         app.state.im_identity_service = ImIdentityService(app.state.workspace_service)
+        app.state.im_inbox_service = ImInboxService(app.state.workspace_service)
         app.state.im_delivery_service = ImDeliveryService()
         app.state.object_store = (
             InMemoryObjectStore()
@@ -285,6 +292,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ),
         )
         app.state.capability_gateway = capability_gateway
+        dingtalk_outbox_service = DingTalkOutboxService(
+            capability_gateway,
+            lease_seconds=resolved_settings.dingtalk_outbox_lease_seconds,
+            max_attempts=resolved_settings.dingtalk_outbox_max_attempts,
+        )
+        app.state.dingtalk_outbox_service = dingtalk_outbox_service
         action_gateway = ActionGateway(rate_limiter=rate_limiter)
         app.state.action_gateway = action_gateway
         runtime = HarnessRuntime(
@@ -303,11 +316,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         action_worker = ActionWorker(database, resolved_settings, action_gateway)
         app.state.action_worker = action_worker
         action_worker.start()
+        dingtalk_outbox_worker: DingTalkOutboxWorker | None = None
+        if resolved_settings.dingtalk_outbox_enabled:
+            dingtalk_outbox_worker = DingTalkOutboxWorker(
+                database,
+                dingtalk_outbox_service,
+                poll_interval_seconds=resolved_settings.dingtalk_outbox_poll_interval_seconds,
+            )
+            dingtalk_outbox_worker.start()
         logger.info("obsion.started", environment=resolved_settings.environment)
         try:
             yield
         finally:
             await action_worker.stop()
+            if dingtalk_outbox_worker is not None:
+                await dingtalk_outbox_worker.stop()
             await automation_worker.stop()
             await worker.stop()
             await rate_limiter.aclose()
@@ -461,13 +484,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     protected_api.include_router(collaboration.router)
     protected_api.include_router(knowledge.router)
     protected_api.include_router(code.router)
+    protected_api.include_router(codeup.router)
     protected_api.include_router(memory.router)
     protected_api.include_router(data.router)
     protected_api.include_router(evaluations.router)
     protected_api.include_router(run_inspection.router)
     protected_api.include_router(admin.router)
+    protected_api.include_router(project_sources.router)
     protected_api.include_router(im_identity.admin_router)
     protected_api.include_router(im_identity.experience_router)
+    protected_api.include_router(im_inbox.router)
     protected_api.include_router(studio.router)
     protected_api.include_router(eval_console.router)
 

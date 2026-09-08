@@ -209,7 +209,43 @@ def test_workflow_dispatch_is_not_declared_on_shipped_agents() -> None:
         assert "obsion-workflow-dispatch" not in text
 
 
-def test_gateway_dispatch_creates_automation_execution(client: TestClient) -> None:
+@pytest.mark.parametrize("interleaved_event", [False, True])
+def test_gateway_dispatch_creates_automation_execution(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, interleaved_event: bool
+) -> None:
+    from obsion.api import capabilities as capability_api
+    from obsion.domain.enums import ActorType
+    from obsion.persistence.events import EventDraft, EventStore
+
+    advanced = []
+    if interleaved_event:
+        original = capability_api.require_run_access
+
+        async def advance_after_read(session, principal, run_id, **kwargs):
+            run = await original(session, principal, run_id, **kwargs)
+            cached_sequence = run.aggregate_version
+            database = client.app.state.database
+            async with database.sessions() as writer, writer.begin():
+                event = await EventStore().append(
+                    writer,
+                    EventDraft(
+                        name="run.started",
+                        aggregate_type="run",
+                        aggregate_id=run_id,
+                        organization_id=principal.organization_id,
+                        correlation_id=run_id,
+                        actor_type=ActorType.SYSTEM,
+                        actor_id=None,
+                        run_id=run_id,
+                        payload={"worker": "synthetic-interleaved-writer"},
+                    ),
+                )
+                assert event.run_sequence > cached_sequence
+            assert run.aggregate_version == cached_sequence
+            advanced.append(run_id)
+            return run
+
+        monkeypatch.setattr(capability_api, "require_run_access", advance_after_read)
     workspace = client.post(
         "/api/v1/workspaces",
         json={"name": "Workflow dispatch", "description": "Gateway to AutomationService"},
@@ -279,6 +315,7 @@ def test_gateway_dispatch_creates_automation_execution(client: TestClient) -> No
         },
     )
     assert invoked.status_code == 200, invoked.text
+    assert len(advanced) == int(interleaved_event)
     body = invoked.json()
     assert body["status"] == "COMPLETED", body
     assert body["output"]["dispatched"] is True

@@ -3,6 +3,7 @@ import hashlib
 import json
 import math
 from dataclasses import asdict
+from datetime import datetime
 from decimal import Decimal
 from time import perf_counter
 from typing import Any
@@ -21,6 +22,7 @@ from obsion.capabilities.gateway import (
     GatewayRequest,
     GatewayStatus,
 )
+from obsion.code_intelligence.service import CodeIntelligenceService
 from obsion.common.errors import BudgetExceededError, NotFoundError, ObsionError, ValidationError
 from obsion.common.time import ensure_utc, utc_now
 from obsion.config import Settings
@@ -37,11 +39,14 @@ from obsion.db.models import (
     DataSource,
     Evidence,
     EvidenceConflict,
+    Metric,
     PolicyDecision,
     Run,
     RunConversationSnapshot,
     RunMemorySnapshot,
     RunStep,
+    SkillDefinition,
+    SkillVersion,
     Thread,
     Turn,
     VerificationAssessment,
@@ -60,18 +65,25 @@ from obsion.domain.enums import (
     EvidenceType,
     RegistryStatus,
     RunStatus,
+    SideEffect,
     StepKind,
     StepStatus,
     VerificationOutcome,
     VerificationRuleOutcome,
     VerificationStatus,
 )
+from obsion.domain.run_intent import RunIntent, parse_run_intent
 from obsion.domain.run_state import is_terminal, validate_run_transition
 from obsion.domains.evidence.fabric import EvidenceFabric, EvidenceInput
 from obsion.harness.agent_router import AgentRouter, RouteSelection
 from obsion.harness.critic import Critic
 from obsion.harness.evidence_gaps import gap_step_contract, gap_step_name, select_gap_capabilities
 from obsion.harness.incident import IncidentEvidenceFusion, IncidentFusionResult
+from obsion.harness.intent_resolution import (
+    ExplorationText,
+    IntentContextExplorer,
+    VisibleIntentContext,
+)
 from obsion.harness.planner import Planner
 from obsion.harness.replay import RunReplayService
 from obsion.harness.steps import StepExecutor
@@ -144,6 +156,8 @@ class HarnessRuntime:
         self.critic = Critic()
         self.incident_fusion = IncidentEvidenceFusion()
         self.data = DataIntelligenceService(settings)
+        self.code = CodeIntelligenceService(settings)
+        self.intent_explorer = IntentContextExplorer()
         self.memory = MemoryService(settings)
         self.replays = RunReplayService()
         self.audit = AuditWriter()
@@ -261,6 +275,221 @@ class HarnessRuntime:
         )
         return frozenset(registered.intersection(agent_spec.capabilities)), sandbox
 
+    async def _pinned_skill_snapshot(
+        self,
+        session: AsyncSession,
+        organization_id: UUID,
+        intent: RunIntent,
+        agent_version: AgentVersion,
+        agent_definition: AgentDefinition,
+    ) -> dict[str, Any] | None:
+        if intent.skill is None or intent.skill_version is None:
+            return None
+        row = (
+            await session.execute(
+                select(SkillVersion, SkillDefinition)
+                .join(SkillDefinition, SkillDefinition.id == SkillVersion.skill_id)
+                .where(
+                    SkillVersion.organization_id == organization_id,
+                    SkillDefinition.organization_id == organization_id,
+                    SkillDefinition.name == intent.skill,
+                    SkillVersion.version == intent.skill_version,
+                    SkillVersion.checksum_sha256 == intent.skill_checksum_sha256,
+                )
+                .limit(1)
+            )
+        ).one_or_none()
+        if row is None:
+            raise NotFoundError("Pinned skill version", intent.skill)
+        skill_version, skill_definition = row._tuple()
+        return self.agent_router.skill_snapshot(
+            RouteSelection(
+                agent_version=agent_version,
+                agent_definition=agent_definition,
+                skill_definition=skill_definition,
+                skill_version=skill_version,
+            )
+        )
+
+    async def _visible_intent_context(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        run: Run,
+        turn: Turn,
+        conversation_snapshots: list[RunConversationSnapshot],
+        memory_snapshots: list[RunMemorySnapshot],
+    ) -> VisibleIntentContext:
+        repositories = sorted(
+            await self.code.list_repositories(session, principal),
+            key=lambda item: (item.name.casefold(), str(item.id)),
+        )
+        metric_rows = list(
+            await session.scalars(
+                select(Metric)
+                .where(
+                    Metric.organization_id == principal.organization_id,
+                    Metric.validated.is_(True),
+                )
+                .order_by(Metric.name, Metric.version.desc(), Metric.id)
+            )
+        )
+        latest_metrics: dict[str, Metric] = {}
+        for metric in metric_rows:
+            latest_metrics.setdefault(metric.name, metric)
+        conversation: list[ExplorationText] = []
+        total = len(conversation_snapshots)
+        for index, snapshot in enumerate(conversation_snapshots):
+            content = "\n".join(
+                value
+                for value in (snapshot.user_content, snapshot.assistant_content)
+                if isinstance(value, str) and value.strip()
+            )
+            if content:
+                conversation.append(
+                    ExplorationText(
+                        source="CONVERSATION",
+                        source_ref=f"conversation-snapshot:{snapshot.id}",
+                        text=content,
+                        confidence_rank=min(88, 72 + max(0, index - total + 8)),
+                    )
+                )
+        memory = tuple(
+            ExplorationText(
+                source="MEMORY",
+                source_ref=f"memory-snapshot:{snapshot.id}",
+                text=json.dumps(snapshot.content, ensure_ascii=False, sort_keys=True),
+                confidence_rank=70,
+            )
+            for snapshot in memory_snapshots
+        )
+        description = str((run.workspace_context or {}).get("description") or "").strip()
+        workspace = (
+            ExplorationText(
+                source="WORKSPACE",
+                source_ref=f"workspace:{(run.workspace_context or {}).get('workspace_id', '')}",
+                text=description,
+                confidence_rank=60,
+            )
+            if description
+            else None
+        )
+        return VisibleIntentContext(
+            context_refs=tuple(turn.context_refs),
+            conversation=tuple(conversation),
+            memory=memory,
+            workspace=workspace,
+            repositories=tuple(item.name for item in repositories),
+            metrics=tuple(
+                {
+                    "id": str(metric.id),
+                    "name": metric.name,
+                    "display_name": metric.display_name,
+                }
+                for metric in latest_metrics.values()
+            ),
+        )
+
+    @staticmethod
+    def _required_intent_slots(
+        intent: RunIntent,
+        context: VisibleIntentContext,
+        allowed_capabilities: frozenset[str],
+    ) -> tuple[str, ...]:
+        slots: list[str] = []
+        if intent.route in {"DATA", "ANALYTICS"} and len(intent.metrics) != 1:
+            slots.append("metric")
+        if (
+            intent.route == "ENGINEERING"
+            and context.repositories
+            and any(
+                item.startswith("code.") or item.startswith("git.") for item in allowed_capabilities
+            )
+        ):
+            slots.append("repository")
+        if intent.route in {"INCIDENT", "OPERATION"} and allowed_capabilities.intersection(
+            {
+                "config.diff",
+                "config.get",
+                "deployment.list",
+                "k8s.status",
+                "log.aggregate",
+                "log.search",
+                "metric.anomaly",
+                "metric.compare",
+                "metric.dimension",
+                "metric.query",
+                "trace.search",
+            }
+        ):
+            slots.append("service")
+        return tuple(slots)
+
+    async def _ensure_preparation_steps(
+        self,
+        session: AsyncSession,
+        run: Run,
+        turn: Turn,
+        *,
+        route: str,
+        include_plan: bool,
+    ) -> None:
+        existing = set(
+            await session.scalars(
+                select(RunStep.ordinal).where(
+                    RunStep.organization_id == run.organization_id,
+                    RunStep.run_id == run.id,
+                    RunStep.ordinal.in_([1, 2, 3]),
+                )
+            )
+        )
+        now = utc_now()
+        drafts: tuple[tuple[int, str, StepKind, list[int], dict[str, Any]], ...] = (
+            (
+                1,
+                "Observe request context",
+                StepKind.OBSERVE,
+                [],
+                {
+                    "context_refs": turn.context_refs,
+                    "attachment_refs": turn.attachment_refs,
+                },
+            ),
+            (
+                2,
+                "Understand request",
+                StepKind.UNDERSTAND,
+                [1],
+                {"question": turn.sanitized_input},
+            ),
+            (
+                3,
+                "Create governed execution plan",
+                StepKind.PLAN,
+                [2],
+                {"route": route},
+            ),
+        )
+        maximum = 3 if include_plan else 2
+        for ordinal, name, kind, depends_on, input_payload in drafts[:maximum]:
+            if ordinal in existing:
+                continue
+            session.add(
+                RunStep(
+                    organization_id=run.organization_id,
+                    run_id=run.id,
+                    ordinal=ordinal,
+                    name=name,
+                    kind=kind,
+                    status=StepStatus.COMPLETED,
+                    depends_on=depends_on,
+                    input_payload=input_payload,
+                    started_at=now,
+                    completed_at=now,
+                )
+            )
+        run.step_count = max(run.step_count, maximum)
+
     async def _prepare(self, organization_id: UUID, run_id: UUID) -> None:
         async with self.database.sessions() as session, session.begin():
             (
@@ -276,10 +505,24 @@ class HarnessRuntime:
             if run.cancellation_requested_at:
                 await self._cancel(session, run)
                 return
-            await self._ingest_attachments(session, run, turn)
-            memory_snapshots = await self.memory.capture_run_context(
-                session, principal, run, turn, thread
-            )
+            persisted_intent = parse_run_intent(run.intent, run.status)
+            initial_preparation = persisted_intent is None
+            if initial_preparation:
+                await self._ingest_attachments(session, run, turn)
+                memory_snapshots = await self.memory.capture_run_context(
+                    session, principal, run, turn, thread
+                )
+            else:
+                memory_snapshots = list(
+                    await session.scalars(
+                        select(RunMemorySnapshot)
+                        .where(
+                            RunMemorySnapshot.organization_id == organization_id,
+                            RunMemorySnapshot.run_id == run.id,
+                        )
+                        .order_by(RunMemorySnapshot.ordinal)
+                    )
+                )
             conversation_snapshots = list(
                 await session.scalars(
                     select(RunConversationSnapshot)
@@ -290,38 +533,186 @@ class HarnessRuntime:
                     .order_by(RunConversationSnapshot.ordinal)
                 )
             )
-            data_result = await self.data.understand(session, principal, turn.sanitized_input)
-            data_understanding = asdict(data_result)
-            understanding = self.understanding.route(turn.sanitized_input, data_understanding)
-            route_hint = next(
-                (
-                    str(item.get("value"))
-                    for item in turn.context_refs
-                    if isinstance(item, dict) and item.get("type") == "route_hint"
-                ),
-                None,
-            )
-            if route_hint == "DATA" and understanding["metrics"]:
-                understanding["route"] = "DATA"
-                understanding["domain"] = "DATA"
-                understanding["intent"] = data_understanding["intent"]
-            selection = await self.agent_router.resolve(
+            if persisted_intent is None:
+                data_result = await self.data.understand(session, principal, turn.sanitized_input)
+                data_understanding = asdict(data_result)
+                understanding = self.understanding.route(
+                    turn.sanitized_input,
+                    data_understanding,
+                )
+                route_hint = next(
+                    (
+                        str(item.get("value"))
+                        for item in turn.context_refs
+                        if isinstance(item, dict) and item.get("type") == "route_hint"
+                    ),
+                    None,
+                )
+                if route_hint == "DATA" and understanding["metrics"]:
+                    understanding["route"] = "DATA"
+                    understanding["domain"] = "DATA"
+                    understanding["intent"] = data_understanding["intent"]
+                selection = await self.agent_router.resolve(
+                    session,
+                    organization_id,
+                    str(understanding["route"]),
+                    question=str(understanding.get("question") or turn.sanitized_input),
+                    fallback=RouteSelection(
+                        agent_version=agent_version,
+                        agent_definition=agent_definition,
+                    ),
+                )
+                agent_version = selection.agent_version
+                agent_definition = selection.agent_definition
+                run.agent_version_id = agent_version.id
+                skill_snapshot = self.agent_router.skill_snapshot(selection)
+                intent_payload = {
+                    **understanding,
+                    "preparation_stage": "CONTEXT_RESOLVED",
+                    "agent": agent_definition.name,
+                }
+                if skill_snapshot is not None:
+                    intent_payload.update(
+                        {
+                            "skill": skill_snapshot["name"],
+                            "skill_version": skill_snapshot["version"],
+                            "skill_checksum_sha256": skill_snapshot["checksum_sha256"],
+                        }
+                    )
+                intent = RunIntent.model_validate(intent_payload)
+            else:
+                intent = persisted_intent
+                skill_snapshot = await self._pinned_skill_snapshot(
+                    session,
+                    organization_id,
+                    intent,
+                    agent_version,
+                    agent_definition,
+                )
+            allowed_capabilities, sandbox = await self._planner_capabilities(
                 session,
                 organization_id,
-                str(understanding["route"]),
-                question=str(understanding.get("question") or turn.sanitized_input),
-                fallback=RouteSelection(
-                    agent_version=agent_version,
-                    agent_definition=agent_definition,
+                agent_version,
+                agent_definition.name,
+            )
+            visible_context = await self._visible_intent_context(
+                session,
+                principal,
+                run,
+                turn,
+                conversation_snapshots,
+                memory_snapshots,
+            )
+            now = utc_now()
+            remaining_execution_seconds = run.timeout_seconds
+            if run.deadline_at is not None:
+                remaining_execution_seconds = max(
+                    1,
+                    math.ceil((ensure_utc(run.deadline_at) - now).total_seconds()),
+                )
+            exploration = self.intent_explorer.explore(
+                intent,
+                visible_context,
+                now=now,
+                clarification_ttl_seconds=self.settings.run_clarification_ttl_seconds,
+                remaining_execution_seconds=remaining_execution_seconds,
+                required_slots=self._required_intent_slots(
+                    intent,
+                    visible_context,
+                    allowed_capabilities,
                 ),
             )
-            agent_version = selection.agent_version
-            agent_definition = selection.agent_definition
-            run.agent_version_id = agent_version.id
-            skill_snapshot = self.agent_router.skill_snapshot(selection)
-            if skill_snapshot is not None:
-                understanding["agent"] = agent_definition.name
-                understanding["skill"] = skill_snapshot["name"]
+            intent = exploration.intent
+            run.intent = intent.model_dump(mode="json")
+            if intent.preparation_stage == "WAITING_USER":
+                active = intent.clarification.active_request()
+                if active is None:
+                    raise ValidationError(
+                        "clarification_state_invalid",
+                        "Clarification preparation did not produce an active request",
+                    )
+                await self._ensure_preparation_steps(
+                    session,
+                    run,
+                    turn,
+                    route=intent.route,
+                    include_plan=False,
+                )
+                previous_status = run.status
+                validate_run_transition(previous_status, RunStatus.WAITING_USER)
+                run.status = RunStatus.WAITING_USER
+                run.deadline_at = None
+                run.waiting_user_expires_at = ensure_utc(datetime.fromisoformat(active.expires_at))
+                run.lease_owner = None
+                run.lease_expires_at = None
+                if initial_preparation:
+                    await self._emit_preparation_context_events(
+                        session,
+                        run,
+                        turn,
+                        conversation_snapshots,
+                        memory_snapshots,
+                    )
+                requested_payload = {
+                    "clarification_id": active.id,
+                    "intent_revision": active.intent_revision,
+                    "round": active.round,
+                    "question": active.question,
+                    "gaps": [
+                        {
+                            "slot": field.slot,
+                            "reason_code": field.reason_code,
+                            "prompt": field.prompt,
+                            "cardinality": field.cardinality,
+                            "value_type": field.value_type,
+                            "options": [
+                                {"id": option.id, "label": option.label} for option in field.options
+                            ],
+                            "allow_free_text": field.allow_free_text,
+                        }
+                        for field in active.fields
+                    ],
+                    "requested_at": active.requested_at,
+                    "expires_at": active.expires_at,
+                }
+                await self.events.append(
+                    session,
+                    self._event(run, "clarification.requested", requested_payload),
+                )
+                await self.events.append(
+                    session,
+                    self._event(
+                        run,
+                        "run.state_changed",
+                        {"from": previous_status, "to": RunStatus.WAITING_USER},
+                    ),
+                )
+                await self.audit.write(
+                    session,
+                    AuditDraft(
+                        organization_id=run.organization_id,
+                        correlation_id=run.id,
+                        actor_type=ActorType.SYSTEM,
+                        actor_id=None,
+                        action="run.clarification.request",
+                        resource_type="run",
+                        resource_id=str(run.id),
+                        outcome="WAITING_USER",
+                        metadata={
+                            "clarification_id": active.id,
+                            "intent_revision": active.intent_revision,
+                            "round": active.round,
+                            "slots": sorted(field.slot for field in active.fields),
+                            "explored_sources": list(exploration.explored_sources),
+                            "expires_at": active.expires_at,
+                        },
+                        agent_version_id=run.agent_version_id,
+                        model_profile_id=run.model_profile_id,
+                    ),
+                )
+                return
+
+            understanding = self.intent_explorer.planning_input(intent)
             compiled_payload: dict[str, Any] | None = None
             if understanding["route"] in {"DATA", "ANALYTICS"}:
                 if not understanding["metrics"]:
@@ -342,12 +733,6 @@ class HarnessRuntime:
                     raise NotFoundError("Data source", compiled.lineage["data_source_id"])
                 compiled_payload = jsonable_encoder(asdict(compiled))
                 compiled_payload["environment"] = source.environment
-            allowed_capabilities, sandbox = await self._planner_capabilities(
-                session,
-                organization_id,
-                agent_version,
-                agent_definition.name,
-            )
             plan = self.planner.create(
                 understanding,
                 compiled_data_query=compiled_payload,
@@ -359,51 +744,16 @@ class HarnessRuntime:
             if skill_snapshot is not None:
                 plan_payload["agent"] = agent_definition.name
                 plan_payload["skill"] = skill_snapshot
-            run.intent = jsonable_encoder(understanding)
+            intent = self.intent_explorer.mark_planned(intent)
+            run.intent = intent.model_dump(mode="json")
             run.plan = jsonable_encoder(plan_payload)
-            run.step_count = 3
-            now = utc_now()
-            session.add_all(
-                [
-                    RunStep(
-                        organization_id=organization_id,
-                        run_id=run.id,
-                        ordinal=1,
-                        name="Observe request context",
-                        kind=StepKind.OBSERVE,
-                        status=StepStatus.COMPLETED,
-                        input_payload={
-                            "context_refs": turn.context_refs,
-                            "attachment_refs": turn.attachment_refs,
-                        },
-                        started_at=now,
-                        completed_at=now,
-                    ),
-                    RunStep(
-                        organization_id=organization_id,
-                        run_id=run.id,
-                        ordinal=2,
-                        name="Understand request",
-                        kind=StepKind.UNDERSTAND,
-                        status=StepStatus.COMPLETED,
-                        depends_on=[1],
-                        input_payload={"question": turn.sanitized_input},
-                        started_at=now,
-                        completed_at=now,
-                    ),
-                    RunStep(
-                        organization_id=organization_id,
-                        run_id=run.id,
-                        ordinal=3,
-                        name="Create governed execution plan",
-                        kind=StepKind.PLAN,
-                        status=StepStatus.COMPLETED,
-                        depends_on=[2],
-                        input_payload={"route": understanding["route"]},
-                        started_at=now,
-                        completed_at=now,
-                    ),
-                ]
+            run.waiting_user_expires_at = None
+            await self._ensure_preparation_steps(
+                session,
+                run,
+                turn,
+                route=intent.route,
+                include_plan=True,
             )
             capability_ordinals: list[int] = []
             for ordinal, step in enumerate(plan.steps, start=4):
@@ -461,48 +811,65 @@ class HarnessRuntime:
                     ),
                 ]
             )
-            await self.events.append(
-                session,
-                self._event(
+            if initial_preparation:
+                await self._emit_preparation_context_events(
+                    session,
                     run,
-                    "context.resolved",
-                    {
-                        "context_refs": turn.context_refs,
-                        "attachment_refs": turn.attachment_refs,
-                        "conversation_snapshots": [
-                            {
-                                "id": str(item.id),
-                                "ordinal": item.ordinal,
-                                "source_thread_id": str(item.source_thread_id),
-                                "source_turn_id": str(item.source_turn_id),
-                                "source_run_id": (
-                                    str(item.source_run_id) if item.source_run_id else None
-                                ),
-                                "content_fingerprint": item.content_fingerprint,
-                                "classification": item.classification,
-                            }
-                            for item in conversation_snapshots
-                        ],
-                        "memory_snapshots": [
-                            {
-                                "id": str(item.id),
-                                "scope": item.scope,
-                                "content_fingerprint": item.content_fingerprint,
-                                "sensitivity": item.sensitivity,
-                            }
-                            for item in memory_snapshots
-                        ],
-                    },
-                ),
-            )
-            await self.events.append(
-                session,
-                self._event(run, "intent.detected", self._intent_event_payload(run.intent)),
-            )
+                    turn,
+                    conversation_snapshots,
+                    memory_snapshots,
+                )
             await self.events.append(
                 session,
                 self._event(run, "plan.created", self._plan_event_payload(run.plan)),
             )
+
+    async def _emit_preparation_context_events(
+        self,
+        session: AsyncSession,
+        run: Run,
+        turn: Turn,
+        conversation_snapshots: list[RunConversationSnapshot],
+        memory_snapshots: list[RunMemorySnapshot],
+    ) -> None:
+        await self.events.append(
+            session,
+            self._event(
+                run,
+                "context.resolved",
+                {
+                    "context_refs": turn.context_refs,
+                    "attachment_refs": turn.attachment_refs,
+                    "conversation_snapshots": [
+                        {
+                            "id": str(item.id),
+                            "ordinal": item.ordinal,
+                            "source_thread_id": str(item.source_thread_id),
+                            "source_turn_id": str(item.source_turn_id),
+                            "source_run_id": (
+                                str(item.source_run_id) if item.source_run_id else None
+                            ),
+                            "content_fingerprint": item.content_fingerprint,
+                            "classification": item.classification,
+                        }
+                        for item in conversation_snapshots
+                    ],
+                    "memory_snapshots": [
+                        {
+                            "id": str(item.id),
+                            "scope": item.scope,
+                            "content_fingerprint": item.content_fingerprint,
+                            "sensitivity": item.sensitivity,
+                        }
+                        for item in memory_snapshots
+                    ],
+                },
+            ),
+        )
+        await self.events.append(
+            session,
+            self._event(run, "intent.detected", self._intent_event_payload(run.intent)),
+        )
 
     async def _ingest_attachments(self, session: AsyncSession, run: Run, turn: Turn) -> None:
         for reference in turn.attachment_refs:
@@ -568,7 +935,10 @@ class HarnessRuntime:
                 run, _, _, principal, _, agent_definition = await self._load_context(
                     session, organization_id, run_id, for_update=True
                 )
-                if is_terminal(run.status) or run.status == RunStatus.WAITING_APPROVAL:
+                if is_terminal(run.status) or run.status in {
+                    RunStatus.WAITING_APPROVAL,
+                    RunStatus.WAITING_USER,
+                }:
                     return False
                 if run.cancellation_requested_at:
                     await self._cancel(session, run)
@@ -676,28 +1046,60 @@ class HarnessRuntime:
                     .where(
                         RunStep.organization_id == organization_id,
                         RunStep.run_id == run_id,
-                        RunStep.kind == StepKind.CAPABILITY,
                     )
                     .order_by(RunStep.ordinal)
                 )
             )
-            retry_ordinals = {
-                step.ordinal
+            failed_steps = [
+                step
                 for step in steps
-                if step.status == StepStatus.FAILED
+                if step.kind == StepKind.CAPABILITY
+                and step.status == StepStatus.FAILED
                 and step.error_code in retryable_codes
                 and step.retry_count < step.max_retries
+                and step.capability_version_id is not None
+            ]
+            if not failed_steps:
+                return False
+            # Retry safety comes from the immutable version actually invoked, not
+            # the capability name or its latest version. Missing/foreign pins fail closed.
+            read_only_version_ids = set(
+                await session.scalars(
+                    select(CapabilityVersion.id).where(
+                        CapabilityVersion.id.in_(
+                            [step.capability_version_id for step in failed_steps]
+                        ),
+                        CapabilityVersion.organization_id == organization_id,
+                        CapabilityVersion.side_effect == SideEffect.NONE,
+                    )
+                )
+            )
+            retry_ordinals = {
+                step.ordinal
+                for step in failed_steps
+                if step.capability_version_id in read_only_version_ids
             }
             if not retry_ordinals:
                 return False
+            completed_ordinals = {
+                step.ordinal for step in steps if step.status == StepStatus.COMPLETED
+            }
+            # Dependency skips have not executed: restore them (including core
+            # steps) without charging a retry, but never revive an unrelated skip
+            # or a branch that still has a failed, cancelled or missing dependency.
             changed = True
             while changed:
                 changed = False
                 for step in steps:
                     if (
                         step.status == StepStatus.SKIPPED
+                        and step.error_code == "dependency_failed"
                         and step.ordinal not in retry_ordinals
                         and any(value in retry_ordinals for value in step.depends_on)
+                        and all(
+                            value in completed_ordinals or value in retry_ordinals
+                            for value in step.depends_on
+                        )
                     ):
                         retry_ordinals.add(step.ordinal)
                         changed = True

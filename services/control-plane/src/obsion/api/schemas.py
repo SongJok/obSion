@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from pydantic import AliasPath, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasPath, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from obsion.contracts.errors import validate_error_code
 from obsion.domain.enums import (
@@ -24,6 +24,11 @@ from obsion.domain.enums import (
     StepStatus,
     ThreadStatus,
     Visibility,
+)
+from obsion.domain.run_intent import (
+    PendingClarification,
+    pending_clarification_projection,
+    public_intent_projection,
 )
 
 
@@ -46,6 +51,14 @@ class ErrorBody(APIModel):
 
 class CreateAuthSessionRequest(APIModel):
     access_token: str = Field(min_length=16, max_length=16_384)
+
+
+class CreatePasswordSessionRequest(APIModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=1024)
+    # Single-tenant deployments omit this; it disambiguates an email that is
+    # reused across tenants instead of letting the server pick one.
+    organization_id: UUID | None = None
 
 
 class AuthSessionView(APIModel):
@@ -142,6 +155,7 @@ class RunView(APIModel):
     conversation_compact: dict[str, Any] = Field(default_factory=dict)
     workspace_context: dict[str, Any] = Field(default_factory=dict)
     intent: dict[str, Any]
+    pending_clarification: PendingClarification | None = None
     plan: dict[str, Any]
     max_steps: int
     timeout_seconds: int
@@ -161,6 +175,32 @@ class RunView(APIModel):
     created_at: datetime
     updated_at: datetime
 
+    @model_validator(mode="before")
+    @classmethod
+    def project_internal_intent(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            projected = dict(value)
+            raw_intent = projected.get("intent", {})
+            status = projected.get("status")
+            run_id = projected.get("id")
+        else:
+            raw_intent = getattr(value, "intent", {})
+            status = getattr(value, "status", None)
+            run_id = getattr(value, "id", None)
+            projected = {
+                field_name: getattr(value, field_name)
+                for field_name in cls.model_fields
+                if field_name != "pending_clarification" and hasattr(value, field_name)
+            }
+        projected["intent"] = public_intent_projection(raw_intent)
+        if run_id is not None and status is not None:
+            projected["pending_clarification"] = pending_clarification_projection(
+                raw_intent,
+                run_id=str(run_id),
+                status=status,
+            )
+        return projected
+
 
 class RunStepView(APIModel):
     id: UUID
@@ -176,6 +216,25 @@ class RunStepView(APIModel):
     started_at: datetime | None
     completed_at: datetime | None
     error_code: str | None
+
+
+class RunSourcePinView(APIModel):
+    """公开 Run 使用过的版本摘要，不包含连接配置或供应商凭据。"""
+
+    id: UUID
+    run_id: UUID
+    source_id: UUID
+    connector_version_id: UUID
+    workspace_id: UUID
+    repository_id: UUID
+    commit_id: str
+    tree_id: str
+    snapshot_fingerprint: str
+    file_count: int
+    snapshot_bytes: int
+    pinned_by: UUID
+    created_at: datetime
+    source_available: bool
 
 
 class TurnCreatedView(APIModel):

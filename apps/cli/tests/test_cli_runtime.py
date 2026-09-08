@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from obsion_cli.config import CliSettings
-from obsion_cli.render import render_ask
+from obsion_cli.render import render_ask, render_value
 from obsion_cli.runtime import ExperienceRuntime
 from obsion_sdk import AsyncObsionAppServerClient, AsyncObsionClient
 
@@ -49,6 +49,8 @@ class FakeAppServerTransport:
             }
         elif method == "run.get":
             result = {"id": "run-1", "status": "COMPLETED"}
+        elif method == "run.clarification.answer":
+            result = {"id": request["params"]["run_id"], "status": "RUNNING"}
         else:
             result = {}
         await self.incoming.put(
@@ -182,6 +184,145 @@ async def test_ask_rest_protocol_creates_workspace_thread_and_run() -> None:
     await runtime.aclose()
     assert result.thread["id"] == "thread-1"
     assert result.answer == "你好。"
+
+
+@pytest.mark.asyncio
+async def test_wait_for_run_returns_waiting_user_without_timing_out() -> None:
+    pending = {
+        "id": "clarification-1",
+        "run_id": "run-1",
+        "intent_revision": 2,
+        "round": 1,
+        "status": "OPEN",
+        "question": "Which repository?",
+        "gaps": [],
+        "requested_at": "2026-09-04T00:00:00+00:00",
+        "expires_at": "2026-09-04T00:10:00+00:00",
+    }
+
+    submitted: dict[str, Any] | None = None
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal submitted
+        if request.url.path == "/api/v1/runs/run-1":
+            return httpx.Response(
+                200,
+                json={
+                    "id": "run-1",
+                    "status": "WAITING_USER",
+                    "pending_clarification": pending,
+                },
+            )
+        if request.url.path == "/api/v1/runs/run-1/events":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": "event-1",
+                        "name": "clarification.requested",
+                        "run_sequence": 1,
+                        "payload": {"clarification_id": "clarification-1"},
+                    }
+                ],
+            )
+        if request.url.path == "/api/v1/runs/run-1/clarifications/clarification-1/answer":
+            submitted = json.loads(request.content)
+            return httpx.Response(200, json={"id": "run-1", "status": "RUNNING"})
+        return httpx.Response(404)
+
+    async def unexpected_sleep(_seconds: float) -> None:
+        raise AssertionError("WAITING_USER must return control to the user")
+
+    rest = AsyncObsionClient(
+        "http://obsion.example",
+        token="token",
+        transport=httpx.MockTransport(handler),
+    )
+    runtime = ExperienceRuntime(
+        CliSettings(base_url="http://obsion.example", token="token", protocol="rest"),
+        rest=rest,
+        sleep=unexpected_sleep,
+    )
+    run, events = await runtime.wait_for_run("run-1")
+    assert run["status"] == "WAITING_USER"
+    assert run["pending_clarification"] == pending
+    assert [item["name"] for item in events] == ["clarification.requested"]
+    rendered = render_value(
+        {
+            **pending,
+            "gaps": [
+                {
+                    "slot": "repository",
+                    "prompt": "Choose a repository",
+                    "options": [{"id": "option-1", "label": "payments-api"}],
+                    "allow_free_text": True,
+                }
+            ],
+        },
+        json_output=False,
+    )
+    assert "Which repository?" in rendered
+    assert "option-1 · payments-api" in rendered
+    assert "--value" in rendered
+    resumed = await runtime.answer_run_clarification(
+        "run-1",
+        answers=[{"slot": "repository", "option_id": "option-1"}],
+    )
+    assert resumed["status"] == "RUNNING"
+    assert submitted == {
+        "expected_intent_revision": 2,
+        "answers": [{"slot": "repository", "option_id": "option-1"}],
+    }
+    await runtime.aclose()
+
+
+@pytest.mark.asyncio
+async def test_runtime_answers_clarification_over_app_server() -> None:
+    transport = FakeAppServerTransport()
+
+    async def factory(
+        _url: str, _protocols: list[str], _headers: dict[str, str]
+    ) -> FakeAppServerTransport:
+        return transport
+
+    rest = AsyncObsionClient(
+        "http://obsion.example",
+        token="token",
+        transport=httpx.MockTransport(_rest_handler),
+    )
+    app_server = AsyncObsionAppServerClient(
+        "ws://obsion.example/api/v1/app-server",
+        token="token",
+        transport_factory=factory,
+    )
+    await app_server.connect()
+    runtime = ExperienceRuntime(
+        CliSettings(
+            base_url="http://obsion.example",
+            token="token",
+            protocol="app-server",
+        ),
+        rest=rest,
+        app_server=app_server,
+        request_id_factory=lambda prefix: f"{prefix}-fixed",
+    )
+    run = await runtime.answer_run_clarification(
+        "run-1",
+        clarification_id="clarification-1",
+        expected_intent_revision=2,
+        answers=[{"slot": "repository", "option_id": "option-1"}],
+    )
+    assert run["status"] == "RUNNING"
+    request = transport.sent[-1]
+    assert request["method"] == "run.clarification.answer"
+    assert request["params"] == {
+        "client_request_id": "clarification-fixed",
+        "run_id": "run-1",
+        "clarification_id": "clarification-1",
+        "expected_intent_revision": 2,
+        "answers": [{"slot": "repository", "option_id": "option-1"}],
+    }
+    await runtime.aclose()
 
 
 async def _no_sleep(_seconds: float) -> None:

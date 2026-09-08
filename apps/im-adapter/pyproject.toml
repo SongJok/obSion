@@ -11,6 +11,9 @@ dependencies = [
   "obsion-sdk[app-server]",
 ]
 
+[project.optional-dependencies]
+stream = ["dingtalk-stream==0.24.3"]
+
 [project.scripts]
 obsion-im = "obsion_im.main:main"
 

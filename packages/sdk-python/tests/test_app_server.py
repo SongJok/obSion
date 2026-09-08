@@ -38,6 +38,8 @@ class FakeTransport:
                 "id": request["params"]["approval_id"],
                 "status": "APPROVED" if request["params"]["decision"] == "approve" else "REJECTED",
             }
+        elif request["method"] == "run.clarification.answer":
+            result = {"id": request["params"]["run_id"], "status": "RUNNING"}
         elif request["method"] == "run.get":
             await self.incoming.put(
                 json.dumps(
@@ -157,4 +159,40 @@ async def test_app_server_client_covers_thread_approval_and_artifact_methods() -
         reason="Verified the evidence chain",
     )
     assert decided["status"] == "APPROVED"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_app_server_client_answers_clarification_with_idempotency_key() -> None:
+    transport = FakeTransport()
+
+    async def factory(_url: str, _protocols: list[str], _headers: dict[str, str]):
+        return transport
+
+    client = AsyncObsionAppServerClient(
+        "wss://obsion.example/api/v1/app-server",
+        token="token",
+        transport_factory=factory,
+    )
+    await client.connect()
+    resumed = await client.answer_run_clarification(
+        "run-1",
+        "clarification-1",
+        expected_intent_revision=2,
+        answers=[{"slot": "repository", "option_id": "option-1"}],
+        client_request_id="clarification-answer-1",
+    )
+    assert resumed == {"id": "run-1", "status": "RUNNING"}
+    assert transport.sent[-1] == {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "run.clarification.answer",
+        "params": {
+            "client_request_id": "clarification-answer-1",
+            "run_id": "run-1",
+            "clarification_id": "clarification-1",
+            "expected_intent_revision": 2,
+            "answers": [{"slot": "repository", "option_id": "option-1"}],
+        },
+    }
     await client.aclose()

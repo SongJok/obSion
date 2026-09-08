@@ -288,6 +288,7 @@ class PolicyEngine:
                     Policy.enabled.is_(True),
                 )
                 .order_by(Policy.priority.desc(), Policy.created_at.desc())
+                .execution_options(populate_existing=True)
             )
         )
         matching = (

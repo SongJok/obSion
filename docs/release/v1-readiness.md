@@ -25,7 +25,7 @@ This is an engineering checklist, not a human production approval.
 - [x] Eight concurrent greeting Runs complete within the documented SLO
 - [x] Helm termination drain and optional encryption secret interface
 - [x] Operator, administrator, developer, connector, Agent/Skill, and incident docs
-- [x] Continuous Phase 1-83 reports and matching architecture review documents
+- [x] Continuous Phase 1-98 reports and matching architecture review documents
 - [x] Repository-wide Alpha.1 manifest, exact Alembic ancestry, and matching CycloneDX version
 - [x] Clean-source CI artifact manifest, clean-room installation, exact requirements mapping, and retained candidate report
 - [x] Recorded, redacted, checksummed Feishu live-tenant evidence ledgers validated offline by the candidate gate
@@ -54,7 +54,9 @@ This is an engineering checklist, not a human production approval.
 - [x] Workspace Files and Artifacts interactions: immutable history, filename-derived paths, classification/lineage metadata, accessible uploads, governed downloads, filters, previews, and Artifact-ID-preserving refresh are mounted and driven
 - [x] Workspace fact projections: persisted Reports, unique valid Dashboard panel references with error recovery, validated SQL text without execution, immutable Evidence envelopes, and Event Store Timeline payloads are mounted and driven by persisted IDs
 - [x] Offline contract distribution: Hatchling and its build closure are locked dev dependencies; a real wheel is built with no isolation and offline mode, then checked for exact frozen Event/Error resources; the SBOM reflects the lock
-- [x] Every destructive PostgreSQL migration round trip has an isolated CI database; Phase 5 auth sessions and Phase 79 operator invocations now join the existing audit-log and identity migration gates before candidate artifact construction
+- [x] Every destructive PostgreSQL migration round trip has an isolated CI database; Phase 5 auth sessions, Phase 79 operator invocations, and Phase 98 password credentials join the audit-log and identity migration gates, then upgrade to current head before drift detection
+- [x] Local first-administrator access uses a CLI-only bounded scrypt credential exchange into the existing Principal/session path, with equivalent negative KDF work, lockout, environment-key parity, and mounted Workbench interactions
+- [x] Local Model Gateway validation completed a persisted Harness Run through an approved non-private logical profile; the private profile remains fail-closed
 
 ## Operator-owned (not claimed by this repository run)
 

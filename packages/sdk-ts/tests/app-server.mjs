@@ -59,6 +59,12 @@ class FakeWebSocket {
           id: request.id,
           result: { id: request.params.approval_id, status: "APPROVED" },
         });
+      } else if (request.method === "run.clarification.answer") {
+        this.emit({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: { id: request.params.run_id, status: "RUNNING" },
+        });
       } else {
         this.emit({
           jsonrpc: "2.0",
@@ -156,5 +162,39 @@ test("App Server client covers workspace listing and approval decisions", async 
     reason: "Verified the evidence chain",
   });
   assert.equal(decided.status, "APPROVED");
+  client.close();
+});
+
+test("App Server client answers clarifications with a durable mutation key", async () => {
+  let socket;
+  const client = new ObsionAppServerClient("wss://obsion.example/api/v1/app-server", {
+    webSocketFactory: (url, protocols) => {
+      socket = new FakeWebSocket(url, protocols);
+      return socket;
+    },
+  });
+  await client.connect();
+  const run = await client.answerRunClarification(
+    "run-1",
+    "clarification-1",
+    "clarification-answer-1",
+    {
+      expected_intent_revision: 2,
+      answers: [{ slot: "repository", option_id: "option-1" }],
+    },
+  );
+  assert.equal(run.status, "RUNNING");
+  assert.deepEqual(socket.sent.at(-1), {
+    jsonrpc: "2.0",
+    id: 2,
+    method: "run.clarification.answer",
+    params: {
+      client_request_id: "clarification-answer-1",
+      run_id: "run-1",
+      clarification_id: "clarification-1",
+      expected_intent_revision: 2,
+      answers: [{ slot: "repository", option_id: "option-1" }],
+    },
+  });
   client.close();
 });

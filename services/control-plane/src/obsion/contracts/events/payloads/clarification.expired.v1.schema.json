@@ -1,0 +1,16 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/clarification.expired.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clarification_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "clarification_id"
+  ],
+  "title": "clarification.expired payload v1",
+  "type": "object"
+}

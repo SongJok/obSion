@@ -21,6 +21,9 @@ _RUNTIME_PROTOCOL_TABLE_MARKERS = (
 )
 _REVIEWED_PROTOCOL_TABLES = {
     "events",
+    # ADR 0081：入站账本与上下文 FK 映射，不是第二套运行时事件流。
+    "im_inbox_messages",
+    "im_conversation_bindings",
     "notification_deliveries",
     "outbox_messages",
     "run_conversation_snapshots",
@@ -49,6 +52,27 @@ def test_no_second_persisted_runtime_message_model_is_declared() -> None:
     }
 
     assert protocol_like_tables == _REVIEWED_PROTOCOL_TABLES
+
+
+def test_im_admission_tables_reference_the_single_harness_without_event_payloads() -> None:
+    inbox = Base.metadata.tables["im_inbox_messages"]
+    mapping = Base.metadata.tables["im_conversation_bindings"]
+    assert {fk.target_fullname for fk in inbox.foreign_keys} >= {"turns.id", "runs.id"}
+    assert {fk.target_fullname for fk in mapping.foreign_keys} >= {"workspaces.id", "threads.id"}
+    for table in (inbox, mapping):
+        assert set(table.c.keys()).isdisjoint(
+            {"event_payload", "event_name", "event_version", "sequence", "trajectory", "frame"}
+        )
+    source = (_SOURCE_ROOT / "application/im_inbox.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    constructors = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert constructors.isdisjoint({"Run", "Turn", "Step", "Event", "OutboxMessage"})
+    assert "self.workspaces.create_turn(" in source
+    assert "self.workspaces.create_thread(" in source
 
 
 def test_event_and_outbox_writes_are_owned_only_by_event_store() -> None:
@@ -106,6 +130,7 @@ def test_public_live_transports_have_one_event_projection_and_control_plane() ->
     assert dict(sinks) == {
         "StreamingResponse": ["api/events.py"],
         "send_json": ["app_server/websocket.py"],
+        "send_text": ["capabilities/gateway.py"],
     }
     assert notification_literals == _CONTROL_NOTIFICATIONS
     assert dynamic_notifications == ["str(event['name'])"]

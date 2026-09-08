@@ -116,6 +116,14 @@ def build_parser() -> argparse.ArgumentParser:
             "Validate the selected delivery transport without creating a Turn or sending a message."
         ),
     )
+    stream = commands.add_parser("stream", help="官方钉钉 Stream：仅持久入站，不发送回复")
+    stream.add_argument("--installation-id", help="固定安装 UUID；也可设 OBSION_IM_INSTALLATION_ID")
+    worker = commands.add_parser("inbox-worker", help="恢复持久 RECEIVED，仅创建逻辑任务")
+    worker.add_argument("--installation-id", help="固定安装 UUID；也可设 OBSION_IM_INSTALLATION_ID")
+    worker.add_argument("--once", action="store_true", help="执行一个有界恢复批次后退出")
+    worker.add_argument("--limit", type=int, default=20)
+    worker.add_argument("--max-events", type=int, default=200)
+    worker.add_argument("--poll-interval", type=float, default=1.0)
     return parser
 
 
@@ -130,6 +138,8 @@ def main(
     args = parser.parse_args(argv)
     env: Mapping[str, str] = environ if environ is not None else os.environ
     try:
+        if args.command in {"stream", "inbox-worker"}:
+            return _inbox_command(args, env, out=out, err=err)
         settings = load_im_settings(
             url=args.url,
             token=args.token,
@@ -198,6 +208,86 @@ def main(
     except KeyboardInterrupt:
         err.write("Interrupted\n")
         return 130
+
+
+def _inbox_command(
+    args: argparse.Namespace, env: Mapping[str, str], *, out: TextIO, err: TextIO
+) -> int:
+    from dataclasses import asdict
+    from uuid import UUID
+
+    from obsion_im.inbox import InboxClient, InboxSettings, WorkerResult, run_inbox_worker
+    from obsion_im.stream import StreamSettings, run_stream
+
+    try:
+        # 入站模式不能悄悄忽略用户的发送选项，也不创建本地 Outbox。
+        if (
+            args.deliver is not None
+            or args.outbox is not None
+            or "OBSION_IM_DELIVER" in env
+            or "OBSION_IM_OUTBOX" in env
+        ):
+            raise ImError("stream/inbox-worker 不支持 --deliver、--outbox 或对应环境变量")
+        settings = load_im_settings(
+            url=args.url,
+            token=args.token,
+            protocol=args.protocol,
+            channel=args.channel,
+            json_output=args.json_output,
+            config_path=args.config,
+            environ=env,
+        )
+        raw_id = args.installation_id or env.get("OBSION_IM_INSTALLATION_ID")
+        try:
+            installation_id = UUID(raw_id) if raw_id else None
+        except (ValueError, TypeError, AttributeError):
+            installation_id = None
+        if installation_id is None:
+            raise ImError("请指定有效 --installation-id UUID 或 OBSION_IM_INSTALLATION_ID")
+        inbox = InboxSettings(installation_id, settings.cli.base_url, settings.token or "")
+        if args.command == "stream":
+            if settings.channel != "dingtalk":
+                raise ImError("Stream 要求 --channel dingtalk")
+            credentials = settings.dingtalk_credentials
+            if credentials is None:
+                raise ImError("Stream 需要 OBSION_DINGTALK_APP_KEY 和 OBSION_DINGTALK_APP_SECRET")
+            stream = StreamSettings(
+                inbox,
+                credentials.app_key,
+                credentials.app_secret,
+                env.get("OBSION_DINGTALK_CORP_ID", ""),
+                env.get("OBSION_DINGTALK_STREAM_APP_ID") or None,
+            )
+            run_stream(stream)
+            return 0
+
+        def report_round(result: WorkerResult) -> None:
+            out.write(json.dumps(asdict(result), sort_keys=True) + "\n")
+            out.flush()
+
+        async def recover() -> WorkerResult:
+            client = InboxClient(inbox)
+            try:
+                return await run_inbox_worker(
+                    client,
+                    once=args.once,
+                    limit=args.limit,
+                    max_events=args.max_events,
+                    poll_interval=args.poll_interval,
+                    on_round=None if args.once else report_round,
+                )
+            finally:
+                await client.aclose()
+
+        result = asyncio.run(recover())
+        out.write(json.dumps(asdict(result), sort_keys=True) + "\n")
+        return 1 if result.failed or result.polls_failed else 0
+    except ImError as exc:
+        err.write(f"{exc}\n")
+        return 1
+    except Exception:
+        err.write("Inbox 入口失败；请检查受管配置，事件由持久 Inbox 恢复\n")
+        return 1
 
 
 async def _dispatch(

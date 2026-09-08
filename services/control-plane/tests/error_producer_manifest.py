@@ -397,16 +397,20 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
+            "api/im_inbox.py::receive_message#ConflictError[1]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
             "api/knowledge.py::_operator_correlation_id#ValidationError[1]",
             frozenset({"capability_input_invalid"}),
         ),
         (
-            "api/knowledge.py::ingest_document#ValidationError[1]",
-            frozenset({"document_acl_invalid"}),
-        ),
-        (
             "api/knowledge.py::_operator_gateway_output#ObsionError[1]",
             frozenset({"capability_failed"}),
+        ),
+        (
+            "api/knowledge.py::ingest_document#ValidationError[1]",
+            frozenset({"document_acl_invalid"}),
         ),
         (
             "api/memory.py::approve_memory#AuthorizationError[1]",
@@ -427,6 +431,26 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "api/memory.py::update_memory#AuthorizationError[1]",
             frozenset({"memory_policy_denied"}),
+        ),
+        (
+            "api/project_sources.py::_committed_result#AuthorizationError[1]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "api/project_sources.py::_committed_result#ValidationError[1]",
+            frozenset({"project_source_invalid"}),
+        ),
+        (
+            "api/project_sources.py::_committed_result#ConflictError[1]",
+            frozenset({"project_source_conflict"}),
+        ),
+        (
+            "api/project_sources.py::get_project_source_service#AuthorizationError[1]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "api/project_sources.py::_require_inventory_access#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
         ),
         (
             "api/run_inspection.py::get_artifact#NotFoundError[1]",
@@ -479,6 +503,50 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "application/approvals.py::ApprovalService.list#AuthorizationError[1]",
             frozenset({"approval_read_denied"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[1]",
+            frozenset({"clarification_not_pending"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[2]",
+            frozenset({"clarification_state_invalid"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[3]",
+            frozenset({"clarification_state_invalid"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[4]",
+            frozenset({"clarification_not_pending"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[5]",
+            frozenset({"clarification_expired"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[6]",
+            frozenset({"clarification_state_invalid"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[7]",
+            frozenset({"clarification_stale_revision"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[8]",
+            frozenset({"clarification_not_pending"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ConflictError[9]",
+            frozenset({"clarification_state_invalid"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.answer#ValidationError[1]",
+            frozenset({"clarification_answer_invalid"}),
+        ),
+        (
+            "application/clarifications.py::ClarificationService.expire#Run.error_code[1]",
+            frozenset({"clarification_expired"}),
         ),
         (
             "application/conversation_context.py::ConversationContextService.capture#NotFoundError[1]",
@@ -545,11 +613,19 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"im_delivery_denied"}),
         ),
         (
+            "application/im_delivery.py::ImDeliveryService._authorize_report#AuthorizationError[2]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
             "application/im_delivery.py::ImDeliveryService._get_for_update#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
         (
             "application/im_delivery.py::ImDeliveryService.complete#ConflictError[1]",
+            frozenset({"im_delivery_receipt_conflict"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.complete#ConflictError[2]",
             frozenset({"im_delivery_receipt_conflict"}),
         ),
         (
@@ -563,6 +639,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[2]",
             frozenset({"im_delivery_lineage_changed"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[3]",
+            frozenset({"im_delivery_receipt_conflict"}),
         ),
         (
             "application/im_delivery.py::ImDeliveryService.prepare#NotFoundError[1]",
@@ -627,6 +707,102 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "application/im_identity.py::_require_sender_id#ValidationError[1]",
             frozenset({"im_sender_id_required"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._adapter#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._adapter#AuthorizationError[2]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._authorize#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._authorize#AuthorizationError[2]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._authorize_group_sender#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._authorize_group_sender#AuthorizationError[2]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._authorize_group_sender#AuthorizationError[3]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._binding#AuthorizationError[1]",
+            frozenset({"unknown_im_sender"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._conversation_thread#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._conversation_thread#AuthorizationError[2]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._inbox#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._installation#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._group_audience#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService._group_audience#AuthorizationError[2]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.bind#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.create_installation#ConflictError[1]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.create_installation#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.process#AuthorizationError[1]",
+            frozenset({"unknown_im_sender"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.revoke_binding#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.revoke_group_audience#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.upsert_group_audience#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.upsert_group_audience#AuthorizationError[2]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.upsert_group_audience#AuthorizationError[3]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_inbox.py::ImInboxService.upsert_group_audience#AuthorizationError[4]",
+            frozenset({"im_delegate_denied"}),
         ),
         (
             "application/memory.py::MemoryService._require_owner#AuthorizationError[1]",
@@ -1785,6 +1961,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"credential_unavailable"}),
         ),
         (
+            "capabilities/gateway.py::CapabilityGateway._execute_operator#GatewayResult[2]",
+            frozenset({"capability_failed", "capability_timeout"}),
+        ),
+        (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[1]",
             frozenset({"capability_denied"}),
         ),
@@ -1809,10 +1989,6 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"capability_failed", "capability_timeout"}),
         ),
         (
-            "capabilities/gateway.py::CapabilityGateway._execute_operator#GatewayResult[2]",
-            frozenset({"capability_failed", "capability_timeout"}),
-        ),
-        (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#GatewayResult[2]",
             frozenset({"idempotency_request_in_progress", "operator_invocation_outcome_unknown"}),
         ),
@@ -1830,39 +2006,7 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[2]",
-            frozenset({"connector_grant_missing"}),
-        ),
-        (
-            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[4]",
-            frozenset({"capability_transport_unavailable"}),
-        ),
-        (
-            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[1]",
-            frozenset({"idempotency_claim_lost"}),
-        ),
-        (
-            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[2]",
-            frozenset({"idempotency_key_reused"}),
-        ),
-        (
-            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[3]",
-            frozenset({"idempotency_claim_lost"}),
-        ),
-        (
-            "persistence/operator_invocations.py::OperatorInvocationStore.claim#OperatorCapabilityInvocation.error_code[2]",
-            frozenset({"operator_invocation_outcome_unknown"}),
-        ),
-        (
-            "persistence/operator_invocations.py::OperatorInvocationStore.complete#ConflictError[1]",
-            frozenset({"idempotency_claim_lost"}),
-        ),
-        (
-            "persistence/operator_invocations.py::OperatorInvocationStore.complete#ConflictError[2]",
-            frozenset({"idempotency_already_completed"}),
-        ),
-        (
-            "persistence/operator_invocations.py::OperatorInvocationStore.mark_unknown#OperatorCapabilityInvocation.error_code[1]",
-            frozenset({"operator_invocation_outcome_unknown"}),
+            frozenset({"codeup_repository_denied"}),
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._resolve#NotFoundError[1]",
@@ -2634,7 +2778,15 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._prepare#ValidationError[1]",
+            frozenset({"clarification_state_invalid"}),
+        ),
+        (
+            "harness/runtime.py::HarnessRuntime._prepare#ValidationError[2]",
             frozenset({"metric_not_resolved"}),
+        ),
+        (
+            "harness/runtime.py::HarnessRuntime._pinned_skill_snapshot#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
         ),
         (
             "harness/runtime.py::HarnessRuntime._replan_missing_evidence#NotFoundError[1]",
@@ -2904,8 +3056,36 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"idempotency_already_completed"}),
         ),
         (
-            "persistence/events.py::EventStore.append#ConflictError[1]",
+            "persistence/events.py::EventStore._append_prepared#ConflictError[1]",
             frozenset({"event_run_missing"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[1]",
+            frozenset({"idempotency_claim_lost"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[2]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#ConflictError[3]",
+            frozenset({"idempotency_claim_lost"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.claim#OperatorCapabilityInvocation.error_code[2]",
+            frozenset({"operator_invocation_outcome_unknown"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.complete#ConflictError[1]",
+            frozenset({"idempotency_claim_lost"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.complete#ConflictError[2]",
+            frozenset({"idempotency_already_completed"}),
+        ),
+        (
+            "persistence/operator_invocations.py::OperatorInvocationStore.mark_unknown#OperatorCapabilityInvocation.error_code[1]",
+            frozenset({"operator_invocation_outcome_unknown"}),
         ),
         (
             "registry/capability_descriptor.py::CapabilityDescriptor.from_models#ValidationError[1]",
@@ -2964,6 +3144,18 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"unknown_principal"}),
         ),
         (
+            "security/auth.py::authenticate_password_principal#AuthorizationError[1]",
+            frozenset({"password_auth_disabled"}),
+        ),
+        (
+            "security/auth.py::authenticate_password_principal#AuthorizationError[2]",
+            frozenset({"invalid_credentials"}),
+        ),
+        (
+            "security/auth.py::authenticate_password_principal#ObsionError[1]",
+            frozenset({"credential_locked"}),
+        ),
+        (
             "security/auth.py::authenticate_principal#AuthorizationError[1]",
             frozenset({"authentication_required"}),
         ),
@@ -3020,6 +3212,46 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"model_endpoint_egress_denied"}),
         ),
         (
+            "security/passwords.py::PasswordPolicy.enforce#ValidationError[1]",
+            frozenset({"password_policy_violation"}),
+        ),
+        (
+            "security/passwords.py::PasswordPolicy.enforce#ValidationError[2]",
+            frozenset({"password_policy_violation"}),
+        ),
+        (
+            "security/passwords.py::PasswordPolicy.enforce#ValidationError[3]",
+            frozenset({"password_policy_violation"}),
+        ),
+        (
+            "security/passwords.py::normalize#ValidationError[1]",
+            frozenset({"password_policy_violation"}),
+        ),
+        (
+            "security/passwords.py::normalize#ValidationError[2]",
+            frozenset({"password_policy_violation"}),
+        ),
+        (
+            "security/provisioning.py::_resolve_organization#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "security/provisioning.py::_resolve_organization#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "security/provisioning.py::_resolve_policy#ValidationError[1]",
+            frozenset({"password_policy_violation"}),
+        ),
+        (
+            "security/provisioning.py::provision_password_identity#ValidationError[1]",
+            frozenset({"identity_email_invalid"}),
+        ),
+        (
+            "security/provisioning.py::provision_password_identity#ValidationError[2]",
+            frozenset({"identity_email_ambiguous"}),
+        ),
+        (
             "security/workspace_access.py::require_run_access#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
@@ -3034,6 +3266,275 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         (
             "security/workspace_access.py::require_workspace_access#NotFoundError[1]",
             frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/codeup.py::read_codeup_repository#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/codeup.py::_raise_gateway_failure#ObsionError[1]",
+            frozenset({"capability_failed"}),
+        ),
+        (
+            "api/codeup.py::read_codeup_repository#ValidationError[1]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
+            "api/codeup.py::discover_codeup_repositories#ValidationError[1]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
+            "api/codeup.py::_mapping_result#AuthorizationError[1]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "api/codeup.py::_mapping_result#ConflictError[1]",
+            frozenset({"project_source_conflict"}),
+        ),
+        (
+            "api/codeup.py::_mapping_result#ObsionError[1]",
+            frozenset({"project_source_invalid"}),
+        ),
+        (
+            "api/codeup.py::_mapping_result#ValidationError[1]",
+            frozenset({"project_source_invalid"}),
+        ),
+        (
+            "api/codeup.py::map_codeup_repository#AuthorizationError[1]",
+            frozenset({"codeup_repository_denied"}),
+        ),
+        (
+            "capabilities/codeup.py::_catalog_request#ValidationError[1]",
+            frozenset({"codeup_operation_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::_catalog_request#ValidationError[2]",
+            frozenset({"codeup_operation_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::catalog_configuration#ValidationError[1]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::_request#ValidationError[1]",
+            frozenset({"codeup_operation_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::_request#ValidationError[2]",
+            frozenset({"codeup_operation_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::_request#ValidationError[3]",
+            frozenset({"codeup_operation_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::_request#ValidationError[4]",
+            frozenset({"codeup_operation_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#AuthorizationError[1]",
+            frozenset({"codeup_upstream_denied"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#ObsionError[1]",
+            frozenset({"codeup_rate_limited"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#ObsionError[2]",
+            frozenset({"codeup_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#ObsionError[3]",
+            frozenset({"codeup_response_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#ObsionError[4]",
+            frozenset({"codeup_response_too_large"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#ObsionError[5]",
+            frozenset({"codeup_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#ObsionError[6]",
+            frozenset({"codeup_response_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::read_codeup#ValidationError[1]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/codeup.py::repository_configuration#AuthorizationError[1]",
+            frozenset({"codeup_repository_denied"}),
+        ),
+        (
+            "capabilities/codeup.py::repository_configuration#ValidationError[1]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::repository_configuration#ValidationError[2]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::repository_configuration#ValidationError[3]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
+            "capabilities/codeup.py::repository_configuration#ValidationError[4]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._execute_operator#AuthorizationError[1]",
+            frozenset({"codeup_repository_denied"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._invoke#AuthorizationError[1]",
+            frozenset({"codeup_repository_denied"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[3]",
+            frozenset({"connector_grant_missing"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[5]",
+            frozenset({"capability_transport_unavailable"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[1]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[2]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[3]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[4]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[5]",
+            frozenset({"connector_grant_missing"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[6]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[7]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "api/admin.py::_validate_dingtalk_robot_activation#ValidationError[8]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "api/admin.py::activate_connector#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/dingtalk_outbox.py::DingTalkOutboxService.list_for_admin#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "application/dingtalk_outbox.py::DingTalkOutboxService._set_last_error#DingTalkRobotOutbox.last_error_code[1]",
+            frozenset(
+                {
+                    "capability_rate_limited",
+                    "connector_egress_invalid",
+                    "connector_grant_missing",
+                    "credential_unavailable",
+                    "dependency_failed",
+                    "im_delivery_answer_missing",
+                    "im_delivery_denied",
+                    "im_delivery_lineage_changed",
+                    "im_delivery_receipt_conflict",
+                    "inline_secret_denied",
+                }
+            ),
+        ),
+        (
+            "api/im_inbox.py::reconcile_dingtalk_outbox#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "api/im_inbox.py::reconcile_dingtalk_outbox#ConflictError[1]",
+            frozenset({"im_delivery_receipt_conflict"}),
+        ),
+        (
+            "api/im_inbox.py::reconcile_dingtalk_outbox#ConflictError[2]",
+            frozenset({"im_delivery_receipt_conflict"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway.reconcile_dingtalk_robot_outbox#ValidationError[1]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway.invoke_dingtalk_robot_outbox#ValidationError[1]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[7]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[8]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[9]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService.pin_verified_snapshot#ValidationError[1]",
+            frozenset({"project_source_invalid"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[1]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[2]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[3]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[4]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[5]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#AuthorizationError[6]",
+            frozenset({"project_source_denied"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#ConflictError[1]",
+            frozenset({"project_source_conflict"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#ConflictError[2]",
+            frozenset({"project_source_conflict"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#ValidationError[1]",
+            frozenset({"project_source_invalid"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#ValidationError[2]",
+            frozenset({"project_source_invalid"}),
+        ),
+        (
+            "application/run_source_pins.py::RunSourcePinService._pin#ValidationError[3]",
+            frozenset({"project_source_invalid"}),
         ),
     ]
 )
@@ -3100,35 +3601,31 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[3]",
-            "forward:capabilities/gateway.py:755:exc.code",
+            "forward:capabilities/gateway.py:1306:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[9]",
-            "forward:capabilities/gateway.py:933:exc.code",
+            "forward:capabilities/gateway.py:1488:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._execute_operator#GatewayResult[2]",
-            "forward:capabilities/gateway.py:601:exc.code",
+            "forward:capabilities/gateway.py:1149:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#GatewayResult[1]",
-            "forward:capabilities/gateway.py:242:exc.code",
+            "forward:capabilities/gateway.py:757:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[1]",
-            "forward:capabilities/gateway.py:312:rate_result.error_code",
+            "forward:capabilities/gateway.py:827:rate_result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[2]",
-            "forward:capabilities/gateway.py:332:result.error_code",
+            "forward:capabilities/gateway.py:847:result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._operator_result_from_record#GatewayResult[1]",
-            "forward:capabilities/gateway.py:652:record.error_code",
-        ),
-        (
-            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[3]",
-            "forward:capabilities/gateway.py:447:exc.code",
+            "forward:capabilities/gateway.py:1200:record.error_code",
         ),
         (
             "evaluations/engine.py::EvaluationEngine.evaluate#CaseEvaluation[2]",
@@ -3148,18 +3645,26 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:2745:exc.code",
+            "forward:harness/runtime.py:3147:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",
             (
-                "forward:harness/runtime.py:1043:exc.code | "
-                "forward:harness/runtime.py:1073:result.error_code"
+                "forward:harness/runtime.py:1445:exc.code | "
+                "forward:harness/runtime.py:1475:result.error_code"
             ),
         ),
         (
             "main.py::_error_response#ErrorBody[1]",
-            "forward:main.py:388:exc.code",
+            "forward:main.py:411:exc.code",
+        ),
+        (
+            "api/codeup.py::_raise_gateway_failure#ObsionError[1]",
+            "forward:api/codeup.py:136:result.error_code",
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[4]",
+            "forward:capabilities/gateway.py:991:exc.code",
         ),
     ]
 )
@@ -3169,6 +3674,14 @@ REVIEWED_ERROR_HELPER_CALLS: dict[str, ErrorCodeDomain] = dict(
         (
             "actions/gateway.py::ActionGateway._invoke#_validate_schema[1]",
             frozenset({"action_input_invalid"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway.reconcile_dingtalk_robot_outbox#_validate[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway.invoke_dingtalk_robot_outbox#_validate[1]",
+            frozenset({"capability_input_invalid"}),
         ),
         (
             "actions/gateway.py::ActionGateway._invoke#_validate_schema[2]",

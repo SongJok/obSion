@@ -3,13 +3,20 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import false, select, update
+from sqlalchemy.dialects.postgresql import Insert as PostgreSQLInsert
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import Insert as SQLiteInsert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_dirty, set_committed_value
+from sqlalchemy.orm.util import identity_key
 
 from obsion.common.errors import ConflictError
 from obsion.common.ids import new_id
 from obsion.common.time import utc_now
 from obsion.contracts.events.validation import (
+    PreparedEventDraft,
     build_event_envelope,
     prepare_event_draft,
     validate_event_envelope,
@@ -56,35 +63,87 @@ class EventStore:
             created_at=now,
         )
 
-        run: Run | None = None
+        # SAVEPOINT 前保留调用者状态；事件失败即使被捕获也不能提交部分序号。
+        await session.flush()
+        if session.get_bind().dialect.name == "sqlite":
+            # sqlite3 legacy 模式不以 SELECT 开始物理事务；空写避免 SAVEPOINT 自行提交。
+            await session.execute(
+                update(AggregateHead)
+                .where(false())
+                .values(sequence=AggregateHead.sequence)
+                .execution_options(synchronize_session=False)
+            )
+        async with session.begin_nested():
+            event = await self._append_prepared(session, draft, prepared, now)
+        # 只有 SAVEPOINT 成功后才同步已有缓存；失败不能留下未提交的计数。
+        if draft.run_id is not None:
+            run = session.identity_map.get(identity_key(Run, draft.run_id))
+            if run is not None:
+                set_committed_value(run, "aggregate_version", event.run_sequence)
+                flag_dirty(run)
+        head = session.identity_map.get(
+            identity_key(AggregateHead, (draft.aggregate_type, draft.aggregate_id))
+        )
+        if head is not None:
+            set_committed_value(head, "sequence", event.sequence)
+            set_committed_value(head, "updated_at", now)
+            flag_dirty(head)
+        # 无属性历史变化，不发 UPDATE；登记事务状态使调用者 SAVEPOINT 回滚时缓存失效。
+        await session.flush()
+        return event
+
+    async def _append_prepared(
+        self,
+        session: AsyncSession,
+        draft: EventDraft,
+        prepared: PreparedEventDraft,
+        now: datetime,
+    ) -> Event:
         run_sequence: int | None = None
         if draft.run_id is not None:
-            run = await session.scalar(
-                select(Run)
+            run_sequence = await session.scalar(
+                update(Run)
                 .where(
                     Run.id == draft.run_id,
                     Run.organization_id == draft.organization_id,
                 )
-                .with_for_update()
+                .values(aggregate_version=Run.aggregate_version + 1)
+                .returning(Run.aggregate_version)
+                .execution_options(synchronize_session=False)
             )
-            if run is None:
+            if run_sequence is None:
                 raise ConflictError(
                     "event_run_missing",
                     "A Run-associated event requires an existing Run",
                     run_id=str(draft.run_id),
                 )
-            run_sequence = run.aggregate_version + 1
 
-        head = await session.scalar(
-            select(AggregateHead)
-            .where(
-                AggregateHead.organization_id == draft.organization_id,
-                AggregateHead.aggregate_type == draft.aggregate_type,
-                AggregateHead.aggregate_id == draft.aggregate_id,
+        dialect = session.get_bind().dialect.name
+        insert_head: PostgreSQLInsert | SQLiteInsert
+        if dialect == "postgresql":
+            insert_head = postgresql_insert(AggregateHead)
+        elif dialect == "sqlite":
+            insert_head = sqlite_insert(AggregateHead)
+        else:
+            raise ValueError("Event sequence allocation requires PostgreSQL or SQLite")
+        sequence = await session.scalar(
+            insert_head.values(
+                organization_id=draft.organization_id,
+                aggregate_type=draft.aggregate_type,
+                aggregate_id=draft.aggregate_id,
+                sequence=1,
+                updated_at=now,
             )
-            .with_for_update()
+            .on_conflict_do_update(
+                index_elements=[AggregateHead.aggregate_type, AggregateHead.aggregate_id],
+                set_={"sequence": AggregateHead.sequence + 1, "updated_at": now},
+                where=AggregateHead.organization_id == draft.organization_id,
+            )
+            .returning(AggregateHead.sequence)
+            .execution_options(synchronize_session=False)
         )
-        sequence = (head.sequence if head is not None else 0) + 1
+        if sequence is None:
+            raise ValueError("Event aggregate belongs to another organization")
 
         event = Event(
             id=prepared.event_id,
@@ -127,22 +186,6 @@ class EventStore:
             event_name=event.name,
             schema_version=event.schema_version,
         )
-
-        if run is not None:
-            assert run_sequence is not None
-            run.aggregate_version = run_sequence
-        if head is None:
-            head = AggregateHead(
-                organization_id=draft.organization_id,
-                aggregate_type=draft.aggregate_type,
-                aggregate_id=draft.aggregate_id,
-                sequence=sequence,
-                updated_at=now,
-            )
-            session.add(head)
-        else:
-            head.sequence = sequence
-            head.updated_at = now
 
         session.add(event)
         session.add(

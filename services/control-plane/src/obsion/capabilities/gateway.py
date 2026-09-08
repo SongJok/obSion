@@ -13,14 +13,42 @@ from jsonschema.exceptions import ValidationError as JsonSchemaError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obsion.capabilities.codeup import (
+    catalog_allowed,
+    is_codeup_catalog_connector,
+    is_codeup_connector,
+    repository_allowed,
+)
+from obsion.capabilities.codeup_contract import (
+    CODEUP_ALL_OPERATIONS,
+    CODEUP_DISCOVERY_OPERATION,
+    CODEUP_OPERATIONS,
+)
 from obsion.capabilities.connectors import ConnectorContext, ConnectorExecutor, CredentialBroker
+from obsion.capabilities.dingtalk_robot import (
+    DINGTALK_ROBOT_CAPABILITY,
+    DINGTALK_ROBOT_PROTOCOL,
+    DingTalkRobotTransport,
+    RobotCredentials,
+    RobotQueryResult,
+    RobotQueryState,
+    RobotSendResult,
+    RobotSendState,
+    connector_fingerprint,
+)
 from obsion.capabilities.rate_limit import (
     CapabilityRateLimiter,
     InMemoryFixedWindowRateLimiter,
     RateLimitUnavailable,
 )
 from obsion.capabilities.vendor_knowledge import VENDOR_KNOWLEDGE_BROWSE_OPERATIONS
-from obsion.common.errors import ConflictError, NotFoundError, ObsionError, ValidationError
+from obsion.common.errors import (
+    AuthorizationError,
+    ConflictError,
+    NotFoundError,
+    ObsionError,
+    ValidationError,
+)
 from obsion.common.time import utc_now
 from obsion.contracts.errors import validate_error_code
 from obsion.db.models import (
@@ -37,6 +65,7 @@ from obsion.db.models import (
 from obsion.domain.enums import (
     ActorType,
     ApprovalStatus,
+    Classification,
     ConnectorStatus,
     DecisionEffect,
     EvidenceType,
@@ -102,6 +131,70 @@ class OperatorGatewayRequest:
     capability_version: int | None = None
     capability_version_id: UUID | None = None
     context: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class DingTalkRobotOutboxRequest:
+    """A claimed, direct-message Outbox item presented to the Capability Gateway.
+
+    ``text`` is intentionally excluded from ``resource`` and every persisted
+    event/audit payload. The request has a Run because the sender's completed
+    task is the authorization and observability boundary.
+    """
+
+    principal: Principal
+    run_id: UUID
+    outbox_id: UUID
+    installation_id: UUID
+    recipient_sender_id: str
+    app_key: str
+    robot_code: str
+    text: str
+    connector_id: UUID
+    connector_fingerprint: str
+    environment: str
+    capability_version_id: UUID
+    conversation_type: str = "direct"
+    recipient_conversation_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DingTalkRobotOutboxResult:
+    send: RobotSendResult
+    policy_decision_id: UUID | None
+    capability_version_id: UUID | None
+    connector_id: UUID | None
+
+
+@dataclass(frozen=True, slots=True)
+class DingTalkRobotOutboxQueryRequest:
+    principal: Principal
+    run_id: UUID
+    outbox_id: UUID
+    installation_id: UUID
+    recipient_sender_id: str
+    app_key: str
+    robot_code: str
+    process_query_key: str
+    connector_id: UUID
+    connector_fingerprint: str
+    environment: str
+    capability_version_id: UUID
+    conversation_type: str = "direct"
+    recipient_conversation_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DingTalkRobotOutboxQueryResult:
+    query: RobotQueryResult
+    policy_decision_id: UUID | None
+    capability_version_id: UUID | None
+    connector_id: UUID | None
+
+
+def _configured_rate_limit(connector: Connector) -> int | None:
+    value = connector.configuration.get("rate_limit_per_minute")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +281,428 @@ class CapabilityGateway:
             capability_counter.add(1, attributes)
             capability_duration.record((perf_counter() - started) * 1000, attributes)
             return result
+
+    async def invoke_dingtalk_robot_outbox(
+        self,
+        session: AsyncSession,
+        request: DingTalkRobotOutboxRequest,
+        *,
+        transport: DingTalkRobotTransport | None = None,
+    ) -> DingTalkRobotOutboxResult:
+        """Execute a claimed one-to-one robot delivery through the Gateway.
+
+        This is a service-delivery exception to the generic Agent read-only
+        path. It still resolves the versioned capability and Connector,
+        requires an explicit L2 Policy ALLOW, enforces grants/rate limits,
+        resolves credentials through the broker, emits Run events, and audits
+        the result. It never retries a vendor message POST.
+        """
+
+        resolution = GatewayRequest(
+            principal=request.principal,
+            capability_name=DINGTALK_ROBOT_CAPABILITY,
+            payload={
+                "operation": DINGTALK_ROBOT_CAPABILITY,
+                "installation_id": str(request.installation_id),
+                "recipient_sender_id": request.recipient_sender_id,
+                "outbox_id": str(request.outbox_id),
+                "conversation_type": request.conversation_type,
+                "recipient_conversation_id": request.recipient_conversation_id or "",
+            },
+            resource={
+                "installation_id": str(request.installation_id),
+                "recipient_sender_id": request.recipient_sender_id,
+                "outbox_id": str(request.outbox_id),
+                "channel": "dingtalk",
+                "conversation_type": request.conversation_type,
+                "conversation_id": request.recipient_conversation_id or request.recipient_sender_id,
+            },
+            environment=request.environment,
+            agent_name="experience-im-outbox",
+            run_id=request.run_id,
+            capability_version_id=request.capability_version_id,
+            context={"entrypoint": "dingtalk-robot-outbox"},
+        )
+        try:
+            definition, version, connector = await self._resolve(session, resolution)
+        except ObsionError:
+            return DingTalkRobotOutboxResult(
+                RobotSendResult(RobotSendState.NOT_ATTEMPTED, reason="capability_unavailable"),
+                None,
+                None,
+                None,
+            )
+        if not self._dingtalk_robot_contract_valid(definition, version, connector, request):
+            return DingTalkRobotOutboxResult(
+                RobotSendResult(
+                    RobotSendState.NOT_ATTEMPTED, reason="delivery_configuration_invalid"
+                ),
+                None,
+                version.id,
+                connector.id,
+            )
+        decision = await self.policy.evaluate_resource(
+            session,
+            ResourcePolicyInput(
+                principal=request.principal,
+                action=version.permission_action,
+                resource=resolution.resource,
+                context={**resolution.context, "environment": request.environment},
+                risk_level=version.risk_level,
+                resource_type="im_delivery",
+                capability_version_id=version.id,
+                agent_name="experience-im-outbox",
+                run_id=request.run_id,
+            ),
+        )
+        await self._policy_event(session, resolution, decision)
+        if decision.effect != DecisionEffect.ALLOW or decision.obligations:
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "DENIED",
+                metadata={"error_code": "im_delivery_denied"},
+            )
+            return DingTalkRobotOutboxResult(
+                RobotSendResult(RobotSendState.NOT_ATTEMPTED, reason="delivery_not_authorized"),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+        if not self._connector_grant_allows(connector, version):
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "DENIED",
+                metadata={"error_code": "connector_grant_missing"},
+            )
+            return DingTalkRobotOutboxResult(
+                RobotSendResult(RobotSendState.NOT_ATTEMPTED, reason="connector_grant_missing"),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+        try:
+            self._validate(version.input_schema, resolution.payload, "capability_input_invalid")
+            rate_allowed = await self.rate_limiter.allow(
+                ":".join(
+                    (
+                        str(request.principal.organization_id),
+                        str(request.principal.id),
+                        str(version.id),
+                        str(connector.id),
+                    )
+                ),
+                _configured_rate_limit(connector),
+            )
+        except (RateLimitUnavailable, ObsionError):
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "FAILED",
+                metadata={"error_code": "delivery_gateway_unavailable"},
+            )
+            return DingTalkRobotOutboxResult(
+                RobotSendResult(
+                    RobotSendState.NOT_ATTEMPTED, reason="delivery_gateway_unavailable"
+                ),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+        if not rate_allowed:
+            await self._gateway_event(session, resolution, "capability.rate_limited")
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "DENIED",
+                metadata={"error_code": "capability_rate_limited"},
+            )
+            return DingTalkRobotOutboxResult(
+                RobotSendResult(RobotSendState.NOT_ATTEMPTED, reason="capability_rate_limited"),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+
+        await self.events.append(
+            session,
+            EventDraft(
+                name="tool.started",
+                aggregate_type="run",
+                aggregate_id=request.run_id,
+                organization_id=request.principal.organization_id,
+                correlation_id=request.run_id,
+                actor_type=ActorType.SYSTEM,
+                actor_id=None,
+                run_id=request.run_id,
+                payload={"capability": definition.name, "connector": connector.name},
+            ),
+        )
+        started = perf_counter()
+        credential: str | None = None
+        try:
+            credential = await self.credentials.resolve(
+                connector.credential_ref,
+                session=session,
+                organization_id=request.principal.organization_id,
+            )
+            if not isinstance(credential, str) or not credential:
+                raise ValidationError(
+                    "credential_unavailable", "The connector credential is not available"
+                )
+            robot = transport or DingTalkRobotTransport()
+            credentials = RobotCredentials(app_key=request.app_key, app_secret=credential)
+            if request.conversation_type == "group":
+                if not request.recipient_conversation_id:
+                    raise ValueError("Group delivery requires an open conversation id")
+                outcome = await robot.send_group_text(
+                    credentials,
+                    robot_code=request.robot_code,
+                    open_conversation_id=request.recipient_conversation_id,
+                    text=request.text,
+                )
+            else:
+                outcome = await robot.send_text(
+                    credentials,
+                    robot_code=request.robot_code,
+                    user_id=request.recipient_sender_id,
+                    text=request.text,
+                )
+        except ObsionError:
+            outcome = RobotSendResult(RobotSendState.NOT_ATTEMPTED, reason="credential_unavailable")
+        except (OSError, TimeoutError, ValueError):
+            outcome = RobotSendResult(
+                RobotSendState.NOT_ATTEMPTED, reason="delivery_precondition_failed"
+            )
+        finally:
+            credential = None
+        event_name = "tool.completed" if outcome.state == RobotSendState.ACCEPTED else "tool.failed"
+        await self.events.append(
+            session,
+            EventDraft(
+                name=event_name,
+                aggregate_type="run",
+                aggregate_id=request.run_id,
+                organization_id=request.principal.organization_id,
+                correlation_id=request.run_id,
+                actor_type=ActorType.SYSTEM,
+                actor_id=None,
+                run_id=request.run_id,
+                payload={"capability": definition.name, "state": outcome.state},
+            ),
+        )
+        await self._audit(
+            session,
+            resolution,
+            version,
+            decision,
+            "SUCCESS" if outcome.state == RobotSendState.ACCEPTED else outcome.state,
+            latency_ms=int((perf_counter() - started) * 1000),
+            metadata={"state": outcome.state, "reason": outcome.reason},
+        )
+        return DingTalkRobotOutboxResult(outcome, decision.id, version.id, connector.id)
+
+    async def reconcile_dingtalk_robot_outbox(
+        self,
+        session: AsyncSession,
+        request: DingTalkRobotOutboxQueryRequest,
+        *,
+        transport: DingTalkRobotTransport | None = None,
+    ) -> DingTalkRobotOutboxQueryResult:
+        """Query one vendor receipt through the same governed delivery boundary.
+
+        This path is deliberately read-only at the vendor boundary. It never
+        calls ``batchSend`` and an UNKNOWN query result is returned to the
+        durable Outbox caller for conservative persistence.
+        """
+
+        resolution = GatewayRequest(
+            principal=request.principal,
+            capability_name=DINGTALK_ROBOT_CAPABILITY,
+            payload={
+                "operation": DINGTALK_ROBOT_CAPABILITY,
+                "installation_id": str(request.installation_id),
+                "recipient_sender_id": request.recipient_sender_id,
+                "outbox_id": str(request.outbox_id),
+                "conversation_type": request.conversation_type,
+                "recipient_conversation_id": request.recipient_conversation_id or "",
+            },
+            resource={
+                "installation_id": str(request.installation_id),
+                "recipient_sender_id": request.recipient_sender_id,
+                "outbox_id": str(request.outbox_id),
+                "channel": "dingtalk",
+                "conversation_type": request.conversation_type,
+                "conversation_id": request.recipient_conversation_id or request.recipient_sender_id,
+                "operation": "reconcile",
+            },
+            environment=request.environment,
+            agent_name="experience-im-outbox-reconciliation",
+            run_id=request.run_id,
+            capability_version_id=request.capability_version_id,
+            context={"entrypoint": "dingtalk-robot-outbox-reconciliation"},
+        )
+        try:
+            definition, version, connector = await self._resolve(session, resolution)
+        except ObsionError:
+            return DingTalkRobotOutboxQueryResult(
+                RobotQueryResult(RobotQueryState.UNKNOWN, reason="capability_unavailable"),
+                None,
+                None,
+                None,
+            )
+        if not self._dingtalk_robot_contract_valid(definition, version, connector, request):
+            return DingTalkRobotOutboxQueryResult(
+                RobotQueryResult(RobotQueryState.UNKNOWN, reason="delivery_configuration_invalid"),
+                None,
+                version.id,
+                connector.id,
+            )
+        decision = await self.policy.evaluate_resource(
+            session,
+            ResourcePolicyInput(
+                principal=request.principal,
+                action=version.permission_action,
+                resource=resolution.resource,
+                context={**resolution.context, "environment": request.environment},
+                risk_level=version.risk_level,
+                resource_type="im_delivery_reconciliation",
+                capability_version_id=version.id,
+                agent_name=resolution.agent_name,
+                run_id=request.run_id,
+            ),
+        )
+        await self._policy_event(session, resolution, decision)
+        if decision.effect != DecisionEffect.ALLOW or decision.obligations:
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "DENIED",
+                metadata={"operation": "reconcile", "reason": "delivery_not_authorized"},
+            )
+            return DingTalkRobotOutboxQueryResult(
+                RobotQueryResult(RobotQueryState.UNKNOWN, reason="delivery_not_authorized"),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+        if not self._connector_grant_allows(connector, version):
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "DENIED",
+                metadata={"operation": "reconcile", "reason": "connector_grant_missing"},
+            )
+            return DingTalkRobotOutboxQueryResult(
+                RobotQueryResult(RobotQueryState.UNKNOWN, reason="connector_grant_missing"),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+        try:
+            self._validate(version.input_schema, resolution.payload, "capability_input_invalid")
+            rate_allowed = await self.rate_limiter.allow(
+                ":".join(
+                    (
+                        str(request.principal.organization_id),
+                        str(request.principal.id),
+                        str(version.id),
+                        str(connector.id),
+                    )
+                ),
+                _configured_rate_limit(connector),
+            )
+        except (RateLimitUnavailable, ObsionError):
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "FAILED",
+                metadata={"operation": "reconcile", "reason": "delivery_gateway_unavailable"},
+            )
+            return DingTalkRobotOutboxQueryResult(
+                RobotQueryResult(RobotQueryState.UNKNOWN, reason="delivery_gateway_unavailable"),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+        if not rate_allowed:
+            await self._audit(
+                session,
+                resolution,
+                version,
+                decision,
+                "DENIED",
+                metadata={"operation": "reconcile", "reason": "capability_rate_limited"},
+            )
+            return DingTalkRobotOutboxQueryResult(
+                RobotQueryResult(RobotQueryState.UNKNOWN, reason="capability_rate_limited"),
+                decision.id,
+                version.id,
+                connector.id,
+            )
+
+        started = perf_counter()
+        credential: str | None = None
+        try:
+            credential = await self.credentials.resolve(
+                connector.credential_ref,
+                session=session,
+                organization_id=request.principal.organization_id,
+            )
+            if not isinstance(credential, str) or not credential:
+                raise ValidationError(
+                    "credential_unavailable", "The connector credential is not available"
+                )
+            query = await (transport or DingTalkRobotTransport()).query_status(
+                RobotCredentials(app_key=request.app_key, app_secret=credential),
+                robot_code=request.robot_code,
+                user_id=(
+                    request.recipient_sender_id if request.conversation_type == "direct" else None
+                ),
+                open_conversation_id=(
+                    request.recipient_conversation_id
+                    if request.conversation_type == "group"
+                    else None
+                ),
+                process_query_key=request.process_query_key,
+            )
+        except ObsionError:
+            query = RobotQueryResult(RobotQueryState.UNKNOWN, reason="credential_unavailable")
+        except (OSError, TimeoutError, ValueError):
+            query = RobotQueryResult(RobotQueryState.UNKNOWN, reason="reconciliation_unavailable")
+        finally:
+            credential = None
+        await self._audit(
+            session,
+            resolution,
+            version,
+            decision,
+            "SUCCESS" if query.state == RobotQueryState.SUCCESS else query.state,
+            latency_ms=int((perf_counter() - started) * 1000),
+            metadata={
+                "operation": "reconcile",
+                "state": query.state,
+                "send_status": query.send_status,
+                "read_status": query.read_status,
+                "reason": query.reason,
+            },
+        )
+        return DingTalkRobotOutboxQueryResult(query, decision.id, version.id, connector.id)
 
     async def _invoke_operator_durable(
         self,
@@ -369,7 +884,19 @@ class CapabilityGateway:
             and version.risk_level == RiskLevel.L1
             and version.side_effect == SideEffect.NONE
         )
-        is_source_operation = is_source_write or is_source_browse
+        is_codeup_read = (
+            request.capability_name in CODEUP_ALL_OPERATIONS
+            and version.permission_action
+            == (
+                "connectors.read"
+                if request.capability_name == CODEUP_DISCOVERY_OPERATION
+                else "code.read"
+            )
+            and version.risk_level == RiskLevel.L2
+            and version.side_effect == SideEffect.NONE
+            and (is_codeup_connector(connector) or is_codeup_catalog_connector(connector))
+        )
+        is_source_operation = is_source_write or is_source_browse or is_codeup_read
         decision = await self.policy.evaluate_resource(
             session,
             ResourcePolicyInput(
@@ -410,6 +937,23 @@ class CapabilityGateway:
                     if decision.effect == DecisionEffect.ASK
                     else "The operator Capability request was denied by policy"
                 ),
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        if await self._codeup_repository_denied(session, connector, version, request):
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "DENIED",
+                metadata={"error_code": "codeup_repository_denied"},
+            )
+            return GatewayResult(
+                status=GatewayStatus.DENIED,
+                policy_decision_id=decision.id,
+                error_code="codeup_repository_denied",
+                error_message="云效仓库未获授权，请检查项目权限与仓库映射。",
                 capability_version_id=version.id,
                 connector_id=connector.id,
             )
@@ -565,6 +1109,10 @@ class CapabilityGateway:
                     ),
                     timeout=version.timeout_seconds,
                 )
+                if await self._codeup_repository_denied(session, connector, version, request):
+                    raise AuthorizationError(
+                        "codeup_repository_denied", "读取期间仓库授权已失效，结果未予交付。"
+                    )
                 self._validate(
                     version.output_schema,
                     connector_result.data,
@@ -713,6 +1261,9 @@ class CapabilityGateway:
                 connector_id=connector.id,
             )
         repository_denied = self._engineering_repository_denied(connector, request)
+        repository_denied = repository_denied or await self._codeup_repository_denied(
+            session, connector, version, request
+        )
         if not self._connector_grant_allows(connector, version) or repository_denied:
             error_code = (
                 "engineering_repository_denied" if repository_denied else "connector_grant_missing"
@@ -871,6 +1422,10 @@ class CapabilityGateway:
                 ),
                 timeout=version.timeout_seconds,
             )
+            if await self._codeup_repository_denied(session, connector, version, request):
+                raise AuthorizationError(
+                    "codeup_repository_denied", "读取期间仓库授权已失效，结果未予交付。"
+                )
             self._validate(version.output_schema, result.data, "capability_output_invalid")
             output = apply_obligations(result.data, decision.obligations)
             evidence = await self._evidence(
@@ -1079,6 +1634,80 @@ class CapabilityGateway:
     def _connector_grant_allows(connector: Connector, version: CapabilityVersion) -> bool:
         grants = connector.declared_grants
         return "*" in grants or version.permission_action in grants
+
+    @staticmethod
+    def _dingtalk_robot_contract_valid(
+        definition: CapabilityDefinition,
+        version: CapabilityVersion,
+        connector: Connector,
+        request: DingTalkRobotOutboxRequest | DingTalkRobotOutboxQueryRequest,
+    ) -> bool:
+        return (
+            definition.name == DINGTALK_ROBOT_CAPABILITY
+            and version.risk_level == RiskLevel.L2
+            and version.side_effect == SideEffect.WRITE
+            and version.permission_action == "im.reply.deliver"
+            and version.transport.value == "HTTP"
+            and connector.id == request.connector_id
+            and connector.connector_type == "dingtalk-robot"
+            and connector.configuration.get("protocol") == DINGTALK_ROBOT_PROTOCOL
+            and request.conversation_type in {"direct", "group"}
+            and (
+                request.conversation_type == "direct"
+                or isinstance(request.recipient_conversation_id, str)
+                and bool(request.recipient_conversation_id.strip())
+            )
+            and request.connector_fingerprint
+            == connector_fingerprint(
+                connector_type=connector.connector_type,
+                environment=connector.environment,
+                endpoint=connector.endpoint,
+                configuration=connector.configuration,
+                credential_ref=connector.credential_ref,
+                declared_grants=connector.declared_grants,
+                allowed_egress=connector.allowed_egress,
+            )
+        )
+
+    @staticmethod
+    async def _codeup_repository_denied(
+        session: AsyncSession,
+        connector: Connector,
+        version: CapabilityVersion,
+        request: GatewayRequest | OperatorGatewayRequest,
+    ) -> bool:
+        if (
+            not is_codeup_connector(connector)
+            and not is_codeup_catalog_connector(connector)
+            and request.capability_name not in CODEUP_ALL_OPERATIONS
+        ):
+            return False
+        if request.capability_name == CODEUP_DISCOVERY_OPERATION:
+            return not (
+                isinstance(request, OperatorGatewayRequest)
+                and is_codeup_catalog_connector(connector)
+                and request.payload.get("operation") == CODEUP_DISCOVERY_OPERATION
+                and version.permission_action == "connectors.read"
+                and version.side_effect == SideEffect.NONE
+                and version.risk_level == RiskLevel.L2
+                and version.data_classification == Classification.RESTRICTED
+                and await catalog_allowed(
+                    session, request.principal, connector, request.payload, request.resource
+                )
+            )
+        if (
+            not is_codeup_connector(connector)
+            or request.capability_name not in CODEUP_OPERATIONS
+            or request.payload.get("operation") != request.capability_name
+            or version.permission_action != "code.read"
+            or version.side_effect != SideEffect.NONE
+            or version.risk_level != RiskLevel.L2
+            or version.data_classification != Classification.RESTRICTED
+        ):
+            return True
+        return not await repository_allowed(
+            session, request.principal, connector, request.payload, request.resource
+        )
 
     @staticmethod
     def _engineering_repository_denied(

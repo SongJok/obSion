@@ -97,6 +97,36 @@ async def test_client_exposes_complete_thread_lifecycle() -> None:
 
 
 @pytest.mark.asyncio
+async def test_client_answers_run_clarification() -> None:
+    captured: tuple[str, str, dict[str, object]] | None = None
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal captured
+        captured = (request.method, request.url.path, json.loads(request.content))
+        return httpx.Response(200, json={"id": "run-1", "status": "RUNNING"})
+
+    async with AsyncObsionClient(
+        "https://obsion.example", transport=httpx.MockTransport(handler)
+    ) as client:
+        run = await client.answer_run_clarification(
+            "run-1",
+            "clarification-1",
+            expected_intent_revision=3,
+            answers=[{"slot": "repository", "option_id": "option-1"}],
+        )
+
+    assert run["status"] == "RUNNING"
+    assert captured == (
+        "POST",
+        "/api/v1/runs/run-1/clarifications/clarification-1/answer",
+        {
+            "expected_intent_revision": 3,
+            "answers": [{"slot": "repository", "option_id": "option-1"}],
+        },
+    )
+
+
+@pytest.mark.asyncio
 async def test_client_lists_and_decides_capability_approvals() -> None:
     requests: list[tuple[str, str, dict[str, object]]] = []
 

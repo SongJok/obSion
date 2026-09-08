@@ -17,6 +17,7 @@ from obsion.api.schemas import (
     WorkspaceView,
 )
 from obsion.application.approvals import ApprovalService
+from obsion.application.clarifications import ClarificationService
 from obsion.application.workspaces import WorkspaceService
 from obsion.artifacts.service import ArtifactService
 from obsion.common.error_mapping import application_error_code
@@ -24,6 +25,7 @@ from obsion.common.errors import ObsionError
 from obsion.config import Settings
 from obsion.db.session import Database
 from obsion.domain.enums import ApprovalStatus, RunStatus
+from obsion.domain.run_intent import ClarificationAnswerSubmission
 from obsion.persistence.app_server_requests import AppServerRequestStore, params_fingerprint
 from obsion.persistence.events import EventStore
 from obsion.security.auth import authenticate_principal, authenticate_session_principal
@@ -63,6 +65,7 @@ class AppServerApplication:
         self.settings = settings
         self.workspaces = workspace_service
         self.approvals = ApprovalService()
+        self.clarifications = ClarificationService()
         self.artifacts = artifact_service
         self.events = EventStore()
         self.requests = AppServerRequestStore()
@@ -289,6 +292,36 @@ class AppServerApplication:
 
         return await self._mutate(
             "run.replay",
+            principal,
+            correlation_id,
+            client_request_id,
+            fingerprint_params,
+            operation,
+        )
+
+    async def answer_run_clarification(
+        self,
+        principal: Principal,
+        correlation_id: UUID,
+        *,
+        client_request_id: str,
+        run_id: UUID,
+        clarification_id: UUID,
+        submission: ClarificationAnswerSubmission,
+        fingerprint_params: dict[str, Any],
+    ) -> JsonResult:
+        async def operation(session: AsyncSession) -> JsonResult:
+            run = await self.clarifications.answer(
+                session,
+                principal,
+                run_id,
+                clarification_id,
+                submission,
+            )
+            return RunView.model_validate(run).model_dump(mode="json")
+
+        return await self._mutate(
+            "run.clarification.answer",
             principal,
             correlation_id,
             client_request_id,

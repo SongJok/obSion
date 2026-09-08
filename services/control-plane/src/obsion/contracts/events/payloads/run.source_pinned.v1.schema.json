@@ -1,0 +1,53 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.source_pinned.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "commit_id": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "connector_version_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "file_count": {
+      "maximum": 500,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "repository_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "snapshot_bytes": {
+      "maximum": 8388608,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "snapshot_fingerprint": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "tree_id": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "connector_version_id",
+    "repository_id",
+    "commit_id",
+    "tree_id",
+    "snapshot_fingerprint",
+    "file_count",
+    "snapshot_bytes"
+  ],
+  "title": "run.source_pinned payload v1",
+  "type": "object"
+}

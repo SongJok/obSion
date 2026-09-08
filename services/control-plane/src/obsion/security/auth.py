@@ -12,11 +12,13 @@ from jwt import PyJWKClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from obsion.common.errors import AuthorizationError
+from obsion.common.errors import AuthorizationError, ObsionError
 from obsion.config import AuthMode, Environment, Settings
 from obsion.db.models import Department, Role, User, UserRole
 from obsion.persistence.auth_sessions import AuthSessionStore, IssuedAuthSession
+from obsion.persistence.user_credentials import CredentialOutcome, UserCredentialStore
 from obsion.security.identity import Principal
+from obsion.security.passwords import PasswordPolicy, ScryptParameters
 
 _bearer = HTTPBearer(auto_error=False)
 _documented_browser_session = APIKeyCookie(name="obsion_session", auto_error=False)
@@ -56,6 +58,7 @@ async def _load_principal(
             User.external_id == external_id,
             User.active.is_(True),
         )
+        .execution_options(populate_existing=True)
     )
     rows = result.all()
     if not rows:
@@ -87,11 +90,13 @@ async def load_principal_by_id(
     session: AsyncSession, organization_id: UUID, user_id: UUID
 ) -> Principal:
     user = await session.scalar(
-        select(User).where(
+        select(User)
+        .where(
             User.id == user_id,
             User.organization_id == organization_id,
             User.active.is_(True),
         )
+        .execution_options(populate_existing=True)
     )
     if user is None:
         raise AuthorizationError("unknown_principal", "The run owner is not provisioned")
@@ -198,6 +203,73 @@ async def authenticate_session_principal(
         session,
         auth_session.organization_id,
         auth_session.user_id,
+    )
+
+
+def password_policy(settings: Settings) -> PasswordPolicy:
+    return PasswordPolicy(
+        min_length=settings.password_min_length,
+        max_length=settings.password_max_length,
+    )
+
+
+def scrypt_parameters(settings: Settings) -> ScryptParameters:
+    return ScryptParameters(
+        cost=settings.password_scrypt_cost,
+        block_size=settings.password_scrypt_block_size,
+        parallelism=settings.password_scrypt_parallelism,
+    )
+
+
+def credential_store(settings: Settings) -> UserCredentialStore:
+    return UserCredentialStore(
+        parameters=scrypt_parameters(settings),
+        max_failed_attempts=settings.password_max_failed_attempts,
+        lockout_seconds=settings.password_lockout_seconds,
+    )
+
+
+async def authenticate_password_principal(
+    session: AsyncSession,
+    settings: Settings,
+    *,
+    email: str,
+    password: str,
+    organization_id: UUID | None = None,
+) -> Principal:
+    """Resolve one Principal from a locally enrolled password credential.
+
+    Password login is an additional credential exchange rather than an
+    `AuthMode`: a deployment that authenticates its people through OIDC may
+    still need the local administrator who provisioned the provider to sign in.
+    """
+    if not settings.password_auth_enabled:
+        raise AuthorizationError(
+            "password_auth_disabled", "Password authentication is disabled for this deployment"
+        )
+    verification = await credential_store(settings).verify(
+        session,
+        email=email,
+        plaintext=password,
+        organization_id=organization_id,
+    )
+    if verification.outcome is CredentialOutcome.LOCKED:
+        raise ObsionError(
+            "credential_locked",
+            "The credential is locked after repeated failed attempts",
+            status_code=429,
+            details={
+                "locked_until": verification.locked_until.isoformat()
+                if verification.locked_until is not None
+                else None
+            },
+        )
+    if verification.user_id is None or verification.organization_id is None:
+        raise AuthorizationError("invalid_credentials", "The email or password is incorrect")
+    return await load_principal_by_id(
+        session,
+        verification.organization_id,
+        verification.user_id,
     )
 
 

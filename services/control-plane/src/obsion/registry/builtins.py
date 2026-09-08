@@ -7,6 +7,13 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obsion.capabilities.codeup_contract import (
+    CODEUP_ALL_OPERATIONS,
+    CODEUP_DISCOVERY_OPERATION,
+    CODEUP_OPERATIONS,
+)
+from obsion.capabilities.codeup_contract import input_schema as codeup_input_schema
+from obsion.capabilities.codeup_contract import output_schema as codeup_output_schema
 from obsion.capabilities.plugin_governance import development_plugin_configuration
 from obsion.capabilities.vendor_knowledge import (
     CONTAINERS_INPUT_SCHEMA,
@@ -419,6 +426,60 @@ def _code_graph_output_schema(operation: str) -> dict[str, Any]:
 
 
 _CAPABILITIES = [
+    CapabilitySeed(
+        "im.dingtalk.robot.reply",
+        "Deliver one completed, audience-authorized DingTalk Run through a configured robot Outbox",
+        "im.reply.deliver",
+        "TOOL",
+        risk=RiskLevel.L2,
+        transport=CapabilityTransport.HTTP,
+        side_effect=SideEffect.WRITE,
+        input_schema={
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["operation", "installation_id", "recipient_sender_id", "outbox_id"],
+            "properties": {
+                "operation": {"const": "im.dingtalk.robot.reply"},
+                "installation_id": {"type": "string", "format": "uuid"},
+                "recipient_sender_id": {"type": "string", "minLength": 1, "maxLength": 255},
+                "outbox_id": {"type": "string", "format": "uuid"},
+                "conversation_type": {"enum": ["direct", "group"]},
+                "recipient_conversation_id": {"type": "string", "maxLength": 512},
+            },
+        },
+        output_schema={
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["state"],
+            "properties": {
+                "state": {"enum": ["NOT_ATTEMPTED", "ACCEPTED", "REJECTED", "UNKNOWN"]},
+                "process_query_key": {"type": "string", "maxLength": 500},
+            },
+        },
+    ),
+    CapabilitySeed(
+        CODEUP_DISCOVERY_OPERATION,
+        "Discover repository metadata visible to a Codeup operator token",
+        "connectors.read",
+        "CODE",
+        risk=RiskLevel.L2,
+        input_schema=codeup_input_schema(CODEUP_DISCOVERY_OPERATION),
+        output_schema=codeup_output_schema(CODEUP_DISCOVERY_OPERATION),
+    ),
+    *(
+        CapabilitySeed(
+            name,
+            "Read authorized Codeup repository information",
+            "code.read",
+            "CODE",
+            risk=RiskLevel.L2,
+            input_schema=codeup_input_schema(name),
+            output_schema=codeup_output_schema(name),
+        )
+        for name in sorted(CODEUP_OPERATIONS)
+    ),
     CapabilitySeed(
         "code.search",
         "Search indexed source code",
@@ -1770,6 +1831,34 @@ async def bootstrap_builtin_registry(
         session.add(dingtalk_docs_connector)
         await session.flush()
 
+    dingtalk_robot_connector = await session.scalar(
+        select(Connector).where(
+            Connector.organization_id == organization_id,
+            Connector.name == "obsion-dingtalk-robot",
+        )
+    )
+    if dingtalk_robot_connector is None:
+        dingtalk_robot_connector = Connector(
+            organization_id=organization_id,
+            name="obsion-dingtalk-robot",
+            connector_type="dingtalk-robot",
+            status=ConnectorStatus.DRAFT,
+            environment="development",
+            endpoint="https://api.dingtalk.com",
+            configuration={
+                "protocol": "dingtalk.robot.oto.v1",
+                "app_key_env": "OBSION_DINGTALK_APP_KEY",
+                "robot_code_env": "OBSION_DINGTALK_ROBOT_CODE",
+                "rate_limit_per_minute": 30,
+            },
+            credential_ref="env://OBSION_DINGTALK_APP_SECRET",
+            declared_grants=["im.reply.deliver"],
+            allowed_egress=["https://api.dingtalk.com"],
+            last_health={"status": "awaiting-admin-activation"},
+        )
+        session.add(dingtalk_robot_connector)
+        await session.flush()
+
     wecom_docs_connector = await session.scalar(
         select(Connector).where(
             Connector.organization_id == organization_id,
@@ -2035,7 +2124,11 @@ async def bootstrap_builtin_registry(
                 output_schema=output_schema,
                 evidence_mapping={"type": seed.evidence_type, "confidence": 1.0},
                 timeout_seconds=30,
-                data_classification=Classification.INTERNAL,
+                data_classification=(
+                    Classification.RESTRICTED
+                    if seed.name in CODEUP_ALL_OPERATIONS
+                    else Classification.INTERNAL
+                ),
                 checksum_sha256=checksum,
                 created_at=now,
             )
@@ -2059,6 +2152,25 @@ async def bootstrap_builtin_registry(
                         environment="development",
                         resource_selector={"index": "organization"},
                         enabled=True,
+                    )
+                )
+        if seed.name == "im.dingtalk.robot.reply":
+            binding = await session.scalar(
+                select(CapabilityBinding).where(
+                    CapabilityBinding.capability_version_id == version.id,
+                    CapabilityBinding.connector_id == dingtalk_robot_connector.id,
+                    CapabilityBinding.environment == "development",
+                )
+            )
+            if binding is None:
+                session.add(
+                    CapabilityBinding(
+                        organization_id=organization_id,
+                        capability_version_id=version.id,
+                        connector_id=dingtalk_robot_connector.id,
+                        environment="development",
+                        resource_selector={"channel": "dingtalk", "conversation_type": "direct"},
+                        enabled=False,
                     )
                 )
         if seed.name in {

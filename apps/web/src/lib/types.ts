@@ -200,6 +200,46 @@ export type RunStatus =
   | "FAILED"
   | "CANCELLED";
 
+export interface ClarificationOption {
+  id: string;
+  label: string;
+}
+
+export interface ClarificationGap {
+  slot: string;
+  reason_code: string;
+  prompt: string;
+  cardinality: "ONE";
+  value_type: "STRING" | "TIME_RANGE";
+  options: ClarificationOption[];
+  allow_free_text: boolean;
+}
+
+export interface PendingClarification {
+  id: string;
+  run_id: string;
+  intent_revision: number;
+  round: number;
+  status: "OPEN";
+  question: string;
+  gaps: ClarificationGap[];
+  requested_at: string;
+  expires_at: string;
+}
+
+export type ClarificationAnswerValue =
+  | string
+  | { start: string; end: string; timezone?: string };
+
+export type ClarificationAnswer =
+  | { slot: string; option_id: string }
+  | { slot: string; value: ClarificationAnswerValue };
+
+export interface ClarificationAnswerSubmission {
+  expected_intent_revision: number;
+  answers: ClarificationAnswer[];
+}
+
 export interface Run {
   id: string;
   turn_id: string;
@@ -242,6 +282,7 @@ export interface Run {
     description_fingerprint?: string;
   };
   intent: Record<string, unknown>;
+  pending_clarification: PendingClarification | null;
   plan: {
     route?: string;
     required_evidence?: string[];
@@ -550,6 +591,41 @@ export interface CodeSymbolHit {
   end_line: number;
   relations: Array<Record<string, unknown>>;
 }
+
+export type CodeupReadRequest =
+  | { operation: "codeup.repository.get" }
+  | { operation: "codeup.commits.list"; ref: string; page?: number; limit?: number }
+  | { operation: "codeup.commit.get"; commit_id: string }
+  | { operation: "codeup.file.read"; commit_id: string; path: string };
+
+interface CodeupResult<Operation extends string, Item> {
+  operation: Operation;
+  repository: string;
+  repository_id: string;
+  items: Item[];
+  count: number;
+  next_page: number | null;
+  complete: boolean;
+  policy_decision_id: string;
+}
+
+export interface CodeupCommit {
+  commit_id: string;
+  parent_ids: string[];
+  committed_at: string;
+  title: string;
+  message: string;
+}
+
+export type CodeupReadResult =
+  | CodeupResult<"codeup.repository.get", {
+      id: string; name: string; default_branch: string; visibility: string;
+    }>
+  | CodeupResult<"codeup.commit.get" | "codeup.commits.list", CodeupCommit>
+  | CodeupResult<"codeup.file.read", {
+      path: string; commit_id: string; blob_id: string; content: string;
+      source_size_bytes: number; redacted: boolean; content_sha256: string;
+    }>;
 
 export interface Metric {
   id: string;

@@ -101,7 +101,9 @@ def test_feishu_delivery_is_policy_authorized_idempotent_and_audited(
     assert "experience.im.delivery.complete" in actions
 
 
-def test_feishu_delivery_failure_is_retryable_with_the_same_id(client: TestClient) -> None:
+def test_feishu_delivery_failure_requires_reconciliation_without_resending(
+    client: TestClient,
+) -> None:
     run_id = _completed_feishu_run(client)
     prepared = client.post(f"/api/v1/experience/im/runs/{run_id}/deliveries").json()
     failed = client.post(
@@ -109,12 +111,11 @@ def test_feishu_delivery_failure_is_retryable_with_the_same_id(client: TestClien
         json={"failure_code": "vendor_request_failed"},
     )
     assert failed.status_code == 200, failed.text
-    assert failed.json()["status"] == "FAILED"
+    assert failed.json()["status"] == "UNKNOWN"
     retried = client.post(f"/api/v1/experience/im/runs/{run_id}/deliveries")
-    assert retried.status_code == 200, retried.text
-    assert retried.json()["id"] == prepared["id"]
-    assert retried.json()["status"] == "PENDING"
-    assert retried.json()["attempt_count"] == 2
+    assert retried.status_code == 409, retried.text
+    assert retried.json()["code"] == "im_delivery_receipt_conflict"
+    assert failed.json()["attempt_count"] == 1
 
 
 def test_non_im_run_cannot_be_delivered(client: TestClient) -> None:

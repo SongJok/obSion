@@ -382,6 +382,36 @@
       ]
     },
     {
+      "name": "clarification.answered",
+      "versions": [
+        {
+          "payload_schema": "payloads/clarification.answered.v1.schema.json",
+          "payload_schema_sha256": "46d65ba8923c40f1beef49ab481ab320c00fc762864107828305f1ec2c97b866",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "clarification.expired",
+      "versions": [
+        {
+          "payload_schema": "payloads/clarification.expired.v1.schema.json",
+          "payload_schema_sha256": "f15e3068867fc0d6397d2858c04d8d920d7b96d78d42a2a1e24390915c1e0aec",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "clarification.requested",
+      "versions": [
+        {
+          "payload_schema": "payloads/clarification.requested.v1.schema.json",
+          "payload_schema_sha256": "3e675754c4389a972a17a5d2bd5faceae5996eb0dbb358369065ebd3c0170834",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
       "name": "context.resolved",
       "versions": [
         {
@@ -627,6 +657,16 @@
         {
           "payload_schema": "payloads/run.resumed.v1.schema.json",
           "payload_schema_sha256": "0dacb0ddf5c3455c8e6d68d58a095909501a76d62c3dc5f34d4004173cc0a14d",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
+      "name": "run.source_pinned",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.source_pinned.v1.schema.json",
+          "payload_schema_sha256": "97b7927209337434b797111f111726742f5c7caad160f7e5e13ca663c2e2d242",
           "schema_version": 1
         }
       ]

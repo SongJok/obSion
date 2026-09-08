@@ -7,6 +7,19 @@ project follows Semantic Versioning.
 
 ### Added
 
+- Phase 98 local operator access: organization-scoped scrypt password
+  credentials, bounded lockout, equivalent KDF work for unknown identities,
+  CLI-only idempotent administrator enrollment, a shared revocable browser
+  session, and accessible password/token Workbench login. The additive
+  credential migration now has an isolated PostgreSQL round trip. Local
+  environment files cover every control-plane setting with exact key parity,
+  Compose injects the optional ignored file only into the API, and a governed
+  non-private Model Gateway endpoint was validated through a complete durable
+  Harness Run. The non-sending Feishu live suite also passed without persisting
+  tenant credentials. Destructive migration CI now upgrades each historical
+  round-trip database to the current head before drift detection, preventing
+  intentional later revisions from being misreported as schema drift.
+
 - Phase 97 Workbench root-orchestration reliability amendment: all
   selection-sensitive Workspace, Thread, source-Run, submit, cancel, replay,
   feedback, Context Picker, upload, and stream operations now capture scoped

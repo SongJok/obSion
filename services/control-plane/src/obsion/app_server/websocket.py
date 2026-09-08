@@ -61,6 +61,7 @@ APP_SERVER_METHODS = [
     "run.get",
     "run.cancel",
     "run.replay",
+    "run.clarification.answer",
     "run.events",
     "run.subscribe",
     "run.unsubscribe",

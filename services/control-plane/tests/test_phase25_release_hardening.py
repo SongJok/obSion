@@ -41,6 +41,11 @@ from obsion.telemetry import (
     sql_duration,
 )
 
+# The repository fixtures these gates assert on are addressed from the repository
+# root, not the invoking directory: a release gate that only holds when pytest
+# happens to be started from one directory is not a gate.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
 _WRITE_CAPABILITIES = {
     "action.ticket.create",
     "action.ticket.close",
@@ -253,6 +258,44 @@ def test_secret_scan_finds_literals_outside_tests(tmp_path: Path) -> None:
     assert all("tests/" not in item.path for item in findings)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        ".env.example",
+        "setup.sh",
+        "guide.md",
+        "Dockerfile",
+        "Makefile",
+        "Containerfile",
+        "Dockerfile.production",
+        "Containerfile.dev",
+        "Makefile.local",
+        "start-service",
+    ],
+)
+def test_secret_scan_covers_codeup_tokens_in_public_configuration(
+    tmp_path: Path, name: str
+) -> None:
+    token = "pt-" + "synthetic-not-a-real-credential-" * 2
+    (tmp_path / name).write_text(f"OBSION_CODEUP_APP_ID={token}\n", encoding="utf-8")
+    (tmp_path / ".env").write_text(f"OBSION_CODEUP_APP_ID={token}\n", encoding="utf-8")
+
+    findings = scan_secrets(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].path == name
+    assert findings[0].kind == "codeup_personal_access_token"
+    assert token not in repr(findings)
+
+
+def test_secret_scan_skips_extensionless_binary_and_test_fixtures(tmp_path: Path) -> None:
+    token = "pt-" + "synthetic-not-a-real-credential-" * 2
+    (tmp_path / "binary-launcher").write_bytes(b"\xff\x00" + token.encode())
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "Makefile").write_text(token, encoding="utf-8")
+    assert scan_secrets(tmp_path) == []
+
+
 def test_sbom_and_eval_gate_are_deterministic(tmp_path: Path) -> None:
     lockfile = tmp_path / "uv.lock"
     lockfile.write_text(
@@ -264,7 +307,7 @@ def test_sbom_and_eval_gate_are_deterministic(tmp_path: Path) -> None:
     assert sbom["components"][0]["name"] == "httpx"
     gate = tmp_path / "gate.yaml"
     gate.write_text(
-        Path("evaluations/gates/v1-release.yaml").read_text(encoding="utf-8"),
+        (_REPO_ROOT / "evaluations/gates/v1-release.yaml").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     summary = {
@@ -286,13 +329,13 @@ def test_sbom_and_eval_gate_are_deterministic(tmp_path: Path) -> None:
 
 
 def test_repository_eval_gate_and_secret_scan_are_clean() -> None:
-    datasets = Path("evaluations/datasets")
+    datasets = _REPO_ROOT / "evaluations/datasets"
     summary = validate_evaluation_root(datasets)
     summary["routes"] = sorted(_dataset_routes(datasets))
-    result = validate_evaluation_gate(Path("evaluations/gates/v1-release.yaml"), summary)
+    result = validate_evaluation_gate(_REPO_ROOT / "evaluations/gates/v1-release.yaml", summary)
     assert result["cases"] >= 36
     assert set(result["required_routes"]).issubset(set(summary["routes"]))
-    assert scan_secrets(Path(".")) == []
+    assert scan_secrets(_REPO_ROOT) == []
 
 
 def test_release_latency_instruments_are_registered() -> None:
@@ -326,15 +369,17 @@ def test_knowledge_and_sql_query_limits_are_bounded() -> None:
 
 
 def test_helm_network_policy_is_default_deny_with_https_egress() -> None:
-    template = Path("deploy/helm/obsion/templates/policies.yaml").read_text(encoding="utf-8")
+    template = (_REPO_ROOT / "deploy/helm/obsion/templates/policies.yaml").read_text(
+        encoding="utf-8"
+    )
     assert "policyTypes: [Ingress, Egress]" in template
     assert "port: 443" in template
     assert "namespaceSelector: {}" not in template.split("ingress:")[1].split("egress:")[0]
 
 
 def test_helm_api_drains_and_loads_encryption_from_secret() -> None:
-    template = Path("deploy/helm/obsion/templates/api.yaml").read_text(encoding="utf-8")
-    dockerfile = Path("deploy/docker/control-plane.Dockerfile").read_text(encoding="utf-8")
+    template = (_REPO_ROOT / "deploy/helm/obsion/templates/api.yaml").read_text(encoding="utf-8")
+    dockerfile = (_REPO_ROOT / "deploy/docker/control-plane.Dockerfile").read_text(encoding="utf-8")
     assert "terminationGracePeriodSeconds" in template
     assert "preStop" in template
     assert "OBSION_SECRET_ENCRYPTION_KEY" in template
@@ -343,7 +388,7 @@ def test_helm_api_drains_and_loads_encryption_from_secret() -> None:
 
 
 def test_golden_routing_and_sql_policy_cases_execute() -> None:
-    result = execute_offline_evaluations(Path("evaluations/datasets"))
+    result = execute_offline_evaluations(_REPO_ROOT / "evaluations/datasets")
     assert result["status"] == "PASSED"
     assert result["executed"] >= 11
     assert result["skipped"] >= 7
@@ -487,7 +532,7 @@ def test_concurrent_event_streams_close_after_terminal_runs(client: TestClient) 
 def test_shipped_agents_cannot_declare_unrestricted_sandbox(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    root = Path(__file__).resolve().parents[3]
+    root = _REPO_ROOT
     monkeypatch.setenv("OBSION_REGISTRY_ROOT", str(root))
     monkeypatch.chdir(root)
     agents, _ = load_registry_specs({}, {})

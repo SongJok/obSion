@@ -1,5 +1,5 @@
 project: obsion
-version: 0.97.0-dev
+version: 0.98.0-dev
 architecture_version: 1
 
 completed_phases:
@@ -100,8 +100,9 @@ completed_phases:
   - phase-95
   - phase-96
   - phase-97
+  - phase-98
 
-current_phase: phase-97
+current_phase: phase-98
 
 tests:
   unit: passed
@@ -109,9 +110,26 @@ tests:
   e2e: passed
 
 known_issues:
+  - 2026-09-08 ADR0102 已为 Harness Run 增加不可变项目来源版本固定：新增 a88f69d7c8a0、Git commit/tree 与完整快照校验、run.source_pinned.v1、审计和 GET /api/v1/runs/{run_id}/source-pins；撤销或摘要异常只标记 source_available=false。Run pin 专项3项、契约门禁5项、组合7项和独立 PostgreSQL17 迁移往返1项通过，Ruff/mypy/OpenAPI 当前性通过。真实云效源码获取、实际 scopes、Harness 自动接线、Artifact ACL、沙箱传输/恢复/配额、钉钉租户、UAT 和生产晋级仍未完成。详见 docs/adr/0102-run-source-version-pinning.md、docs/phases/productization-run-source-pinning-validation.md、docs/phases/PHASE-99-REPORT.md 和 docs/architecture/phase-99-run-source-pinning-gate.md。
+  - 2026-09-08 ADR0101 已收敛根目录 DWS 兼容入口：`dingtalk_obsion_agent.py` 不再导入 OpenAI、不保存进程内历史、不生成关键词降级答案，只通过 `ExperienceRuntime`/`ImBridge` 将 sender/conversation 消息交给统一控制面 IM/Harness；入口专项 3 passed，Ruff/编译通过。该入口不替代官方 Stream → 持久 Inbox → worker，也不构成真实 DWS/钉钉租户、Outbox、群受众、回执或 UAT 证据。详见 docs/adr/0101-dingtalk-dws-control-plane-bridge.md、docs/product/im-m1-stream-operations.md 和 docs/phases/productization-m1-validation.md。
+  - 2026-09-08 ADR0100 已把云效目录条目连接到本地仓库映射：映射前通过 `codeup.repositories.discover` Gateway 重查数字 ID、完整路径和未归档状态，映射事务经 `project_source.codeup.map` Policy、`connectors.write`、本地 ACL、SecretReference 和来源账本审计；同一映射幂等、跨本地仓库的供应商 ID 冲突，响应不含配置或凭据。Codeup Gateway 专项 24 passed（含 5 项映射测试），契约/静态错误门禁 158 passed，来源/Codeup 回归 228 passed/142 skipped，Ruff、format、mypy 通过，OpenAPI 已更新。真实云效目标仓库、实际 scopes、PostgreSQL 多 Worker、来源 commit/tree pin、沙箱传输、钉钉正式租户、UAT 和生产晋级仍未完成。详见 docs/adr/0100-codeup-verified-mapping.md、docs/phases/productization-codeup-mapping-validation.md 和 docs/architecture/productization-codeup-mapping-gate.md。
+  - 2026-09-07 ADR0099 已为项目来源账本增加受保护只读清单：管理员可查询冻结 Connector 版本、Workspace/仓库到厂商仓库标识的固定绑定及撤销状态，默认隐藏撤销记录；返回不含 endpoint、configuration、credential_ref、egress、token、源码或 scope 声明。来源 REST SQLite 73 passed/73 skipped，契约门禁 5 passed，Ruff/format/mypy/OpenAPI 通过；无 schema 变化或新迁移。清单只代表本地撤销账本状态，不证明云效身份、实际 scopes、源码版本、沙箱来源传输或生产部署。详见 docs/adr/0099-project-source-inventory.md、docs/phases/productization-source-inventory-validation.md 和 docs/architecture/productization-source-inventory-gate.md。
+  - 2026-09-07 ADR0098 已接入钉钉群受众控制：新增安装域 openConversationId/Workspace/成员快照与五分钟验证窗口、管理员创建/撤销 API、群任务成员隔离线程、答案分级与 FINAL/STATUS Outbox 目标、固定 groupMessages/send 和群只读回执参数；发送前持续重查受众、成员、Workspace ACL、Run、Connector、Policy 与内容指纹，未授权群不发布私有答案。专项 101+2 passed，PostgreSQL 17.11 迁移往返与 drift check 通过。成员快照仍依赖管理员提供的核验来源，真实钉钉群成员同步、实际 scopes、PostgreSQL 多 worker、回执、UAT、四意图白名单与 Phase 99 生产晋级仍未完成。详见 docs/adr/0098-dingtalk-group-audience-authorization.md、docs/phases/productization-m1-group-audience-validation.md 和 docs/architecture/productization-m1-group-audience-gate.md。
+  - 2026-09-07 ADR0097 已补齐钉钉 `processQueryKey` 只读回执对账：官方 readStatus GET、持久厂商发送/已读状态、对账 claim、worker 调度和管理员指定对账入口均经过现有 Gateway/Policy/Connector/CredentialBroker；UNKNOWN 保留 ACCEPTED 且不重发。对账状态机、时间/错误契约、OpenAPI 和迁移字段/约束/索引断言已加入验证；一次性 PostgreSQL 17.11 空库迁移往返 1 passed。真实租户回执、PostgreSQL 并发/重启、群受众和 UAT 仍未完成，M1/Phase 99 继续阻塞。
+  - 2026-09-07 ADR0096 钉钉新版单聊协议已接入持久 Outbox、Capability Gateway、默认关闭 worker、管理员 activation 和内容无关管理查询；新增前向迁移 a85e36f47a58。专项协议/旧 IM 安全/Outbox ORM/激活 API/契约门禁共98passed，Ruff、编译和OpenAPI当前性通过；修复错误码静态契约登记后隔离全量 Python 回归2012passed/213skipped/6deselected（390.36秒）；一次性 PostgreSQL17.11 upgrade head 与 Alembic check 通过。环境身份只允许 OBSION_* 引用，secret 仍经 CredentialBroker；消息POST不重试，过期 claim 转 UNKNOWN。未真实发送或完成 PostgreSQL 并发/重启、群受众与 DingTalk UAT；M1/生产晋级保持未通过。详见docs/phases/productization-m1-validation.md。回执对账由 ADR0097 单独记录。
+  - 2026-09-07 ADR0095 云效管理目录发现已实现，85项专项及5项精确契约门禁通过；最终完整Python1953passed/213skipped/6deselected（379.01秒），Ruff/896格式/mypy242、CLI契约/阶段/Secret零匹配通过。外置凭据经隔离验证实例的正式Policy/Gateway/原生HTTPS完成两次真实只读目录查询，均200并有SUCCESS审计；obsion搜索0条，未过滤首20条且明确未完整。当前origin是GitHub，云效目标映射待补齐；不代表源码四类读取、完整scope或生产部署已验收。无schema迁移，无业务数据库/容器变更，详见docs/phases/productization-codeup-validation.md，正式阶段与晋级状态不变。
+  - 2026-09-06 新增云效 Central 原生只读连接（ADR0094），四个L2/RESTRICTED能力经Gateway/Policy/当前仓库ACL，固定GET、文件blob与预算校验、后置主体/配置重查；新增REST、工作台查询及缺项指引，无自动绑定或Agent扩权。Codeup71项及契约/Registry组合83passed，最终完整Python1939passed/213skipped/6deselected（410.85秒）；Web210/Desktop17/IDE12/TS SDK26全部通过，Web lint/typecheck/build、Ruff/895格式、mypy242通过，错误目录336/OpenAPI精确门禁通过。实际浏览器桌面/390/320宽度合成数据检查无页面横向溢出，临时服务已清理。无新schema/迁移；未运行真实云效或本轮PostgreSQL，Agent完整接线、实际scopes、来源commit/tree pin、沙箱传输与M2仍缺。当前阶段及生产晋级保持未通过，见docs/phases/productization-codeup-validation.md。
+  - 2026-09-06 M2 新增四个受保护来源管理REST（ADR0093），封闭输入/元数据输出、共享认证/Policy/ACL/Audit、提交后映射业务拒绝，生产仍关闭；无新schema，错误目录328。真实Database红测发现SQLite SAVEPOINT提前提交，最终仅在SAVEPOINT前按需BEGIN IMMEDIATE，保留普通读取和PostgreSQL行为；中途全局BEGIN引入并发锁回归已收窄修复，停止的全量不计通过。最终Python1868passed/213skipped/6deselected（382.92秒），Ruff/887格式/mypy239源码/git diff --check通过。一次性PostgreSQL17.11集合372passed/9skipped（169SQLite+202PostgreSQL+1纯契约），来源/Memory/IM/语义四独立迁移各1passed，三次自建容器已清理。CLI契约/状态/Secret零匹配/OpenAPI一致通过，promotion仍false。本轮未改前端、未重跑JavaScript，无提交/外发/部署；派工隔离参数错误已撤回，无有效独立审查。实际scopes、厂商身份、Run commit/tree pin、来源获取/ACL传播与Gateway/Harness仍缺，任务8/M2未完成。
+  - 2026-09-06 M2 新增内部项目来源管理服务（ADR0092）：从锁定Connector冻结封闭配置，经当前主体权限、显式L2 Policy ALLOW、Workspace/仓库ACL与原子Audit登记/撤销，旧Role/Policy缓存重载；无新schema或公开入口。最终Python1785passed/142skipped/6deselected（334.67秒），Ruff/882格式/mypy237源码/git diff --check通过。一次性PostgreSQL17.11通用integration230passed/9skipped（98SQLite+131PostgreSQL+1纯契约），来源/Memory/IM/语义四独立迁移各1passed，两次自建容器已清理。首轮fixture与格式失败已修，中途停止回归不计通过。CLI契约/Secret零匹配/OpenAPI一致通过，promotion仍false。本轮未改前端、未重跑JavaScript，无提交/外发/部署；实际scopes、厂商身份、Run commit/tree pin、来源获取/ACL传播与Gateway/Harness仍缺，不代表任务8或M2完成。
+  - 2026-09-06 M2 来源持久化切片新增 a84e25f36a47 前向迁移、不可变 Connector 配置版本/项目来源/双撤销账本及内部状态重查（ADR0091）。最新一次性 PostgreSQL17.11 来源迁移1passed、通用integration100passed/9skipped（36SQLite来源+37PostgreSQL来源+27既有PostgreSQL），独立Memory/IM/语义迁移各1passed，临时容器均清理。首轮泛型与SchemaItem导入失败已修。最终Python1722passed/75skipped/6deselected（314.43秒），Ruff/878文件格式/mypy235源码及git diff --check通过；CLI契约与Secret零匹配、OpenAPI一致性通过，promotion仍false。本轮未改前端、未重跑JavaScript，未提交或部署。没有管理面Policy/审计登记、实际scopes、Run commit/tree pin、来源获取或Gateway/Harness接线，不代表来源授权或M2完成。
+  - 2026-09-06 M2 新增内部 Git 原始 commit/完整文件 tree 校验（ADR0090），支持 SHA-1/SHA-256；Git与项目副本专项156 passed（0.76秒），补四项预算回归后新增Git测试共55项，最终完整Python1685 passed、36 skipped、6 deselected（309.50秒），Ruff/872文件格式/mypy233源码及git diff --check通过；CLI契约与Secret零匹配扫描通过，生产晋级仍false。本轮不改数据库/前端，未重跑真实PostgreSQL或JavaScript。只证明内容与固定hash一致，不证明来源授权、应用scopes或Connector不可变版本；授权获取/来源ACL传播仍未接通，未开放Gateway/Harness或生产能力。
+  - 2026-09-06 主树模型工具历史与只读重试后本地 Python 1374 passed、25 skipped、6 deselected；三提供商两轮 MockTransport 复现并修复嵌套 JSON 工具结果凭据脱敏，写能力/未知 pin 不自动重试。JavaScript 258 项测试及 lint/typecheck/build 通过。新增扫描发现并移除历史文档 6 处疑似 App Secret、1 处会话票据，69 项扫描及加固回归通过；仍需管理员轮换，未清理 Git 历史。该结果不包含后续隔离切片，最终同快照验收仍在进行，详见 docs/phases/productization-m0-validation.md。
+  - 新增前向迁移 a83d14e25f36 修复 Memory CANDIDATE/APPROVED 到 REVOKED 的 PostgreSQL 触发器，保留不可变来源与终态保护，存在撤销记录时拒绝降级。PostgreSQL 17.11 一次性验证 1 项迁移及 34 项不变量通过；加强 SQLSTATE 检查后的 Memory、IM、语义三个独立迁移各 1 项通过，容器已清理。未执行业务数据库迁移。
+  - 产品化 M1 安装域持久 Inbox、显式私有会话映射、官方 Stream 入站与分页恢复 worker 已集成；投递安全切面禁止未对账发送重复 prepare，记录 UNKNOWN 并要求真实厂商回执。主工作区适配器及投递专项 188 passed、3 deselected，严格 mypy 224 个源码文件通过；一次性 PostgreSQL upgrade head/check、100 次并发接收及处理/重启重放、独立迁移往返及非空账本降级保护均通过，临时容器已清理。首轮全量回归的两项审查清单登记遗漏已修复，最终完整 Python 回归 1313 passed、25 skipped、6 deselected（294.03 秒）；该轮的 10 份历史 Markdown 格式失败已在 2026-09-06 修复，全仓格式检查已通过；远程 CI 未运行。完整 Outbox、群受众授权、真实钉钉验收、自主沙箱及 GA 均未完成。详见 docs/phases/productization-m1-validation.md 与 docs/architecture/productization-m1-gate.md。
+  - Productization M0 is in progress against goal.txt and second_goal.txt; docs/product/productization-plan.md defines the M0-M6 acceptance boundaries. The local working-tree regression after semantic CI integration passed 1189 Python tests (23 skipped, 6 live deselected), alongside 258 JavaScript tests, 16 disposable PostgreSQL invariant tests, five isolated historical migration round trips, and one dedicated semantic migration test. The subsequently integrated phase-declaration CLI and validator passed 13 targeted tests and strict typing across 218 source files; the full working-tree regression including that integration passed 1202 Python tests (23 skipped, 6 live deselected). Java SDK verification passed all six tests in a disposable Maven/JDK 21 container. Alembic upgrade to f3d4e5a6b7c8 and schema-drift check passed. These are local working-tree results, not clean-candidate, live-tenant, UAT, or production-promotion evidence; see docs/phases/productization-m0-validation.md.
   - Alpha.1 is a repository-local, clean-snapshot-validated and CI-reproducible release candidate only; no external tag, package, image, signature, or deployment promotion was created.
   - Staging deploy, UAT, and human security sign-off were not executed in this environment.
-  - CI Trivy covers unfixed CRITICAL findings; HIGH CVE policy and live OIDC remain operator-owned.
+  - CI Trivy 配置现阻断 HIGH/CRITICAL 且不忽略 unfixed，新增配置回归与 Memory 撤销独立迁移矩阵；尚未运行远程 CI、注册表漏洞扫描或签署豁免，live OIDC 仍未验收。
   - Backup/restore is documented; Phase 85 records a repository-local timed PostgreSQL drill ledger (8/8 checks, 89-table parity, revision d4c6650) and Phase 86 records the companion artifact-store drill ledger (8/8 checks, object/content/metadata parity plus database-reference consistency) under docs/release/evidence/alpha1/. The staging-scoped timed restore remains operator-owned. Phase 85 also fixed the latent verification-admission trigger defect the drill discovered (Alembic b88f1c4d5e60).
   - CLI, IDE, IM, and Desktop App Server coverage against a live WebSocket cluster is operator-owned; in-process tests use REST reconciliation plus a scripted App Server transport.
   - VS Code host packaging of `@obsion/ide-extension` against a remote cluster is operator-owned.
@@ -119,51 +137,25 @@ known_issues:
   - Feishu, DingTalk, and WeCom outbound HTTP, inbound signatures/AES, and public TLS ingress are implemented. Generic `--deliver http` is still rejected. Phase 76 verified Feishu tenant authentication plus non-sending document/wiki denial or read behavior with real credentials; Phases 78-79 verified real no-write Feishu browsing through the REST-to-Capability-Gateway path. Phase 84 records the full Feishu live ladder as redacted, checksummed, candidate-gate-validated ledgers under `docs/release/evidence/alpha1/`: tenant authentication, chat discovery, fail-closed document/wiki/browse denial on ungranted scopes, and a single-message live delivery (vendor message id om_x100b666298f33ca8c2b188749811eb0) through the production `feishu-http` channel into the Phase 81 ephemeral validation chat. A permitted live document, public DNS/TLS, and all DingTalk/WeCom tenants remain operator-owned. Feishu, DingTalk, WeCom, and Confluence Knowledge ingest/sync and browse are implemented with shared budgets and provenance contracts. Phases 77-78 route all vendor REST source writes and reads through the no-Run Capability Gateway with Policy, grants, schema, rate, credentials, masking, telemetry, and Audit. Phase 79 adds durable principal-scoped terminal replay, mismatch/in-progress conflict, and fail-closed UNKNOWN reconciliation for no-Run L2 idempotent writes. Workbench and all three SDKs expose content-free reconciliation metadata without inventing Evidence.
   - MCP, SDK, gRPC, WORKFLOW, and AGENT are in-process adapters only. Remote MCP servers, stdio spawn, third-party SDK installs, remote gRPC channels, Temporal/Airflow engines, and nested Harness agent loops are not implemented. WORKFLOW `workflow_id` dispatch reuses AutomationService with a depth-1 recursion budget.
   - The Java SDK is a REST client of the Python control plane. It does not speak App Server WebSocket and is not a second backend. The Connector SDK SPI is Python-only (`health`/`discover`/`execute`); it does not pip-install tenant modules or load remote connectors. Plugin scan is static HMAC over the declaration, not binary/GPG provenance.
-  - Agent sandbox CPU/memory/disk/process fields are declared and pinned; this control plane does not apply cgroups or start a container runtime.
+  - 2026-09-06 新增默认关闭的内部 Kubernetes/gVisor HTTP 沙箱后端和可信 Linux 入口，主树 sandbox/CI/status 专项 115 passed（2.67 秒）。后续新增有界文本项目副本、fd 文件操作和 NOT_EVALUATED 补丁清单，104 项专项含真实合成目录 git apply 通过；随后完整 Python 1594 passed、2 failed、26 skipped、6 deselected（298.01 秒）。静态分析误报修复后相关 240 项通过，Workflow 事件竞争修复后相关 38 项及一次性 PostgreSQL 通用集成 27 passed、7 skipped 通过；修复后完整 Python 1630 passed、36 skipped、6 deselected（308.42 秒），Ruff/869 文件格式/mypy 232 源码及 git diff --check 通过。既有 Harness 仍仅声明并 pin 沙箱限制，未接入该后端；授权仓库获取、项目/产物传输与来源 ACL、Gateway、持久恢复和配额仍缺，真实集群/CNI/cgroups 未验收，不代表 M2 完成。详见 docs/phases/productization-m2-validation.md。
   - Studio compare/rollback does not split Harness traffic. Prompt templates are immutable snapshots pinned on each Turn/Run; they are not rewritten in place. Template interpolation is schema-bound and does not accept user-turn variables.
   - Context token budget decisions are extractive and pinned on the Run. SUMMARIZE is not an LLM abstract. Conversation compaction keeps recent turns and extractively previews older ones. Workspace Context is pinned on the Run; description is untrusted. TOOL evidence is a separate untrusted `tool-result` segment. Runtime SLO is a PostgreSQL average/rate projection, not an OTel p95 SLA. Workspace Files/Reports/Dashboards/SQL/Evidence/Timeline are published or persisted projections and do not invent rows. Phase 97 root-orchestration hardening makes Workspace/Thread/Run inspection fail closed: selection-sensitive requests use scoped generations, commit only complete owner-validated snapshots, and cannot let stale data/error/loading/pending state cross the active context.
+  - Phase 98 adds local password credential exchange and CLI-only administrator provisioning without creating a second AuthN/AuthZ path. The requested local administrator and a non-private Model Gateway endpoint were validated through PostgreSQL and a complete Harness Run. Password recovery remains operator-driven rotation; DingTalk and WeCom live tenants remain untested. Local evidence does not satisfy any production promotion gate.
 
 next_phase:
-  id: phase-98
+  id: phase-99
   name: alpha1-operator-promotion
   blocked: true
-  notes: Phase 97 closed the broader Workbench interaction tests gap —
-    the composer, claim-action, collaboration, and Automation lifecycle
-    flows now have executable interaction contracts, and the suite surfaced
-    and fixed a defect where collaboration error guidance was erased by
-    its own follow-up refresh. Strict TypeScript checking also pins the
-    Automation publish response envelope, while Runtime inspector tabs now
-    expose accessible semantics and roving keyboard focus with deep interaction
-    coverage. Governance-console interactions now pin partial-domain degradation,
-    stable IM sender binding/revocation, and Connector SDK lifecycle calls without
-    Capability auto-binding. Governed Action interactions now pin the
-    development/staging-only, idempotent preflight, independent approval,
-    rollback, and cancellation boundary, with named accessible dialogs for
-    each high-risk decision surface. Studio and Eval interactions now pin
-    accessible kind tabs, immutable version operations, no-traffic-split
-    comparison, dataset-scoped state, JSON object validation, and fully pinned
-    Evaluation Runs. Knowledge and Data interactions now prevent stale Evidence
-    or lineage attribution, normalize authorized queries, exercise ACL/vendor
-    ingestion, and expose accessible read-only metric lineage. Code and
-    Workspace asset interactions now prevent cross-query symbol attribution,
-    derive safe file paths, and pin classified history/upload/download/filter/
-    preview/refresh behavior. Reports, Dashboards, SQL, Evidence, and Timeline
-    now have persisted-fact interaction contracts with validated Dashboard
-    references and panel-error recovery. Frozen-contract wheel validation now
-    uses a locked offline Hatchling backend and regenerated SBOM rather than
-    depending on PyPI availability. The Phase 5 auth-session and Phase 79
-    operator-invocation destructive migration round trips now run in isolated
-    PostgreSQL CI matrix jobs and gate candidate artifact construction; ADR 0077
-    records the isolation decision. The Phase 97 reliability amendment also pins
-    root Workbench Workspace/Thread/Run generations, immutable inspection snapshots,
-    complete resource ownership checks, synchronous submit single-flight, deferred new-
-    Thread visibility, active-Run stream/reconciliation recovery, owning-Thread source-
-    Run routing, and stale data/error/loading/pending rejection with 18 mounted
-    orchestration interactions. ADR 0076 records the Workbench decisions.
-    Production promotion remains fail-closed while clean staging/UAT,
+  notes: Phase 98 closed the local first-administrator access gap with a
+    bounded scrypt credential, CLI-only enrollment, shared revocable session,
+    accessible password/token Workbench flow, exact local environment-key
+    parity, an isolated migration round trip, and a real local Model Gateway
+    Harness validation. The non-sending Feishu live suite passed; no DingTalk
+    or WeCom tenant credential is available. Production promotion remains
+    fail-closed while clean staging/UAT,
     staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
     signatures, live OIDC/secret-manager/read-replica evidence,
     security and data-owner approval, and maintainer publication
-    authority are PENDING. Phase 98 may consume real operator evidence; it must not fabricate approval, publish with ci.txt
-    credentials, expand production writes, or add a second runtime
-    without explicit authority.
+    authority are PENDING. Phase 99 may consume real operator evidence; it
+    must not fabricate approval, publish with ci.txt credentials, expand
+    production writes, or add a second runtime without explicit authority.

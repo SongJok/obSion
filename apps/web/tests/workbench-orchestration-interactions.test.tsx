@@ -39,6 +39,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
       createThread: vi.fn(),
       createTurn: vi.fn(),
       getRun: vi.fn(),
+      answerClarification: vi.fn(),
       cancelRun: vi.fn(),
       replayRun: vi.fn(),
       getRunFeedback: vi.fn(),
@@ -141,6 +142,7 @@ function run(
       description: "",
     },
     intent: {},
+    pending_clarification: null,
     plan: { route: "ANALYTICS" },
     max_steps: 20,
     timeout_seconds: 1_800,
@@ -429,6 +431,23 @@ afterEach(() => {
 });
 
 describe("Workbench root orchestration ownership", () => {
+  it("选择示例后聚焦输入框，重复选择仍可编辑且不会自动运行", async () => {
+    configureDefaults([workspace("ws-1")]);
+    renderWorkbench();
+    const suggestion = await screen.findByRole("button", { name: /分析业务指标/ });
+    const input = screen.getByRole("textbox", { name: "向 Obsion 提问" }) as HTMLTextAreaElement;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      suggestion.focus();
+      fireEvent.click(suggestion);
+      expect(input.value).toBe("最近 30 天新用户付费率有什么变化？");
+      expect(document.activeElement).toBe(input);
+    }
+    fireEvent.change(input, { target: { value: "分析最近 7 天的付费率" } });
+    expect(input.value).toBe("分析最近 7 天的付费率");
+    expect(mockedApi.createThread).not.toHaveBeenCalled();
+    expect(mockedApi.createTurn).not.toHaveBeenCalled();
+  });
+
   it("keeps only the newest Workspace thread response", async () => {
     const workspaceA = workspace("ws-a");
     const workspaceB = workspace("ws-b");
@@ -1050,6 +1069,115 @@ describe("Workbench root orchestration ownership", () => {
     await screen.findByText("反馈响应与所选 Run 不一致");
     expect(screen.queryByText("已标记有帮助")).toBeNull();
     expect((screen.getByLabelText("回答有帮助") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("pauses polling for accessible clarification and resumes the same Run after submission", async () => {
+    const currentWorkspace = workspace("ws-1");
+    const selectedThread = thread(currentWorkspace.id, "clarify");
+    const selectedTurn = turn(selectedThread.id, "clarify");
+    const waiting = {
+      ...run(currentWorkspace.id, selectedTurn.id, "clarify", "WAITING_USER"),
+      completed_at: null,
+      pending_clarification: {
+        id: "11111111-1111-4111-8111-111111111111",
+        run_id: "run-clarify",
+        intent_revision: 3,
+        round: 1,
+        status: "OPEN" as const,
+        question: "还需要确认指标和服务后才能安全继续。",
+        gaps: [
+          {
+            slot: "metric",
+            reason_code: "multiple_metric_candidates",
+            prompt: "请选择本次分析使用的指标",
+            cardinality: "ONE" as const,
+            value_type: "STRING" as const,
+            options: [{
+              id: "22222222-2222-4222-8222-222222222222",
+              label: "支付成功率",
+            }],
+            allow_free_text: false,
+          },
+          {
+            slot: "service",
+            reason_code: "multiple_service_candidates",
+            prompt: "请选择需要调查的服务",
+            cardinality: "ONE" as const,
+            value_type: "STRING" as const,
+            options: [{
+              id: "33333333-3333-4333-8333-333333333333",
+              label: "payment-api",
+            }],
+            allow_free_text: true,
+          },
+        ],
+        requested_at: NOW,
+        expires_at: "2026-09-05T08:00:00Z",
+      },
+    } satisfies Run;
+    const resumed = {
+      ...waiting,
+      status: "RUNNING" as const,
+      pending_clarification: null,
+    };
+    const completed = {
+      ...resumed,
+      status: "COMPLETED" as const,
+      completed_at: NOW,
+    };
+    configureDefaults([currentWorkspace]);
+    mockedApi.listThreads.mockResolvedValue([selectedThread]);
+    mockedApi.listTurns.mockResolvedValue([selectedTurn]);
+    mockedApi.listThreadRuns.mockResolvedValue([waiting]);
+    mockedApi.answerClarification.mockResolvedValue(resumed);
+    mockedApi.getRun.mockResolvedValue(completed);
+    mockedStreamRunEvents.mockImplementation(
+      () => new Promise<() => void>(() => undefined),
+    );
+    renderWorkbench();
+    await screen.findByText("任务 clarify");
+
+    fireEvent.click(screen.getByText("任务 clarify"));
+    expect(await screen.findByRole("heading", { name: "补充信息后继续运行" })).toBeDefined();
+    expect(screen.getByText("还需要确认指标和服务后才能安全继续。")).toBeDefined();
+    const metricGroup = screen.getByRole("group", { name: "请选择本次分析使用的指标" });
+    const serviceGroup = screen.getByRole("group", { name: "请选择需要调查的服务" });
+    expect(within(metricGroup).getByRole("radio", { name: "支付成功率" })).toBeDefined();
+    expect(within(serviceGroup).getByRole("radio", { name: "payment-api" })).toBeDefined();
+    expect((screen.getByRole("button", { name: "停止本次运行" }) as HTMLButtonElement).disabled)
+      .toBe(false);
+    expect((screen.getByLabelText("停止运行") as HTMLButtonElement).disabled).toBe(false);
+    expect(mockedApi.getRun).not.toHaveBeenCalled();
+    expect(mockedStreamRunEvents).not.toHaveBeenCalled();
+
+    fireEvent.click(within(metricGroup).getByRole("radio", { name: "支付成功率" }));
+    fireEvent.click(within(serviceGroup).getByRole("radio", { name: "自行填写" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "具体内容" }), {
+      target: { value: "checkout-api" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "提交并继续" }));
+
+    await waitFor(() => expect(mockedApi.answerClarification).toHaveBeenCalledWith(
+      waiting.id,
+      waiting.pending_clarification.id,
+      {
+        expected_intent_revision: 3,
+        answers: [
+          { slot: "metric", option_id: "22222222-2222-4222-8222-222222222222" },
+          { slot: "service", value: "checkout-api" },
+        ],
+      },
+    ));
+    await waitFor(() => expect(mockedStreamRunEvents).toHaveBeenCalledWith(
+      waiting.id,
+      0,
+      expect.any(Function),
+    ));
+    await waitFor(() => expect(mockedApi.getRun).toHaveBeenCalledWith(waiting.id));
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "补充信息后继续运行" })).toBeNull();
+      expect(screen.getByLabelText("发送")).toBeDefined();
+    });
   });
 
   it("stops a stale multi-file upload and never attaches it to another Workspace", async () => {

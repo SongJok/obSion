@@ -1,0 +1,28 @@
+# Configuration example only. Replace all tenant/repository placeholders before use.
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: codeup-central-reader
+spec:
+  type: codeup
+  environment: development
+  transport: HTTP
+  baseUrl: https://openapi-rdc.aliyuncs.com
+  credentialRef: secret://codeup-reader
+  grants: [code.read]
+  allowedEgress: [openapi-rdc.aliyuncs.com:443]
+  tlsRequired: true
+  configuration:
+    protocol: codeup.read.v1
+    organization_id: REPLACE_WITH_YUNXIAO_ORGANIZATION_ID
+    rate_limit_per_minute: 60
+    repositories:
+      example/project:
+        id: "123"
+        repository_id: "00000000-0000-0000-0000-000000000000"
+    allowed_repositories: [example/project]
+  capabilities:
+    - codeup.repository.get
+    - codeup.commit.get
+    - codeup.commits.list
+    - codeup.file.read

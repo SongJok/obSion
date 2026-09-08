@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from obsion.domain.enums import ApprovalStatus
+from obsion.domain.run_intent import MAX_CLARIFICATION_FIELDS, ClarificationAnswerItem
 
 
 class Params(BaseModel):
@@ -75,6 +76,15 @@ class RunReadParams(Params):
 
 class RunMutationParams(MutationParams):
     run_id: UUID
+
+
+class RunClarificationAnswerParams(RunMutationParams):
+    clarification_id: UUID
+    expected_intent_revision: int = Field(ge=1)
+    answers: list[ClarificationAnswerItem] = Field(
+        min_length=1,
+        max_length=MAX_CLARIFICATION_FIELDS,
+    )
 
 
 class RunEventsParams(RunReadParams):

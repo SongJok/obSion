@@ -23,6 +23,8 @@ import {
   FlaskConical,
   Plus,
   Settings2,
+  Search,
+  X,
   ShieldCheck,
   Workflow,
 } from "lucide-react";
@@ -94,6 +96,21 @@ export function Sidebar({
   principal,
   onSignOut,
 }: SidebarProps) {
+  const [navigationQuery, setNavigationQuery] = useState("");
+  const searchTerm = navigationQuery.trim().toLocaleLowerCase("zh-CN");
+  const navigationGroups = [
+    { label: "日常工作", items: NAV_ITEMS.slice(0, 4) },
+    { label: "工作空间", items: NAV_ITEMS.slice(4, 11) },
+    { label: "企业资源", items: NAV_ITEMS.slice(11, 14) },
+    { label: "开发与治理", items: NAV_ITEMS.slice(14) },
+  ].map((group) => ({
+    ...group,
+    items: group.items.filter((item) =>
+      collapsed || !searchTerm || `${group.label} ${item.label} ${item.id}`
+        .toLocaleLowerCase("zh-CN")
+        .includes(searchTerm),
+    ),
+  }));
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
 
@@ -114,7 +131,7 @@ export function Sidebar({
     <aside className={`sidebar ${collapsed ? "is-collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
       <div className="sidebar-brand">
         <Logo compact={collapsed} />
-        <button className="icon-button collapse-button" onClick={onCollapse} aria-label="折叠侧边栏">
+        <button className="icon-button collapse-button" onClick={onCollapse} aria-label={collapsed ? "展开侧边栏" : "折叠侧边栏"} aria-expanded={!collapsed}>
           {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
       </div>
@@ -147,24 +164,22 @@ export function Sidebar({
         </div>
       )}
 
-      <nav className="primary-nav" aria-label="主要功能">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              className={view === item.id ? "active" : ""}
-              onClick={() => onView(item.id)}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon size={18} />
-              {!collapsed && <span>{item.label}</span>}
-            </button>
-          );
-        })}
-      </nav>
+      {!collapsed && (
+        <div className="navigation-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            aria-label="搜索功能"
+            placeholder="搜索功能…"
+            value={navigationQuery}
+            onChange={(event) => setNavigationQuery(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Escape") setNavigationQuery(""); }}
+          />
+          {navigationQuery && <button type="button" onClick={() => setNavigationQuery("")} aria-label="清除功能搜索"><X size={14} /></button>}
+        </div>
+      )}
 
-      {!collapsed && view === "assistant" && (
+      <div className="sidebar-scroll">
+      {!collapsed && !searchTerm && view === "assistant" && (
         <section className="thread-section">
           <div className="section-heading">
             <span>{showArchivedThreads ? "已归档任务" : "最近任务"}</span>
@@ -219,6 +234,34 @@ export function Sidebar({
           </div>
         </section>
       )}
+
+        <nav className="primary-nav" aria-label="主要功能">
+          {navigationGroups.filter((group) => group.items.length).map((group) => (
+            <section className="nav-group" key={group.label} aria-label={group.label}>
+              {!collapsed && <h2 className="nav-group-title">{group.label}</h2>}
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    className={view === item.id ? "active" : ""}
+                    onClick={() => { onView(item.id); setNavigationQuery(""); }}
+                    title={collapsed ? item.label : undefined}
+                    aria-label={item.label}
+                    aria-current={view === item.id ? "page" : undefined}
+                  >
+                    <Icon size={18} />
+                    {!collapsed && <span>{item.label}</span>}
+                  </button>
+                );
+              })}
+            </section>
+          ))}
+          {!navigationGroups.some((group) => group.items.length) && (
+            <p className="navigation-empty" role="status">没有匹配的功能，请尝试其他关键词。</p>
+          )}
+        </nav>
+      </div>
 
       <div className="sidebar-footer">
         <div className="user-menu" title={collapsed ? principal.display_name : undefined}>

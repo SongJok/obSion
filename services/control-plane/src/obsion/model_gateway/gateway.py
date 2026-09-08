@@ -28,6 +28,7 @@ from obsion.model_gateway.providers import (
     validate_tool_calls,
     validate_tools,
 )
+from obsion.model_gateway.tool_history import redact_tool_history, validate_tool_history
 from obsion.security.egress import validate_model_endpoint
 from obsion.security.redaction import redact
 from obsion.telemetry import model_cost, model_counter, model_duration, model_tokens, tracer
@@ -104,6 +105,7 @@ class ModelGateway:
         if max_cost_amount is not None and max_cost_amount <= 0:
             raise ValueError("max_cost_amount must be positive")
         validate_tools(tools, tool_choice)
+        validate_tool_history(messages)
         with tracer.start_as_current_span("obsion.model.complete") as span:
             span.set_attribute("obsion.model.profile_id", str(profile_id))
             span.set_attribute("obsion.run.id", str(run_id))
@@ -170,9 +172,7 @@ class ModelGateway:
             classification,
             required_capabilities=required_capabilities,
         )
-        safe_messages = redact(messages)
-        if not isinstance(safe_messages, list):
-            raise ValueError("messages must be an array")
+        safe_messages = redact_tool_history(messages)
         safe_tool_list: list[ModelTool] = []
         for tool in tools:
             safe_schema = redact(tool.input_schema)

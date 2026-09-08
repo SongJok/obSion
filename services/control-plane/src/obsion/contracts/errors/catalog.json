@@ -459,6 +459,36 @@
     },
     {
       "category": "validation",
+      "code": "clarification_answer_invalid",
+      "description": "The clarification answer does not exactly satisfy the active, bounded field contract. REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "clarification_expired",
+      "description": "The active clarification deadline elapsed before a valid answer was accepted. REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "clarification_not_pending",
+      "description": "The Run is not waiting for the identified clarification or that request is no longer active. REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "clarification_stale_revision",
+      "description": "The clarification answer targets an Intent revision that is no longer current. REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "clarification_state_invalid",
+      "description": "The persisted Run clarification state violates the resumable lifecycle contract. REST responses use HTTP 409.",
+      "http_status": 409
+    },
+    {
+      "category": "validation",
       "code": "code_acl_invalid",
       "description": "Repository ACL is missing required fields or contains unsupported keys. REST responses use HTTP 422.",
       "http_status": 422
@@ -504,6 +534,54 @@
       "code": "code_write_denied",
       "description": "The principal is not permitted to ingest or mutate the Code Graph. REST responses use HTTP 403.",
       "http_status": 403
+    },
+    {
+      "code": "codeup_configuration_invalid",
+      "http_status": 422,
+      "category": "validation",
+      "description": "Codeup connector configuration is invalid."
+    },
+    {
+      "code": "codeup_operation_invalid",
+      "http_status": 422,
+      "category": "validation",
+      "description": "Codeup read request is outside the closed contract."
+    },
+    {
+      "code": "codeup_rate_limited",
+      "http_status": 429,
+      "category": "rate_limit",
+      "description": "Codeup temporarily rate limited the read request."
+    },
+    {
+      "code": "codeup_repository_denied",
+      "http_status": 403,
+      "category": "authorization",
+      "description": "Local repository access or binding is denied."
+    },
+    {
+      "code": "codeup_response_invalid",
+      "http_status": 503,
+      "category": "dependency",
+      "description": "Codeup response failed identity or content validation."
+    },
+    {
+      "code": "codeup_response_too_large",
+      "http_status": 503,
+      "category": "dependency",
+      "description": "Codeup response exceeds the bounded read budget."
+    },
+    {
+      "code": "codeup_upstream_denied",
+      "http_status": 403,
+      "category": "authorization",
+      "description": "Codeup denied access or the resource is not visible."
+    },
+    {
+      "code": "codeup_upstream_unavailable",
+      "http_status": 503,
+      "category": "dependency",
+      "description": "Codeup read service is unavailable."
     },
     {
       "category": "validation",
@@ -600,6 +678,12 @@
       "code": "credential_context_missing",
       "description": "Indicates the stable validation condition `credential_context_missing` (credential context missing). REST responses use HTTP 422.",
       "http_status": 422
+    },
+    {
+      "category": "rate_limit",
+      "code": "credential_locked",
+      "description": "Indicates the stable rate_limit condition `credential_locked` (credential locked). REST responses use HTTP 429.",
+      "http_status": 429
     },
     {
       "category": "validation",
@@ -992,6 +1076,18 @@
       "http_status": 409
     },
     {
+      "category": "validation",
+      "code": "identity_email_ambiguous",
+      "description": "Indicates the stable validation condition `identity_email_ambiguous` (identity email ambiguous). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "validation",
+      "code": "identity_email_invalid",
+      "description": "Indicates the stable validation condition `identity_email_invalid` (identity email invalid). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
       "category": "authorization",
       "code": "im_delegate_denied",
       "description": "Indicates the stable authorization condition `im_delegate_denied` (IM sender delegation is not permitted). REST responses use HTTP 403.",
@@ -1056,6 +1152,12 @@
       "code": "invalid_credential_reference",
       "description": "Indicates the stable validation condition `invalid_credential_reference` (invalid credential reference). REST responses use HTTP 422.",
       "http_status": 422
+    },
+    {
+      "category": "authorization",
+      "code": "invalid_credentials",
+      "description": "Indicates the stable authorization condition `invalid_credentials` (invalid credentials). REST responses use HTTP 403.",
+      "http_status": 403
     },
     {
       "category": "validation",
@@ -1286,9 +1388,39 @@
       "http_status": 403
     },
     {
+      "category": "authorization",
+      "code": "password_auth_disabled",
+      "description": "Indicates the stable authorization condition `password_auth_disabled` (password auth disabled). REST responses use HTTP 403.",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "password_policy_violation",
+      "description": "Indicates the stable validation condition `password_policy_violation` (password policy violation). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
       "category": "validation",
       "code": "plan_dependency_deadlock",
       "description": "Indicates the stable validation condition `plan_dependency_deadlock` (plan dependency deadlock). REST responses use HTTP 422.",
+      "http_status": 422
+    },
+    {
+      "category": "conflict",
+      "code": "project_source_conflict",
+      "description": "固定项目来源已经绑定到不同厂商标识。REST 返回 HTTP 409；不披露既有标识。",
+      "http_status": 409
+    },
+    {
+      "category": "authorization",
+      "code": "project_source_denied",
+      "description": "当前环境、权限、项目 ACL 或来源状态不允许管理操作。REST 返回 HTTP 403；不披露目标是否存在。",
+      "http_status": 403
+    },
+    {
+      "category": "validation",
+      "code": "project_source_invalid",
+      "description": "来源配置或管理参数不符合封闭契约。REST 返回 HTTP 422；不返回配置或输入值。",
       "http_status": 422
     },
     {

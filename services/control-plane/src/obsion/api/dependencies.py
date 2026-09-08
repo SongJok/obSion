@@ -3,8 +3,10 @@ from typing import cast
 from fastapi import Request
 
 from obsion.actions.gateway import ActionGateway
+from obsion.application.dingtalk_outbox import DingTalkOutboxService
 from obsion.application.im_delivery import ImDeliveryService
 from obsion.application.im_identity import ImIdentityService
+from obsion.application.im_inbox import ImInboxService
 from obsion.application.workspaces import WorkspaceService
 from obsion.capabilities.connector_spi import ConnectorSdkRuntime
 from obsion.capabilities.gateway import CapabilityGateway
@@ -18,8 +20,16 @@ def get_im_identity_service(request: Request) -> ImIdentityService:
     return cast(ImIdentityService, request.app.state.im_identity_service)
 
 
+def get_im_inbox_service(request: Request) -> ImInboxService:
+    return cast(ImInboxService, request.app.state.im_inbox_service)
+
+
 def get_im_delivery_service(request: Request) -> ImDeliveryService:
     return cast(ImDeliveryService, request.app.state.im_delivery_service)
+
+
+def get_dingtalk_outbox_service(request: Request) -> DingTalkOutboxService:
+    return cast(DingTalkOutboxService, request.app.state.dingtalk_outbox_service)
 
 
 def get_capability_gateway(request: Request) -> CapabilityGateway:

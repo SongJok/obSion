@@ -4,7 +4,7 @@ import hashlib
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.common.errors import AuthorizationError, ConflictError, NotFoundError
@@ -39,6 +39,13 @@ class ImDeliveryService:
         principal: Principal,
         run_id: UUID,
     ) -> dict[str, Any]:
+        # SQLite 忽略 FOR UPDATE，先获得写锁；PostgreSQL 使用下方行锁。
+        if session.get_bind().dialect.name == "sqlite":
+            await session.execute(
+                update(Run)
+                .where(Run.id == run_id, Run.organization_id == principal.organization_id)
+                .values(updated_at=Run.updated_at)
+            )
         row = (
             await session.execute(
                 select(Run, Turn)
@@ -94,7 +101,6 @@ class ImDeliveryService:
                 ImDelivery.run_id == run.id,
             )
         )
-        now = utc_now()
         if delivery is None:
             delivery = ImDelivery(
                 organization_id=principal.organization_id,
@@ -118,12 +124,12 @@ class ImDeliveryService:
                 "The persisted IM delivery lineage does not match the completed Run",
             )
         elif delivery.status != ImDeliveryStatus.SENT:
-            delivery.status = ImDeliveryStatus.PENDING
-            delivery.policy_decision_id = decision.id
-            delivery.requested_by = principal.id
-            delivery.attempt_count += 1
-            delivery.failure_code = None
-            delivery.updated_at = now
+            # prepare 提交后即可能发生外部发送；缺少回执不代表可以再次发送。
+            raise ConflictError(
+                "im_delivery_receipt_conflict",
+                "IM delivery requires receipt reconciliation before any further send",
+                status=delivery.status,
+            )
         await session.flush()
         await self._audit(
             session,
@@ -155,6 +161,11 @@ class ImDeliveryService:
         delivery = await self._get_for_update(session, principal, delivery_id)
         await self._authorize_report(session, principal, delivery)
         message_id = vendor_message_id.strip()
+        if not message_id or message_id == str(delivery.id):
+            raise ConflictError(
+                "im_delivery_receipt_conflict",
+                "A real vendor receipt is required; local delivery ids are not receipts",
+            )
         if delivery.status == ImDeliveryStatus.SENT:
             if delivery.vendor_message_id != message_id:
                 raise ConflictError(
@@ -189,7 +200,8 @@ class ImDeliveryService:
         await self._authorize_report(session, principal, delivery)
         if delivery.status == ImDeliveryStatus.SENT:
             return delivery
-        delivery.status = ImDeliveryStatus.FAILED
+        # 旧 fail 接口没有证明厂商未接受请求，保守保留不确定效果。
+        delivery.status = ImDeliveryStatus.UNKNOWN
         delivery.failure_code = failure_code
         delivery.updated_at = utc_now()
         await session.flush()
@@ -208,6 +220,15 @@ class ImDeliveryService:
         principal: Principal,
         delivery_id: UUID,
     ) -> ImDelivery:
+        if session.get_bind().dialect.name == "sqlite":
+            await session.execute(
+                update(ImDelivery)
+                .where(
+                    ImDelivery.id == delivery_id,
+                    ImDelivery.organization_id == principal.organization_id,
+                )
+                .values(updated_at=ImDelivery.updated_at)
+            )
         delivery = await session.scalar(
             select(ImDelivery)
             .where(
@@ -226,6 +247,10 @@ class ImDeliveryService:
         principal: Principal,
         delivery: ImDelivery,
     ) -> None:
+        if delivery.requested_by != principal.id:
+            raise AuthorizationError(
+                "im_delivery_denied", "Only the delivery requester can report its receipt"
+            )
         decision = await self.policy.evaluate_resource(
             session,
             ResourcePolicyInput(

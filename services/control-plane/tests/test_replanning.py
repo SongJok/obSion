@@ -6,9 +6,27 @@ from sqlalchemy import select
 from obsion.common.time import utc_now
 from obsion.config import Environment, Settings
 from obsion.db.base import Base
-from obsion.db.models import Event, Organization, Run, RunStep, Thread, Turn, User, Workspace
+from obsion.db.models import (
+    CapabilityDefinition,
+    CapabilityVersion,
+    Event,
+    Organization,
+    Run,
+    RunStep,
+    Thread,
+    Turn,
+    User,
+    Workspace,
+)
 from obsion.db.session import Database
-from obsion.domain.enums import RunStatus, StepKind, StepStatus
+from obsion.domain.enums import (
+    CapabilityTransport,
+    RiskLevel,
+    RunStatus,
+    SideEffect,
+    StepKind,
+    StepStatus,
+)
 from obsion.harness.runtime import HarnessRuntime
 from obsion.persistence.events import EventStore
 
@@ -76,7 +94,27 @@ async def test_transient_replan_is_bounded_persistent_and_restores_dependents(tm
                 plan={"route": "INCIDENT", "steps": []},
                 step_count=4,
             )
-            session.add(run)
+            capability = CapabilityDefinition(
+                organization_id=organization_id,
+                name="metric.query",
+                display_name="Metric query",
+            )
+            session.add_all([run, capability])
+            await session.flush()
+            version = CapabilityVersion(
+                organization_id=organization_id,
+                capability_id=capability.id,
+                version=1,
+                transport=CapabilityTransport.INTERNAL,
+                risk_level=RiskLevel.L1,
+                side_effect=SideEffect.NONE,
+                permission_action="metric.query",
+                input_schema={"type": "object"},
+                output_schema={"type": "object"},
+                checksum_sha256="a" * 64,
+                created_at=utc_now(),
+            )
+            session.add(version)
             await session.flush()
             session.add_all(
                 [
@@ -87,6 +125,7 @@ async def test_transient_replan_is_bounded_persistent_and_restores_dependents(tm
                         name="Metric",
                         kind=StepKind.CAPABILITY,
                         status=StepStatus.FAILED,
+                        capability_version_id=version.id,
                         depends_on=[],
                         input_payload={},
                         error_code="capability_timeout",

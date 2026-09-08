@@ -1,5 +1,7 @@
 # Product vision and scope
 
+> 2026-09-05：本文保留原蓝图及历史接口边界。当前首版以 [产品化实施与验收映射](productization-plan.md) 收敛：钉钉/Web 共用受治理 Harness，沙箱修改交付补丁，不自动推送、创建 PR、合并或部署。既有独立受控动作接口不因此自动获得自主执行授权；兼容调整须经 ADR。目标能力与已验收能力须区分。
+
 ## Positioning
 
 Obsion is an Enterprise Agent Runtime and Intelligence Workspace. Its job is not merely to answer questions; it enables governed AI agents to safely and traceably complete knowledge, analytics, engineering, support, and operational work over existing enterprise systems.

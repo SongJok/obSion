@@ -1,0 +1,20 @@
+# Installation metadata discovery only. No repository or Agent grants are created.
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: codeup-central-catalog
+spec:
+  type: codeup-catalog
+  environment: development
+  transport: HTTP
+  baseUrl: https://openapi-rdc.aliyuncs.com
+  credentialRef: secret://codeup-reader
+  grants: [connectors.read]
+  allowedEgress: [openapi-rdc.aliyuncs.com:443]
+  tlsRequired: true
+  configuration:
+    protocol: codeup.catalog.v1
+    organization_id: REPLACE_WITH_YUNXIAO_ORGANIZATION_ID
+    rate_limit_per_minute: 30
+  capabilities:
+    - codeup.repositories.discover

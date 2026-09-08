@@ -359,6 +359,22 @@ class ImDeliveryStatus(StrEnum):
     PENDING = "PENDING"
     SENT = "SENT"
     FAILED = "FAILED"
+    UNKNOWN = "UNKNOWN"
+
+
+class DingTalkOutboxStatus(StrEnum):
+    """Durable state for a single DingTalk one-to-one reply.
+
+    Only ``QUEUED`` may be claimed again. A claim is committed before vendor
+    I/O, so an expired claim becomes ``UNKNOWN`` rather than another POST.
+    """
+
+    BLOCKED = "BLOCKED"
+    QUEUED = "QUEUED"
+    DISPATCHING = "DISPATCHING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    UNKNOWN = "UNKNOWN"
 
 
 class ActionType(StrEnum):

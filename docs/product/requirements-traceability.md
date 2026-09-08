@@ -1,8 +1,19 @@
 # Requirements traceability
 
+> 2026-09-05 产品化补充：以下保留既有功能契约与验证索引，不表示整套产品已通过生产验收。`goal.txt` 与 `second_goal.txt` 的首版范围、M0—M6 依赖、验收目标及现存受控动作接口的兼容边界见 [首版产品化实施与验收映射](productization-plan.md)。正式阶段与生产晋级阻塞仍以 `../project-status.yaml` 为准。
+
 This document turns the source blueprint into verifiable product and engineering
 commitments. A feature is complete only when its contract, persistence, enforcement,
 tests, telemetry, operator documentation, and user experience are all present.
+
+2026-09-06：新增[云效 Codeup 原生只读接入](../operators/codeup.md)与
+[验证记录](../phases/productization-codeup-validation.md)，对应本轮用户要求的云效连接。
+覆盖 Gateway/Policy/仓库 ACL、四种真实 HTTP 协议、REST、工作台查询和缺项指引；测试上游为明确 MockTransport。
+真实租户、实际 scopes、完整 Agent 问答接线、来源 pin 与沙箱项目传输仍未完成，不作为完整企业 AI 底座验收依据。
+
+2026-09-07 增量：独立 `codeup.catalog.v1` 管理目录发现已通过专项与契约检查，并经正式
+Gateway/Policy/审计完成真实 HTTPS 目录读取。该结果只证明安装阶段目录访问；目标仓库映射、
+四类源码读取与生产实例接入仍待验证。目录不会自动授予项目权限，Agent Run 不可枚举目录。
 
 ## Product boundary
 

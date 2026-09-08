@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live record-feishu-live-evidence record-drill-evidence record-artifact-drill-evidence evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
+.PHONY: validate-project-status test-local bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live record-feishu-live-evidence record-drill-evidence record-artifact-drill-evidence evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
 
 bootstrap:
 	uv sync --all-packages --all-extras
@@ -16,7 +16,7 @@ compose-down:
 	docker compose down
 
 dev-api:
-	uv run --package obsion-control-plane uvicorn obsion.main:create_app --factory --reload --host 0.0.0.0 --port 8080
+	uv run --package obsion-control-plane obsion serve --reload
 
 dev-web:
 	npm run dev:web
@@ -39,6 +39,9 @@ migrate:
 
 migration-check:
 	uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
+
+validate-project-status:
+	uv run obsion validate-project-status
 
 validate-contracts:
 	uv run obsion validate-contracts
@@ -118,6 +121,7 @@ lint:
 	uv run ruff check .
 	uv run mypy services/control-plane/src packages/sdk-python/src apps/cli/src apps/im-adapter/src
 	uv run obsion validate-contracts
+	uv run obsion validate-project-status
 	uv run obsion validate-evaluations
 	uv run obsion validate-eval-gates
 	uv run obsion validate-release-notes
@@ -133,6 +137,11 @@ format:
 
 format-check:
 	uv run ruff format --check .
+
+# 本地回归不继承真实租户配置；CI 和真实集成继续使用各自显式入口。
+test-local:
+	uv run --no-sync python scripts/test_local.py
+	npm test
 
 test:
 	uv run pytest

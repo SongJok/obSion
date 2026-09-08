@@ -174,7 +174,7 @@ def _subject_clause(
     return or_(*clauses)
 
 
-def _authorization_clause(principal: Principal) -> ColumnElement[bool]:
+def repository_access_clause(principal: Principal) -> ColumnElement[bool]:
     deny = exists(
         select(CodeRepositoryGrant.repository_id).where(
             CodeRepositoryGrant.repository_id == CodeRepository.id,
@@ -481,7 +481,7 @@ class CodeIntelligenceService:
                 CodeSymbol.organization_id == principal.organization_id,
                 CodeRepository.organization_id == principal.organization_id,
                 CodeRepository.current_snapshot_id == CodeSnapshot.id,
-                _authorization_clause(principal),
+                repository_access_clause(principal),
             )
         )
         if repository:
@@ -553,7 +553,7 @@ class CodeIntelligenceService:
                     CodeGraphEdge.from_symbol_id == origin.symbol_id,
                     CodeGraphEdge.relation == relation,
                     CodeRepository.current_snapshot_id == CodeSnapshot.id,
-                    _authorization_clause(principal),
+                    repository_access_clause(principal),
                 )
                 .limit(min(limit, 100))
             )
@@ -569,7 +569,7 @@ class CodeIntelligenceService:
                     CodeGraphEdge.to_symbol_id == origin.symbol_id,
                     CodeGraphEdge.relation == relation,
                     CodeRepository.current_snapshot_id == CodeSnapshot.id,
-                    _authorization_clause(principal),
+                    repository_access_clause(principal),
                 )
                 .limit(min(limit, 100))
             )
@@ -633,7 +633,7 @@ class CodeIntelligenceService:
             await session.scalars(
                 select(CodeRepository).where(
                     CodeRepository.organization_id == principal.organization_id,
-                    _authorization_clause(principal),
+                    repository_access_clause(principal),
                 )
             )
         )

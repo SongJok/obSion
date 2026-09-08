@@ -1,11 +1,18 @@
 import argparse
+import asyncio
+import getpass
 import json
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
 import uvicorn
 
+from obsion.config import get_settings
 from obsion.contracts.validation import validate_contracts
+from obsion.db.session import Database
+from obsion.domain.enums import SystemRole
 from obsion.evaluations.manifests import EvaluationManifestError, validate_evaluation_root
 from obsion.evaluations.offline import OfflineEvaluationError, execute_offline_evaluations
 from obsion.main import create_app
@@ -21,14 +28,19 @@ from obsion.release.hardening import (
 )
 from obsion.release.live_evidence import LiveEvidenceError, record_live_evidence
 from obsion.release.notes import ReleaseNotesError, read_project_version, validate_release_notes
+from obsion.release.project_status import ProjectStatusError, validate_project_status
+from obsion.security.provisioning import provision_password_identity
+
+_PROVISION_INPUT_ENV = "OBSION_PROVISION_PASSWORD"
 
 
 def _serve(args: argparse.Namespace) -> None:
+    settings = get_settings()
     uvicorn.run(
         "obsion.main:create_app",
         factory=True,
-        host=args.host,
-        port=args.port,
+        host=settings.api_host if args.host is None else args.host,
+        port=settings.api_port if args.port is None else args.port,
         reload=args.reload,
         proxy_headers=True,
     )
@@ -126,6 +138,14 @@ def _write_sbom(args: argparse.Namespace) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(output)  # noqa: T201
+
+
+def _validate_project_status(args: argparse.Namespace) -> None:
+    try:
+        result = validate_project_status(Path(args.root))
+    except ProjectStatusError as exc:
+        raise SystemExit(str(exc)) from exc
+    print(json.dumps(result, sort_keys=True))  # noqa: T201
 
 
 def _validate_release_notes(args: argparse.Namespace) -> None:
@@ -257,13 +277,70 @@ def _validate_contracts(_: argparse.Namespace) -> None:
     )
 
 
+def _read_provision_password() -> str:
+    """Collect the password from stdin, the environment, or an interactive prompt.
+
+    It is never accepted as an argument: process arguments are readable by any
+    local user through the process table.
+    """
+
+    interactive = sys.stdin.isatty()
+    if not interactive:
+        piped = sys.stdin.read()
+        if piped.strip("\r\n"):
+            return piped.split("\n", 1)[0].rstrip("\r")
+    from_environment = os.environ.get(_PROVISION_INPUT_ENV)
+    if from_environment:
+        return from_environment
+    if not interactive:
+        raise SystemExit(
+            f"A password is required on stdin or in {_PROVISION_INPUT_ENV} for non-interactive use"
+        )
+    return getpass.getpass("Password: ")
+
+
+def _provision_user(args: argparse.Namespace) -> None:
+    password = _read_provision_password()
+    settings = get_settings()
+    database = Database(settings)
+
+    async def run() -> dict[str, Any]:
+        try:
+            async with database.sessions() as session:
+                identity = await provision_password_identity(
+                    session,
+                    settings,
+                    email=args.email,
+                    password=password,
+                    role=SystemRole(args.role),
+                    display_name=args.display_name,
+                    organization=args.organization,
+                    allow_weak_password=args.allow_weak_password,
+                    must_change=args.must_change,
+                )
+                await session.commit()
+        finally:
+            await database.dispose()
+        return {
+            "created": identity.created,
+            "display_name": identity.display_name,
+            "email": identity.email,
+            "organization_id": str(identity.organization_id),
+            "organization_slug": identity.organization_slug,
+            "roles": list(identity.roles),
+            "user_id": str(identity.user_id),
+        }
+
+    print(json.dumps(asyncio.run(run()), sort_keys=True))  # noqa: T201
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="obsion", description="Operate the Obsion control plane")
     commands = parser.add_subparsers(dest="command", required=True)
 
     serve = commands.add_parser("serve", help="Start the control-plane API and run workers")
-    serve.add_argument("--host", default="127.0.0.1")
-    serve.add_argument("--port", default=8080, type=int)
+    serve.add_argument("--host", default=None)
+    serve.add_argument("--port", default=None, type=int)
     serve.add_argument("--reload", action="store_true")
     serve.set_defaults(handler=_serve)
 
@@ -310,11 +387,17 @@ def build_parser() -> argparse.ArgumentParser:
     secrets.add_argument("--root", default=".")
     secrets.set_defaults(handler=_scan_secrets)
 
+    project_status = commands.add_parser(
+        "validate-project-status", help="校验本地阶段声明，不评估生产晋级授权"
+    )
+    project_status.add_argument("--root", default=".")
+    project_status.set_defaults(handler=_validate_project_status)
+
     release_notes = commands.add_parser(
         "validate-release-notes",
         help="Validate the current operator release-note contract",
     )
-    release_notes.add_argument("--manifest", default="docs/release/0.97.0-dev.yaml")
+    release_notes.add_argument("--manifest", default="docs/release/0.98.0-dev.yaml")
     release_notes.add_argument("--root", default=".")
     release_notes.set_defaults(handler=_validate_release_notes)
 
@@ -378,6 +461,38 @@ def build_parser() -> argparse.ArgumentParser:
     sbom.add_argument("--version")
     sbom.add_argument("--project-status", default="docs/project-status.yaml")
     sbom.set_defaults(handler=_write_sbom)
+
+    provision = commands.add_parser(
+        "provision-user",
+        help="Create or update an identity with a local password credential",
+        description=(
+            "The password is read from stdin, the "
+            f"{_PROVISION_INPUT_ENV} environment variable, or an interactive prompt. "
+            "It is never accepted as a command-line argument."
+        ),
+    )
+    provision.add_argument("--email", required=True)
+    provision.add_argument(
+        "--role",
+        default=SystemRole.VIEWER.value,
+        choices=[role.value for role in SystemRole],
+    )
+    provision.add_argument("--display-name")
+    provision.add_argument(
+        "--organization",
+        help="Organization slug or id; defaults to the configured local organization",
+    )
+    provision.add_argument(
+        "--allow-weak-password",
+        action="store_true",
+        help="Permit a password below policy; rejected outside development and test",
+    )
+    provision.add_argument(
+        "--must-change",
+        action="store_true",
+        help="Require the password to be replaced on first use",
+    )
+    provision.set_defaults(handler=_provision_user)
     return parser
 
 

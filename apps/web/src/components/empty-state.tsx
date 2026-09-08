@@ -29,8 +29,9 @@ export function EmptyState({ onSuggestion }: { onSuggestion: (value: string) => 
       <div className="assistant-orb" aria-hidden="true">
         <Sparkles size={25} />
       </div>
-      <h1>今天想调查什么？</h1>
-      <p>一个入口连接知识、数据、代码与可观测性。每个结论都保留证据和执行轨迹。</p>
+      <p className="welcome-eyebrow">你的企业 AI 工作伙伴</p>
+      <h1>从一个问题，开始今天的工作</h1>
+      <p>查知识、看数据、定位问题。描述你的目标，让 Obsion 帮你梳理思路与证据。</p>
       <div className="suggestions">
         {suggestions.map((suggestion) => {
           const Icon = suggestion.icon;
@@ -47,6 +48,7 @@ export function EmptyState({ onSuggestion }: { onSuggestion: (value: string) => 
           );
         })}
       </div>
+      <p className="welcome-hint">选择一个示例填入输入框，修改后再发送；也可以直接描述你的需求。</p>
     </div>
   );
 }

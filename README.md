@@ -163,6 +163,23 @@ Run `make dev-web` in a second terminal. Open <http://localhost:3000>; developme
 documentation is at <http://localhost:8080/api/docs>. The Experience CLI talks to the
 same App Server:
 
+Create or rotate a local account without putting its password in the process list:
+
+```bash
+uv run obsion provision-user --email admin@example.com --role admin
+```
+
+The command reads from piped stdin, `OBSION_PROVISION_PASSWORD`, or a hidden prompt.
+Passwords below policy require `--allow-weak-password` and are accepted only in
+development/test. The Workbench then exchanges the email/password for the same
+revocable HttpOnly session used by token login.
+
+For a local OpenAI-compatible Model Gateway endpoint, keep the API key in the ignored
+`.env` as `OBSION_AI_API_KEY`, set an exact `OBSION_MODEL_ALLOWED_HOSTS` authority, and
+register the endpoint through the authenticated administration UI/API with
+`credential_ref=env://OBSION_AI_API_KEY`. Bind only logical profiles; do not put a
+vendor model ID in an AgentSpec. A non-private endpoint must not be bound to `private`.
+
 ```bash
 export OBSION_URL=http://127.0.0.1:8080
 export OBSION_TOKEN="$OBSION_DEV_BEARER_TOKEN"

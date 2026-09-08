@@ -1,5 +1,7 @@
 # Delivery roadmap
 
+> 2026-09-05：以下保留历史架构增量路线。结合 `goal.txt` 与 `second_goal.txt` 的当前首版产品化执行顺序、依赖及独立验收出口见 [M0—M6 产品化方案](productization-plan.md)。历史阶段交付不等于真实租户或生产验收通过。
+
 The phases are architecture increments, not disposable prototypes. Each phase leaves production-quality contracts, migrations, tests, telemetry, and documentation.
 
 ## Phase 0: Foundation
@@ -414,7 +416,24 @@ are unchanged.
 
 The Phase 97 Alpha.1 test-completeness amendment closes a migration CI gap:
 Phase 5 auth-session and Phase 79 operator-invocation upgrade/downgrade/
-re-upgrade tests now run in a dedicated two-entry PostgreSQL matrix. Each entry
-owns a fresh database and opt-in flag, performs Alembic drift detection, and
-must pass before candidate artifact construction. ADR 0077 records why these
-destructive tests remain isolated from shared development databases.
+re-upgrade tests run in a dedicated PostgreSQL matrix. Each entry owns a fresh
+database and opt-in flag and must pass before candidate artifact construction.
+Phase 98 adds the password-credential migration to that matrix and corrects the
+forward-validation order: each historical round trip upgrades to the current
+head before Alembic drift detection. ADR 0077 records why these destructive
+tests remain isolated from shared development databases.
+
+Phase 98 closes the first-local-administrator gap without adding a second
+identity or authorization path. A CLI-only, idempotent provisioning command
+enrolls one bounded scrypt derivation per organization-scoped User, assigns a
+declared system role, and never accepts the password in process arguments.
+Password exchange resolves the existing Principal and rotates the ordinary
+revocable browser session; wrong, unknown, ambiguous, and unenrolled identities
+share equivalent KDF work, while failure counters and lockout remain row-locked
+in PostgreSQL. The Workbench adds accessible password/token tabs and clears
+secret state after rejection or mode change. Local environment keys are complete
+and parity-checked, and optional Compose injection is limited to the API process.
+A governed non-private Model Gateway endpoint completed a real seven-Step Harness
+Run; the `private` profile stayed unbound. Four non-sending Feishu live probes
+passed. ADR 0078 records the boundary. All six production-promotion gates remain
+PENDING.

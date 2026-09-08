@@ -51,6 +51,7 @@ def test_im_adapter_is_an_experience_client_not_a_second_harness() -> None:
                 violations.append(f"{path.name}:{line} imports control-plane module {imported}")
             if (imported.startswith(FORBIDDEN_PREFIXES) or imported in FORBIDDEN_PREFIXES) and not (
                 (path.name in HTTP_VENDOR_MODULES and imported == "httpx")
+                or (path.name == "inbox.py" and imported == "httpx")
                 or (path.name == "signatures.py" and imported.startswith("cryptography"))
             ):
                 violations.append(f"{path.name}:{line} imports {imported}")
@@ -91,6 +92,32 @@ def test_outbound_replies_are_local_or_explicit_vendor_http_envelopes() -> None:
     assert "127.0.0.1" in webhook
     assert "may only bind 127.0.0.1 unless --public is set" in webhook
     assert "OBSION_IM_TLS_CERT" in webhook
+
+
+def test_inbox_http_exception_is_limited_to_control_plane_admission() -> None:
+    inbox = (IM_ROOT / "inbox.py").read_text(encoding="utf-8")
+    stream = (IM_ROOT / "stream.py").read_text(encoding="utf-8")
+    assert "/api/v1/experience/im/installations/" in inbox
+    assert "follow_redirects=False" in inbox
+    assert "trust_env=False" in inbox
+    for name in ("obsion_cli", "obsion_sdk", "obsion_im.bridge", "obsion_im.replies"):
+        assert not any(imported.startswith(name) for imported, _ in _imports(ast.parse(inbox)))
+        assert not any(imported.startswith(name) for imported, _ in _imports(ast.parse(stream)))
+    for forbidden in ("sessionWebhook", "chat/send", "runtime.ask(", "create_turn("):
+        assert forbidden not in inbox
+        assert forbidden not in stream
+    handler = next(
+        node
+        for node in ast.walk(ast.parse(stream))
+        if isinstance(node, ast.ClassDef) and node.name == "DurableInboxHandler"
+    )
+    calls = {
+        node.func.attr
+        for node in ast.walk(handler)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+    assert "receive" in calls
+    assert calls.isdisjoint({"process", "send", "reply_text", "reply_markdown", "ask"})
 
 
 def test_im_bridge_delegates_principal_mapping_to_the_control_plane() -> None:

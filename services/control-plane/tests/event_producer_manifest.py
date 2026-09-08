@@ -44,6 +44,15 @@ REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
     "application/approvals.py::ApprovalService.decide#EventDraft[2]": frozenset(
         {("approval.approved", 1), ("approval.rejected", 1)}
     ),
+    "application/clarifications.py::ClarificationService.answer#EventDraft[1]": frozenset(
+        {("clarification.answered", 1)}
+    ),
+    "application/clarifications.py::ClarificationService.expire#EventDraft[1]": frozenset(
+        {("clarification.expired", 1)}
+    ),
+    "application/clarifications.py::ClarificationService.expire#EventDraft[2]": frozenset(
+        {("run.failed", 1)}
+    ),
     "application/memory.py::MemoryService._record#EventDraft[1]": frozenset(
         {
             ("memory.approved", 1),
@@ -52,6 +61,9 @@ REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
             ("memory.rejected", 1),
             ("memory.revoked", 1),
         }
+    ),
+    "application/run_source_pins.py::RunSourcePinService._pin#EventDraft[1]": frozenset(
+        {("run.source_pinned", 1)}
     ),
     "application/workspaces.py::WorkspaceService.add_member#EventDraft[1]": frozenset(
         {("workspace.member_changed", 1)}
@@ -160,6 +172,10 @@ REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
     "capabilities/gateway.py::CapabilityGateway._policy_event#EventDraft[1]": frozenset(
         {("policy.decided", 1)}
     ),
+    "capabilities/gateway.py::CapabilityGateway.invoke_dingtalk_robot_outbox#"
+    "EventDraft[1]": frozenset({("tool.started", 1)}),
+    "capabilities/gateway.py::CapabilityGateway.invoke_dingtalk_robot_outbox#"
+    "EventDraft[2]": frozenset({("tool.completed", 1), ("tool.failed", 1)}),
     "collaboration/service.py::WorkspaceCollaborationService._record#EventDraft[1]": frozenset(
         {
             ("workspace_decision.accepted", 1),
@@ -187,6 +203,7 @@ REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
         {
             ("answer.delta", 1),
             ("artifact.created", 1),
+            ("clarification.requested", 1),
             ("context.resolved", 1),
             ("critic.completed", 1),
             ("evidence.created", 1),
@@ -321,6 +338,8 @@ REVIEWED_EVENT_HELPER_CALLS: dict[str, frozenset[EventContractPair]] = {
     "capabilities/gateway.py::CapabilityGateway._invoke#_gateway_event[3]": frozenset(
         {("capability.rate_limited", 1)}
     ),
+    "capabilities/gateway.py::CapabilityGateway.invoke_dingtalk_robot_outbox#"
+    "_gateway_event[1]": frozenset({("capability.rate_limited", 1)}),
     "collaboration/service.py::WorkspaceCollaborationService.create_decision#_record[1]": (
         frozenset({("workspace_decision.proposed", 1)})
     ),
@@ -344,9 +363,17 @@ REVIEWED_EVENT_HELPER_CALLS: dict[str, frozenset[EventContractPair]] = {
     "harness/runtime.py::HarnessRuntime._ingest_attachments#_event[1]": frozenset(
         {("evidence.created", 1)}
     ),
-    "harness/runtime.py::HarnessRuntime._prepare#_event[1]": frozenset({("context.resolved", 1)}),
-    "harness/runtime.py::HarnessRuntime._prepare#_event[2]": frozenset({("intent.detected", 1)}),
+    "harness/runtime.py::HarnessRuntime._prepare#_event[1]": frozenset(
+        {("clarification.requested", 1)}
+    ),
+    "harness/runtime.py::HarnessRuntime._prepare#_event[2]": frozenset({("run.state_changed", 1)}),
     "harness/runtime.py::HarnessRuntime._prepare#_event[3]": frozenset({("plan.created", 1)}),
+    "harness/runtime.py::HarnessRuntime._emit_preparation_context_events#_event[1]": frozenset(
+        {("context.resolved", 1)}
+    ),
+    "harness/runtime.py::HarnessRuntime._emit_preparation_context_events#_event[2]": frozenset(
+        {("intent.detected", 1)}
+    ),
     "harness/runtime.py::HarnessRuntime._apply_gap_replan#_event[1]": frozenset(
         {("run.state_changed", 1)}
     ),
@@ -373,6 +400,12 @@ REVIEWED_EVENT_HELPER_CALLS: dict[str, frozenset[EventContractPair]] = {
 }
 
 REVIEWED_EVENT_ENUMS: dict[str, EnumFingerprint] = {
+    "capabilities/dingtalk_robot.py::RobotSendState": (
+        ("NOT_ATTEMPTED", "NOT_ATTEMPTED"),
+        ("ACCEPTED", "ACCEPTED"),
+        ("REJECTED", "REJECTED"),
+        ("UNKNOWN", "UNKNOWN"),
+    ),
     "domain/enums.py::ActionApprovalPurpose": (
         ("EXECUTE", "EXECUTE"),
         ("ROLLBACK", "ROLLBACK"),

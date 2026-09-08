@@ -82,6 +82,36 @@ test("thread lifecycle requests preserve archive, resume, fork, and event contra
   }
 });
 
+test("REST client answers a run clarification", async () => {
+  const originalFetch = globalThis.fetch;
+  let captured;
+  globalThis.fetch = async (url, init) => {
+    captured = [new URL(url).pathname, init.method, JSON.parse(init.body)];
+    return new Response(JSON.stringify({ id: "run-1", status: "RUNNING" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  try {
+    const client = new ObsionClient("https://obsion.example");
+    const run = await client.answerRunClarification("run-1", "clarification-1", {
+      expected_intent_revision: 3,
+      answers: [{ slot: "repository", option_id: "option-1" }],
+    });
+    assert.equal(run.status, "RUNNING");
+    assert.deepEqual(captured, [
+      "/api/v1/runs/run-1/clarifications/clarification-1/answer",
+      "POST",
+      {
+        expected_intent_revision: 3,
+        answers: [{ slot: "repository", option_id: "option-1" }],
+      },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("governed data and knowledge requests preserve their contracts", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];

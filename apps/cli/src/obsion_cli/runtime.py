@@ -16,6 +16,8 @@ from obsion_sdk import (
 from obsion_sdk.app_server import TransportFactory
 
 _TERMINAL = frozenset({"COMPLETED", "FAILED", "CANCELLED"})
+_USER_PAUSED = "WAITING_USER"
+_WAIT_COMPLETE = _TERMINAL | {_USER_PAUSED}
 Sleep = Callable[[float], Awaitable[None]]
 RequestIdFactory = Callable[[str], str]
 
@@ -175,6 +177,51 @@ class ExperienceRuntime:
             )
         return await self.rest.replay_run(run_id)
 
+    async def get_pending_clarification(self, run_id: str) -> dict[str, Any]:
+        run = await self.get_run(run_id)
+        pending = run.get("pending_clarification")
+        if run.get("status") != _USER_PAUSED or not isinstance(pending, dict):
+            raise CliError(f"Run {run_id} is not waiting for clarification")
+        return pending
+
+    async def answer_run_clarification(
+        self,
+        run_id: str,
+        *,
+        answers: list[dict[str, Any]],
+        clarification_id: str | None = None,
+        expected_intent_revision: int | None = None,
+    ) -> dict[str, Any]:
+        if not answers:
+            raise CliError("At least one clarification answer is required")
+        if clarification_id is None or expected_intent_revision is None:
+            pending = await self.get_pending_clarification(run_id)
+            if clarification_id is None:
+                clarification_id = str(pending.get("id") or "")
+            if expected_intent_revision is None:
+                revision = pending.get("intent_revision")
+                if not isinstance(revision, int):
+                    raise CliError("Pending clarification has no intent revision")
+                expected_intent_revision = revision
+        if not clarification_id:
+            raise CliError("Pending clarification has no id")
+        if expected_intent_revision < 1:
+            raise CliError("Intent revision must be a positive integer")
+        if self.app_server is not None:
+            return await self.app_server.answer_run_clarification(
+                run_id,
+                clarification_id,
+                expected_intent_revision=expected_intent_revision,
+                answers=answers,
+                client_request_id=self._request_id("clarification"),
+            )
+        return await self.rest.answer_run_clarification(
+            run_id,
+            clarification_id,
+            expected_intent_revision=expected_intent_revision,
+            answers=answers,
+        )
+
     async def list_run_events(self, run_id: str, *, after: int = 0) -> list[dict[str, Any]]:
         return await self.rest.list_events(run_id, after=after)
 
@@ -269,7 +316,7 @@ class ExperienceRuntime:
                 sequence = event.get("run_sequence")
                 if isinstance(sequence, int) and sequence > after:
                     after = sequence
-            if str(run.get("status")) in _TERMINAL:
+            if str(run.get("status")) in _WAIT_COMPLETE:
                 return run, events
             await self._sleep(self.settings.poll_interval_seconds)
         raise CliError(f"Timed out waiting for run {run_id}")

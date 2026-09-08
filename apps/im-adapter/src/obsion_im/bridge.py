@@ -83,6 +83,8 @@ class ImBridge:
         )
         if delivery_status == "SENT":
             return outbound
+        if delivery_id is not None and delivery_status != "PENDING":
+            raise ImError("IM delivery requires reconciliation; refusing to send again")
         try:
             receipt = await self.channel.reply(outbound)
             if delivery_id is not None and (receipt is None or not receipt.vendor_message_id):
@@ -98,10 +100,24 @@ class ImBridge:
             raise delivery_error
         if delivery_id is not None:
             assert receipt is not None
-            await self.runtime.rest.complete_im_delivery(
-                delivery_id,
-                vendor_message_id=receipt.vendor_message_id,
-            )
+            try:
+                await self.runtime.rest.complete_im_delivery(
+                    delivery_id,
+                    vendor_message_id=receipt.vendor_message_id,
+                )
+            except Exception as receipt_error:
+                # complete 可能已经提交；fail 不能降低 SENT，也不能重新获得发送资格。
+                try:
+                    await self.runtime.rest.fail_im_delivery(
+                        delivery_id, failure_code="delivery_audit_failed"
+                    )
+                except Exception as audit_error:
+                    raise ImError(
+                        "IM delivery outcome requires reconciliation; receipt could not be recorded"
+                    ) from audit_error
+                raise ImError(
+                    "IM delivery outcome requires reconciliation; receipt could not be recorded"
+                ) from receipt_error
         return outbound
 
 

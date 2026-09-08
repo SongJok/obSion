@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from copy import deepcopy
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -34,8 +35,8 @@ class _ExampleEnum(StrEnum):
 def test_event_contract_registry_and_schemas_are_valid() -> None:
     summary = validate_event_contracts()
     assert summary.registry_version == 1
-    assert summary.event_count == 93
-    assert summary.version_count == 93
+    assert summary.event_count == 97
+    assert summary.version_count == 97
 
 
 def test_event_contract_canonicalization_is_deterministic_and_rejects_unsafe_values() -> None:
@@ -102,6 +103,140 @@ def test_notification_delivered_requires_exactly_one_delivery_target() -> None:
         assert invalid.value.code == "event_payload_schema_invalid"
         assert invalid.value.details["path"] == "$"
         assert invalid.value.details["validator"] == "oneOf"
+
+
+def test_clarification_events_expose_only_the_bounded_public_contract() -> None:
+    clarification_id = uuid4()
+    option_id = uuid4()
+    requested: dict[str, object] = {
+        "clarification_id": clarification_id,
+        "intent_revision": 1,
+        "round": 1,
+        "question": "请选择需要调查的代码库",
+        "gaps": [
+            {
+                "slot": "repository",
+                "reason_code": "multiple_repository_candidates",
+                "prompt": "请选择代码库",
+                "cardinality": "ONE",
+                "value_type": "STRING",
+                "options": [{"id": option_id, "label": "checkout-api"}],
+                "allow_free_text": True,
+            }
+        ],
+        "requested_at": "2026-09-04T09:00:00Z",
+        "expires_at": "2026-09-04T10:00:00Z",
+    }
+
+    prepared = _prepare_payload("clarification.requested", requested)
+    assert prepared["clarification_id"] == str(clarification_id)
+    assert prepared["gaps"] == [
+        {
+            "slot": "repository",
+            "reason_code": "multiple_repository_candidates",
+            "prompt": "请选择代码库",
+            "cardinality": "ONE",
+            "value_type": "STRING",
+            "options": [{"id": str(option_id), "label": "checkout-api"}],
+            "allow_free_text": True,
+        }
+    ]
+
+    assert _prepare_payload(
+        "clarification.answered",
+        {
+            "clarification_id": clarification_id,
+            "intent_revision": 2,
+            "answered_slots": ["repository"],
+            "response_fingerprint": "a" * 64,
+        },
+    ) == {
+        "clarification_id": str(clarification_id),
+        "intent_revision": 2,
+        "answered_slots": ["repository"],
+        "response_fingerprint": "a" * 64,
+    }
+    assert _prepare_payload(
+        "clarification.expired",
+        {"clarification_id": clarification_id},
+    ) == {"clarification_id": str(clarification_id)}
+
+
+def test_clarification_event_contract_rejects_internal_resolution_state() -> None:
+    requested: dict[str, object] = {
+        "clarification_id": uuid4(),
+        "intent_revision": 1,
+        "round": 1,
+        "question": "请选择需要调查的服务",
+        "gaps": [
+            {
+                "slot": "service",
+                "reason_code": "missing_service",
+                "prompt": "请选择服务",
+                "cardinality": "ONE",
+                "value_type": "STRING",
+                "options": [{"id": uuid4(), "label": "checkout-api"}],
+                "allow_free_text": True,
+            }
+        ],
+        "requested_at": "2026-09-04T09:00:00Z",
+        "expires_at": "2026-09-04T10:00:00Z",
+    }
+    for forbidden in (
+        "gap_fingerprint",
+        "request_fingerprint",
+        "answers",
+        "remaining_execution_seconds",
+        "source_ref",
+    ):
+        leaked = dict(requested)
+        leaked[forbidden] = "private"
+        with pytest.raises(ValidationError) as rejected:
+            _prepare_payload("clarification.requested", leaked)
+        assert rejected.value.code == "event_payload_schema_invalid"
+
+    canonical_leak = deepcopy(requested)
+    gaps = canonical_leak["gaps"]
+    assert isinstance(gaps, list)
+    gap = gaps[0]
+    assert isinstance(gap, dict)
+    options = gap["options"]
+    assert isinstance(options, list)
+    option = options[0]
+    assert isinstance(option, dict)
+    option["canonical_value"] = "canonical-private-resource"
+    option["value_fingerprint"] = "b" * 64
+    with pytest.raises(ValidationError) as rejected_option:
+        _prepare_payload("clarification.requested", canonical_leak)
+    assert rejected_option.value.code == "event_payload_schema_invalid"
+
+    no_input_path = deepcopy(requested)
+    gaps = no_input_path["gaps"]
+    assert isinstance(gaps, list)
+    gap = gaps[0]
+    assert isinstance(gap, dict)
+    gap["options"] = []
+    gap["allow_free_text"] = False
+    with pytest.raises(ValidationError) as rejected_gap:
+        _prepare_payload("clarification.requested", no_input_path)
+    assert rejected_gap.value.code == "event_payload_schema_invalid"
+
+    with pytest.raises(ValidationError) as rejected_answer:
+        _prepare_payload(
+            "clarification.answered",
+            {
+                "clarification_id": uuid4(),
+                "intent_revision": 2,
+                "answered_slots": ["service"],
+                "response_fingerprint": "c" * 64,
+                "answers": [{"slot": "service", "value": "checkout-api"}],
+            },
+        )
+    assert rejected_answer.value.code == "event_payload_schema_invalid"
+
+    with pytest.raises(ValidationError) as rejected_expiry:
+        _prepare_payload("clarification.expired", {"clarification_id": None})
+    assert rejected_expiry.value.code == "event_payload_schema_invalid"
 
 
 def test_event_payload_error_code_must_be_registered() -> None:

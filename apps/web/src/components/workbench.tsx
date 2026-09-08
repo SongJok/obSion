@@ -8,6 +8,7 @@ import { streamRunEvents } from "@/lib/app-server";
 import type {
   Artifact,
   Claim,
+  ClarificationAnswerSubmission,
   ConversationSnapshot,
   Evidence,
   MemorySnapshot,
@@ -35,6 +36,7 @@ import { SqlView } from "./sql-view";
 import { EvidenceView } from "./evidence-view";
 import { TimelineView } from "./timeline-view";
 import { Composer } from "./composer";
+import { ClarificationForm } from "./clarification-form";
 import { Conversation } from "./conversation";
 import { CollaborationView } from "./collaboration-view";
 import { CodeView } from "./code-view";
@@ -117,7 +119,10 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
   const [feedbackPendingRunId, setFeedbackPendingRunId] = useState<string>();
   const [streamState, setStreamState] = useState<StreamState>("idle");
   const [submitting, setSubmitting] = useState(false);
+  const [clarificationSubmitting, setClarificationSubmitting] = useState(false);
+  const [clarificationError, setClarificationError] = useState("");
   const submitInFlight = useRef(false);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
   const pollRunRef = useRef<(
     initial: Run,
     generation: number,
@@ -148,6 +153,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     setArtifacts([]);
     setFeedbackByRun({});
     setStreamState("idle");
+    setClarificationSubmitting(false);
+    setClarificationError("");
   }, []);
 
   const closeContextPicker = useCallback(() => {
@@ -225,6 +232,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     setConversationContext(snapshot.conversation);
     setClaims(snapshot.claims);
     setArtifacts(snapshot.artifacts);
+    setClarificationSubmitting(false);
+    setClarificationError("");
   }, []);
 
   const openRunInspection = useCallback(
@@ -248,8 +257,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         applyInspection(snapshot);
         setView("assistant");
         setInspectorOpen(true);
-        if (TERMINAL.has(target.status)) setStreamState("idle");
-        else void pollRunRef.current?.(target, generation, workspaceId);
+        if (shouldPollRun(target)) void pollRunRef.current?.(target, generation, workspaceId);
+        else setStreamState("idle");
       } catch (caught) {
         if (generation !== selectionGeneration.current) return;
         setError(caught instanceof Error ? caught.message : "无法打开来源 Run");
@@ -328,7 +337,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       if (inspection) applyInspection(inspection);
       else clearInspection();
       setLoading(false);
-      if (inspection && !TERMINAL.has(inspection.run.status)) {
+      if (inspection && shouldPollRun(inspection.run)) {
         void pollRunRef.current?.(inspection.run, generation, workspaceId);
       }
     } catch (caught) {
@@ -591,6 +600,10 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       }
       return;
     }
+    if (!shouldPollRun(initial)) {
+      if (generation === selectionGeneration.current) setStreamState("idle");
+      return;
+    }
     let current = initial;
     let cursor = 0;
     let consecutiveFailures = 0;
@@ -700,7 +713,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
                 }
               : bundle,
           ));
-          if (TERMINAL.has(nextRun.status)) return;
+          if (!shouldPollRun(nextRun)) return;
           await new Promise((resolve) => window.setTimeout(resolve, 650));
         } catch (caught) {
           consecutiveFailures += 1;
@@ -796,8 +809,11 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       setClaims([]);
       setArtifacts([]);
       setAttachments([]);
+      setClarificationSubmitting(false);
+      setClarificationError("");
       closeContextPicker();
-      void pollRun(created.run, generation, workspaceId);
+      if (shouldPollRun(created.run)) void pollRun(created.run, generation, workspaceId);
+      else setStreamState("idle");
     } catch (caught) {
       if (generation === selectionGeneration.current) {
         setValue(input);
@@ -872,6 +888,53 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     }
   }, [workspace]);
 
+  const answerClarification = useCallback(async (
+    submission: ClarificationAnswerSubmission,
+  ) => {
+    const target = run;
+    const clarification = target?.pending_clarification;
+    const workspaceId = workspace?.id;
+    if (!target || target.status !== "WAITING_USER" || !clarification || !workspaceId) {
+      setClarificationError("当前运行已不再等待这项补充信息，请重新打开任务后检查状态。");
+      return;
+    }
+    if (clarification.run_id !== target.id) {
+      setClarificationError("澄清请求与当前 Run 不一致，已阻止提交。");
+      return;
+    }
+    const generation = ++selectionGeneration.current;
+    setClarificationSubmitting(true);
+    setClarificationError("");
+    try {
+      const resumed = await api.answerClarification(
+        target.id,
+        clarification.id,
+        submission,
+      );
+      if (generation !== selectionGeneration.current) return;
+      if (resumed.id !== target.id || resumed.turn_id !== target.turn_id) {
+        throw new InspectionOwnershipError("澄清响应与当前 Run 不一致");
+      }
+      assertRunWorkspace(resumed, workspaceId);
+      setRun(resumed);
+      setMessages((previous) => previous.map((bundle) =>
+        bundle.run?.id === resumed.id ? { ...bundle, run: resumed } : bundle,
+      ));
+      if (shouldPollRun(resumed)) void pollRun(resumed, generation, workspaceId);
+      else setStreamState("idle");
+    } catch (caught) {
+      if (generation === selectionGeneration.current) {
+        setClarificationError(
+          caught instanceof Error ? caught.message : "无法提交补充信息",
+        );
+      }
+    } finally {
+      if (generation === selectionGeneration.current) {
+        setClarificationSubmitting(false);
+      }
+    }
+  }, [pollRun, run, workspace?.id]);
+
   const cancel = useCallback(async () => {
     if (!run || TERMINAL.has(run.status)) return;
     const generation = ++selectionGeneration.current;
@@ -889,6 +952,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       }
       assertRunWorkspace(cancelled, workspaceId);
       setRun(cancelled);
+      setClarificationSubmitting(false);
+      setClarificationError("");
       setMessages((previous) => previous.map((bundle) =>
         bundle.run?.id === cancelled.id ? { ...bundle, run: cancelled } : bundle,
       ));
@@ -930,13 +995,16 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       setConversationContext([]);
       setClaims([]);
       setArtifacts([]);
+      setClarificationSubmitting(false);
+      setClarificationError("");
       setFeedbackByRun((previous) => ({ ...previous, [replayed.id]: null }));
       setMessages((previous) => previous.map((bundle) =>
         bundle.turn.id === replayed.turn_id
           ? { ...bundle, run: replayed, artifact: undefined, artifacts: [] }
           : bundle,
       ));
-      void pollRun(replayed, generation, workspaceId);
+      if (shouldPollRun(replayed)) void pollRun(replayed, generation, workspaceId);
+      else setStreamState("idle");
     } catch (caught) {
       if (generation === selectionGeneration.current) {
         setError(caught instanceof Error ? caught.message : "无法回放运行快照");
@@ -1021,6 +1089,9 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
   }, [resetThread, showArchivedThreads, workspace]);
 
   const running = Boolean(run && !TERMINAL.has(run.status));
+  const pendingClarification = run?.status === "WAITING_USER"
+    ? run.pending_clarification
+    : null;
 
   return (
     <div className="app-shell">
@@ -1086,16 +1157,19 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
                     <History size={18} />
                   </button>
                 )}
-                {!inspectorOpen && <button className="icon-button" onClick={() => setInspectorOpen(true)} title="打开运行详情"><PanelRightOpen size={19} /></button>}
+                {!inspectorOpen && <button className="icon-button desktop-inspector-trigger" onClick={() => setInspectorOpen(true)} title="打开运行详情" aria-label="打开运行详情"><PanelRightOpen size={19} /><span>运行详情</span></button>}
                 <button className="icon-button mobile-inspector-trigger" onClick={() => { setInspectorOpen(true); setMobileInspectorOpen(true); }} title="打开运行详情" aria-label="打开运行详情"><PanelRightOpen size={19} /></button>
               </div>
             </header>
 
-            <div className="assistant-layout">
+            <div className={`assistant-layout${!messages.length && !loading && !run ? " is-welcome" : ""}`}>
               <main className="chat-panel">
                 {error && <div className="global-error"><span>{error}</span><button onClick={() => setError("")}><X size={15} /></button></div>}
                 <div className="chat-scroll">
-                  {!messages.length && !loading ? <EmptyState onSuggestion={setValue} /> : (
+                  {!messages.length && !loading ? <EmptyState onSuggestion={(suggestion) => {
+                    setValue(suggestion);
+                    composerInput.current?.focus();
+                  }} /> : (
                     <Conversation
                       messages={messages}
                       feedbackByRun={feedbackByRun}
@@ -1108,18 +1182,35 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
                   )}
                   {loading && <div className="loading-state"><i /><span>正在载入可回放记录…</span></div>}
                 </div>
+                {pendingClarification && (
+                  <ClarificationForm
+                    key={pendingClarification.id}
+                    clarification={pendingClarification}
+                    submitting={clarificationSubmitting}
+                    error={clarificationError || undefined}
+                    onSubmit={(submission) => void answerClarification(submission)}
+                    onCancel={() => void cancel()}
+                  />
+                )}
                 <Composer
+                  inputRef={composerInput}
                   value={value}
                   onChange={setValue}
                   onSubmit={() => void submit()}
                   onCancel={() => void cancel()}
                   running={running}
                   submitting={submitting}
-                  disabled={loading || thread?.status === "ARCHIVED"}
-                  placeholder={thread?.status === "ARCHIVED" ? "此任务已归档，恢复后可以继续…" : undefined}
+                  disabled={loading || thread?.status === "ARCHIVED" || Boolean(pendingClarification)}
+                  placeholder={thread?.status === "ARCHIVED"
+                    ? "此任务已归档，恢复后可以继续…"
+                    : pendingClarification
+                      ? "请先回答上方澄清问题…"
+                      : undefined}
                   note={thread?.status === "ARCHIVED"
                     ? "归档任务保持完整历史，只读检查不会创建新的运行。"
-                    : undefined}
+                    : pendingClarification
+                      ? "当前 Run 已暂停；提交补充信息后会从原位置继续，也可以停止运行。"
+                      : undefined}
                   attachments={attachments}
                   uploading={uploading}
                   onAttach={(files) => void attachFiles(files)}
@@ -1186,6 +1277,10 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       )}
     </div>
   );
+}
+
+function shouldPollRun(run: Run) {
+  return !TERMINAL.has(run.status) && run.status !== "WAITING_USER";
 }
 
 function assertThreadWorkspace(thread: Thread, workspaceId: string) {

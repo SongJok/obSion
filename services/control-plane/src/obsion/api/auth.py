@@ -1,9 +1,16 @@
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from obsion.api.schemas import AuthSessionView, CreateAuthSessionRequest
+from obsion.api.schemas import (
+    AuthSessionView,
+    CreateAuthSessionRequest,
+    CreatePasswordSessionRequest,
+)
+from obsion.common.errors import ObsionError
 from obsion.config import Settings
+from obsion.persistence.auth_sessions import IssuedAuthSession
 from obsion.security.auth import (
+    authenticate_password_principal,
     authenticate_principal,
     browser_session_cookie_secure,
     get_app_settings,
@@ -32,22 +39,46 @@ async def create_browser_session(
     settings: Settings = Depends(get_app_settings),
 ) -> AuthSessionView:
     validate_browser_session_origin(request, settings)
-    prior_session_token = request.cookies.get(settings.auth_session_cookie_name)
     async with session.begin():
         principal = await authenticate_principal(session, settings, payload.access_token)
-        await revoke_auth_session(session, prior_session_token)
-        issued = await issue_auth_session(session, settings, principal)
-    response.set_cookie(
-        key=settings.auth_session_cookie_name,
-        value=issued.token,
-        max_age=settings.auth_session_ttl_seconds,
-        expires=issued.expires_at,
-        path="/api/v1",
-        secure=browser_session_cookie_secure(settings),
-        httponly=True,
-        samesite="strict",
-    )
-    _disable_caching(response)
+        issued = await _rotate_session(session, settings, request, principal)
+    _attach_session_cookie(response, settings, issued)
+    return _session_view(principal)
+
+
+@public_router.post(
+    "/password-session",
+    response_model=AuthSessionView,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_password_browser_session(
+    payload: CreatePasswordSessionRequest,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> AuthSessionView:
+    """Exchange a locally enrolled password for a browser session.
+
+    A rejected attempt still commits: the failed-attempt counter that drives
+    lockout is written to the credential row, and rolling it back would make the
+    lockout unreachable by simply retrying.
+    """
+    validate_browser_session_origin(request, settings)
+    try:
+        principal = await authenticate_password_principal(
+            session,
+            settings,
+            email=payload.email,
+            password=payload.password,
+            organization_id=payload.organization_id,
+        )
+    except ObsionError:
+        await session.commit()
+        raise
+    issued = await _rotate_session(session, settings, request, principal)
+    await session.commit()
+    _attach_session_cookie(response, settings, issued)
     return _session_view(principal)
 
 
@@ -79,6 +110,35 @@ async def get_browser_session(
 ) -> AuthSessionView:
     _disable_caching(response)
     return _session_view(principal)
+
+
+async def _rotate_session(
+    session: AsyncSession,
+    settings: Settings,
+    request: Request,
+    principal: Principal,
+) -> IssuedAuthSession:
+    """Replace any session the caller already presented with a fresh one."""
+    await revoke_auth_session(session, request.cookies.get(settings.auth_session_cookie_name))
+    return await issue_auth_session(session, settings, principal)
+
+
+def _attach_session_cookie(
+    response: Response,
+    settings: Settings,
+    issued: IssuedAuthSession,
+) -> None:
+    response.set_cookie(
+        key=settings.auth_session_cookie_name,
+        value=issued.token,
+        max_age=settings.auth_session_ttl_seconds,
+        expires=issued.expires_at,
+        path="/api/v1",
+        secure=browser_session_cookie_secure(settings),
+        httponly=True,
+        samesite="strict",
+    )
+    _disable_caching(response)
 
 
 def _session_view(principal: Principal) -> AuthSessionView:

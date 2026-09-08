@@ -8,6 +8,50 @@ export type RunStatus =
   | "FAILED"
   | "CANCELLED";
 
+export type ClarificationJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | ClarificationJsonValue[]
+  | { [key: string]: ClarificationJsonValue };
+
+export type ClarificationAnswerItem =
+  | { slot: string; option_id: string; value?: never }
+  | { slot: string; value: Exclude<ClarificationJsonValue, null>; option_id?: never };
+
+export interface ClarificationAnswerSubmission {
+  expected_intent_revision: number;
+  answers: ClarificationAnswerItem[];
+}
+
+export interface PendingClarificationOption {
+  id: string;
+  label: string;
+}
+
+export interface PendingClarificationField {
+  slot: string;
+  reason_code: string;
+  prompt: string;
+  cardinality: "ONE";
+  value_type: "STRING" | "TIME_RANGE";
+  options: PendingClarificationOption[];
+  allow_free_text: boolean;
+}
+
+export interface PendingClarification {
+  id: string;
+  run_id: string;
+  intent_revision: number;
+  round: number;
+  status: "OPEN";
+  question: string;
+  gaps: PendingClarificationField[];
+  requested_at: string;
+  expires_at: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -62,6 +106,7 @@ export interface Run {
     description_fingerprint?: string;
   };
   intent: Record<string, unknown>;
+  pending_clarification: PendingClarification | null;
   plan: Record<string, unknown>;
   max_steps: number;
   timeout_seconds: number;
@@ -497,6 +542,20 @@ export class ObsionAppServerClient {
     return this.request("run.replay", {
       client_request_id: clientRequestId,
       run_id: runId,
+    });
+  }
+
+  answerRunClarification(
+    runId: string,
+    clarificationId: string,
+    clientRequestId: string,
+    submission: ClarificationAnswerSubmission,
+  ): Promise<Run> {
+    return this.request("run.clarification.answer", {
+      client_request_id: clientRequestId,
+      run_id: runId,
+      clarification_id: clarificationId,
+      ...submission,
     });
   }
 
@@ -1153,6 +1212,20 @@ export class ObsionClient {
 
   replayRun(runId: string): Promise<Run> {
     return this.request(`/api/v1/runs/${runId}/replay`, { method: "POST" });
+  }
+
+  answerRunClarification(
+    runId: string,
+    clarificationId: string,
+    submission: ClarificationAnswerSubmission,
+  ): Promise<Run> {
+    return this.request(
+      `/api/v1/runs/${runId}/clarifications/${clarificationId}/answer`,
+      {
+        method: "POST",
+        body: JSON.stringify(submission),
+      },
+    );
   }
 
   getRunFeedback(runId: string): Promise<RunFeedback | null> {

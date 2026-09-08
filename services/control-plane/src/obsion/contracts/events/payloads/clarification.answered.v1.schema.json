@@ -1,0 +1,38 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/clarification.answered.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "answered_slots": {
+      "items": {
+        "maxLength": 80,
+        "pattern": "^[a-z][a-z0-9_.-]{0,79}$",
+        "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "clarification_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "intent_revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "response_fingerprint": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "clarification_id",
+    "intent_revision",
+    "answered_slots",
+    "response_fingerprint"
+  ],
+  "title": "clarification.answered payload v1",
+  "type": "object"
+}

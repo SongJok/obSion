@@ -166,6 +166,26 @@ class AsyncObsionClient:
     async def replay_run(self, run_id: str) -> dict[str, Any]:
         return cast(dict[str, Any], await self._request("POST", f"/api/v1/runs/{run_id}/replay"))
 
+    async def answer_run_clarification(
+        self,
+        run_id: str,
+        clarification_id: str,
+        *,
+        expected_intent_revision: int,
+        answers: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/runs/{run_id}/clarifications/{clarification_id}/answer",
+                json={
+                    "expected_intent_revision": expected_intent_revision,
+                    "answers": answers,
+                },
+            ),
+        )
+
     async def get_run_feedback(self, run_id: str) -> dict[str, Any] | None:
         return cast(
             dict[str, Any] | None,

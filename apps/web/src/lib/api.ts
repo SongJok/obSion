@@ -1,8 +1,11 @@
 import type {
   Artifact,
+  ClarificationAnswerSubmission,
   Claim,
   CodeRepository,
   CodeSymbolHit,
+  CodeupReadRequest,
+  CodeupReadResult,
   ConversationSnapshot,
   Evidence,
   FeedbackSummary,
@@ -139,6 +142,15 @@ export const api = {
       },
       { notifyAuthenticationFailure: false },
     ),
+  createPasswordSession: (email: string, password: string) =>
+    request<SessionPrincipal>(
+      "/auth/password-session",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      },
+      { notifyAuthenticationFailure: false },
+    ),
   getSession: () =>
     request<SessionPrincipal>(
       "/auth/session",
@@ -191,6 +203,14 @@ export const api = {
       body: JSON.stringify({ input, context_refs: [], attachment_refs: attachmentRefs }),
     }),
   getRun: (runId: string) => request<Run>(`/runs/${runId}`),
+  answerClarification: (
+    runId: string,
+    clarificationId: string,
+    input: ClarificationAnswerSubmission,
+  ) => request<Run>(`/runs/${runId}/clarifications/${clarificationId}/answer`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
   cancelRun: (runId: string) => request<Run>(`/runs/${runId}/cancel`, { method: "POST" }),
   replayRun: (runId: string) => request<Run>(`/runs/${runId}/replay`, { method: "POST" }),
   getRunFeedback: (runId: string) => request<RunFeedback | null>(`/runs/${runId}/feedback`),
@@ -404,6 +424,12 @@ export const api = {
       }),
     }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
   listCodeRepositories: () => request<CodeRepository[]>("/code/repositories"),
+  readCodeupRepository: (repositoryId: string, input: CodeupReadRequest, signal?: AbortSignal) =>
+    request<CodeupReadResult>(`/code/repositories/${encodeURIComponent(repositoryId)}/remote-read`, {
+      method: "POST",
+      body: JSON.stringify(input),
+      signal,
+    }),
   searchCodeSymbols: (query: string) =>
     request<CodeSymbolHit[]>("/code/symbols/search", {
       method: "POST",

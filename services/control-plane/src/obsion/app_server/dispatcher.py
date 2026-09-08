@@ -18,6 +18,7 @@ from obsion.app_server.schemas import (
     ApprovalListParams,
     ArtifactGetParams,
     ArtifactListParams,
+    RunClarificationAnswerParams,
     RunEventsParams,
     RunMutationParams,
     RunReadParams,
@@ -33,6 +34,7 @@ from obsion.app_server.schemas import (
 from obsion.application.app_server import AppServerApplication, RecordedAppServerError
 from obsion.common.error_mapping import application_error_code
 from obsion.common.errors import ObsionError
+from obsion.domain.run_intent import ClarificationAnswerSubmission
 from obsion.security.identity import Principal
 
 JsonResult = dict[str, Any] | list[dict[str, Any]]
@@ -176,6 +178,25 @@ class AppServerDispatcher:
                 client_request_id=run_replay.client_request_id,
                 run_id=run_replay.run_id,
                 fingerprint_params=self._fingerprint_params(run_replay),
+            )
+        if method == "run.clarification.answer":
+            run_answer = self._validate(RunClarificationAnswerParams, request.params)
+            submission = ClarificationAnswerSubmission(
+                expected_intent_revision=run_answer.expected_intent_revision,
+                answers=run_answer.answers,
+            )
+            return await self.application.answer_run_clarification(
+                principal,
+                correlation_id,
+                client_request_id=run_answer.client_request_id,
+                run_id=run_answer.run_id,
+                clarification_id=run_answer.clarification_id,
+                submission=submission,
+                fingerprint_params={
+                    "run_id": str(run_answer.run_id),
+                    "clarification_id": str(run_answer.clarification_id),
+                    **submission.model_dump(mode="json"),
+                },
             )
         if method == "run.events":
             run_events = self._validate(RunEventsParams, request.params)

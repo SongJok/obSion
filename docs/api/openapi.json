@@ -2178,6 +2178,390 @@
         "title": "CodeSymbolQuery",
         "type": "object"
       },
+      "CodeupCommitRead": {
+        "additionalProperties": false,
+        "properties": {
+          "commit_id": {
+            "maxLength": 40,
+            "minLength": 40,
+            "pattern": "^[a-f0-9]{40}$",
+            "title": "Commit Id",
+            "type": "string"
+          },
+          "operation": {
+            "const": "codeup.commit.get",
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "commit_id"
+        ],
+        "title": "CodeupCommitRead",
+        "type": "object"
+      },
+      "CodeupCommitsRead": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 20,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "operation": {
+            "const": "codeup.commits.list",
+            "title": "Operation",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "ref": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "ref"
+        ],
+        "title": "CodeupCommitsRead",
+        "type": "object"
+      },
+      "CodeupDiscoveredRepository": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "visibility": {
+            "enum": [
+              "private",
+              "internal"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "path",
+          "visibility",
+          "archived"
+        ],
+        "title": "CodeupDiscoveredRepository",
+        "type": "object"
+      },
+      "CodeupDiscoveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 20,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "operation": {
+            "const": "codeup.repositories.discover",
+            "title": "Operation",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "title": "CodeupDiscoveryRequest",
+        "type": "object"
+      },
+      "CodeupDiscoveryView": {
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CodeupDiscoveredRepository"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Page"
+          },
+          "operation": {
+            "const": "codeup.repositories.discover",
+            "title": "Operation",
+            "type": "string"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "connector_id",
+          "items",
+          "count",
+          "next_page",
+          "complete",
+          "policy_decision_id"
+        ],
+        "title": "CodeupDiscoveryView",
+        "type": "object"
+      },
+      "CodeupFileRead": {
+        "additionalProperties": false,
+        "properties": {
+          "commit_id": {
+            "maxLength": 40,
+            "minLength": 40,
+            "pattern": "^[a-f0-9]{40}$",
+            "title": "Commit Id",
+            "type": "string"
+          },
+          "operation": {
+            "const": "codeup.file.read",
+            "title": "Operation",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "commit_id",
+          "path"
+        ],
+        "title": "CodeupFileRead",
+        "type": "object"
+      },
+      "CodeupMappingRequest": {
+        "additionalProperties": false,
+        "description": "A provider item selected from a prior catalog read.",
+        "properties": {
+          "catalog_connector_id": {
+            "format": "uuid",
+            "title": "Catalog Connector Id",
+            "type": "string"
+          },
+          "provider_path": {
+            "maxLength": 500,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+$",
+            "title": "Provider Path",
+            "type": "string"
+          },
+          "provider_repository_id": {
+            "maxLength": 20,
+            "minLength": 1,
+            "pattern": "^[1-9][0-9]{0,19}$",
+            "title": "Provider Repository Id",
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uuid",
+            "title": "Repository Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "catalog_connector_id",
+          "repository_id",
+          "provider_repository_id",
+          "provider_path"
+        ],
+        "title": "CodeupMappingRequest",
+        "type": "object"
+      },
+      "CodeupMappingView": {
+        "properties": {
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "connector_version_id": {
+            "format": "uuid",
+            "title": "Connector Version Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "CREATED",
+              "UNCHANGED"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "provider_repository_id": {
+            "title": "Provider Repository Id",
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uuid",
+            "title": "Repository Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector_id",
+          "repository_id",
+          "provider_repository_id",
+          "connector_version_id",
+          "outcome",
+          "policy_decision_id"
+        ],
+        "title": "CodeupMappingView",
+        "type": "object"
+      },
+      "CodeupReadView": {
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Page"
+          },
+          "operation": {
+            "title": "Operation",
+            "type": "string"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "repository": {
+            "title": "Repository",
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uuid",
+            "title": "Repository Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "repository",
+          "repository_id",
+          "items",
+          "count",
+          "next_page",
+          "complete",
+          "policy_decision_id"
+        ],
+        "title": "CodeupReadView",
+        "type": "object"
+      },
+      "CodeupRepositoryRead": {
+        "additionalProperties": false,
+        "properties": {
+          "operation": {
+            "const": "codeup.repository.get",
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "title": "CodeupRepositoryRead",
+        "type": "object"
+      },
       "CompileSqlRequest": {
         "properties": {
           "plan": {
@@ -3076,6 +3460,127 @@
         "title": "CreateImBindingRequest",
         "type": "object"
       },
+      "CreateImGroupAudience": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_final_answer": {
+            "default": false,
+            "title": "Allow Final Answer",
+            "type": "boolean"
+          },
+          "allow_status": {
+            "default": true,
+            "title": "Allow Status",
+            "type": "boolean"
+          },
+          "conversation_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "max_classification": {
+            "default": "INTERNAL",
+            "enum": [
+              "PUBLIC",
+              "INTERNAL",
+              "CONFIDENTIAL",
+              "RESTRICTED"
+            ],
+            "title": "Max Classification",
+            "type": "string"
+          },
+          "member_fingerprint": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "title": "Member Fingerprint",
+            "type": "string"
+          },
+          "member_user_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Member User Ids",
+            "type": "array"
+          },
+          "verification_source": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Verification Source",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "workspace_id",
+          "member_user_ids",
+          "member_fingerprint",
+          "verification_source"
+        ],
+        "title": "CreateImGroupAudience",
+        "type": "object"
+      },
+      "CreateImInstallation": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_principal_id": {
+            "format": "uuid",
+            "title": "Adapter Principal Id",
+            "type": "string"
+          },
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "external_app_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External App Id",
+            "type": "string"
+          },
+          "external_corp_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External Corp Id",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "dingtalk",
+              "feishu",
+              "wecom"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "verification_source": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Verification Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "external_corp_id",
+          "external_app_id",
+          "connector_id",
+          "adapter_principal_id",
+          "verification_source"
+        ],
+        "title": "CreateImInstallation",
+        "type": "object"
+      },
       "CreateImMessageRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3125,6 +3630,28 @@
           "text"
         ],
         "title": "CreateImMessageRequest",
+        "type": "object"
+      },
+      "CreateInstallationBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "sender_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Sender Id",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sender_id",
+          "user_id"
+        ],
+        "title": "CreateInstallationBinding",
         "type": "object"
       },
       "CreateMemoryRequest": {
@@ -3346,6 +3873,40 @@
           "name"
         ],
         "title": "CreateModelProfileRequest",
+        "type": "object"
+      },
+      "CreatePasswordSessionRequest": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "CreatePasswordSessionRequest",
         "type": "object"
       },
       "CreatePolicyRequest": {
@@ -3685,6 +4246,21 @@
           "target_id"
         ],
         "title": "CreateSemanticSynonymRequest",
+        "type": "object"
+      },
+      "CreateSourceVersionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector_id"
+        ],
+        "title": "CreateSourceVersionRequest",
         "type": "object"
       },
       "CreateTableRequest": {
@@ -4399,6 +4975,272 @@
           "workspace_id"
         ],
         "title": "DingTalkDocumentIngestedView",
+        "type": "object"
+      },
+      "DingTalkOutboxView": {
+        "description": "Content-free operator projection of a durable robot delivery.",
+        "properties": {
+          "accepted_process_query_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Process Query Key"
+          },
+          "answer_classification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Classification"
+          },
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "audience_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audience Id"
+          },
+          "audience_member_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audience Member Fingerprint"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "capability_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capability Version Id"
+          },
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "conversation_type": {
+            "title": "Conversation Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "delivery_mode": {
+            "title": "Delivery Mode",
+            "type": "string"
+          },
+          "fencing_token": {
+            "title": "Fencing Token",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inbox_message_id": {
+            "format": "uuid",
+            "title": "Inbox Message Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "last_error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Code"
+          },
+          "last_reconciled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reconciled At"
+          },
+          "lease_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lease Expires At"
+          },
+          "next_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Attempt At"
+          },
+          "recipient_conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Conversation Id"
+          },
+          "recipient_sender_id": {
+            "title": "Recipient Sender Id",
+            "type": "string"
+          },
+          "recipient_user_id": {
+            "format": "uuid",
+            "title": "Recipient User Id",
+            "type": "string"
+          },
+          "reconciliation_attempt_count": {
+            "title": "Reconciliation Attempt Count",
+            "type": "integer"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vendor_read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Read At"
+          },
+          "vendor_read_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Read Status"
+          },
+          "vendor_send_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Send Status"
+          }
+        },
+        "required": [
+          "id",
+          "installation_id",
+          "inbox_message_id",
+          "run_id",
+          "recipient_user_id",
+          "recipient_sender_id",
+          "conversation_type",
+          "recipient_conversation_id",
+          "audience_id",
+          "audience_member_fingerprint",
+          "delivery_mode",
+          "answer_classification",
+          "connector_id",
+          "capability_version_id",
+          "status",
+          "attempt_count",
+          "fencing_token",
+          "next_attempt_at",
+          "lease_expires_at",
+          "accepted_process_query_key",
+          "vendor_send_status",
+          "vendor_read_status",
+          "vendor_read_at",
+          "last_reconciled_at",
+          "reconciliation_attempt_count",
+          "blocked_reason",
+          "last_error_code",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DingTalkOutboxView",
         "type": "object"
       },
       "DingTalkWorkspaceNodeView": {
@@ -5885,7 +6727,8 @@
         "enum": [
           "PENDING",
           "SENT",
-          "FAILED"
+          "FAILED",
+          "UNKNOWN"
         ],
         "title": "ImDeliveryStatus",
         "type": "string"
@@ -5993,6 +6836,351 @@
           "updated_at"
         ],
         "title": "ImDeliveryView",
+        "type": "object"
+      },
+      "ImGroupAudienceView": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_final_answer": {
+            "default": false,
+            "title": "Allow Final Answer",
+            "type": "boolean"
+          },
+          "allow_status": {
+            "default": true,
+            "title": "Allow Status",
+            "type": "boolean"
+          },
+          "conversation_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "max_classification": {
+            "default": "INTERNAL",
+            "enum": [
+              "PUBLIC",
+              "INTERNAL",
+              "CONFIDENTIAL",
+              "RESTRICTED"
+            ],
+            "title": "Max Classification",
+            "type": "string"
+          },
+          "member_fingerprint": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "title": "Member Fingerprint",
+            "type": "string"
+          },
+          "member_user_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Member User Ids",
+            "type": "array"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "verification_source": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Verification Source",
+            "type": "string"
+          },
+          "verified_at": {
+            "format": "date-time",
+            "title": "Verified At",
+            "type": "string"
+          },
+          "verified_until": {
+            "format": "date-time",
+            "title": "Verified Until",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "workspace_id",
+          "member_user_ids",
+          "member_fingerprint",
+          "verification_source",
+          "id",
+          "organization_id",
+          "installation_id",
+          "status",
+          "created_by",
+          "verified_at",
+          "verified_until",
+          "revoked_at"
+        ],
+        "title": "ImGroupAudienceView",
+        "type": "object"
+      },
+      "ImInboxView": {
+        "description": "Content-free durable receipt; acceptance is not execution or vendor delivery.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          },
+          "vendor_event_id": {
+            "title": "Vendor Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "installation_id",
+          "vendor_event_id",
+          "status",
+          "turn_id",
+          "run_id",
+          "created_at",
+          "processed_at"
+        ],
+        "title": "ImInboxView",
+        "type": "object"
+      },
+      "ImInstallationBindingView": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "sender_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Sender Id",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sender_id",
+          "user_id",
+          "id",
+          "installation_id",
+          "active",
+          "revoked_at"
+        ],
+        "title": "ImInstallationBindingView",
+        "type": "object"
+      },
+      "ImInstallationView": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_principal_id": {
+            "format": "uuid",
+            "title": "Adapter Principal Id",
+            "type": "string"
+          },
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "external_app_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External App Id",
+            "type": "string"
+          },
+          "external_corp_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External Corp Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "dingtalk",
+              "feishu",
+              "wecom"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "verification_source": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Verification Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "external_corp_id",
+          "external_app_id",
+          "connector_id",
+          "adapter_principal_id",
+          "verification_source",
+          "id",
+          "organization_id",
+          "status",
+          "created_by",
+          "created_at",
+          "revoked_at"
+        ],
+        "title": "ImInstallationView",
         "type": "object"
       },
       "ImMessageAcceptedView": {
@@ -6668,6 +7856,64 @@
         "title": "OperatorInvocationStatus",
         "type": "string"
       },
+      "PendingClarification": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/PublicClarificationField"
+            },
+            "title": "Gaps",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "intent_revision": {
+            "title": "Intent Revision",
+            "type": "integer"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "requested_at": {
+            "title": "Requested At",
+            "type": "string"
+          },
+          "round": {
+            "title": "Round",
+            "type": "integer"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "OPEN",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "intent_revision",
+          "round",
+          "status",
+          "question",
+          "gaps",
+          "requested_at",
+          "expires_at"
+        ],
+        "title": "PendingClarification",
+        "type": "object"
+      },
       "PreflightActionRequest": {
         "properties": {
           "approval_ttl_minutes": {
@@ -6688,6 +7934,198 @@
           "reason"
         ],
         "title": "PreflightActionRequest",
+        "type": "object"
+      },
+      "ProjectSourceInventoryView": {
+        "additionalProperties": false,
+        "description": "脱敏的项目来源绑定清单，不暴露连接端点、配置或凭据引用。",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "connector_name": {
+            "title": "Connector Name",
+            "type": "string"
+          },
+          "connector_type": {
+            "title": "Connector Type",
+            "type": "string"
+          },
+          "connector_version_id": {
+            "format": "uuid",
+            "title": "Connector Version Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "provider_repository_id": {
+            "title": "Provider Repository Id",
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uuid",
+            "title": "Repository Id",
+            "type": "string"
+          },
+          "source_revocation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Revocation Reason"
+          },
+          "source_revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Revoked At"
+          },
+          "version_revocation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Revocation Reason"
+          },
+          "version_revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Revoked At"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "repository_id",
+          "connector_version_id",
+          "connector_name",
+          "connector_type",
+          "environment",
+          "provider_repository_id",
+          "created_by",
+          "created_at",
+          "source_revoked_at",
+          "source_revocation_reason",
+          "version_revoked_at",
+          "version_revocation_reason",
+          "active"
+        ],
+        "title": "ProjectSourceInventoryView",
+        "type": "object"
+      },
+      "PublicClarificationField": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_free_text": {
+            "title": "Allow Free Text",
+            "type": "boolean"
+          },
+          "cardinality": {
+            "const": "ONE",
+            "title": "Cardinality",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PublicClarificationOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "slot": {
+            "title": "Slot",
+            "type": "string"
+          },
+          "value_type": {
+            "enum": [
+              "STRING",
+              "TIME_RANGE"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot",
+          "reason_code",
+          "prompt",
+          "cardinality",
+          "value_type",
+          "options",
+          "allow_free_text"
+        ],
+        "title": "PublicClarificationField",
+        "type": "object"
+      },
+      "PublicClarificationOption": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "PublicClarificationOption",
         "type": "object"
       },
       "RecordRunFeedbackRequest": {
@@ -6718,6 +8156,41 @@
           "rating"
         ],
         "title": "RecordRunFeedbackRequest",
+        "type": "object"
+      },
+      "RegisterProjectSourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_version_id": {
+            "format": "uuid",
+            "title": "Connector Version Id",
+            "type": "string"
+          },
+          "provider_repository_id": {
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$",
+            "title": "Provider Repository Id",
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uuid",
+            "title": "Repository Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "repository_id",
+          "connector_version_id",
+          "provider_repository_id"
+        ],
+        "title": "RegisterProjectSourceRequest",
         "type": "object"
       },
       "RequestRollbackRequest": {
@@ -6810,6 +8283,25 @@
           "expected_version"
         ],
         "title": "ReviseWorkspaceDecisionRequest",
+        "type": "object"
+      },
+      "RevokeProjectSourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "enum": [
+              "OPERATOR_REVOKED",
+              "CONFIGURATION_REPLACED",
+              "SECURITY_REVOKED"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RevokeProjectSourceRequest",
         "type": "object"
       },
       "RiskLevel": {
@@ -7084,6 +8576,93 @@
         "title": "RunMemorySnapshotView",
         "type": "object"
       },
+      "RunSourcePinView": {
+        "description": "公开 Run 使用过的版本摘要，不包含连接配置或供应商凭据。",
+        "properties": {
+          "commit_id": {
+            "title": "Commit Id",
+            "type": "string"
+          },
+          "connector_version_id": {
+            "format": "uuid",
+            "title": "Connector Version Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "file_count": {
+            "title": "File Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "pinned_by": {
+            "format": "uuid",
+            "title": "Pinned By",
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uuid",
+            "title": "Repository Id",
+            "type": "string"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "snapshot_bytes": {
+            "title": "Snapshot Bytes",
+            "type": "integer"
+          },
+          "snapshot_fingerprint": {
+            "title": "Snapshot Fingerprint",
+            "type": "string"
+          },
+          "source_available": {
+            "title": "Source Available",
+            "type": "boolean"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "tree_id": {
+            "title": "Tree Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "source_id",
+          "connector_version_id",
+          "workspace_id",
+          "repository_id",
+          "commit_id",
+          "tree_id",
+          "snapshot_fingerprint",
+          "file_count",
+          "snapshot_bytes",
+          "pinned_by",
+          "created_at",
+          "source_available"
+        ],
+        "title": "RunSourcePinView",
+        "type": "object"
+      },
       "RunStatus": {
         "enum": [
           "PENDING",
@@ -7339,6 +8918,16 @@
             "title": "Output Tokens",
             "type": "integer"
           },
+          "pending_clarification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingClarification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "plan": {
             "additionalProperties": true,
             "title": "Plan",
@@ -7473,6 +9062,124 @@
         ],
         "title": "SideEffect",
         "type": "string"
+      },
+      "SourceManagementView": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "enum": [
+              "CREATED",
+              "UNCHANGED"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "recorded",
+              "already_recorded"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "record_id",
+          "policy_decision_id",
+          "reason"
+        ],
+        "title": "SourceManagementView",
+        "type": "object"
+      },
+      "SourceVersionInventoryView": {
+        "additionalProperties": false,
+        "description": "脱敏的冻结 Connector 版本清单，供管理员对账绑定前后的状态。",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "connector_name": {
+            "title": "Connector Name",
+            "type": "string"
+          },
+          "connector_type": {
+            "title": "Connector Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revocation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revocation Reason"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "required": [
+          "id",
+          "connector_id",
+          "connector_name",
+          "connector_type",
+          "environment",
+          "created_by",
+          "created_at",
+          "revoked_at",
+          "revocation_reason",
+          "active"
+        ],
+        "title": "SourceVersionInventoryView",
+        "type": "object"
       },
       "SqlExplainView": {
         "properties": {
@@ -8120,6 +9827,53 @@
           }
         },
         "title": "TriggerWorkflowRequest",
+        "type": "object"
+      },
+      "TrustedImInbound": {
+        "additionalProperties": false,
+        "description": "Normalized envelope only; installation and actor come from trusted routing/AuthN.",
+        "properties": {
+          "conversation_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "conversation_type": {
+            "enum": [
+              "direct",
+              "group"
+            ],
+            "title": "Conversation Type",
+            "type": "string"
+          },
+          "sender_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Sender Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 32000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "vendor_event_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Vendor Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vendor_event_id",
+          "sender_id",
+          "conversation_id",
+          "conversation_type",
+          "text"
+        ],
+        "title": "TrustedImInbound",
         "type": "object"
       },
       "TurnCreatedView": {
@@ -11060,6 +12814,265 @@
         ]
       }
     },
+    "/api/v1/admin/codeup/connectors/{connector_id}/mappings": {
+      "post": {
+        "description": "Verify one catalog item, then freeze its local Codeup mapping.\n\nThe catalog is re-read through the Gateway so a caller cannot invent a\nprovider id or path from an old, untrusted browser response. Mapping itself\nremains a separate Policy/Audit decision and never grants Agent access.",
+        "operationId": "map_codeup_repository_api_v1_admin_codeup_connectors__connector_id__mappings_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connector_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connector Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeupMappingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeupMappingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Map Codeup Repository",
+        "tags": [
+          "codeup"
+        ]
+      }
+    },
+    "/api/v1/admin/codeup/connectors/{connector_id}/repositories": {
+      "post": {
+        "operationId": "discover_codeup_repositories_api_v1_admin_codeup_connectors__connector_id__repositories_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connector_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connector Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeupDiscoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeupDiscoveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Discover Codeup Repositories",
+        "tags": [
+          "codeup"
+        ]
+      }
+    },
     "/api/v1/admin/connectors": {
       "get": {
         "operationId": "list_connectors_api_v1_admin_connectors_get",
@@ -11284,6 +13297,128 @@
           }
         ],
         "summary": "Create Connector",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/connectors/{connector_id}/activate": {
+      "post": {
+        "description": "Activate a DingTalk robot connector after validating its deployment inputs.\n\nRobot activation is intentionally separate from generic plugin promotion:\nthe operator must prove that the public app/robot identities and secret\nreference are available in the current control-plane environment before a\nwrite-capability binding can be used.",
+        "operationId": "activate_connector_api_v1_admin_connectors__connector_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connector_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connector Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Activate Connector Api V1 Admin Connectors  Connector Id  Activate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Activate Connector",
         "tags": [
           "administration"
         ]
@@ -14964,6 +17099,1238 @@
         ]
       }
     },
+    "/api/v1/admin/im-dingtalk/outbox": {
+      "get": {
+        "operationId": "list_dingtalk_outbox_api_v1_admin_im_dingtalk_outbox_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DingTalkOutboxView"
+                  },
+                  "title": "Response List Dingtalk Outbox Api V1 Admin Im Dingtalk Outbox Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Dingtalk Outbox",
+        "tags": [
+          "trusted-im",
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/im-dingtalk/outbox/{outbox_id}/reconcile": {
+      "post": {
+        "description": "Run one governed, read-only vendor receipt query for an accepted row.",
+        "operationId": "reconcile_dingtalk_outbox_api_v1_admin_im_dingtalk_outbox__outbox_id__reconcile_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "outbox_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Outbox Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DingTalkOutboxView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Reconcile Dingtalk Outbox",
+        "tags": [
+          "trusted-im",
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/im-installations": {
+      "get": {
+        "operationId": "list_installations_api_v1_admin_im_installations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImInstallationView"
+                  },
+                  "title": "Response List Installations Api V1 Admin Im Installations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Installations",
+        "tags": [
+          "trusted-im"
+        ]
+      },
+      "post": {
+        "operationId": "create_installation_api_v1_admin_im_installations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateImInstallation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImInstallationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Installation",
+        "tags": [
+          "trusted-im"
+        ]
+      }
+    },
+    "/api/v1/admin/im-installations/{installation_id}/bindings": {
+      "post": {
+        "operationId": "bind_sender_api_v1_admin_im_installations__installation_id__bindings_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInstallationBinding"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImInstallationBindingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Bind Sender",
+        "tags": [
+          "trusted-im"
+        ]
+      }
+    },
+    "/api/v1/admin/im-installations/{installation_id}/bindings/{binding_id}/revoke": {
+      "post": {
+        "operationId": "revoke_sender_api_v1_admin_im_installations__installation_id__bindings__binding_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "binding_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Binding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImInstallationBindingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Revoke Sender",
+        "tags": [
+          "trusted-im"
+        ]
+      }
+    },
+    "/api/v1/admin/im-installations/{installation_id}/group-audiences": {
+      "get": {
+        "operationId": "list_group_audiences_api_v1_admin_im_installations__installation_id__group_audiences_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImGroupAudienceView"
+                  },
+                  "title": "Response List Group Audiences Api V1 Admin Im Installations  Installation Id  Group Audiences Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Group Audiences",
+        "tags": [
+          "trusted-im",
+          "administration"
+        ]
+      },
+      "post": {
+        "operationId": "upsert_group_audience_api_v1_admin_im_installations__installation_id__group_audiences_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateImGroupAudience"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImGroupAudienceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Upsert Group Audience",
+        "tags": [
+          "trusted-im",
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/im-installations/{installation_id}/group-audiences/{audience_id}/revoke": {
+      "post": {
+        "operationId": "revoke_group_audience_api_v1_admin_im_installations__installation_id__group_audiences__audience_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "audience_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Audience Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImGroupAudienceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Revoke Group Audience",
+        "tags": [
+          "trusted-im",
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/im-installations/{installation_id}/revoke": {
+      "post": {
+        "operationId": "revoke_installation_api_v1_admin_im_installations__installation_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImInstallationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Revoke Installation",
+        "tags": [
+          "trusted-im"
+        ]
+      }
+    },
     "/api/v1/admin/knowledge": {
       "get": {
         "operationId": "list_knowledge_metadata_api_v1_admin_knowledge_get",
@@ -16036,6 +19403,898 @@
         "summary": "Create Policy",
         "tags": [
           "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/project-sources": {
+      "get": {
+        "description": "List fixed project-to-provider bindings for operator reconciliation.",
+        "operationId": "list_project_sources_api_v1_admin_project_sources_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workspace_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "repository_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repository Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_revoked",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Revoked",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSourceInventoryView"
+                  },
+                  "title": "Response List Project Sources Api V1 Admin Project Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "认证、权限或来源状态不允许该操作。"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "固定来源已绑定到不同标识。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Project Sources",
+        "tags": [
+          "project-source-management"
+        ]
+      },
+      "post": {
+        "description": "登记固定声明；不证明厂商身份、实际 scopes 或 Run 获取权限。",
+        "operationId": "register_project_source_api_v1_admin_project_sources_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterProjectSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceManagementView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "认证、权限或来源状态不允许该操作。"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "固定来源已绑定到不同标识。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Register Project Source",
+        "tags": [
+          "project-source-management"
+        ]
+      }
+    },
+    "/api/v1/admin/project-sources/versions": {
+      "get": {
+        "description": "List frozen connector versions without returning configuration or secrets.",
+        "operationId": "list_source_versions_api_v1_admin_project_sources_versions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_revoked",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Revoked",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceVersionInventoryView"
+                  },
+                  "title": "Response List Source Versions Api V1 Admin Project Sources Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "认证、权限或来源状态不允许该操作。"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "固定来源已绑定到不同标识。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Source Versions",
+        "tags": [
+          "project-source-management"
+        ]
+      },
+      "post": {
+        "description": "冻结当前 Connector 配置声明；每次成功创建独立版本，不自动重试。",
+        "operationId": "create_source_version_api_v1_admin_project_sources_versions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSourceVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceManagementView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "认证、权限或来源状态不允许该操作。"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "固定来源已绑定到不同标识。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Source Version",
+        "tags": [
+          "project-source-management"
+        ]
+      }
+    },
+    "/api/v1/admin/project-sources/versions/{connector_version_id}/revoke": {
+      "post": {
+        "operationId": "revoke_source_version_api_v1_admin_project_sources_versions__connector_version_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connector_version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connector Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeProjectSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceManagementView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "认证、权限或来源状态不允许该操作。"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "固定来源已绑定到不同标识。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Revoke Source Version",
+        "tags": [
+          "project-source-management"
+        ]
+      }
+    },
+    "/api/v1/admin/project-sources/{source_id}/revoke": {
+      "post": {
+        "operationId": "revoke_project_source_api_v1_admin_project_sources__source_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeProjectSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceManagementView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "认证、权限或来源状态不允许该操作。"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "固定来源已绑定到不同标识。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Revoke Project Source",
+        "tags": [
+          "project-source-management"
         ]
       }
     },
@@ -17921,6 +22180,116 @@
         ]
       }
     },
+    "/api/v1/auth/password-session": {
+      "post": {
+        "description": "Exchange a locally enrolled password for a browser session.\n\nA rejected attempt still commits: the failed-attempt counter that drives\nlockout is written to the credential row, and rolling it back would make the\nlockout unreachable by simply retrying.",
+        "operationId": "create_password_browser_session_api_v1_auth_password_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePasswordSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create Password Browser Session",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
     "/api/v1/auth/session": {
       "delete": {
         "operationId": "delete_browser_session_api_v1_auth_session_delete",
@@ -19302,6 +23671,158 @@
         "summary": "Create Repository",
         "tags": [
           "code"
+        ]
+      }
+    },
+    "/api/v1/code/repositories/{repository_id}/remote-read": {
+      "post": {
+        "operationId": "read_codeup_repository_api_v1_code_repositories__repository_id__remote_read_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "repository_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Repository Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "codeup.commit.get": "#/components/schemas/CodeupCommitRead",
+                    "codeup.commits.list": "#/components/schemas/CodeupCommitsRead",
+                    "codeup.file.read": "#/components/schemas/CodeupFileRead",
+                    "codeup.repository.get": "#/components/schemas/CodeupRepositoryRead"
+                  },
+                  "propertyName": "operation"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CodeupRepositoryRead"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CodeupCommitRead"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CodeupCommitsRead"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CodeupFileRead"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeupReadView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Read Codeup Repository",
+        "tags": [
+          "codeup"
         ]
       }
     },
@@ -22076,6 +26597,557 @@
         "summary": "Fail Im Delivery",
         "tags": [
           "experience"
+        ]
+      }
+    },
+    "/api/v1/experience/im/installations/{installation_id}/inbox": {
+      "get": {
+        "operationId": "list_messages_api_v1_experience_im_installations__installation_id__inbox_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "RECEIVED",
+              "enum": [
+                "RECEIVED",
+                "PROCESSED"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImInboxView"
+                  },
+                  "title": "Response List Messages Api V1 Experience Im Installations  Installation Id  Inbox Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Messages",
+        "tags": [
+          "trusted-im"
+        ]
+      },
+      "post": {
+        "operationId": "receive_message_api_v1_experience_im_installations__installation_id__inbox_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustedImInbound"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImInboxView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Receive Message",
+        "tags": [
+          "trusted-im"
+        ]
+      }
+    },
+    "/api/v1/experience/im/installations/{installation_id}/inbox/{inbox_id}": {
+      "get": {
+        "operationId": "get_message_api_v1_experience_im_installations__installation_id__inbox__inbox_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "inbox_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inbox Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImInboxView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Get Message",
+        "tags": [
+          "trusted-im"
+        ]
+      }
+    },
+    "/api/v1/experience/im/installations/{installation_id}/inbox/{inbox_id}/process": {
+      "post": {
+        "operationId": "process_message_api_v1_experience_im_installations__installation_id__inbox__inbox_id__process_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Installation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "inbox_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Inbox Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImInboxView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Process Message",
+        "tags": [
+          "trusted-im"
         ]
       }
     },
@@ -27374,6 +32446,130 @@
         "summary": "Replay Run",
         "tags": [
           "workspace"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}/source-pins": {
+      "get": {
+        "description": "Inspect immutable source pins while rechecking current source usability.",
+        "operationId": "list_source_pins_api_v1_runs__run_id__source_pins_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunSourcePinView"
+                  },
+                  "title": "Response List Source Pins Api V1 Runs  Run Id  Source Pins Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Source Pins",
+        "tags": [
+          "runs"
         ]
       }
     },

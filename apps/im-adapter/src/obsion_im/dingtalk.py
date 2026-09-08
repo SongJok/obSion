@@ -94,10 +94,12 @@ class DingTalkClient:
             },
         )
         self._require_success(payload, operation="send message", token=token)
-        message_id = str(payload.get("messageId") or payload.get("message_id") or "").strip()
-        if not message_id:
-            # DingTalk chat/send may omit messageId on some tenants; pin the governed delivery id.
-            message_id = idempotency_key.strip()
+        raw_message_id = payload.get("messageId") or payload.get("message_id")
+        if not isinstance(raw_message_id, str) or not raw_message_id.strip():
+            raise ImError("DingTalk delivery outcome is unknown: vendor receipt is missing")
+        message_id = raw_message_id.strip()
+        if len(message_id) > 500 or message_id == idempotency_key.strip():
+            raise ImError("DingTalk delivery outcome is unknown: vendor receipt is invalid")
         return DingTalkReceipt(message_id=message_id)
 
     async def aclose(self) -> None:
@@ -139,7 +141,9 @@ class DingTalkClient:
         json_body: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         last_transport_error: httpx.TransportError | None = None
-        for attempt in range(MAX_ATTEMPTS):
+        # chat/send 不接受本地幂等键；发送后断连或 5xx 均不能证明没有副作用。
+        max_attempts = MAX_ATTEMPTS if method == "GET" else 1
+        for attempt in range(max_attempts):
             try:
                 response = await self._client.request(
                     method,
@@ -149,11 +153,11 @@ class DingTalkClient:
                 )
             except httpx.TransportError as exc:
                 last_transport_error = exc
-                if attempt + 1 == MAX_ATTEMPTS:
+                if attempt + 1 == max_attempts:
                     break
                 await self._sleep(0.25 * (2**attempt))
                 continue
-            if response.status_code in RETRYABLE_STATUS_CODES and attempt + 1 < MAX_ATTEMPTS:
+            if response.status_code in RETRYABLE_STATUS_CODES and attempt + 1 < max_attempts:
                 await self._sleep(_retry_delay(response, attempt))
                 continue
             if response.status_code < 200 or response.status_code >= 300:

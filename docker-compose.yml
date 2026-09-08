@@ -137,6 +137,13 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/control-plane.Dockerfile
+    # Local-only operator configuration. `required: false` preserves the
+    # checked-in defaults when no .env exists; explicit container-network URLs
+    # below override their host-side counterparts. Production uses Helm and a
+    # secret manager instead of this file.
+    env_file:
+      - path: .env
+        required: false
     environment: *api-environment
     ports:
       - "${OBSION_API_PORT:-8080}:8080"

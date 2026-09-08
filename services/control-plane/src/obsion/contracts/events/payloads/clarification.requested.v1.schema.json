@@ -1,0 +1,138 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/clarification.requested.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clarification_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "gaps": {
+      "items": {
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "properties": {
+              "options": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "options"
+            ]
+          },
+          {
+            "properties": {
+              "allow_free_text": {
+                "const": true
+              }
+            },
+            "required": [
+              "allow_free_text"
+            ]
+          }
+        ],
+        "properties": {
+          "allow_free_text": {
+            "type": "boolean"
+          },
+          "cardinality": {
+            "const": "ONE"
+          },
+          "options": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "label": {
+                  "maxLength": 240,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "type": "object"
+            },
+            "maxItems": 3,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "prompt": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason_code": {
+            "maxLength": 80,
+            "pattern": "^[a-z][a-z0-9_.-]{0,79}$",
+            "type": "string"
+          },
+          "slot": {
+            "maxLength": 80,
+            "pattern": "^[a-z][a-z0-9_.-]{0,79}$",
+            "type": "string"
+          },
+          "value_type": {
+            "enum": [
+              "STRING",
+              "TIME_RANGE"
+            ]
+          }
+        },
+        "required": [
+          "slot",
+          "reason_code",
+          "prompt",
+          "cardinality",
+          "value_type",
+          "options",
+          "allow_free_text"
+        ],
+        "type": "object"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "intent_revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "question": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "requested_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "round": {
+      "maximum": 2,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "clarification_id",
+    "intent_revision",
+    "round",
+    "question",
+    "gaps",
+    "requested_at",
+    "expires_at"
+  ],
+  "title": "clarification.requested payload v1",
+  "type": "object"
+}

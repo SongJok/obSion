@@ -654,7 +654,7 @@
     "component": {
       "name": "obsion",
       "type": "application",
-      "version": "0.97.0-dev"
+      "version": "0.98.0-dev"
     }
   },
   "serialNumber": "urn:uuid:b6779d21960b8695d05f73e7c2bac6e2",

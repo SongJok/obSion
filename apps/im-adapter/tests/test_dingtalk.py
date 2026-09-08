@@ -155,3 +155,44 @@ async def test_dingtalk_vendor_errors_redact_credentials() -> None:
         await client.aclose()
     assert "ding-test-secret" not in str(exc.value)
     assert "ding-test-key" not in str(exc.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure",
+    ["timeout", "503", "429", "no-receipt", "invalid-json", "object-receipt", "local-receipt"],
+)
+async def test_dingtalk_post_never_retries_unknown_effects(failure: str) -> None:
+    sends = 0
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal sends
+        if request.url.path == TOKEN_PATH:
+            return httpx.Response(
+                200, json={"errcode": 0, "access_token": "test-token", "expires_in": 7200}
+            )
+        sends += 1
+        if failure == "timeout":
+            raise httpx.ReadTimeout("response lost", request=request)
+        if failure in {"503", "429"}:
+            return httpx.Response(int(failure), json={"errcode": 1})
+        if failure == "invalid-json":
+            return httpx.Response(200, text="not-json")
+        if failure == "object-receipt":
+            return httpx.Response(200, json={"errcode": 0, "messageId": {"invalid": True}})
+        if failure == "local-receipt":
+            return httpx.Response(200, json={"errcode": 0, "messageId": "local-only"})
+        return httpx.Response(200, json={"errcode": 0})
+
+    async def sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    client = DingTalkClient(_credentials(), transport=httpx.MockTransport(handler), sleep=sleep)
+    try:
+        with pytest.raises(ImError):
+            await client.send_text(chat_id="cid-ops", text="result", idempotency_key="local-only")
+    finally:
+        await client.aclose()
+    assert sends == 1
+    assert sleeps == []

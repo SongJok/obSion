@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -81,6 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("get", "Show run status"),
         ("cancel", "Cancel an active run"),
         ("replay", "Replay a terminal run snapshot"),
+        ("clarify", "Show the active clarification request"),
         ("events", "List run events"),
         ("steps", "List harness steps"),
         ("evidence", "List evidence"),
@@ -89,6 +91,24 @@ def build_parser() -> argparse.ArgumentParser:
     ):
         command = run_commands.add_parser(name, help=help_text)
         command.add_argument("run_id")
+    run_answer = run_commands.add_parser("answer", help="Answer the active clarification")
+    run_answer.add_argument("run_id")
+    run_answer.add_argument("clarification_id", nargs="?")
+    run_answer.add_argument("--intent-revision", type=int)
+    run_answer.add_argument(
+        "--option",
+        action="append",
+        default=[],
+        metavar="SLOT=OPTION_ID",
+        help="Choose one advertised option; repeat for multiple slots",
+    )
+    run_answer.add_argument(
+        "--value",
+        action="append",
+        default=[],
+        metavar="SLOT=JSON_OR_TEXT",
+        help="Provide a free-text or JSON value; repeat for multiple slots",
+    )
 
     approval = commands.add_parser("approval", help="Capability approval decisions")
     approval_commands = approval.add_subparsers(dest="approval_command", required=True)
@@ -181,6 +201,15 @@ async def _execute(runtime: ExperienceRuntime, args: argparse.Namespace) -> Any:
             return await runtime.cancel_run(run_id)
         if args.run_command == "replay":
             return await runtime.replay_run(run_id)
+        if args.run_command == "clarify":
+            return await runtime.get_pending_clarification(run_id)
+        if args.run_command == "answer":
+            return await runtime.answer_run_clarification(
+                run_id,
+                clarification_id=args.clarification_id,
+                expected_intent_revision=args.intent_revision,
+                answers=_clarification_answers(args.option, args.value),
+            )
         if args.run_command == "events":
             return await runtime.list_run_events(run_id)
         if args.run_command == "steps":
@@ -197,6 +226,40 @@ async def _execute(runtime: ExperienceRuntime, args: argparse.Namespace) -> Any:
         approve=args.decision == "approve",
         reason=args.reason,
     )
+
+
+def _clarification_answers(
+    option_pairs: Sequence[str],
+    value_pairs: Sequence[str],
+) -> list[dict[str, Any]]:
+    answers: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for pair, field_name in (
+        *((item, "option_id") for item in option_pairs),
+        *((item, "value") for item in value_pairs),
+    ):
+        slot, separator, raw = pair.partition("=")
+        slot = slot.strip()
+        raw = raw.strip()
+        if not separator or not slot or not raw:
+            raise CliError(f"Clarification answer must use SLOT={field_name.upper()}")
+        normalized_slot = slot.casefold()
+        if normalized_slot in seen:
+            raise CliError(f"Clarification slot {slot} was answered more than once")
+        seen.add(normalized_slot)
+        if field_name == "option_id":
+            answers.append({"slot": slot, field_name: raw})
+            continue
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError:
+            value = raw
+        if value is None:
+            raise CliError(f"Clarification slot {slot} cannot be answered with null")
+        answers.append({"slot": slot, field_name: value})
+    if not answers:
+        raise CliError("Use --option or --value to answer at least one clarification slot")
+    return answers
 
 
 if __name__ == "__main__":

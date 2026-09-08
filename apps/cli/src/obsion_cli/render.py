@@ -15,6 +15,9 @@ _EVENT_LABELS: Mapping[str, str] = {
     "policy.checked": "正在评估策略",
     "policy.decided": "策略已裁决",
     "approval.requested": "等待审批",
+    "clarification.requested": "等待用户澄清",
+    "clarification.answered": "已收到澄清",
+    "clarification.expired": "澄清已过期",
     "tool.started": "正在调用能力",
     "tool.completed": "能力调用完成",
     "evidence.created": "已形成证据",
@@ -44,6 +47,9 @@ def render_ask(result: AskResult, *, json_output: bool) -> str:
         label = _EVENT_LABELS.get(name, name)
         detail = _event_detail(event)
         lines.append(f"  {label}" + (f" · {detail}" if detail else ""))
+    pending = result.run.get("pending_clarification")
+    if isinstance(pending, dict):
+        lines.extend(["", *_render_pending_clarification(pending)])
     if result.answer:
         lines.extend(["", "回答", result.answer.strip()])
     if result.claims:
@@ -70,6 +76,8 @@ def render_value(value: Any, *, json_output: bool) -> str:
             return "(empty)\n"
         return "\n".join(_summarize_item(item) for item in value) + "\n"
     if isinstance(value, dict):
+        if value.get("status") == "OPEN" and isinstance(value.get("gaps"), list):
+            return "\n".join(_render_pending_clarification(value)) + "\n"
         return _summarize_item(value) + "\n"
     return f"{value}\n"
 
@@ -94,3 +102,31 @@ def _event_detail(event: dict[str, Any]) -> str:
             text = str(value)
             return text if len(text) <= 80 else text[:77] + "..."
     return ""
+
+
+def _render_pending_clarification(pending: dict[str, Any]) -> list[str]:
+    lines = ["待澄清"]
+    question = pending.get("question")
+    if question:
+        lines.append(f"  {question}")
+    lines.append(
+        "  "
+        f"clarification_id {pending.get('id')} · "
+        f"intent_revision {pending.get('intent_revision')} · "
+        f"expires_at {pending.get('expires_at')}"
+    )
+    gaps = pending.get("gaps")
+    if not isinstance(gaps, list):
+        return lines
+    for gap in gaps:
+        if not isinstance(gap, dict):
+            continue
+        lines.append(f"  {gap.get('slot')}: {gap.get('prompt')}")
+        options = gap.get("options")
+        if isinstance(options, list):
+            for option in options:
+                if isinstance(option, dict):
+                    lines.append(f"    {option.get('id')} · {option.get('label')}")
+        if gap.get("allow_free_text"):
+            lines.append("    可使用 --value 提交自由文本或 JSON")
+    return lines

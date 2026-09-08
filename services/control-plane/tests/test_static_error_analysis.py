@@ -605,7 +605,8 @@ def forward(exc: ObsionError):
     assert analysis.forwarding_sinks["producer.py::forward#ErrorBody[1]"].endswith(":exc.code")
 
 
-def test_analyzer_allows_error_body_only_as_inline_fastapi_response_model() -> None:
+@pytest.mark.parametrize("factory", ["FastAPI", "APIRouter"])
+def test_analyzer_allows_error_body_only_as_inline_fastapi_response_model(factory: str) -> None:
     analysis = analyze_error_producers(
         _sources(
             """
@@ -626,7 +627,7 @@ def build():
             },
         }
     )
-"""
+""".replace("FastAPI", factory)
         ),
         catalog_codes=_catalog(),
     )
@@ -685,9 +686,12 @@ def build():
 """,
     ],
 )
-def test_analyzer_rejects_error_body_schema_reference_escapes(producer: str) -> None:
+@pytest.mark.parametrize("factory", ["FastAPI", "APIRouter"])
+def test_analyzer_rejects_error_body_schema_reference_escapes(producer: str, factory: str) -> None:
     with pytest.raises(StaticContractAnalysisError, match="reference escapes"):
-        analyze_error_producers(_sources(producer), catalog_codes=_catalog())
+        analyze_error_producers(
+            _sources(producer.replace("FastAPI", factory)), catalog_codes=_catalog()
+        )
 
 
 @pytest.mark.parametrize(
@@ -2853,6 +2857,68 @@ def test_analyzer_does_not_reject_unrelated_error_field_mutations() -> None:
             catalog_codes=_catalog(),
         )
         assert analysis.active_origin_codes == set()
+
+
+@pytest.mark.parametrize(
+    "imports,receiver",
+    [
+        ("", "object"),
+        ("from builtins import object as Base\n", "Base"),
+        ("import builtins\n", "builtins.object"),
+        ("import builtins as builtin_types\n", "builtin_types.object"),
+    ],
+)
+def test_analyzer_resolves_unbound_object_setattr_receiver(imports, receiver) -> None:
+    analysis = analyze_error_producers(
+        _sources(
+            imports + "from dataclasses import dataclass, field\n"
+            "@dataclass(frozen=True, slots=True)\n"
+            "class Delivery:\n"
+            "    patch: bytes = field(init=False)\n"
+            "    def __post_init__(self):\n"
+            f"        {receiver}.__setattr__(self, 'patch', b'content')\n"
+        ),
+        catalog_codes=_catalog(),
+    )
+    assert analysis.origin_sinks == {}
+    assert analysis.forwarding_sinks == {}
+
+
+@pytest.mark.parametrize("field", ["'code'", "'error_code'", "'last_error_code'", "field"])
+@pytest.mark.parametrize(
+    "imports,receiver",
+    [
+        ("", "object"),
+        ("from builtins import object as Base\n", "Base"),
+        ("import builtins\n", "builtins.object"),
+        ("import builtins as builtin_types\n", "builtin_types.object"),
+    ],
+)
+def test_analyzer_unbound_object_setattr_still_rejects_error_mutations(
+    imports, receiver, field
+) -> None:
+    with pytest.raises(StaticContractAnalysisError, match="dynamic .*Error field mutation"):
+        analyze_error_producers(
+            _sources(
+                imports + "def produce(value, field):\n"
+                f"    {receiver}.__setattr__(value, {field}, 'not_registered')\n"
+            ),
+            catalog_codes=_catalog(),
+        )
+
+
+@pytest.mark.parametrize("name", ["object", "Base", "builtins"])
+def test_analyzer_does_not_trust_shadowed_object_setattr(name) -> None:
+    imports = "from builtins import object as Base\nimport builtins\n"
+    receiver = "builtins.object" if name == "builtins" else name
+    with pytest.raises(StaticContractAnalysisError, match="dynamic .*Error field mutation"):
+        analyze_error_producers(
+            _sources(
+                imports + f"def produce({name}, value):\n"
+                f"    {receiver}.__setattr__(value, 'patch', b'content')\n"
+            ),
+            catalog_codes=_catalog(),
+        )
 
 
 def test_analyzer_rejects_error_sink_multiple_inheritance() -> None:

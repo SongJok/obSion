@@ -34,3 +34,9 @@ the [0.75.0-dev release notes](../docs/release/0.75.0-dev.md).
 
 All query identities must be read-only. V1 rejects mutating SQL and all L3-L5 actions
 even when a connector or external system would otherwise allow them.
+
+`codeup-read-only.yaml` describes the native Yunxiao Codeup Central GET adapter.
+It requires an explicit local repository ACL, organization/repository mapping,
+server-injected personal access token, and separate capability bindings. No connector
+or Agent grant is created automatically. The [Codeup operator guide](../docs/operators/codeup.md)
+covers setup, the Workbench reader, verification, and current limitations.

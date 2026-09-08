@@ -36,6 +36,7 @@ def _initialize(client: TestClient):  # type: ignore[no-untyped-def]
     initialized = session.receive_json()
     assert initialized["id"] == "initialize"
     assert initialized["result"]["protocol_version"] == PROTOCOL_VERSION
+    assert "run.clarification.answer" in initialized["result"]["methods"]
     return websocket, session
 
 

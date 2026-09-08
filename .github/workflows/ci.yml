@@ -35,6 +35,7 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy services/control-plane/src packages/sdk-python/src apps/cli/src apps/im-adapter/src
       - run: uv run obsion validate-contracts
+      - run: uv run obsion validate-project-status
       - run: uv run obsion validate-evaluations
       - run: uv run obsion validate-eval-gates
       - run: uv run obsion validate-release-notes
@@ -48,8 +49,8 @@ jobs:
           scan-ref: .
           format: table
           exit-code: "1"
-          ignore-unfixed: true
-          severity: CRITICAL
+          ignore-unfixed: false
+          severity: HIGH,CRITICAL
           skip-dirs: .venv,node_modules,.git
       - run: >-
           uv run pytest
@@ -149,6 +150,7 @@ jobs:
       - run: >-
           uv run pytest
           services/control-plane/tests/integration/test_postgres_audit_log_migration.py
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini upgrade head
       - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
 
   # Phase 2 owns a separate disposable database because it exercises the breaking
@@ -188,6 +190,7 @@ jobs:
       - run: >-
           uv run pytest
           services/control-plane/tests/integration/test_postgres_phase2_identity_migration.py
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini upgrade head
       - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
 
   # These migrations also downgrade and re-upgrade schema state, so each matrix
@@ -208,6 +211,26 @@ jobs:
             database: obsion_phase79_operator_invocation
             opt_in: OBSION_RUN_PHASE79_MIGRATION_TEST
             test: services/control-plane/tests/integration/test_postgres_operator_invocation_migration.py
+          - name: phase98-user-credential
+            database: obsion_phase98_user_credential
+            opt_in: OBSION_RUN_PHASE98_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_phase98_user_credential_migration.py
+          - name: m0-semantic
+            database: obsion_m0_semantic
+            opt_in: OBSION_RUN_SEMANTIC_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_semantic_migration.py
+          - name: m1-im-ledger
+            database: obsion_m1_im_ledger
+            opt_in: OBSION_RUN_IM_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_im_migration.py
+          - name: m2-project-source
+            database: obsion_m2_project_source
+            opt_in: OBSION_RUN_PROJECT_SOURCE_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_project_source_migration.py
+          - name: m4-memory-revoke
+            database: obsion_m4_memory_revoke
+            opt_in: OBSION_RUN_MEMORY_REVOKE_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_memory_revoke_migration.py
     name: migration-round-trip (${{ matrix.name }})
     services:
       postgres:
@@ -239,6 +262,7 @@ jobs:
       - run: uv sync --locked --all-packages --all-extras
       - name: Exercise upgrade, downgrade, and re-upgrade
         run: env "${{ matrix.opt_in }}=1" uv run pytest "${{ matrix.test }}"
+      - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini upgrade head
       - run: uv run --package obsion-control-plane alembic -c services/control-plane/alembic.ini check
 
   containers:
@@ -277,15 +301,15 @@ jobs:
           image-ref: obsion-control-plane:${{ steps.release.outputs.version }}
           format: table
           exit-code: "1"
-          ignore-unfixed: true
-          severity: CRITICAL
+          ignore-unfixed: false
+          severity: HIGH,CRITICAL
       - uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: obsion-web:${{ steps.release.outputs.version }}
           format: table
           exit-code: "1"
-          ignore-unfixed: true
-          severity: CRITICAL
+          ignore-unfixed: false
+          severity: HIGH,CRITICAL
       - uses: actions/upload-artifact@v6
         if: always()
         with:

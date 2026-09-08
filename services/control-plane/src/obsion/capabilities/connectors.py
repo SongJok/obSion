@@ -17,6 +17,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.capabilities.circuit_breaker import ConnectorCircuitBreaker
+from obsion.capabilities.codeup import (
+    is_codeup_catalog_connector,
+    is_codeup_connector,
+    read_codeup,
+)
 from obsion.capabilities.confluence import (
     CONFLUENCE_KNOWLEDGE_SOURCE,
     CONFLUENCE_OPERATIONS,
@@ -165,6 +170,24 @@ class HttpJsonExecutor:
         credential: str | None,
         context: ConnectorContext,
     ) -> ConnectorResult:
+        if is_codeup_connector(connector) or is_codeup_catalog_connector(connector):
+            data = await read_codeup(
+                connector,
+                payload,
+                credential,
+                request_timeout=self.timeout,
+                transport=self.transport,
+            )
+            return ConnectorResult(
+                data=data,
+                source="codeup",
+                resource=(
+                    f"codeup://{data['repository_id']}/{payload['operation']}"
+                    if "repository_id" in data
+                    else f"codeup-catalog://{data['connector_id']}"
+                ),
+                observed_at=datetime.now().astimezone(),
+            )
         if is_feishu_docs_connector(connector):
             return await self._invoke_feishu_docs(connector, payload, credential, context)
         if is_dingtalk_docs_connector(connector):
@@ -1077,7 +1100,7 @@ class PostgresReadOnlyExecutor:
                 )
             if (
                 connector.configuration.get("role") != "read_replica"
-                or connector.configuration.get("read_only") is False
+                or connector.configuration.get("read_only") is not True
             ):
                 raise ValidationError(
                     "sql_primary_source_denied",
@@ -1085,9 +1108,9 @@ class PostgresReadOnlyExecutor:
                 )
             query = payload.get("sql")
             parameters = payload.get("parameters", [])
-            parameter_types = payload.get("parameter_types", ["scalar"] * len(parameters))
             if not isinstance(query, str) or not isinstance(parameters, list):
                 raise ValidationError("invalid_query_payload", "SQL and parameters are required")
+            parameter_types = payload.get("parameter_types", ["scalar"] * len(parameters))
             if not isinstance(parameter_types, list) or len(parameter_types) != len(parameters):
                 raise ValidationError(
                     "invalid_query_parameters", "SQL parameter metadata is invalid"
@@ -1151,7 +1174,7 @@ class PostgresReadOnlyExecutor:
                         connection.fetch(query, *parameters), timeout=self.timeout_seconds
                     )
             finally:
-                await connection.close(timeout=5)
+                await connection.close(request_timeout=5)
             columns = list(records[0].keys()) if records else []
             masks = payload.get("column_masks", {})
             rows = [

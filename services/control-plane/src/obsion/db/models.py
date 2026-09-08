@@ -23,8 +23,11 @@ from sqlalchemy import (
     Uuid,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from obsion.db import im_models as im_models  # 注册安装与 Inbox 元数据。
+from obsion.db import project_source_models as project_source_models  # 注册项目来源元数据。
 from obsion.db.base import Base, IdMixin, OrganizationMixin, TimestampMixin
 from obsion.db.types import ErrorCodeType
 from obsion.domain.enums import (
@@ -45,6 +48,7 @@ from obsion.domain.enums import (
     CodeSymbolKind,
     ConnectorStatus,
     DecisionEffect,
+    DingTalkOutboxStatus,
     EvaluationResultStatus,
     EvaluationTarget,
     EvidenceConflictDisposition,
@@ -185,6 +189,38 @@ class UserRole(Base, OrganizationMixin, TimestampMixin):
     scope: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
 
+class UserCredential(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """A single password credential for one locally authenticated identity.
+
+    The plaintext is never persisted. `encoded_secret` holds a self-describing
+    memory-hard derivation produced by `obsion.security.passwords`. Failure
+    accounting lives on the same row so lockout cannot be bypassed by racing
+    separate stores.
+    """
+
+    __tablename__ = "user_credentials"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["users.organization_id", "users.id"],
+            name="fk_user_credentials_org_user",
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("organization_id", "user_id", name="uq_user_credentials_org_user"),
+        CheckConstraint("length(trim(encoded_secret)) > 0", name="nonempty_encoded_secret"),
+        CheckConstraint("failed_attempts >= 0", name="nonnegative_failed_attempts"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    algorithm: Mapped[str] = mapped_column(String(32), nullable=False)
+    encoded_secret: Mapped[str] = mapped_column(String(512), nullable=False)
+    must_change: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class AuthSession(Base, IdMixin, OrganizationMixin, TimestampMixin):
     """Opaque, revocable browser session.
 
@@ -280,7 +316,7 @@ class ImDelivery(Base, IdMixin, OrganizationMixin, TimestampMixin):
         ),
         CheckConstraint("attempt_count > 0", name="positive_im_delivery_attempts"),
         CheckConstraint(
-            "status IN ('PENDING', 'SENT', 'FAILED')",
+            "status IN ('PENDING', 'SENT', 'FAILED', 'UNKNOWN')",
             name="valid_status",
         ),
         CheckConstraint(
@@ -524,6 +560,9 @@ class Run(Base, IdMixin, OrganizationMixin, TimestampMixin):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    waiting_user_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
     cancellation_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lease_owner: Mapped[str | None] = mapped_column(String(200))
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
@@ -930,7 +969,10 @@ class CapabilityVersion(Base, IdMixin, OrganizationMixin):
 
 class Connector(Base, IdMixin, OrganizationMixin, TimestampMixin):
     __tablename__ = "connectors"
-    __table_args__ = (UniqueConstraint("organization_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name"),
+        UniqueConstraint("organization_id", "id", name="uq_connectors_organization_id_id"),
+    )
 
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     connector_type: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -944,6 +986,125 @@ class Connector(Base, IdMixin, OrganizationMixin, TimestampMixin):
     declared_grants: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     allowed_egress: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     last_health: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class DingTalkRobotOutbox(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """Long-lived, single-recipient delivery ledger for a trusted IM Run."""
+
+    __tablename__ = "dingtalk_robot_outbox"
+    __table_args__ = (
+        UniqueConstraint("run_id", name="uq_dingtalk_robot_outbox_run"),
+        UniqueConstraint("inbox_message_id", name="uq_dingtalk_robot_outbox_inbox"),
+        ForeignKeyConstraint(
+            ["organization_id", "installation_id"],
+            ["im_installations.organization_id", "im_installations.id"],
+            name="fk_dingtalk_robot_outbox_installation",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "run_id"],
+            ["runs.organization_id", "runs.id"],
+            name="fk_dingtalk_robot_outbox_run",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "connector_id"],
+            ["connectors.organization_id", "connectors.id"],
+            name="fk_dingtalk_robot_outbox_connector",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "recipient_user_id"],
+            ["users.organization_id", "users.id"],
+            name="fk_dingtalk_robot_outbox_recipient",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["capability_version_id"],
+            ["capability_versions.id"],
+            name="fk_dingtalk_robot_outbox_capability_version",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["policy_decision_id"],
+            ["policy_decisions.id"],
+            name="fk_dingtalk_robot_outbox_policy_decision",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "status IN ('BLOCKED', 'QUEUED', 'DISPATCHING', 'ACCEPTED', 'REJECTED', 'UNKNOWN')",
+            name="valid_dingtalk_robot_outbox_status",
+        ),
+        CheckConstraint("attempt_count >= 0", name="attempts_nonnegative"),
+        CheckConstraint("fencing_token >= 0", name="fencing_nonnegative"),
+        CheckConstraint("length(content_fingerprint) = 64", name="dingtalk_outbox_content_sha256"),
+        CheckConstraint(
+            "length(connector_fingerprint) = 64", name="dingtalk_outbox_connector_sha256"
+        ),
+        CheckConstraint(
+            "length(trim(recipient_sender_id)) > 0", name="dingtalk_outbox_recipient_nonempty"
+        ),
+        CheckConstraint(
+            "reconciliation_attempt_count >= 0",
+            name="reconciliation_attempts_nonnegative",
+        ),
+        CheckConstraint(
+            "conversation_type IN ('direct', 'group')",
+            name="dingtalk_outbox_conversation_type",
+        ),
+        CheckConstraint(
+            "answer_classification IS NULL OR answer_classification IN "
+            "('PUBLIC', 'INTERNAL', 'CONFIDENTIAL', 'RESTRICTED')",
+            name="dingtalk_outbox_answer_classification",
+        ),
+        CheckConstraint(
+            "(conversation_type = 'direct' AND audience_id IS NULL AND "
+            "recipient_conversation_id IS NULL AND delivery_mode = 'FINAL') OR "
+            "(conversation_type = 'group' AND audience_id IS NOT NULL AND "
+            "recipient_conversation_id IS NOT NULL AND audience_member_fingerprint IS NOT NULL AND "
+            "delivery_mode IN ('FINAL', 'STATUS'))",
+            name="dingtalk_outbox_conversation_target",
+        ),
+    )
+
+    installation_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    inbox_message_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("im_inbox_messages.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    binding_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("im_installation_bindings.id", ondelete="RESTRICT"), nullable=False
+    )
+    run_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    recipient_user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    recipient_sender_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    conversation_type: Mapped[str] = mapped_column(String(16), nullable=False, default="direct")
+    recipient_conversation_id: Mapped[str | None] = mapped_column(String(512))
+    audience_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("im_group_audiences.id", ondelete="RESTRICT"), index=True
+    )
+    audience_member_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    delivery_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="FINAL")
+    answer_classification: Mapped[str | None] = mapped_column(String(16))
+    connector_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    capability_version_id: Mapped[UUID | None] = mapped_column(Uuid)
+    connector_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[DingTalkOutboxStatus] = mapped_column(
+        String(16), nullable=False, default=DingTalkOutboxStatus.BLOCKED, index=True
+    )
+    attempt_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    fencing_token: Mapped[int] = mapped_column(nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    accepted_process_query_key: Mapped[str | None] = mapped_column(String(500))
+    vendor_send_status: Mapped[str | None] = mapped_column(String(64))
+    vendor_read_status: Mapped[str | None] = mapped_column(String(32))
+    vendor_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    reconciliation_attempt_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    policy_decision_id: Mapped[UUID | None] = mapped_column(Uuid)
+    blocked_reason: Mapped[str | None] = mapped_column(String(100))
+    last_error_code: Mapped[str | None] = mapped_column(ErrorCodeType(100))
 
 
 class CapabilityBinding(Base, IdMixin, OrganizationMixin, TimestampMixin):
@@ -2069,6 +2230,62 @@ class SemanticEntity(Base, IdMixin, OrganizationMixin, TimestampMixin):
     owner: Mapped[str] = mapped_column(String(200), nullable=False)
 
 
+class LegacyEntityDefinition(Base):
+    """保留 f3d4e5a6b7c8 已部署表；运行时目录仍使用 SemanticEntity。"""
+
+    __tablename__ = "entity_definitions"
+    __table_args__ = (
+        Index("ix_entity_definitions_organization_id", "organization_id"),
+        Index("ix_entity_definitions_name", "organization_id", "name"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    organization_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    primary_table: Mapped[str] = mapped_column(String(100), nullable=False)
+    primary_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    related_tables: Mapped[dict | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    metadata_json: Mapped[dict | None] = mapped_column(
+        "metadata", JSON().with_variant(JSONB(), "postgresql")
+    )
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+
+class LegacyQueryHistory(Base):
+    """历史表兼容映射，不作为 Event Store 之外的运行轨迹写入入口。"""
+
+    __tablename__ = "query_history"
+    __table_args__ = (
+        Index("ix_query_history_organization_id", "organization_id"),
+        Index("ix_query_history_user_id", "user_id"),
+        Index("ix_query_history_created_at", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    organization_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    run_id: Mapped[UUID | None] = mapped_column(Uuid)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    understanding: Mapped[dict | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    logical_plan: Mapped[dict | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    compiled_sql: Mapped[str | None] = mapped_column(Text)
+    execution_time_ms: Mapped[int | None] = mapped_column(Integer)
+    rows_returned: Mapped[int | None] = mapped_column(Integer)
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+
 class SemanticRelation(Base, IdMixin, OrganizationMixin, TimestampMixin):
     __tablename__ = "semantic_relations"
 
@@ -2602,7 +2819,10 @@ class NotificationDelivery(Base, IdMixin, OrganizationMixin):
 
 class CodeRepository(Base, IdMixin, OrganizationMixin, TimestampMixin):
     __tablename__ = "code_repositories"
-    __table_args__ = (UniqueConstraint("organization_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name"),
+        UniqueConstraint("organization_id", "id", name="uq_code_repositories_organization_id_id"),
+    )
 
     name: Mapped[str] = mapped_column(String(240), nullable=False)
     default_branch: Mapped[str] = mapped_column(String(200), nullable=False, default="main")

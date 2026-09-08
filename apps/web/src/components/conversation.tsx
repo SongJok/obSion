@@ -243,6 +243,7 @@ function ArtifactOutputs({ artifacts }: { artifacts: Artifact[] }) {
 function statusCopy(status: string) {
   if (status === "PENDING") return "正在排队…";
   if (status === "WAITING_APPROVAL") return "等待审批后继续…";
+  if (status === "WAITING_USER") return "需要补充信息后继续…";
   if (status === "REPLANNING") return "正在重新规划…";
   return "正在理解问题并收集证据…";
 }
