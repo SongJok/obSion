@@ -1101,6 +1101,18 @@
     },
     {
       "category": "conflict",
+      "code": "im_delivery_claim_invalid",
+      "description": "An Outbox claim requires a valid channel and worker identity.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_claim_stale",
+      "description": "The delivery attempt is missing, expired, or no longer owns the current claim.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
       "code": "im_delivery_context_missing",
       "description": "A Run was not created through the governed IM ingress and has no delivery lineage.",
       "http_status": 409
@@ -1113,14 +1125,38 @@
     },
     {
       "category": "conflict",
+      "code": "im_delivery_in_progress",
+      "description": "An active Outbox claim owns this delivery.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
       "code": "im_delivery_lineage_changed",
       "description": "The persisted delivery target or answer fingerprint differs from the completed Run.",
       "http_status": 409
     },
     {
       "category": "conflict",
+      "code": "im_delivery_managed_by_outbox",
+      "description": "A leased delivery retry must be scheduled through the Outbox.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
       "code": "im_delivery_receipt_conflict",
       "description": "An idempotent IM delivery was completed with a different vendor receipt.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_receipt_missing",
+      "description": "A nonempty vendor-issued message receipt is required.",
+      "http_status": 409
+    },
+    {
+      "category": "conflict",
+      "code": "im_delivery_reconciliation_invalid",
+      "description": "The delivery state or evidence does not permit this reconciliation.",
       "http_status": 409
     },
     {

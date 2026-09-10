@@ -21,7 +21,12 @@ _RUNTIME_PROTOCOL_TABLE_MARKERS = (
 )
 _REVIEWED_PROTOCOL_TABLES = {
     "events",
-    # ADR 0081：入站账本与上下文 FK 映射，不是第二套运行时事件流。
+    # ADR 0080: pre-Run vendor deduplication and administrator audience mapping.
+    # Neither table is a second Harness trajectory or transport event stream.
+    "im_inbox_events",
+    "im_conversation_audiences",
+    # Legacy Phase 98 admission tables remain supported by the compatibility
+    # adapter and are reviewed as storage, not as a runtime event stream.
     "im_inbox_messages",
     "im_conversation_bindings",
     "notification_deliveries",
@@ -54,25 +59,18 @@ def test_no_second_persisted_runtime_message_model_is_declared() -> None:
     assert protocol_like_tables == _REVIEWED_PROTOCOL_TABLES
 
 
-def test_im_admission_tables_reference_the_single_harness_without_event_payloads() -> None:
-    inbox = Base.metadata.tables["im_inbox_messages"]
-    mapping = Base.metadata.tables["im_conversation_bindings"]
-    assert {fk.target_fullname for fk in inbox.foreign_keys} >= {"turns.id", "runs.id"}
-    assert {fk.target_fullname for fk in mapping.foreign_keys} >= {"workspaces.id", "threads.id"}
-    for table in (inbox, mapping):
-        assert set(table.c.keys()).isdisjoint(
-            {"event_payload", "event_name", "event_version", "sequence", "trajectory", "frame"}
+def test_im_ingress_records_do_not_define_a_parallel_runtime_protocol() -> None:
+    inbox = Base.metadata.tables["im_inbox_events"]
+    audience = Base.metadata.tables["im_conversation_audiences"]
+    assert {"installation_id", "vendor_event_id", "payload_fingerprint", "run_id"} <= set(
+        inbox.c.keys()
+    )
+    assert {"installation_id", "conversation_id", "workspace_id"} <= set(audience.c.keys())
+    for table in (inbox, audience):
+        assert not {"sequence", "run_sequence", "event_name", "step_id", "trajectory"} & set(
+            table.c.keys()
         )
-    source = (_SOURCE_ROOT / "application/im_inbox.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    constructors = {
-        node.func.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-    }
-    assert constructors.isdisjoint({"Run", "Turn", "Step", "Event", "OutboxMessage"})
-    assert "self.workspaces.create_turn(" in source
-    assert "self.workspaces.create_thread(" in source
+    assert {fk.target_fullname for fk in inbox.c.run_id.foreign_keys} == {"runs.id"}
 
 
 def test_event_and_outbox_writes_are_owned_only_by_event_store() -> None:

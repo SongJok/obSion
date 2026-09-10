@@ -5,6 +5,7 @@ description = "Official Obsion Experience IM adapter. Translates inbound envelop
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
+  "certifi>=2025.8.3",
   "cryptography>=44,<51",
   "httpx>=0.28,<1",
   "obsion-cli",
@@ -13,6 +14,12 @@ dependencies = [
 
 [project.optional-dependencies]
 stream = ["dingtalk-stream==0.24.3"]
+# Stream keeps the regular HTTP and local-outbox adapter footprint small.  The
+# SOCKS extra is required when the vendor WebSocket is reached through SOCKS.
+dingtalk-stream = [
+  "dingtalk-stream>=0.24,<0.25",
+  "python-socks[asyncio]>=2.6,<3",
+]
 
 [project.scripts]
 obsion-im = "obsion_im.main:main"

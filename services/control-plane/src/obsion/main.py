@@ -47,6 +47,7 @@ from obsion.application.dingtalk_outbox_worker import DingTalkOutboxWorker
 from obsion.application.im_delivery import ImDeliveryService
 from obsion.application.im_identity import ImIdentityService
 from obsion.application.im_inbox import ImInboxService
+from obsion.application.im_inbox_worker import ImInboxWorker
 from obsion.application.workspaces import WorkspaceService
 from obsion.artifacts.service import ArtifactService
 from obsion.artifacts.store import InMemoryObjectStore, MinioObjectStore
@@ -215,7 +216,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.workspace_service = WorkspaceService(resolved_settings)
         app.state.im_identity_service = ImIdentityService(app.state.workspace_service)
         app.state.im_inbox_service = ImInboxService(app.state.workspace_service)
-        app.state.im_delivery_service = ImDeliveryService()
+        app.state.im_delivery_service = ImDeliveryService(resolved_settings)
+        im_inbox_worker = ImInboxWorker(database, resolved_settings, app.state.im_identity_service)
+        app.state.im_inbox_worker = im_inbox_worker
         app.state.object_store = (
             InMemoryObjectStore()
             if _uses_memory_object_store(resolved_settings)
@@ -307,9 +310,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ModelGateway(resolved_settings),
             app.state.object_store,
         )
-        worker = RunWorker(database, resolved_settings, runtime)
+        worker = RunWorker(
+            database,
+            resolved_settings,
+            runtime,
+            im_delivery_service=app.state.im_delivery_service,
+        )
         app.state.run_worker = worker
         worker.start()
+        im_inbox_worker.start()
         automation_worker = AutomationWorker(database, resolved_settings)
         app.state.automation_worker = automation_worker
         automation_worker.start()
@@ -332,6 +341,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if dingtalk_outbox_worker is not None:
                 await dingtalk_outbox_worker.stop()
             await automation_worker.stop()
+            await im_inbox_worker.stop()
             await worker.stop()
             await rate_limiter.aclose()
             await database.dispose()
@@ -492,6 +502,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     protected_api.include_router(admin.router)
     protected_api.include_router(project_sources.router)
     protected_api.include_router(im_identity.admin_router)
+    protected_api.include_router(im_identity.installation_router)
+    protected_api.include_router(im_identity.audience_router)
     protected_api.include_router(im_identity.experience_router)
     protected_api.include_router(im_inbox.router)
     protected_api.include_router(studio.router)

@@ -1,6 +1,77 @@
 {
   "components": {
     "schemas": {
+      "AcceptTrustedImEventRequest": {
+        "additionalProperties": false,
+        "description": "Installation-scoped input emitted by a verified vendor adapter.",
+        "properties": {
+          "app_key": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "App Key",
+            "type": "string"
+          },
+          "channel": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Channel",
+            "type": "string"
+          },
+          "conversation_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "corp_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Corp Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "is_group": {
+            "default": false,
+            "title": "Is Group",
+            "type": "boolean"
+          },
+          "sender_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Sender Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "vendor_event_id": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Vendor Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "installation_id",
+          "corp_id",
+          "app_key",
+          "vendor_event_id",
+          "sender_id",
+          "conversation_id",
+          "text"
+        ],
+        "title": "AcceptTrustedImEventRequest",
+        "type": "object"
+      },
       "ActionApprovalPurpose": {
         "enum": [
           "EXECUTE",
@@ -1847,6 +1918,30 @@
         "title": "CapabilityTransport",
         "type": "string"
       },
+      "ClaimImDeliveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_-]+$",
+            "title": "Channel",
+            "type": "string"
+          },
+          "worker_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "worker_id"
+        ],
+        "title": "ClaimImDeliveryRequest",
+        "type": "object"
+      },
       "ClaimView": {
         "properties": {
           "confidence": {
@@ -2639,11 +2734,36 @@
       "CompleteImDeliveryRequest": {
         "additionalProperties": false,
         "properties": {
+          "claim_generation": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Generation"
+          },
           "vendor_message_id": {
             "maxLength": 500,
             "minLength": 1,
             "title": "Vendor Message Id",
             "type": "string"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
           }
         },
         "required": [
@@ -3439,6 +3559,18 @@
             "title": "Channel",
             "type": "string"
           },
+          "installation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id"
+          },
           "sender_id": {
             "description": "Stable vendor or development sender id. Display names cannot authorize.",
             "maxLength": 255,
@@ -3458,6 +3590,34 @@
           "user_id"
         ],
         "title": "CreateImBindingRequest",
+        "type": "object"
+      },
+      "CreateImConversationAudienceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "installation_id",
+          "conversation_id",
+          "workspace_id"
+        ],
+        "title": "CreateImConversationAudienceRequest",
         "type": "object"
       },
       "CreateImGroupAudience": {
@@ -3579,6 +3739,144 @@
           "verification_source"
         ],
         "title": "CreateImInstallation",
+        "type": "object"
+      },
+      "CreateImInstallationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_principal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter Principal Id"
+          },
+          "app_key": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Key"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "connector_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connector Id"
+          },
+          "corp_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corp Id"
+          },
+          "external_app_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External App Id"
+          },
+          "external_corp_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Corp Id"
+          },
+          "installation_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "enum": [
+                  "dingtalk",
+                  "feishu",
+                  "wecom"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "verification_source": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Source"
+          }
+        },
+        "title": "CreateImInstallationRequest",
         "type": "object"
       },
       "CreateImMessageRequest": {
@@ -6263,10 +6561,53 @@
       "FailImDeliveryRequest": {
         "additionalProperties": false,
         "properties": {
+          "claim_generation": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Generation"
+          },
           "failure_code": {
-            "pattern": "^(vendor_request_failed|delivery_audit_failed)$",
+            "pattern": "^(vendor_request_failed|vendor_request_rejected|vendor_pre_send_failed|vendor_rate_limited|delivery_audit_failed)$",
             "title": "Failure Code",
             "type": "string"
+          },
+          "retry_after_seconds": {
+            "anyOf": [
+              {
+                "maximum": 3600.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After Seconds"
+          },
+          "retryable": {
+            "default": true,
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
           }
         },
         "required": [
@@ -6628,6 +6969,18 @@
             "title": "Id",
             "type": "string"
           },
+          "installation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id"
+          },
           "revoked_at": {
             "anyOf": [
               {
@@ -6669,6 +7022,326 @@
         "title": "ImBindingView",
         "type": "object"
       },
+      "ImConversationAudienceView": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "installation_id",
+          "conversation_id",
+          "workspace_id",
+          "active",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "revoked_at"
+        ],
+        "title": "ImConversationAudienceView",
+        "type": "object"
+      },
+      "ImDeliveryAttemptView": {
+        "properties": {
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "claim_generation": {
+            "title": "Claim Generation",
+            "type": "integer"
+          },
+          "claimed_by": {
+            "title": "Claimed By",
+            "type": "string"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "content_fingerprint": {
+            "title": "Content Fingerprint",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "lease_expires_at": {
+            "format": "date-time",
+            "title": "Lease Expires At",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "reconciled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciled At"
+          },
+          "reconciled_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciled By"
+          },
+          "reconciliation_evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Evidence"
+          },
+          "reconciliation_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Outcome"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImDeliveryStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vendor_message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Message Id"
+          }
+        },
+        "required": [
+          "id",
+          "delivery_id",
+          "ordinal",
+          "claim_generation",
+          "channel",
+          "status",
+          "claimed_by",
+          "lease_expires_at",
+          "policy_decision_id",
+          "content_fingerprint",
+          "idempotency_key",
+          "vendor_message_id",
+          "failure_code",
+          "completed_at",
+          "reconciled_at",
+          "reconciled_by",
+          "reconciliation_outcome",
+          "reconciliation_evidence",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ImDeliveryAttemptView",
+        "type": "object"
+      },
+      "ImDeliveryClaimView": {
+        "properties": {
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "claim_generation": {
+            "title": "Claim Generation",
+            "type": "integer"
+          },
+          "content_fingerprint": {
+            "title": "Content Fingerprint",
+            "type": "string"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "lease_expires_at": {
+            "format": "date-time",
+            "title": "Lease Expires At",
+            "type": "string"
+          },
+          "reply_to_sender_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply To Sender Id"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "send_attempt_count": {
+            "title": "Send Attempt Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImDeliveryStatus"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "thread_id": {
+            "format": "uuid",
+            "title": "Thread Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "channel",
+          "conversation_id",
+          "text",
+          "content_fingerprint",
+          "idempotency_key",
+          "status",
+          "attempt_count",
+          "send_attempt_count",
+          "claim_generation",
+          "thread_id",
+          "reply_to_sender_id",
+          "lease_expires_at"
+        ],
+        "title": "ImDeliveryClaimView",
+        "type": "object"
+      },
       "ImDeliveryPrepareView": {
         "properties": {
           "attempt_count": {
@@ -6678,6 +7351,10 @@
           "channel": {
             "title": "Channel",
             "type": "string"
+          },
+          "claim_generation": {
+            "title": "Claim Generation",
+            "type": "integer"
           },
           "content_fingerprint": {
             "title": "Content Fingerprint",
@@ -6701,6 +7378,10 @@
             "title": "Run Id",
             "type": "string"
           },
+          "send_attempt_count": {
+            "title": "Send Attempt Count",
+            "type": "integer"
+          },
           "status": {
             "$ref": "#/components/schemas/ImDeliveryStatus"
           },
@@ -6718,7 +7399,9 @@
           "content_fingerprint",
           "idempotency_key",
           "status",
-          "attempt_count"
+          "attempt_count",
+          "send_attempt_count",
+          "claim_generation"
         ],
         "title": "ImDeliveryPrepareView",
         "type": "object"
@@ -6726,9 +7409,10 @@
       "ImDeliveryStatus": {
         "enum": [
           "PENDING",
+          "PROCESSING",
+          "UNKNOWN",
           "SENT",
-          "FAILED",
-          "UNKNOWN"
+          "FAILED"
         ],
         "title": "ImDeliveryStatus",
         "type": "string"
@@ -6742,6 +7426,10 @@
           "channel": {
             "title": "Channel",
             "type": "string"
+          },
+          "claim_generation": {
+            "title": "Claim Generation",
+            "type": "integer"
           },
           "content_fingerprint": {
             "title": "Content Fingerprint",
@@ -6784,10 +7472,104 @@
             "title": "Id",
             "type": "string"
           },
+          "last_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attempt At"
+          },
+          "lease_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lease Expires At"
+          },
+          "next_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Attempt At"
+          },
           "policy_decision_id": {
             "format": "uuid",
             "title": "Policy Decision Id",
             "type": "string"
+          },
+          "reconciled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciled At"
+          },
+          "reconciled_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciled By"
+          },
+          "reconciliation_evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Evidence"
+          },
+          "reconciliation_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Outcome"
+          },
+          "reconciliation_required_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Required At"
           },
           "requested_by": {
             "format": "uuid",
@@ -6798,6 +7580,10 @@
             "format": "uuid",
             "title": "Run Id",
             "type": "string"
+          },
+          "send_attempt_count": {
+            "title": "Send Attempt Count",
+            "type": "integer"
           },
           "status": {
             "$ref": "#/components/schemas/ImDeliveryStatus"
@@ -6829,9 +7615,19 @@
           "policy_decision_id",
           "requested_by",
           "attempt_count",
+          "send_attempt_count",
+          "claim_generation",
           "vendor_message_id",
           "failure_code",
           "delivered_at",
+          "next_attempt_at",
+          "last_attempt_at",
+          "reconciliation_required_at",
+          "lease_expires_at",
+          "reconciled_at",
+          "reconciled_by",
+          "reconciliation_outcome",
+          "reconciliation_evidence",
           "created_at",
           "updated_at"
         ],
@@ -6961,6 +7757,17 @@
         "title": "ImGroupAudienceView",
         "type": "object"
       },
+      "ImInboxStatus": {
+        "description": "Lifecycle of a tenant-scoped vendor event persisted before Harness work.",
+        "enum": [
+          "PENDING",
+          "PROCESSING",
+          "ACCEPTED",
+          "REJECTED"
+        ],
+        "title": "ImInboxStatus",
+        "type": "string"
+      },
       "ImInboxView": {
         "description": "Content-free durable receipt; acceptance is not execution or vendor delivery.",
         "properties": {
@@ -7089,99 +7896,16 @@
         "title": "ImInstallationBindingView",
         "type": "object"
       },
-      "ImInstallationView": {
-        "additionalProperties": false,
-        "properties": {
-          "adapter_principal_id": {
-            "format": "uuid",
-            "title": "Adapter Principal Id",
-            "type": "string"
-          },
-          "connector_id": {
-            "format": "uuid",
-            "title": "Connector Id",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "created_by": {
-            "format": "uuid",
-            "title": "Created By",
-            "type": "string"
-          },
-          "external_app_id": {
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "External App Id",
-            "type": "string"
-          },
-          "external_corp_id": {
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "External Corp Id",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "organization_id": {
-            "format": "uuid",
-            "title": "Organization Id",
-            "type": "string"
-          },
-          "provider": {
-            "enum": [
-              "dingtalk",
-              "feishu",
-              "wecom"
-            ],
-            "title": "Provider",
-            "type": "string"
-          },
-          "revoked_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revoked At"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "verification_source": {
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Verification Source",
-            "type": "string"
-          }
-        },
-        "required": [
-          "provider",
-          "external_corp_id",
-          "external_app_id",
-          "connector_id",
-          "adapter_principal_id",
-          "verification_source",
-          "id",
-          "organization_id",
-          "status",
-          "created_by",
-          "created_at",
-          "revoked_at"
+      "ImIntent": {
+        "description": "Admission intent that can restrict, but never grant, IM capabilities.",
+        "enum": [
+          "QUERY",
+          "SUMMARY",
+          "ANALYSIS",
+          "CREATE"
         ],
-        "title": "ImInstallationView",
-        "type": "object"
+        "title": "ImIntent",
+        "type": "string"
       },
       "ImMessageAcceptedView": {
         "properties": {
@@ -7936,6 +8660,26 @@
         "title": "PreflightActionRequest",
         "type": "object"
       },
+      "PrepareImDeliveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "worker_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          }
+        },
+        "title": "PrepareImDeliveryRequest",
+        "type": "object"
+      },
       "ProjectSourceInventoryView": {
         "additionalProperties": false,
         "description": "脱敏的项目来源绑定清单，不暴露连接端点、配置或凭据引用。",
@@ -8126,6 +8870,41 @@
           "label"
         ],
         "title": "PublicClarificationOption",
+        "type": "object"
+      },
+      "ReconcileImDeliveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Evidence",
+            "type": "string"
+          },
+          "outcome": {
+            "pattern": "^(SENT|CONFIRMED_UNSENT)$",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "vendor_message_id": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Message Id"
+          }
+        },
+        "required": [
+          "outcome",
+          "evidence"
+        ],
+        "title": "ReconcileImDeliveryRequest",
         "type": "object"
       },
       "RecordRunFeedbackRequest": {
@@ -9829,6 +10608,51 @@
         "title": "TriggerWorkflowRequest",
         "type": "object"
       },
+      "TrustedImEventAcceptedView": {
+        "properties": {
+          "duplicate": {
+            "title": "Duplicate",
+            "type": "boolean"
+          },
+          "inbox_event_id": {
+            "format": "uuid",
+            "title": "Inbox Event Id",
+            "type": "string"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/ImIntent"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "safe_status": {
+            "title": "Safe Status",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImInboxStatus"
+          }
+        },
+        "required": [
+          "inbox_event_id",
+          "status",
+          "duplicate",
+          "run_id",
+          "safe_status",
+          "intent"
+        ],
+        "title": "TrustedImEventAcceptedView",
+        "type": "object"
+      },
       "TrustedImInbound": {
         "additionalProperties": false,
         "description": "Normalized envelope only; installation and actor come from trusted routing/AuthN.",
@@ -9950,6 +10774,38 @@
           "created_at"
         ],
         "title": "TurnView",
+        "type": "object"
+      },
+      "UnknownImDeliveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_generation": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Generation"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          }
+        },
+        "title": "UnknownImDeliveryRequest",
         "type": "object"
       },
       "UpdateMemoryRequest": {
@@ -11270,6 +12126,283 @@
           "archived_at"
         ],
         "title": "WorkspaceView",
+        "type": "object"
+      },
+      "obsion__api__im_inbox_schemas__ImInstallationView": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_principal_id": {
+            "format": "uuid",
+            "title": "Adapter Principal Id",
+            "type": "string"
+          },
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "external_app_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External App Id",
+            "type": "string"
+          },
+          "external_corp_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External Corp Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "dingtalk",
+              "feishu",
+              "wecom"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "verification_source": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Verification Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "external_corp_id",
+          "external_app_id",
+          "connector_id",
+          "adapter_principal_id",
+          "verification_source",
+          "id",
+          "organization_id",
+          "status",
+          "created_by",
+          "created_at",
+          "revoked_at"
+        ],
+        "title": "ImInstallationView",
+        "type": "object"
+      },
+      "obsion__api__schemas__ImInstallationView": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "adapter_principal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter Principal Id"
+          },
+          "app_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Key"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "connector_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connector Id"
+          },
+          "corp_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corp Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "external_app_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External App Id"
+          },
+          "external_corp_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Corp Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "verification_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Source"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "channel",
+          "installation_id",
+          "corp_id",
+          "app_key",
+          "active",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "revoked_at"
+        ],
+        "title": "ImInstallationView",
         "type": "object"
       }
     },
@@ -17099,6 +18232,351 @@
         ]
       }
     },
+    "/api/v1/admin/im-conversation-audiences": {
+      "get": {
+        "operationId": "list_im_conversation_audiences_api_v1_admin_im_conversation_audiences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImConversationAudienceView"
+                  },
+                  "title": "Response List Im Conversation Audiences Api V1 Admin Im Conversation Audiences Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Im Conversation Audiences",
+        "tags": [
+          "administration"
+        ]
+      },
+      "post": {
+        "operationId": "create_im_conversation_audience_api_v1_admin_im_conversation_audiences_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateImConversationAudienceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImConversationAudienceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Im Conversation Audience",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/im-conversation-audiences/{audience_id}/revoke": {
+      "post": {
+        "operationId": "revoke_im_conversation_audience_api_v1_admin_im_conversation_audiences__audience_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audience_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Audience Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImConversationAudienceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Revoke Im Conversation Audience",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
     "/api/v1/admin/im-dingtalk/outbox": {
       "get": {
         "operationId": "list_dingtalk_outbox_api_v1_admin_im_dingtalk_outbox_get",
@@ -17355,7 +18833,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ImInstallationView"
+                    "$ref": "#/components/schemas/obsion__api__im_inbox_schemas__ImInstallationView"
                   },
                   "title": "Response List Installations Api V1 Admin Im Installations Get",
                   "type": "array"
@@ -17473,7 +18951,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ImInstallationView"
+                  "$ref": "#/components/schemas/obsion__api__im_inbox_schemas__ImInstallationView"
                 }
               }
             },
@@ -18232,7 +19710,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ImInstallationView"
+                  "$ref": "#/components/schemas/obsion__api__im_inbox_schemas__ImInstallationView"
                 }
               }
             },
@@ -26342,6 +27820,373 @@
         ]
       }
     },
+    "/api/v1/experience/im/deliveries/claims": {
+      "post": {
+        "operationId": "claim_im_delivery_api_v1_experience_im_deliveries_claims_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimImDeliveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ImDeliveryClaimView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Claim Im Delivery Api V1 Experience Im Deliveries Claims Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Claim Im Delivery",
+        "tags": [
+          "experience"
+        ]
+      }
+    },
+    "/api/v1/experience/im/deliveries/{delivery_id}": {
+      "get": {
+        "operationId": "get_im_delivery_api_v1_experience_im_deliveries__delivery_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImDeliveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Get Im Delivery",
+        "tags": [
+          "experience"
+        ]
+      }
+    },
+    "/api/v1/experience/im/deliveries/{delivery_id}/attempts": {
+      "get": {
+        "operationId": "list_im_delivery_attempts_api_v1_experience_im_deliveries__delivery_id__attempts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImDeliveryAttemptView"
+                  },
+                  "title": "Response List Im Delivery Attempts Api V1 Experience Im Deliveries  Delivery Id  Attempts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Im Delivery Attempts",
+        "tags": [
+          "experience"
+        ]
+      }
+    },
     "/api/v1/experience/im/deliveries/{delivery_id}/complete": {
       "post": {
         "operationId": "complete_im_delivery_api_v1_experience_im_deliveries__delivery_id__complete_post",
@@ -26595,6 +28440,264 @@
           }
         ],
         "summary": "Fail Im Delivery",
+        "tags": [
+          "experience"
+        ]
+      }
+    },
+    "/api/v1/experience/im/deliveries/{delivery_id}/reconcile": {
+      "post": {
+        "operationId": "reconcile_im_delivery_api_v1_experience_im_deliveries__delivery_id__reconcile_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileImDeliveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImDeliveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Reconcile Im Delivery",
+        "tags": [
+          "experience"
+        ]
+      }
+    },
+    "/api/v1/experience/im/deliveries/{delivery_id}/unknown": {
+      "post": {
+        "operationId": "mark_im_delivery_unknown_api_v1_experience_im_deliveries__delivery_id__unknown_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnknownImDeliveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImDeliveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Mark Im Delivery Unknown",
         "tags": [
           "experience"
         ]
@@ -27283,6 +29386,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PrepareImDeliveryRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -27382,6 +29502,242 @@
           }
         ],
         "summary": "Prepare Im Delivery",
+        "tags": [
+          "experience"
+        ]
+      }
+    },
+    "/api/v1/experience/im/trusted-events": {
+      "post": {
+        "operationId": "accept_trusted_im_event_api_v1_experience_im_trusted_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptTrustedImEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedImEventAcceptedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Accept Trusted Im Event",
+        "tags": [
+          "experience"
+        ]
+      }
+    },
+    "/api/v1/experience/im/trusted-events/{event_id}": {
+      "get": {
+        "operationId": "get_trusted_im_event_status_api_v1_experience_im_trusted_events__event_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedImEventAcceptedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Get Trusted Im Event Status",
         "tags": [
           "experience"
         ]

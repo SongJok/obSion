@@ -104,6 +104,33 @@ async def test_dingtalk_client_retries_transient_failures_and_redacts_secrets() 
 
 
 @pytest.mark.asyncio
+async def test_dingtalk_client_requires_a_vendor_message_receipt() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == TOKEN_PATH:
+            return httpx.Response(
+                200,
+                json={
+                    "errcode": 0,
+                    "errmsg": "ok",
+                    "access_token": "ding-access-token",
+                    "expires_in": 7200,
+                },
+            )
+        return httpx.Response(200, json={"errcode": 0, "errmsg": "ok"})
+
+    client = DingTalkClient(_credentials(), transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ImError, match="vendor message receipt"):
+            await client.send_text(
+                chat_id="cid-ops",
+                text="根因已记录。",
+                idempotency_key="delivery-1",
+            )
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_dingtalk_http_channel_rejects_other_vendors() -> None:
     client = DingTalkClient(
         _credentials(), transport=httpx.MockTransport(lambda r: httpx.Response(500))

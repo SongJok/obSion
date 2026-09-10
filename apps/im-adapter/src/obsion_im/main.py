@@ -12,8 +12,17 @@ from typing import TextIO
 from obsion_cli.runtime import ExperienceRuntime
 from obsion_im.bridge import ImBridge, outbound_as_dict
 from obsion_im.channel import InboundMessage, OutboundMessage, create_im_channel
-from obsion_im.config import ImError, ImSettings, WeComEventSecurity, load_im_settings
+from obsion_im.config import (
+    LOCAL_DELIVERY,
+    DingTalkCredentials,
+    ImError,
+    ImSettings,
+    WeComEventSecurity,
+    load_im_settings,
+)
+from obsion_im.dingtalk_stream import DingTalkStreamAdapter, parse_dingtalk_http_event
 from obsion_im.envelopes import UrlVerification, parse_inbound
+from obsion_im.outbox import ImOutboxWorker
 from obsion_im.signatures import verify_inbound_signature, webhook_secret
 from obsion_im.webhook import parse_listen_bind, resolve_public_ingress, run_webhook
 from obsion_sdk import ObsionAPIError, ObsionAppServerError
@@ -116,7 +125,26 @@ def build_parser() -> argparse.ArgumentParser:
             "Validate the selected delivery transport without creating a Turn or sending a message."
         ),
     )
-    stream = commands.add_parser("stream", help="官方钉钉 Stream：仅持久入站，不发送回复")
+    outbox = commands.add_parser(
+        "outbox",
+        help=(
+            "Lease durable outbound deliveries for the selected explicit vendor transport. "
+            "UNKNOWN outcomes are held for administrator reconciliation."
+        ),
+    )
+    outbox.add_argument(
+        "--once",
+        action="store_true",
+        help="Claim and process at most one eligible delivery, then exit.",
+    )
+    outbox.add_argument(
+        "--worker-id",
+        help="Stable worker identity used for fenced Outbox claims.",
+    )
+    stream = commands.add_parser(
+        "stream",
+        help="官方钉钉 Stream：仅持久入站，不发送回复",
+    )
     stream.add_argument("--installation-id", help="固定安装 UUID；也可设 OBSION_IM_INSTALLATION_ID")
     worker = commands.add_parser("inbox-worker", help="恢复持久 RECEIVED，仅创建逻辑任务")
     worker.add_argument("--installation-id", help="固定安装 UUID；也可设 OBSION_IM_INSTALLATION_ID")
@@ -151,11 +179,12 @@ def main(
             delivery=args.deliver,
             outbox_path=args.outbox,
         )
+        if args.command == "stream" and settings.channel != "dingtalk":
+            raise ImError("DingTalk Stream requires --channel dingtalk")
         secret = webhook_secret(env)
         public = bool(getattr(args, "public", False))
         if (
-            public
-            and settings.channel == "dingtalk"
+            settings.channel == "dingtalk"
             and secret is None
             and settings.dingtalk_credentials is not None
         ):
@@ -199,6 +228,14 @@ def main(
             raise ImError(
                 "Set OBSION_TOKEN or pass --token. Tokens are never written to config files."
             )
+        if args.command == "outbox":
+            delivered = asyncio.run(_run_outbox(settings, args))
+            if getattr(args, "once", False):
+                out.write(json.dumps({"delivered": delivered}, sort_keys=True) + "\n")
+            return 0
+        if args.command == "stream":
+            asyncio.run(_run_dingtalk_stream(settings))
+            return 0
         output = asyncio.run(_dispatch(settings, args, inbound=parsed, secret=secret))
         out.write(output)
         return 0
@@ -237,6 +274,8 @@ def _inbox_command(
             config_path=args.config,
             environ=env,
         )
+        if args.command == "stream" and settings.channel != "dingtalk":
+            raise ImError("DingTalk Stream requires --channel dingtalk")
         raw_id = args.installation_id or env.get("OBSION_IM_INSTALLATION_ID")
         try:
             installation_id = UUID(raw_id) if raw_id else None
@@ -317,6 +356,7 @@ async def _dispatch(
                 line,
                 secret=secret,
                 wecom_security=settings.wecom_security,
+                dingtalk_credentials=settings.dingtalk_credentials,
             )
             if isinstance(parsed, UrlVerification):
                 replies.append(_render_challenge(parsed, json_output=True).rstrip())
@@ -338,6 +378,47 @@ async def _health(settings: ImSettings) -> dict[str, object]:
         await channel.aclose()
 
 
+async def _run_outbox(settings: ImSettings, args: argparse.Namespace) -> bool:
+    if settings.delivery == LOCAL_DELIVERY:
+        raise ImError(
+            "The Outbox worker requires an explicit vendor transport: "
+            "feishu-http, dingtalk-http, or wecom-http"
+        )
+    runtime = await ExperienceRuntime.connect(settings.cli)
+    channel = None
+    try:
+        channel = create_im_channel(settings)
+        worker = ImOutboxWorker(
+            runtime,
+            channel,
+            worker_id=getattr(args, "worker_id", None),
+        )
+        return await worker.run(once=bool(getattr(args, "once", False)))
+    finally:
+        if channel is not None:
+            await channel.aclose()
+        await runtime.aclose()
+
+
+async def _run_dingtalk_stream(settings: ImSettings) -> None:
+    if settings.channel != "dingtalk":
+        raise ImError("DingTalk Stream requires --channel dingtalk")
+    if settings.dingtalk_credentials is None:
+        raise ImError(
+            "DingTalk Stream requires OBSION_DINGTALK_APP_KEY and OBSION_DINGTALK_APP_SECRET"
+        )
+    runtime = await ExperienceRuntime.connect(settings.cli)
+    channel = None
+    try:
+        channel = create_im_channel(settings)
+        bridge = ImBridge(runtime, channel, workspace_name=settings.workspace_name)
+        await DingTalkStreamAdapter(bridge, settings.dingtalk_credentials).start()
+    finally:
+        if channel is not None:
+            await channel.aclose()
+        await runtime.aclose()
+
+
 def _ingest_inbound(
     settings: ImSettings, args: argparse.Namespace, *, secret: str | None
 ) -> InboundMessage | UrlVerification:
@@ -350,6 +431,13 @@ def _ingest_inbound(
                 payload,
                 security=settings.wecom_security,
                 require_signature=secret is not None or settings.wecom_security.token is not None,
+            )
+        elif settings.channel == "dingtalk" and settings.dingtalk_credentials is not None:
+            verify_inbound_signature(settings.channel, payload, secret=secret)
+            return parse_dingtalk_http_event(
+                payload,
+                app_key=settings.dingtalk_credentials.app_key,
+                credentials=settings.dingtalk_credentials,
             )
         else:
             verify_inbound_signature(settings.channel, payload, secret=secret)
@@ -373,6 +461,8 @@ def _serve_line(
     *,
     secret: str | None,
     wecom_security: WeComEventSecurity | None = None,
+    dingtalk_credentials: DingTalkCredentials | None = None,
+    dingtalk_app_key: str | None = None,
 ) -> InboundMessage | UrlVerification:
     from obsion_im.signatures import prepare_wecom_payload
 
@@ -394,6 +484,19 @@ def _serve_line(
             payload,
             security=security,
             require_signature=secret is not None or security.token is not None,
+        )
+    elif channel == "dingtalk" and (
+        dingtalk_credentials is not None or dingtalk_app_key is not None
+    ):
+        verify_inbound_signature(channel, payload, secret=secret)
+        return parse_dingtalk_http_event(
+            payload,
+            app_key=(
+                dingtalk_credentials.app_key
+                if dingtalk_credentials is not None
+                else dingtalk_app_key or ""
+            ),
+            credentials=dingtalk_credentials,
         )
     else:
         verify_inbound_signature(channel, payload, secret=secret)

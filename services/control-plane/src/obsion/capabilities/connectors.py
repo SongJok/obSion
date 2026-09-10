@@ -69,6 +69,15 @@ from obsion.capabilities.wecom_docs import (
     assert_wecom_docs_egress,
     is_wecom_docs_connector,
 )
+from obsion.capabilities.yunxiao import (
+    YUNXIAO_OPERATIONS,
+    YunxiaoClient,
+    YunxiaoResponseError,
+    YunxiaoUnavailableError,
+    assert_yunxiao_egress,
+    is_yunxiao_connector,
+    resolve_yunxiao_credentials,
+)
 from obsion.common.errors import ValidationError
 from obsion.config import Settings
 from obsion.data_intelligence.sql_policy import SqlPolicyValidator
@@ -200,6 +209,8 @@ class HttpJsonExecutor:
             return await self._invoke_observability(connector, payload, credential, context)
         if _is_engineering_connector(connector):
             return await self._invoke_engineering(connector, payload, credential, context)
+        if is_yunxiao_connector(connector):
+            return await self._invoke_yunxiao(connector, payload, credential, context)
         del context
         if not connector.endpoint:
             raise ValidationError("connector_endpoint_missing", "HTTP connector has no endpoint")
@@ -465,6 +476,47 @@ class HttpJsonExecutor:
             data=normalized,
             source=connector.name,
             resource=f"{endpoint_url}#{operation}",
+            observed_at=datetime.now().astimezone(),
+        )
+
+    async def _invoke_yunxiao(
+        self,
+        connector: Connector,
+        payload: dict[str, Any],
+        credential: str | None,
+        context: ConnectorContext,
+    ) -> ConnectorResult:
+        del context
+        operation = payload.get("operation")
+        if not isinstance(operation, str) or operation not in YUNXIAO_OPERATIONS:
+            raise ValidationError(
+                "capability_input_invalid",
+                "The Yunxiao operation is not part of the read-only contract",
+            )
+        assert_yunxiao_egress(connector)
+        endpoint_authority = _endpoint_authority(connector.endpoint or "")
+        self.circuit.guard(endpoint_authority)
+        configured_timeout = int(connector.configuration.get("timeout_seconds", self.timeout))
+        client = YunxiaoClient(
+            connector,
+            resolve_yunxiao_credentials(connector, credential),
+            timeout_seconds=min(configured_timeout, self.timeout),
+            transport=self.transport,
+        )
+        try:
+            data = await client.list_repositories(
+                page=payload.get("page", 1),
+                per_page=payload.get("per_page", 50),
+                search=payload.get("search"),
+            )
+        except (YunxiaoResponseError, YunxiaoUnavailableError):
+            self.circuit.record_failure(endpoint_authority)
+            raise
+        self.circuit.record_success(endpoint_authority)
+        return ConnectorResult(
+            data=data,
+            source=connector.name,
+            resource=f"{(connector.endpoint or '').rstrip('/')}/oapi/v1/codeup/repositories",
             observed_at=datetime.now().astimezone(),
         )
 

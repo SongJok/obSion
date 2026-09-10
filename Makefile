@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: validate-project-status test-local bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live record-feishu-live-evidence record-drill-evidence record-artifact-drill-evidence evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
+.PHONY: validate-project-status test-local bootstrap compose-up stack-up compose-down dev-api dev-web dev-cli dev-ide dev-im dev-desktop migrate migration-check lint format format-check test test-java check validate-contracts validate-evaluations validate-eval-gates validate-release-notes validate-release-candidate-contract validate-release-candidate validate-feishu-live validate-feishu-browse-live validate-feishu-send-live validate-yunxiao-live record-feishu-live-evidence record-drill-evidence record-artifact-drill-evidence evaluate-datasets scan-secrets sbom release-artifacts validate-release-artifacts
 
 bootstrap:
 	uv sync --all-packages --all-extras
@@ -79,6 +79,11 @@ validate-feishu-send-live:
 	@test -n "$${OBSION_FEISHU_APP_SECRET:-}" || (echo "OBSION_FEISHU_APP_SECRET is required"; exit 2)
 	@test -n "$${OBSION_FEISHU_LIVE_CHAT_ID:-}" || (echo "OBSION_FEISHU_LIVE_CHAT_ID is required"; exit 2)
 	uv run pytest --no-cov -m feishu_send_live
+
+validate-yunxiao-live:
+	@case "$${OBSION_YUNXIAO_LIVE:-}" in 1) ;; *) echo "OBSION_YUNXIAO_LIVE=1 is required"; exit 2;; esac
+	@test -n "$${OBSION_YUNXIAO_PAT:-}" || (echo "OBSION_YUNXIAO_PAT is required"; exit 2)
+	uv run pytest --no-cov -m yunxiao_live services/control-plane/tests/test_phase98_yunxiao_live_validation.py
 
 record-feishu-live-evidence:
 	@case "$${OBSION_FEISHU_LIVE:-}" in 1) ;; *) echo "OBSION_FEISHU_LIVE=1 is required"; exit 2;; esac

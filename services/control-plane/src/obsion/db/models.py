@@ -26,7 +26,6 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from obsion.db import im_models as im_models  # 注册安装与 Inbox 元数据。
 from obsion.db import project_source_models as project_source_models  # 注册项目来源元数据。
 from obsion.db.base import Base, IdMixin, OrganizationMixin, TimestampMixin
 from obsion.db.types import ErrorCodeType
@@ -57,6 +56,8 @@ from obsion.domain.enums import (
     EvidenceRelation,
     EvidenceType,
     ImDeliveryStatus,
+    ImInboxStatus,
+    ImIntent,
     MemoryScope,
     MemoryStatus,
     NotificationStatus,
@@ -256,11 +257,21 @@ class ImPrincipalBinding(Base, IdMixin, OrganizationMixin, TimestampMixin):
         UniqueConstraint(
             "organization_id", "id", name="uq_im_principal_bindings_organization_id_id"
         ),
-        UniqueConstraint(
+        Index(
+            "uq_im_principal_bindings_legacy_sender",
             "organization_id",
             "channel",
             "sender_id",
-            name="uq_im_principal_bindings_org_channel_sender",
+            unique=True,
+            postgresql_where=text("installation_id IS NULL"),
+            sqlite_where=text("installation_id IS NULL"),
+        ),
+        UniqueConstraint("installation_id", "sender_id", name="uq_im_bindings_installation_sender"),
+        ForeignKeyConstraint(
+            ["organization_id", "installation_id"],
+            ["im_installations.organization_id", "im_installations.id"],
+            name="fk_im_bindings_org_installation",
+            ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
             ["organization_id", "user_id"],
@@ -278,6 +289,7 @@ class ImPrincipalBinding(Base, IdMixin, OrganizationMixin, TimestampMixin):
         CheckConstraint("length(trim(sender_id)) > 0", name="nonempty_im_binding_sender_id"),
     )
 
+    installation_id: Mapped[UUID | None] = mapped_column(Uuid, index=True)
     channel: Mapped[str] = mapped_column(String(64), nullable=False)
     sender_id: Mapped[str] = mapped_column(String(255), nullable=False)
     user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
@@ -291,11 +303,241 @@ class ImPrincipalBinding(Base, IdMixin, OrganizationMixin, TimestampMixin):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ImInstallation(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """Administrator-trusted vendor installation to organization mapping.
+
+    The immutable vendor identifiers establish tenancy before a sender binding is
+    considered. Credentials deliberately do not belong in this record.
+    """
+
+    __tablename__ = "im_installations"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_im_installations_organization_id_id"),
+        UniqueConstraint(
+            "channel", "installation_id", name="uq_im_installations_channel_installation"
+        ),
+        UniqueConstraint(
+            "channel", "corp_id", "app_key", name="uq_im_installations_channel_corp_app"
+        ),
+        UniqueConstraint(
+            "provider",
+            "external_corp_id",
+            "external_app_id",
+            name="uq_im_installations_vendor_app",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "created_by"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_installations_org_creator",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "adapter_principal_id"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_installations_adapter",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["connector_id"],
+            ["connectors.id"],
+            name="fk_im_installations_connector",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "channel IS NULL OR length(trim(channel)) > 0",
+            name="nonempty_im_installation_channel",
+        ),
+        CheckConstraint(
+            "installation_id IS NULL OR length(trim(installation_id)) > 0",
+            name="nonempty_im_installation_id",
+        ),
+        CheckConstraint(
+            "corp_id IS NULL OR length(trim(corp_id)) > 0",
+            name="nonempty_im_installation_corp",
+        ),
+        CheckConstraint(
+            "app_key IS NULL OR length(trim(app_key)) > 0",
+            name="nonempty_im_installation_app_key",
+        ),
+        CheckConstraint(
+            "provider IS NULL OR provider IN ('dingtalk', 'feishu', 'wecom')",
+            name="valid_im_installation_provider",
+        ),
+        CheckConstraint(
+            "status IS NULL OR status IN ('ACTIVE', 'REVOKED')",
+            name="valid_im_installation_status",
+        ),
+    )
+
+    channel: Mapped[str | None] = mapped_column(String(64))
+    installation_id: Mapped[str | None] = mapped_column(String(255))
+    corp_id: Mapped[str | None] = mapped_column(String(255))
+    app_key: Mapped[str | None] = mapped_column(String(255))
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    created_by: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # These fields are retained for the Phase 98 compatibility adapter. The M1
+    # identity path uses the channel/install/corp/app tuple above.
+    provider: Mapped[str | None] = mapped_column(String(32))
+    external_corp_id: Mapped[str | None] = mapped_column(String(255))
+    external_app_id: Mapped[str | None] = mapped_column(String(255))
+    connector_id: Mapped[UUID | None] = mapped_column(Uuid)
+    adapter_principal_id: Mapped[UUID | None] = mapped_column(Uuid)
+    status: Mapped[str | None] = mapped_column(String(16))
+    verification_source: Mapped[str | None] = mapped_column(String(255))
+
+
+class ImConversationAudience(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """Administrator-provisioned group/project mapping.
+
+    M1a deliberately treats group delivery as status-only even when this record
+    exists. The binding prevents guessing project ownership and provides the
+    durable point where a later audience-safe content policy can attach.
+    """
+
+    __tablename__ = "im_conversation_audiences"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "id", name="uq_im_conversation_audiences_organization_id_id"
+        ),
+        UniqueConstraint(
+            "installation_id",
+            "conversation_id",
+            name="uq_im_conversation_audiences_installation_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "installation_id"],
+            ["im_installations.organization_id", "im_installations.id"],
+            name="fk_im_conversation_audiences_org_installation",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "workspace_id"],
+            ["workspaces.organization_id", "workspaces.id"],
+            name="fk_im_conversation_audiences_org_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "created_by"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_conversation_audiences_org_creator",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "length(trim(conversation_id)) > 0", name="nonempty_im_audience_conversation"
+        ),
+    )
+
+    installation_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    conversation_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    created_by: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ImInboxEvent(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """A vendor event durably accepted before a Turn or Run exists."""
+
+    __tablename__ = "im_inbox_events"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "run_id", name="uq_im_inbox_events_org_run"),
+        UniqueConstraint(
+            "installation_id", "vendor_event_id", name="uq_im_inbox_installation_vendor_event"
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "installation_id"],
+            ["im_installations.organization_id", "im_installations.id"],
+            name="fk_im_inbox_events_org_installation",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "binding_id"],
+            ["im_principal_bindings.organization_id", "im_principal_bindings.id"],
+            name="fk_im_inbox_events_org_binding",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "accepted_by"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_inbox_events_org_acceptor",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "audience_id"],
+            ["im_conversation_audiences.organization_id", "im_conversation_audiences.id"],
+            name="fk_im_inbox_events_org_audience",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "run_id"],
+            ["runs.organization_id", "runs.id"],
+            name="fk_im_inbox_events_org_run",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            sha256_hex_check("payload_fingerprint"),
+            name="im_inbox_events_payload_fingerprint_sha256",
+        ),
+        CheckConstraint("length(trim(channel)) > 0", name="nonempty_im_inbox_channel"),
+        CheckConstraint("length(trim(vendor_event_id)) > 0", name="nonempty_im_inbox_vendor_event"),
+        CheckConstraint("length(trim(sender_id)) > 0", name="nonempty_im_inbox_sender"),
+        CheckConstraint("length(trim(conversation_id)) > 0", name="nonempty_im_inbox_conversation"),
+        CheckConstraint("length(trim(text)) > 0", name="nonempty_im_inbox_text"),
+        CheckConstraint(
+            "status IN ('PENDING', 'PROCESSING', 'ACCEPTED', 'REJECTED')",
+            name="valid_im_inbox_status",
+        ),
+        CheckConstraint(
+            "intent IN ('QUERY', 'SUMMARY', 'ANALYSIS', 'CREATE')",
+            name="valid_im_intent",
+        ),
+        CheckConstraint(
+            "(status = 'ACCEPTED' AND run_id IS NOT NULL AND rejected_code IS NULL) OR "
+            "(status IN ('PENDING', 'PROCESSING') AND run_id IS NULL AND rejected_code IS NULL) OR "
+            "(status = 'REJECTED' AND run_id IS NULL AND rejected_code IS NOT NULL)",
+            name="im_inbox_completion_consistent",
+        ),
+    )
+
+    installation_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    binding_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    audience_id: Mapped[UUID | None] = mapped_column(Uuid, index=True)
+    accepted_by: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    channel: Mapped[str] = mapped_column(String(64), nullable=False)
+    vendor_event_id: Mapped[str] = mapped_column(String(500), nullable=False)
+    payload_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    sender_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    conversation_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_group: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    intent: Mapped[ImIntent] = mapped_column(enum_type(ImIntent), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    event_metadata: Mapped[dict] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    status: Mapped[ImInboxStatus] = mapped_column(
+        enum_type(ImInboxStatus), nullable=False, default=ImInboxStatus.PENDING, index=True
+    )
+    attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    lease_owner: Mapped[str | None] = mapped_column(String(200))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    run_id: Mapped[UUID | None] = mapped_column(Uuid, index=True)
+    rejected_code: Mapped[str | None] = mapped_column(String(100))
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class ImDelivery(Base, IdMixin, OrganizationMixin, TimestampMixin):
     """Durable authorization and receipt ledger for one final IM Run response."""
 
     __tablename__ = "im_deliveries"
     __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_im_deliveries_organization_id_id"),
         UniqueConstraint("organization_id", "run_id", name="uq_im_deliveries_org_run"),
         ForeignKeyConstraint(
             ["organization_id", "run_id"],
@@ -309,14 +551,22 @@ class ImDelivery(Base, IdMixin, OrganizationMixin, TimestampMixin):
             name="fk_im_deliveries_org_requester",
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "reconciled_by"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_deliveries_org_reconciler",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("length(trim(channel)) > 0", name="nonempty_im_delivery_channel"),
         CheckConstraint(
             "length(trim(conversation_id)) > 0",
             name="nonempty_im_delivery_conversation",
         ),
         CheckConstraint("attempt_count > 0", name="positive_im_delivery_attempts"),
+        CheckConstraint("send_attempt_count >= 0", name="nonnegative_im_delivery_sends"),
+        CheckConstraint("claim_generation >= 0", name="nonnegative_im_delivery_generation"),
         CheckConstraint(
-            "status IN ('PENDING', 'SENT', 'FAILED', 'UNKNOWN')",
+            "status IN ('PENDING', 'PROCESSING', 'UNKNOWN', 'SENT', 'FAILED')",
             name="valid_status",
         ),
         CheckConstraint(
@@ -345,6 +595,96 @@ class ImDelivery(Base, IdMixin, OrganizationMixin, TimestampMixin):
     vendor_message_id: Mapped[str | None] = mapped_column(String(500))
     failure_code: Mapped[str | None] = mapped_column(String(100))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconciliation_required_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
+    send_attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    claim_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    lease_owner: Mapped[str | None] = mapped_column(String(200))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    recipient_snapshot: Mapped[dict | None] = mapped_column(JSON)
+    reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconciled_by: Mapped[UUID | None] = mapped_column(Uuid)
+    reconciliation_outcome: Mapped[str | None] = mapped_column(String(32))
+    reconciliation_evidence: Mapped[str | None] = mapped_column(String(500))
+
+
+class ImDeliveryAttempt(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """Immutable evidence for one leased vendor-send attempt."""
+
+    __tablename__ = "im_delivery_attempts"
+    __table_args__ = (
+        UniqueConstraint("delivery_id", "ordinal", name="uq_im_delivery_attempts_delivery_ordinal"),
+        UniqueConstraint(
+            "organization_id", "id", name="uq_im_delivery_attempts_organization_id_id"
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "channel",
+            "vendor_message_id",
+            name="uq_im_delivery_attempts_vendor_receipt",
+        ),
+        Index("ix_im_delivery_attempts_created_at", "created_at"),
+        ForeignKeyConstraint(
+            ["organization_id", "delivery_id"],
+            ["im_deliveries.organization_id", "im_deliveries.id"],
+            name="fk_im_delivery_attempts_org_delivery",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "policy_decision_id"],
+            ["policy_decisions.organization_id", "policy_decisions.id"],
+            name="fk_im_delivery_attempts_org_policy_decision",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "reconciled_by"],
+            ["users.organization_id", "users.id"],
+            name="fk_im_delivery_attempts_org_reconciler",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("ordinal > 0", name="positive_im_delivery_attempt_ordinal"),
+        CheckConstraint("claim_generation > 0", name="positive_im_delivery_attempt_generation"),
+        CheckConstraint(
+            "status IN ('PROCESSING', 'UNKNOWN', 'SENT', 'FAILED')",
+            name="valid_im_delivery_attempt_status",
+        ),
+        CheckConstraint(
+            sha256_hex_check("content_fingerprint"),
+            name="attempt_content_fingerprint_sha256",
+        ),
+        CheckConstraint(
+            "length(trim(idempotency_key)) > 0",
+            name="attempt_idempotency_key_nonempty",
+        ),
+    )
+
+    delivery_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    claim_generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    channel: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[ImDeliveryStatus] = mapped_column(
+        enum_type(ImDeliveryStatus), nullable=False, default=ImDeliveryStatus.PROCESSING, index=True
+    )
+    claimed_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    lease_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    policy_decision_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    recipient_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    vendor_message_id: Mapped[str | None] = mapped_column(String(500))
+    failure_code: Mapped[str | None] = mapped_column(String(100))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconciled_by: Mapped[UUID | None] = mapped_column(Uuid)
+    reconciliation_outcome: Mapped[str | None] = mapped_column(String(32))
+    reconciliation_evidence: Mapped[str | None] = mapped_column(String(500))
 
 
 class Workspace(Base, IdMixin, OrganizationMixin, TimestampMixin):
@@ -1140,6 +1480,7 @@ class Policy(Base, IdMixin, OrganizationMixin, TimestampMixin):
 class PolicyDecision(Base, IdMixin, OrganizationMixin):
     __tablename__ = "policy_decisions"
     __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_policy_decisions_org_id"),
         UniqueConstraint(
             "organization_id",
             "run_id",
@@ -2943,3 +3284,8 @@ class CodeRepositoryGrant(Base, OrganizationMixin):
             "effect",
         ),
     )
+
+
+# Register the legacy Phase 98 IM tables after this module has defined the
+# shared installation table. The compatibility module reuses ImInstallation.
+from obsion.db import im_models as im_models  # noqa: E402,F401

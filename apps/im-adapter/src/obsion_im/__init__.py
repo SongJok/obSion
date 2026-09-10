@@ -1,11 +1,13 @@
 from obsion_im.bridge import ImBridge
 from obsion_im.channel import DevelopmentImChannel, InboundMessage, OutboundMessage
 from obsion_im.config import ImError, ImSettings, require_local_delivery
+from obsion_im.dingtalk_stream import DingTalkStreamAdapter, parse_dingtalk_stream_event
 from obsion_im.envelopes import UrlVerification, parse_inbound, reject_wecom_ciphertext
 from obsion_im.replies import persist_local_outbox, render_outbound
 
 __all__ = [
     "DevelopmentImChannel",
+    "DingTalkStreamAdapter",
     "ImBridge",
     "ImError",
     "ImSettings",
@@ -13,6 +15,7 @@ __all__ = [
     "OutboundMessage",
     "UrlVerification",
     "parse_inbound",
+    "parse_dingtalk_stream_event",
     "persist_local_outbox",
     "reject_wecom_ciphertext",
     "render_outbound",

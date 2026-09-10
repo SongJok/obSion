@@ -159,3 +159,46 @@ next_phase:
     authority are PENDING. Phase 99 may consume real operator evidence; it
     must not fabricate approval, publish with ci.txt credentials, expand
     production writes, or add a second runtime without explicit authority.
+    The repository now contains a DRAFT-only Yunxiao
+    PAT repository-discovery contract (`yunxiao.repositories.list`) that is
+    policy/gateway/egress/audit bounded and has no default connector or binding;
+    it remains unvalidated against a live tenant and does not advance promotion.
+
+active_milestone:
+  id: m1
+  name: dingtalk-product-entry
+  status: in_progress_repository_local
+  increments:
+    m1a:
+      status: complete_repository_local
+      report: docs/phases/M1A-TRUSTED-IM-INGRESS-REPORT.md
+      architecture_gate: docs/architecture/m1a-trusted-im-ingress-gate.md
+      migration: c9d1e4f6a2b3
+    m1b:
+      status: complete_repository_local
+      report: docs/phases/M1B-DURABLE-IM-DELIVERY-REPORT.md
+      architecture_gate: docs/architecture/m1b-durable-im-delivery-gate.md
+      adr: docs/adr/0081-durable-im-delivery-outbox.md
+      migration: d0e2f5a7b3c4
+    m1c:
+      status: pending_operator_evidence
+      scope: DingTalk Stream lifecycle, test-tenant delivery and timing evidence; signed compatibility HTTP ingress shares the trusted Inbox path in repository-local tests
+  validation:
+    postgres_100_concurrent_event_admissions: passed
+    postgres_single_run_after_repeated_dispatch: passed
+    postgres_restart_replay_and_immutable_terminal: passed
+    isolated_migration_round_trip_and_drift: passed
+    historical_binding_preservation: passed
+    backend_full_suite: 1106 passed, 29 skipped (2026-09-09; opt-in PostgreSQL and operator-owned live integrations skipped)
+    frontend_workspaces: passed
+    strict_python_and_typescript_checks: passed
+    secrets_scan: 0 findings
+    rejection_audit_and_bounded_retry: passed
+    four_intent_admission_and_audit: passed
+    group_delivery_uses_persisted_audience: passed
+    live_dingtalk_configuration: published application, ONLINE STREAM configuration; message flow not verified
+    live_dingtalk_stream: not_verified
+    live_yunxiao_repositories: not_verified
+   follow_on:
+     - M1c Stream lifecycle and trusted compatibility HTTP routing.
+     - Real DingTalk tenant and Yunxiao PAT-visible repository usage validation.

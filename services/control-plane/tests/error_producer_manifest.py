@@ -5,6 +5,74 @@ from static_error_analysis import ErrorCodeDomain
 REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
     [
         (
+            "application/im_identity.py::ImIdentityService.get_inbox_status#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.bind#NotFoundError[3]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService._require_identity_admin#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.accept_trusted_event#AuthorizationError[1]",
+            frozenset({"im_delegate_denied"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.accept_trusted_event#AuthorizationError[2]",
+            frozenset({"unknown_im_sender"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.accept_trusted_event#AuthorizationError[3]",
+            frozenset({"unknown_im_sender"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.accept_trusted_event#ConflictError[1]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.accept_trusted_event#ValidationError[1]",
+            frozenset({"im_sender_id_required"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.bind_conversation_audience#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.bind_conversation_audience#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.dispatch_inbox_event#AuthorizationError[1]",
+            frozenset({"unknown_im_sender"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.dispatch_inbox_event#AuthorizationError[2]",
+            frozenset({"unknown_im_sender"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.install#ConflictError[1]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.install#ConflictError[2]",
+            frozenset({"idempotency_key_reused"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.revoke_conversation_audience#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::ImIdentityService.revoke_installation#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_identity.py::_require_identifier#ValidationError[1]",
+            frozenset({"im_sender_id_required"}),
+        ),
+        (
             "actions/gateway.py::ActionGateway._invoke#ActionGatewayResult[1]",
             frozenset({"action_policy_denied"}),
         ),
@@ -617,8 +685,56 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"im_delivery_denied"}),
         ),
         (
+            "application/im_delivery.py::ImDeliveryService._authorized_payload#AuthorizationError[1]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._authorized_payload#ConflictError[1]",
+            frozenset({"im_delivery_run_not_completed"}),
+        ),
+        (
             "application/im_delivery.py::ImDeliveryService._get_for_update#NotFoundError[1]",
             frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._recipient_snapshot#AuthorizationError[1]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._recipient_snapshot#AuthorizationError[2]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._require_claim#ConflictError[1]",
+            frozenset({"im_delivery_claim_stale"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._require_claim#ConflictError[2]",
+            frozenset({"im_delivery_claim_stale"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._require_claim#ConflictError[3]",
+            frozenset({"im_delivery_claim_stale"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._require_lineage#ConflictError[1]",
+            frozenset({"im_delivery_lineage_changed"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._run_and_turn#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.claim#AuthorizationError[1]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.claim#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.claim#ConflictError[1]",
+            frozenset({"im_delivery_claim_invalid"}),
         ),
         (
             "application/im_delivery.py::ImDeliveryService.complete#ConflictError[1]",
@@ -629,24 +745,60 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"im_delivery_receipt_conflict"}),
         ),
         (
-            "application/im_delivery.py::ImDeliveryService.prepare#AuthorizationError[1]",
-            frozenset({"im_delivery_denied"}),
+            "application/im_delivery.py::ImDeliveryService.fail#ConflictError[1]",
+            frozenset({"operator_invocation_outcome_unknown"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.get#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.get#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
         ),
         (
             "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[1]",
-            frozenset({"im_delivery_run_not_completed"}),
+            frozenset({"im_delivery_claim_invalid"}),
         ),
         (
             "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[2]",
-            frozenset({"im_delivery_lineage_changed"}),
+            frozenset({"im_delivery_receipt_conflict"}),
         ),
         (
             "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[3]",
-            frozenset({"im_delivery_receipt_conflict"}),
+            frozenset({"operator_invocation_outcome_unknown"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[4]",
+            frozenset({"im_delivery_in_progress"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.prepare#ConflictError[5]",
+            frozenset({"im_delivery_managed_by_outbox"}),
         ),
         (
             "application/im_delivery.py::ImDeliveryService.prepare#NotFoundError[1]",
             frozenset({"resource_not_found"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.reconcile#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.reconcile#ConflictError[1]",
+            frozenset({"im_delivery_reconciliation_invalid"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.reconcile#ConflictError[2]",
+            frozenset({"im_delivery_reconciliation_invalid"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.reconcile#ConflictError[3]",
+            frozenset({"im_delivery_receipt_missing"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService.reconcile#ConflictError[4]",
+            frozenset({"im_delivery_reconciliation_invalid"}),
         ),
         (
             "application/im_delivery.py::_answer_for_run#ConflictError[1]",
@@ -1697,6 +1849,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"document_acl_invalid"}),
         ),
         (
+            "capabilities/connectors.py::HttpJsonExecutor._invoke_yunxiao#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
             "capabilities/connectors.py::HttpJsonExecutor.invoke#ValidationError[1]",
             frozenset({"connector_endpoint_missing"}),
         ),
@@ -2258,6 +2414,74 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "capabilities/wecom_docs.py::resolve_wecom_docs_credentials#ValidationError[3]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/yunxiao.py::YunxiaoClient._organizations#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::_configuration#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::_configuration#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::_configured_organization_ids#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::_configured_organization_ids#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::_validate_page#ValidationError[1]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::_validate_page#ValidationError[2]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::_validate_page#ValidationError[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::assert_yunxiao_egress#ValidationError[1]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/yunxiao.py::assert_yunxiao_egress#ValidationError[2]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/yunxiao.py::assert_yunxiao_egress#ValidationError[3]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/yunxiao.py::assert_yunxiao_egress#ValidationError[4]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/yunxiao.py::assert_yunxiao_egress#ValidationError[5]",
+            frozenset({"connector_egress_invalid"}),
+        ),
+        (
+            "capabilities/yunxiao.py::assert_yunxiao_egress#ValidationError[6]",
+            frozenset({"connector_egress_denied"}),
+        ),
+        (
+            "capabilities/yunxiao.py::resolve_yunxiao_credentials#ValidationError[1]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/yunxiao.py::resolve_yunxiao_credentials#ValidationError[2]",
+            frozenset({"credential_unavailable"}),
+        ),
+        (
+            "capabilities/yunxiao.py::resolve_yunxiao_credentials#ValidationError[3]",
             frozenset({"credential_unavailable"}),
         ),
         (
@@ -3645,18 +3869,18 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:3147:exc.code",
+            "forward:harness/runtime.py:3159:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",
             (
-                "forward:harness/runtime.py:1445:exc.code | "
-                "forward:harness/runtime.py:1475:result.error_code"
+                "forward:harness/runtime.py:1457:exc.code | "
+                "forward:harness/runtime.py:1487:result.error_code"
             ),
         ),
         (
             "main.py::_error_response#ErrorBody[1]",
-            "forward:main.py:411:exc.code",
+            "forward:main.py:421:exc.code",
         ),
         (
             "api/codeup.py::_raise_gateway_failure#ObsionError[1]",

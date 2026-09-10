@@ -357,9 +357,10 @@ class NotificationStatus(StrEnum):
 
 class ImDeliveryStatus(StrEnum):
     PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    UNKNOWN = "UNKNOWN"
     SENT = "SENT"
     FAILED = "FAILED"
-    UNKNOWN = "UNKNOWN"
 
 
 class DingTalkOutboxStatus(StrEnum):
@@ -375,6 +376,24 @@ class DingTalkOutboxStatus(StrEnum):
     ACCEPTED = "ACCEPTED"
     REJECTED = "REJECTED"
     UNKNOWN = "UNKNOWN"
+
+
+class ImInboxStatus(StrEnum):
+    """Lifecycle of a tenant-scoped vendor event persisted before Harness work."""
+
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+
+
+class ImIntent(StrEnum):
+    """Admission intent that can restrict, but never grant, IM capabilities."""
+
+    QUERY = "QUERY"
+    SUMMARY = "SUMMARY"
+    ANALYSIS = "ANALYSIS"
+    CREATE = "CREATE"
 
 
 class ActionType(StrEnum):

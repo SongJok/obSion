@@ -10,7 +10,16 @@ from typing import Any
 import httpx
 
 from obsion_im.channel import ImDeliveryReceipt, OutboundMessage
-from obsion_im.config import FEISHU_HTTP_DELIVERY, FeishuCredentials, ImError, normalize_channel
+from obsion_im.config import (
+    FEISHU_HTTP_DELIVERY,
+    FeishuCredentials,
+    ImDeliveryOutcomeUnknownError,
+    ImDeliveryPreSendError,
+    ImDeliveryRejectedError,
+    ImDeliveryRetryableError,
+    ImError,
+    normalize_channel,
+)
 
 FEISHU_ORIGIN = "https://open.feishu.cn"
 TENANT_TOKEN_PATH = "/open-apis/auth/v3/tenant_access_token/internal/"  # noqa: S105
@@ -94,9 +103,13 @@ class FeishuClient:
         content = text.strip()
         if not content:
             raise ImError("Feishu delivery requires non-empty text")
-        token = await self._tenant_access_token()
-        payload = await self._request_json(
-            "POST",
+        try:
+            token = await self._tenant_access_token()
+        except ImError as exc:
+            raise ImDeliveryPreSendError(
+                "Authentication failed before sending the message"
+            ) from exc
+        payload = await self._send_json_once(
             MESSAGE_PATH,
             params={"receive_id_type": "chat_id"},
             headers={"Authorization": f"Bearer {token}"},
@@ -107,11 +120,16 @@ class FeishuClient:
                 "uuid": idempotency_key,
             },
         )
-        self._require_success(payload, operation="send message", token=token)
+        try:
+            self._require_success(payload, operation="send message", token=token)
+        except ImError as exc:
+            raise ImDeliveryRejectedError(str(exc)) from exc
         data = payload.get("data")
         message_id = str(data.get("message_id") or "") if isinstance(data, Mapping) else ""
         if not message_id:
-            raise ImError("Feishu send message response did not contain a message_id")
+            raise ImDeliveryOutcomeUnknownError(
+                "Feishu send message response did not contain a message_id"
+            )
         return FeishuReceipt(message_id=message_id)
 
     async def list_chats(self, *, page_size: int = MAX_CHAT_PAGE_SIZE) -> list[FeishuChat]:
@@ -233,6 +251,68 @@ class FeishuClient:
                 "Feishu HTTP request failed after bounded retries"
             ) from last_transport_error
         raise ImError("Feishu HTTP request failed after bounded retries")
+
+    async def _send_json_once(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, str],
+        headers: Mapping[str, str],
+        json_body: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Issue one message write; an ambiguous outcome is never retried here."""
+        try:
+            response = await self._client.request(
+                "POST",
+                path,
+                params=params,
+                headers=headers,
+                json=dict(json_body),
+            )
+        except httpx.TransportError as exc:
+            raise ImDeliveryOutcomeUnknownError(
+                "Feishu delivery transport outcome is unknown"
+            ) from exc
+        if response.status_code == 429:
+            raise ImDeliveryRetryableError(
+                "Feishu rate limited the delivery before accepting it",
+                retry_after_seconds=_retry_delay(response, 0),
+            )
+        if response.status_code >= 500:
+            raise ImDeliveryOutcomeUnknownError(
+                "Feishu delivery returned an ambiguous server failure"
+            )
+        if response.status_code in {401, 403}:
+            raise ImDeliveryRejectedError("Feishu denied the delivery request")
+        if len(response.content) > MAX_RESPONSE_BYTES:
+            raise ImDeliveryOutcomeUnknownError("Feishu delivery response exceeded the size limit")
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            if 200 <= response.status_code < 300:
+                raise ImDeliveryOutcomeUnknownError(
+                    "Feishu delivery response was not valid JSON"
+                ) from exc
+            raise ImDeliveryRejectedError(
+                f"Feishu delivery was rejected with status {response.status_code}"
+            ) from exc
+        if not isinstance(payload, dict):
+            if 200 <= response.status_code < 300:
+                raise ImDeliveryOutcomeUnknownError(
+                    "Feishu delivery response must be a JSON object"
+                )
+            raise ImDeliveryRejectedError(
+                f"Feishu delivery was rejected with status {response.status_code}"
+            )
+        if response.status_code < 200 or response.status_code >= 300:
+            try:
+                self._require_success(payload, operation="send message", token=_bearer(headers))
+            except ImError as exc:
+                raise ImDeliveryRejectedError(str(exc)) from exc
+            raise ImDeliveryRejectedError(
+                f"Feishu delivery was rejected with status {response.status_code}"
+            )
+        return payload
 
     def _require_success(
         self,

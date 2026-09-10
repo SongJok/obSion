@@ -540,6 +540,18 @@ class HarnessRuntime:
                     turn.sanitized_input,
                     data_understanding,
                 )
+                admission_intent = next(
+                    (
+                        str(item.get("intent"))
+                        for item in turn.context_refs
+                        if isinstance(item, dict)
+                        and item.get("type") == "im_delivery"
+                        and item.get("intent") in {"QUERY", "SUMMARY", "ANALYSIS", "CREATE"}
+                    ),
+                    None,
+                )
+                if admission_intent is not None:
+                    understanding["admission_intent"] = admission_intent
                 route_hint = next(
                     (
                         str(item.get("value"))

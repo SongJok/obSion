@@ -9,7 +9,16 @@ from typing import Any
 import httpx
 
 from obsion_im.channel import ImDeliveryReceipt, OutboundMessage
-from obsion_im.config import WECOM_HTTP_DELIVERY, ImError, WeComCredentials, normalize_channel
+from obsion_im.config import (
+    WECOM_HTTP_DELIVERY,
+    ImDeliveryOutcomeUnknownError,
+    ImDeliveryPreSendError,
+    ImDeliveryRejectedError,
+    ImDeliveryRetryableError,
+    ImError,
+    WeComCredentials,
+    normalize_channel,
+)
 
 WECOM_ORIGIN = "https://qyapi.weixin.qq.com"
 TOKEN_PATH = "/cgi-bin/gettoken"  # noqa: S105 - vendor endpoint path, not a credential
@@ -82,7 +91,12 @@ class WeComClient:
             raise ImError("WeCom delivery requires non-empty text")
         if not idempotency_key.strip():
             raise ImError("WeCom delivery requires an idempotency key")
-        token = await self._access_token_value()
+        try:
+            token = await self._access_token_value()
+        except ImError as exc:
+            raise ImDeliveryPreSendError(
+                "Authentication failed before sending the message"
+            ) from exc
         sender = (reply_to_sender_id or "").strip()
         if sender and chat_or_user != sender:
             path = APPCHAT_MESSAGE_PATH
@@ -99,16 +113,20 @@ class WeComClient:
                 "agentid": self._credentials.agent_id,
                 "text": {"content": content},
             }
-        payload = await self._request_json(
-            "POST",
+        payload = await self._send_json_once(
             path,
             params={"access_token": token},
             json_body=body,
         )
-        self._require_success(payload, operation="send message", token=token)
+        try:
+            self._require_success(payload, operation="send message", token=token)
+        except ImError as exc:
+            raise ImDeliveryRejectedError(str(exc)) from exc
         message_id = str(payload.get("msgid") or payload.get("msg_id") or "").strip()
         if not message_id:
-            message_id = idempotency_key.strip()
+            raise ImDeliveryOutcomeUnknownError(
+                "WeCom delivery did not return a vendor message receipt"
+            )
         return WeComReceipt(message_id=message_id)
 
     async def aclose(self) -> None:
@@ -183,6 +201,45 @@ class WeComClient:
                 "WeCom HTTP request failed after bounded retries"
             ) from last_transport_error
         raise ImError("WeCom HTTP request failed after bounded retries")
+
+    async def _send_json_once(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, str],
+        json_body: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Issue one side-effecting request and never replay an uncertain write."""
+        try:
+            response = await self._client.request("POST", path, params=params, json=dict(json_body))
+        except httpx.TransportError as exc:
+            raise ImDeliveryOutcomeUnknownError(
+                "WeCom delivery transport outcome is unknown"
+            ) from exc
+        if response.status_code == 429:
+            raise ImDeliveryRetryableError(
+                "WeCom rate limited the delivery before accepting it",
+                retry_after_seconds=_retry_delay(response, 0),
+            )
+        if response.status_code >= 500:
+            raise ImDeliveryOutcomeUnknownError(
+                "WeCom delivery returned an ambiguous server failure"
+            )
+        if response.status_code < 200 or response.status_code >= 300:
+            raise ImDeliveryRejectedError(
+                f"WeCom delivery was rejected with status {response.status_code}"
+            )
+        if len(response.content) > MAX_RESPONSE_BYTES:
+            raise ImDeliveryOutcomeUnknownError("WeCom delivery response exceeded the size limit")
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise ImDeliveryOutcomeUnknownError(
+                "WeCom delivery response was not valid JSON"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise ImDeliveryOutcomeUnknownError("WeCom delivery response must be a JSON object")
+        return payload
 
     def _require_success(
         self,

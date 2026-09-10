@@ -9,7 +9,16 @@ from typing import Any
 import httpx
 
 from obsion_im.channel import ImDeliveryReceipt, OutboundMessage
-from obsion_im.config import DINGTALK_HTTP_DELIVERY, DingTalkCredentials, ImError, normalize_channel
+from obsion_im.config import (
+    DINGTALK_HTTP_DELIVERY,
+    DingTalkCredentials,
+    ImDeliveryOutcomeUnknownError,
+    ImDeliveryPreSendError,
+    ImDeliveryRejectedError,
+    ImDeliveryRetryableError,
+    ImError,
+    normalize_channel,
+)
 
 DINGTALK_ORIGIN = "https://oapi.dingtalk.com"
 TOKEN_PATH = "/gettoken"  # noqa: S105 - vendor endpoint path, not a credential
@@ -80,9 +89,13 @@ class DingTalkClient:
             raise ImError("DingTalk delivery requires non-empty text")
         if not idempotency_key.strip():
             raise ImError("DingTalk delivery requires an idempotency key")
-        token = await self._access_token_value()
-        payload = await self._request_json(
-            "POST",
+        try:
+            token = await self._access_token_value()
+        except ImError as exc:
+            raise ImDeliveryPreSendError(
+                "Authentication failed before sending the message"
+            ) from exc
+        payload = await self._send_json_once(
             MESSAGE_PATH,
             params={"access_token": token},
             json_body={
@@ -93,13 +106,20 @@ class DingTalkClient:
                 },
             },
         )
-        self._require_success(payload, operation="send message", token=token)
+        try:
+            self._require_success(payload, operation="send message", token=token)
+        except ImError as exc:
+            raise ImDeliveryRejectedError(str(exc)) from exc
         raw_message_id = payload.get("messageId") or payload.get("message_id")
         if not isinstance(raw_message_id, str) or not raw_message_id.strip():
-            raise ImError("DingTalk delivery outcome is unknown: vendor receipt is missing")
+            raise ImDeliveryOutcomeUnknownError(
+                "DingTalk delivery did not return a vendor message receipt"
+            )
         message_id = raw_message_id.strip()
         if len(message_id) > 500 or message_id == idempotency_key.strip():
-            raise ImError("DingTalk delivery outcome is unknown: vendor receipt is invalid")
+            raise ImDeliveryOutcomeUnknownError(
+                "DingTalk delivery returned an invalid vendor message receipt"
+            )
         return DingTalkReceipt(message_id=message_id)
 
     async def aclose(self) -> None:
@@ -176,6 +196,47 @@ class DingTalkClient:
                 "DingTalk HTTP request failed after bounded retries"
             ) from last_transport_error
         raise ImError("DingTalk HTTP request failed after bounded retries")
+
+    async def _send_json_once(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, str],
+        json_body: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Issue one side-effecting request and classify its exact retry boundary."""
+        try:
+            response = await self._client.request("POST", path, params=params, json=dict(json_body))
+        except httpx.TransportError as exc:
+            raise ImDeliveryOutcomeUnknownError(
+                "DingTalk delivery transport outcome is unknown"
+            ) from exc
+        if response.status_code == 429:
+            raise ImDeliveryRetryableError(
+                "DingTalk rate limited the delivery before accepting it",
+                retry_after_seconds=_retry_delay(response, 0),
+            )
+        if response.status_code >= 500:
+            raise ImDeliveryOutcomeUnknownError(
+                "DingTalk delivery returned an ambiguous server failure"
+            )
+        if response.status_code < 200 or response.status_code >= 300:
+            raise ImDeliveryRejectedError(
+                f"DingTalk delivery was rejected with status {response.status_code}"
+            )
+        if len(response.content) > MAX_RESPONSE_BYTES:
+            raise ImDeliveryOutcomeUnknownError(
+                "DingTalk delivery response exceeded the size limit"
+            )
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise ImDeliveryOutcomeUnknownError(
+                "DingTalk delivery response was not valid JSON"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise ImDeliveryOutcomeUnknownError("DingTalk delivery response must be a JSON object")
+        return payload
 
     def _require_success(
         self,

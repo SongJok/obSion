@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from obsion_im.main import build_parser, main
+from obsion_im.signatures import dingtalk_signature
 
 
 def test_parser_requires_a_stable_sender_id() -> None:
@@ -179,6 +180,99 @@ def test_http_outbox_url_is_rejected(tmp_path: Path) -> None:
     )
     assert code == 1
     assert "local file path" in stderr.getvalue()
+
+
+def test_outbox_requires_an_explicit_vendor_delivery(tmp_path: Path) -> None:
+    stderr = io.StringIO()
+    code = main(
+        [
+            "--config",
+            str(tmp_path / "missing.toml"),
+            "outbox",
+            "--once",
+        ],
+        err=stderr,
+        environ={"OBSION_TOKEN": "test-token"},
+    )
+    assert code == 1
+    assert "explicit vendor transport" in stderr.getvalue()
+
+
+def test_stream_requires_dingtalk_channel_before_connecting(tmp_path: Path) -> None:
+    stderr = io.StringIO()
+    code = main(
+        [
+            "--config",
+            str(tmp_path / "missing.toml"),
+            "stream",
+        ],
+        err=stderr,
+        environ={"OBSION_TOKEN": "test-token"},
+    )
+    assert code == 1
+    assert "--channel dingtalk" in stderr.getvalue()
+
+
+def test_dingtalk_ingest_with_credentials_requires_and_preserves_trusted_identity(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        "obsion_im.main._dispatch",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("dispatch must not run")),
+    )
+    timestamp = "1700000000000"
+    secret = "dingtalk-test-secret"
+    payload = {
+        "timestamp": timestamp,
+        "sign": dingtalk_signature(timestamp, secret),
+        "msgId": "ingest-event-1",
+        "robotCode": "installation-1",
+        "chatbotCorpId": "corp-1",
+        "senderStaffId": "staff-alice",
+        "conversationId": "cid-ops",
+        "text": {"content": "status"},
+    }
+    observed = {}
+
+    async def fake_dispatch(settings, args, *, inbound, secret):
+        observed["inbound"] = inbound
+        observed["secret"] = secret
+        return "ok\n"
+
+    monkeypatch.setattr("obsion_im.main._dispatch", fake_dispatch)
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = main(
+        [
+            "--config",
+            str(tmp_path / "missing.toml"),
+            "--channel",
+            "dingtalk",
+            "ingest",
+            "--envelope",
+            json.dumps(payload),
+        ],
+        out=stdout,
+        err=stderr,
+        environ={
+            "OBSION_DINGTALK_APP_KEY": "configured-app-key",
+            "OBSION_DINGTALK_APP_SECRET": secret,
+            "OBSION_TOKEN": "control-token",
+        },
+    )
+    assert code == 0, stderr.getvalue()
+    assert observed["secret"] == secret
+    assert observed["inbound"].installation_id == "installation-1"
+    assert observed["inbound"].vendor_event_id == "ingest-event-1"
+
+
+def test_outbox_and_stream_commands_are_registered() -> None:
+    parser = build_parser()
+    outbox = parser.parse_args(["outbox", "--once", "--worker-id", "worker-1"])
+    assert outbox.command == "outbox"
+    assert outbox.once is True
+    assert outbox.worker_id == "worker-1"
+    assert parser.parse_args(["stream"]).command == "stream"
 
 
 def test_feishu_http_health_uses_vendor_auth_without_obsion_token(

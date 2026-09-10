@@ -1103,14 +1103,19 @@ class AsyncObsionClient:
         )
 
     async def create_im_binding(
-        self, *, channel: str, sender_id: str, user_id: str
+        self, *, channel: str, sender_id: str, user_id: str, installation_id: str | None = None
     ) -> dict[str, Any]:
         return cast(
             dict[str, Any],
             await self._request(
                 "POST",
                 "/api/v1/admin/im-bindings",
-                json={"channel": channel, "sender_id": sender_id, "user_id": user_id},
+                json={
+                    "channel": channel,
+                    "sender_id": sender_id,
+                    "user_id": user_id,
+                    **({"installation_id": installation_id} if installation_id else {}),
+                },
             ),
         )
 
@@ -1142,13 +1147,77 @@ class AsyncObsionClient:
             await self._request("POST", "/api/v1/experience/im/messages", json=payload),
         )
 
-    async def prepare_im_delivery(self, run_id: str) -> dict[str, Any]:
+    async def accept_trusted_im_event(
+        self,
+        *,
+        channel: str,
+        installation_id: str,
+        corp_id: str,
+        app_key: str,
+        vendor_event_id: str,
+        sender_id: str,
+        conversation_id: str,
+        text: str,
+        is_group: bool = False,
+    ) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                "/api/v1/experience/im/trusted-events",
+                json={
+                    "channel": channel,
+                    "installation_id": installation_id,
+                    "corp_id": corp_id,
+                    "app_key": app_key,
+                    "vendor_event_id": vendor_event_id,
+                    "sender_id": sender_id,
+                    "conversation_id": conversation_id,
+                    "text": text,
+                    "is_group": is_group,
+                },
+            ),
+        )
+
+    async def get_trusted_im_event_status(self, event_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("GET", f"/api/v1/experience/im/trusted-events/{event_id}"),
+        )
+
+    async def prepare_im_delivery(
+        self, run_id: str, *, worker_id: str | None = None
+    ) -> dict[str, Any]:
+        payload = {"worker_id": worker_id} if worker_id is not None else None
         return cast(
             dict[str, Any],
             await self._request(
                 "POST",
                 f"/api/v1/experience/im/runs/{run_id}/deliveries",
+                json=payload,
             ),
+        )
+
+    async def claim_im_delivery(self, *, channel: str, worker_id: str) -> dict[str, Any] | None:
+        return cast(
+            dict[str, Any] | None,
+            await self._request(
+                "POST",
+                "/api/v1/experience/im/deliveries/claims",
+                json={"channel": channel, "worker_id": worker_id},
+            ),
+        )
+
+    async def get_im_delivery(self, delivery_id: str) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            await self._request("GET", f"/api/v1/experience/im/deliveries/{delivery_id}"),
+        )
+
+    async def list_im_delivery_attempts(self, delivery_id: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._request("GET", f"/api/v1/experience/im/deliveries/{delivery_id}/attempts"),
         )
 
     async def complete_im_delivery(
@@ -1156,13 +1225,20 @@ class AsyncObsionClient:
         delivery_id: str,
         *,
         vendor_message_id: str,
+        claim_generation: int | None = None,
+        worker_id: str | None = None,
     ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"vendor_message_id": vendor_message_id}
+        if claim_generation is not None:
+            payload["claim_generation"] = claim_generation
+        if worker_id is not None:
+            payload["worker_id"] = worker_id
         return cast(
             dict[str, Any],
             await self._request(
                 "POST",
                 f"/api/v1/experience/im/deliveries/{delivery_id}/complete",
-                json={"vendor_message_id": vendor_message_id},
+                json=payload,
             ),
         )
 
@@ -1171,13 +1247,70 @@ class AsyncObsionClient:
         delivery_id: str,
         *,
         failure_code: str = "vendor_request_failed",
+        claim_generation: int | None = None,
+        worker_id: str | None = None,
+        retryable: bool = True,
+        retry_after_seconds: float | None = None,
     ) -> dict[str, Any]:
+        # Keep the historical request shape for the default retryable case;
+        # the control-plane schema defaults this field to true. Explicit false
+        # remains serialized so operators can stop retries.
+        payload: dict[str, Any] = {"failure_code": failure_code}
+        if not retryable:
+            payload["retryable"] = False
+        if claim_generation is not None:
+            payload["claim_generation"] = claim_generation
+        if worker_id is not None:
+            payload["worker_id"] = worker_id
+        if retry_after_seconds is not None:
+            payload["retry_after_seconds"] = retry_after_seconds
         return cast(
             dict[str, Any],
             await self._request(
                 "POST",
                 f"/api/v1/experience/im/deliveries/{delivery_id}/fail",
-                json={"failure_code": failure_code},
+                json=payload,
+            ),
+        )
+
+    async def mark_im_delivery_unknown(
+        self,
+        delivery_id: str,
+        *,
+        claim_generation: int | None = None,
+        worker_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if claim_generation is not None:
+            payload["claim_generation"] = claim_generation
+        if worker_id is not None:
+            payload["worker_id"] = worker_id
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/experience/im/deliveries/{delivery_id}/unknown",
+                json=payload,
+            ),
+        )
+
+    async def reconcile_im_delivery(
+        self,
+        delivery_id: str,
+        *,
+        outcome: str,
+        evidence: str,
+        vendor_message_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"outcome": outcome, "evidence": evidence}
+        if vendor_message_id is not None:
+            payload["vendor_message_id"] = vendor_message_id
+        return cast(
+            dict[str, Any],
+            await self._request(
+                "POST",
+                f"/api/v1/experience/im/deliveries/{delivery_id}/reconcile",
+                json=payload,
             ),
         )
 

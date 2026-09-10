@@ -7,7 +7,9 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
+from obsion.db.models import AuditRecord, ImDelivery
 from obsion.security.auth import get_principal
 from obsion.security.identity import Principal
 
@@ -59,6 +61,75 @@ def _completed_feishu_run(client: TestClient) -> str:
     run_id = accepted.json()["run_id"]
     assert _wait_terminal(client, run_id)["status"] == "COMPLETED"
     return run_id
+
+
+def _delivery_for_run(client: TestClient, run_id: str) -> ImDelivery | None:
+    async def load() -> ImDelivery | None:
+        async with client.app.state.database.sessions() as session:
+            return await session.scalar(select(ImDelivery).where(ImDelivery.run_id == UUID(run_id)))
+
+    return client.portal.call(load)
+
+
+def _completed_trusted_run(client: TestClient) -> str:
+    client.portal.call(client.app.state.im_inbox_worker.stop)
+    user_id = client.get("/api/v1/auth/session").json()["principal_id"]
+    installation = client.post(
+        "/api/v1/admin/im-installations",
+        json={
+            "channel": "dingtalk",
+            "installation_id": "automatic-installation",
+            "corp_id": "automatic-corp",
+            "app_key": "automatic-app",
+        },
+    )
+    assert installation.status_code == 201, installation.text
+    binding = client.post(
+        "/api/v1/admin/im-bindings",
+        json={
+            "channel": "dingtalk",
+            "installation_id": installation.json()["id"],
+            "sender_id": "automatic-sender",
+            "user_id": user_id,
+        },
+    )
+    assert binding.status_code == 201, binding.text
+    accepted = client.post(
+        "/api/v1/experience/im/trusted-events",
+        json={
+            "channel": "dingtalk",
+            "installation_id": "automatic-installation",
+            "corp_id": "automatic-corp",
+            "app_key": "automatic-app",
+            "vendor_event_id": "automatic-event",
+            "sender_id": "automatic-sender",
+            "conversation_id": "automatic-conversation",
+            "text": "自动投递测试",
+        },
+    )
+    assert accepted.status_code == 202, accepted.text
+    worker = client.app.state.im_inbox_worker
+
+    async def dispatch() -> None:
+        claim = await worker._claim()
+        assert claim is not None
+        await worker._dispatch(claim)
+
+    client.portal.call(dispatch)
+    event_id = accepted.json()["inbox_event_id"]
+    run_id = client.get(f"/api/v1/experience/im/trusted-events/{event_id}").json()["run_id"]
+    assert run_id is not None
+    assert _wait_terminal(client, run_id)["status"] == "COMPLETED"
+    return run_id
+
+
+def _wait_delivery(client: TestClient, run_id: str) -> ImDelivery:
+    for _ in range(100):
+        delivery = _delivery_for_run(client, run_id)
+        if delivery is not None:
+            return delivery
+        time.sleep(0.05)
+    raise AssertionError(f"IM delivery was not materialized for Run: {run_id}")
 
 
 def test_feishu_delivery_is_policy_authorized_idempotent_and_audited(
@@ -116,6 +187,157 @@ def test_feishu_delivery_failure_requires_reconciliation_without_resending(
     assert retried.status_code == 409, retried.text
     assert retried.json()["code"] == "im_delivery_receipt_conflict"
     assert failed.json()["attempt_count"] == 1
+
+
+def test_feishu_delivery_prepare_worker_claim_is_atomic_and_fenced(client: TestClient) -> None:
+    run_id = _completed_feishu_run(client)
+    prepared = client.post(
+        f"/api/v1/experience/im/runs/{run_id}/deliveries",
+        json={"worker_id": "sync-worker"},
+    )
+    assert prepared.status_code == 200, prepared.text
+    payload = prepared.json()
+    assert payload["status"] == "PROCESSING"
+    assert payload["send_attempt_count"] == 1
+    assert payload["claim_generation"] == 1
+
+    outbox_claim = client.post(
+        "/api/v1/experience/im/deliveries/claims",
+        json={"channel": "feishu", "worker_id": "outbox-worker"},
+    )
+    assert outbox_claim.status_code == 200, outbox_claim.text
+    assert outbox_claim.json() is None
+
+    completed = client.post(
+        f"/api/v1/experience/im/deliveries/{payload['id']}/complete",
+        json={
+            "vendor_message_id": "om_atomic",
+            "claim_generation": 1,
+            "worker_id": "sync-worker",
+        },
+    )
+    assert completed.status_code == 200, completed.text
+    assert completed.json()["status"] == "SENT"
+
+
+def test_completed_im_run_is_automatically_materialized_once(client: TestClient) -> None:
+    run_id = _completed_trusted_run(client)
+    delivery = _wait_delivery(client, run_id)
+    assert delivery.status.value == "PENDING"
+    assert delivery.send_attempt_count == 0
+
+    client.portal.call(client.app.state.run_worker._reconcile_pending_im_deliveries)
+    repeated = _delivery_for_run(client, run_id)
+    assert repeated is not None
+    assert repeated.id == delivery.id
+
+
+def test_ordinary_completed_run_is_not_materialized_for_im_delivery(client: TestClient) -> None:
+    workspace = client.post(
+        "/api/v1/workspaces",
+        json={"name": "No automatic delivery", "description": "Regular task"},
+    )
+    assert workspace.status_code == 201, workspace.text
+    thread = client.post(
+        "/api/v1/threads",
+        json={"workspace_id": workspace.json()["id"], "title": "Regular task"},
+    )
+    assert thread.status_code == 201, thread.text
+    created = client.post(
+        f"/api/v1/threads/{thread.json()['id']}/turns",
+        json={"input": "普通任务"},
+    )
+    assert created.status_code == 202, created.text
+    run_id = created.json()["run"]["id"]
+    assert _wait_terminal(client, run_id)["status"] == "COMPLETED"
+    assert _delivery_for_run(client, run_id) is None
+
+
+def test_recovery_denies_revoked_im_audience_and_persists_policy_decision(
+    client: TestClient,
+) -> None:
+    client.portal.call(client.app.state.im_inbox_worker.stop)
+    user_id = client.get("/api/v1/auth/session").json()["principal_id"]
+    installation = client.post(
+        "/api/v1/admin/im-installations",
+        json={
+            "channel": "dingtalk",
+            "installation_id": "recovery-installation",
+            "corp_id": "recovery-corp",
+            "app_key": "recovery-app",
+        },
+    )
+    assert installation.status_code == 201, installation.text
+    binding = client.post(
+        "/api/v1/admin/im-bindings",
+        json={
+            "channel": "dingtalk",
+            "installation_id": installation.json()["id"],
+            "sender_id": "recovery-sender",
+            "user_id": user_id,
+        },
+    )
+    assert binding.status_code == 201, binding.text
+    accepted = client.post(
+        "/api/v1/experience/im/trusted-events",
+        json={
+            "channel": "dingtalk",
+            "installation_id": "recovery-installation",
+            "corp_id": "recovery-corp",
+            "app_key": "recovery-app",
+            "vendor_event_id": "recovery-event",
+            "sender_id": "recovery-sender",
+            "conversation_id": "recovery-conversation",
+            "text": "恢复测试",
+        },
+    )
+    assert accepted.status_code == 202, accepted.text
+    worker = client.app.state.im_inbox_worker
+
+    async def dispatch() -> None:
+        claim = await worker._claim()
+        assert claim is not None
+        await worker._dispatch(claim)
+
+    client.portal.call(dispatch)
+    run_id = client.get(
+        f"/api/v1/experience/im/trusted-events/{accepted.json()['inbox_event_id']}"
+    ).json()["run_id"]
+    assert run_id is not None
+    assert _wait_terminal(client, run_id)["status"] == "COMPLETED"
+    assert _wait_delivery(client, run_id) is not None
+
+    client.portal.call(client.app.state.run_worker.stop)
+
+    async def remove_delivery() -> None:
+        async with worker.database.sessions() as session, session.begin():
+            delivery = await session.scalar(
+                select(ImDelivery).where(ImDelivery.run_id == UUID(run_id))
+            )
+            assert delivery is not None
+            await session.delete(delivery)
+
+    client.portal.call(remove_delivery)
+    revoked = client.post(f"/api/v1/admin/im-installations/{installation.json()['id']}/revoke")
+    assert revoked.status_code == 200, revoked.text
+    client.portal.call(client.app.state.run_worker._reconcile_pending_im_deliveries)
+    assert _delivery_for_run(client, run_id) is None
+
+    async def rejection_audit() -> AuditRecord | None:
+        async with worker.database.sessions() as session:
+            return await session.scalar(
+                select(AuditRecord)
+                .where(
+                    AuditRecord.correlation_id == UUID(run_id),
+                    AuditRecord.action == "experience.im.delivery.auto_prepare.reject",
+                )
+                .order_by(AuditRecord.created_at.desc())
+            )
+
+    rejection = client.portal.call(rejection_audit)
+    assert rejection is not None
+    assert rejection.outcome == "DENIED"
+    assert rejection.redacted_metadata["reason_code"] == "im_delivery_denied"
 
 
 def test_non_im_run_cannot_be_delivered(client: TestClient) -> None:

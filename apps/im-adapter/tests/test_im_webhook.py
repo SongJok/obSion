@@ -16,6 +16,7 @@ from cryptography.x509.oid import NameOID
 
 from obsion_im.config import DingTalkCredentials, FeishuEventSecurity, ImError, WeComEventSecurity
 from obsion_im.envelopes import UrlVerification
+from obsion_im.signatures import dingtalk_signature
 from obsion_im.webhook import (
     LoopbackWebhookServer,
     parse_listen_bind,
@@ -47,6 +48,53 @@ def test_parse_posted_rejects_wecom_ciphertext() -> None:
             "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>",
             "text/xml",
             secret=None,
+        )
+
+
+def test_signed_dingtalk_http_callback_uses_trusted_event_identity() -> None:
+    timestamp = "1700000000000"
+    secret = "test-dingtalk-secret"
+    payload = {
+        "timestamp": timestamp,
+        "sign": dingtalk_signature(timestamp, secret),
+        "msgId": "http-event-1",
+        "robotCode": "installation-1",
+        "chatbotCorpId": "corp-1",
+        "senderStaffId": "staff-alice",
+        "conversationId": "cid-ops",
+        "conversationType": "2",
+        "text": {"content": "status"},
+    }
+
+    inbound = parse_posted(
+        "dingtalk",
+        json.dumps(payload),
+        "application/json",
+        secret=secret,
+        dingtalk_app_key="configured-app-key",
+    )
+
+    assert inbound.installation_id == "installation-1"
+    assert inbound.corp_id == "corp-1"
+    assert inbound.app_key == "configured-app-key"
+    assert inbound.vendor_event_id == "http-event-1"
+    assert inbound.vendor_event is not None
+    assert inbound.vendor_event["data"]["conversationType"] == "2"
+
+
+def test_configured_dingtalk_http_callback_cannot_fall_back_without_event_identity() -> None:
+    payload = {
+        "senderStaffId": "staff-alice",
+        "conversationId": "cid-ops",
+        "text": {"content": "status"},
+    }
+    with pytest.raises(ImError, match="vendor event id"):
+        parse_posted(
+            "dingtalk",
+            json.dumps(payload),
+            "application/json",
+            secret=None,
+            dingtalk_app_key="configured-app-key",
         )
 
 

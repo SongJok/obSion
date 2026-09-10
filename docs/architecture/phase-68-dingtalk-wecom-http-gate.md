@@ -19,6 +19,10 @@ security approval.**
 - Config files still reject vendor secrets.
 - Control-plane `im_deliveries` authorize `im.reply.deliver` for every vendor
   channel, pin the answer fingerprint, and record SENT/FAILED receipts.
+- A completed DingTalk receipt must contain a vendor-issued `messageId` or
+  `message_id`; the adapter must fail and leave the delivery unconfirmed when the
+  vendor response omits it. An Obsion delivery UUID is only an internal
+  idempotency/audit key and cannot stand in for a vendor receipt.
 - DingTalk client pins `https://oapi.dingtalk.com`. WeCom client pins
   `https://qyapi.weixin.qq.com`. Both disable redirects, redact credentials from
   errors, and do not import vendor SDKs.
@@ -28,7 +32,7 @@ security approval.**
 ## Automated acceptance map
 
 - `apps/im-adapter/tests/test_dingtalk.py` and `test_wecom.py` cover token cache,
-  retries, redaction, appchat vs user message routing.
+  retries, redaction, real receipt requirements, appchat vs user message routing.
 - `apps/im-adapter/tests/test_im_config.py` and `test_im_main.py` reject generic
   HTTP and mismatched channel/transport pairs.
 - `apps/im-adapter/tests/test_im_architecture.py` allows `httpx` only in

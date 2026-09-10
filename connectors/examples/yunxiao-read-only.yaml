@@ -1,0 +1,20 @@
+apiVersion: obsion.dev/v1
+kind: Connector
+metadata:
+  name: yunxiao-read-only
+spec:
+  type: yunxiao
+  status: DRAFT
+  environment: production
+  transport: HTTP
+  baseUrl: https://openapi-rdc.aliyuncs.com
+  credentialRef: secret://yunxiao-read-only
+  grants: [code.read]
+  allowedEgress: [https://openapi-rdc.aliyuncs.com]
+  tlsRequired: true
+  configuration:
+    protocol: yunxiao.devops.v1
+    rate_limit_per_minute: 60
+    timeout_seconds: 15
+  capabilities:
+    - yunxiao.repositories.list

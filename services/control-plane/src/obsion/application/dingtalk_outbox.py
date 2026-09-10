@@ -34,7 +34,6 @@ from obsion.common.time import ensure_utc, utc_now
 from obsion.db.im_models import (
     ImGroupAudience,
     ImInboxMessage,
-    ImInstallation,
     ImInstallationBinding,
 )
 from obsion.db.models import (
@@ -44,6 +43,7 @@ from obsion.db.models import (
     CapabilityVersion,
     Connector,
     DingTalkRobotOutbox,
+    ImInstallation,
     Run,
     Thread,
     Turn,
@@ -801,7 +801,7 @@ def _robot_code(connector: Connector, installation: ImInstallation) -> str:
     )
 
 
-def _configured_identity(connector: Connector, key: str, *, fallback: str) -> str:
+def _configured_identity(connector: Connector, key: str, *, fallback: str | None) -> str:
     """Resolve a public robot identity from an explicit env reference or config.
 
     App keys and robot codes are identifiers rather than secrets, but keeping

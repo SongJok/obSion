@@ -43,7 +43,7 @@ def test_contract_cli_is_registered_and_contracts_are_valid() -> None:
     assert args.command == "validate-contracts"
     events = validate_event_contracts()
     assert events.event_count == events.version_count == 97
-    assert validate_error_catalog() == 336
+    assert validate_error_catalog() == 342
 
 
 def test_event_payload_error_code_enums_are_registered() -> None:
@@ -89,7 +89,7 @@ def test_production_error_catalog_exactly_covers_reviewed_producers() -> None:
     assert analysis.helper_caller_codes == REVIEWED_ERROR_HELPER_CALLS
     assert analysis.active_origin_codes.isdisjoint(RESERVED_COMPATIBILITY_ERROR_CODES)
     assert analysis.active_origin_codes | RESERVED_COMPATIBILITY_ERROR_CODES == catalog_codes
-    assert len(analysis.active_origin_codes) == 334
-    assert len(catalog_codes) == 336
+    assert len(analysis.active_origin_codes) == 340
+    assert len(catalog_codes) == 342
     for code in analysis.active_origin_codes:
         assert get_error_code(code).code == code

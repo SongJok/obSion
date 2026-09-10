@@ -213,6 +213,15 @@ No runtime plugin can bypass this gateway. Connector SDK plugins are scanned as
 static declarations (network, filesystem, capabilities, secrets, risk) and HMAC-signed
 before production load. Connectors receive short-lived execution credentials, not model-visible secrets.
 
+Yunxiao Codeup repository discovery is a first-party HTTP capability, not a remote
+MCP adapter. The official Yunxiao MCP catalog includes write-capable tools, while
+remote MCP endpoints, stdio, and process spawn are deliberately unavailable here.
+The `yunxiao.repositories.list` L1 contract resolves an opaque PAT after Gateway
+authorization, sends it only as `X-Yunxiao-Token`, pins an exact HTTPS origin and
+fixed Codeup paths, enumerates PAT-visible organizations from the central origin, and
+returns only bounded, normalized repository metadata. It seeds neither a live
+connector nor a binding; activation and binding remain explicit administrator actions.
+
 Audit is written in the same transaction as the governed outcome. Capability records
 carry the actor/run correlation, policy and approval references, descriptor risk,
 connector resource, agent/model/capability version IDs, result classification, and

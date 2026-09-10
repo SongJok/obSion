@@ -27,7 +27,7 @@ from obsion.db.models import (
     User,
     Workspace,
 )
-from obsion.domain.enums import ConnectorStatus, DecisionEffect, ImDeliveryStatus, RiskLevel
+from obsion.domain.enums import ConnectorStatus, DecisionEffect, RiskLevel
 
 _ROOT = Path(__file__).resolve().parents[4]
 _BASE_REVISION = "f3d4e5a6b7c8"
@@ -182,20 +182,31 @@ async def _insert_legacy_deliveries(database_url: str) -> tuple[UUID, UUID, UUID
                 )
                 session.add(decision)
                 await session.flush()
-                delivery = ImDelivery(
-                    organization_id=organization.id,
-                    run_id=run.id,
-                    channel="dingtalk",
-                    conversation_id="migration-conversation",
-                    content_fingerprint="b" * 64,
-                    status=ImDeliveryStatus(state),
-                    policy_decision_id=decision.id,
-                    requested_by=user.id,
-                    vendor_message_id="vendor-migration-receipt" if state == "SENT" else None,
+                delivery_id = uuid4()
+                await session.execute(
+                    text(
+                        "INSERT INTO im_deliveries "
+                        "(id, organization_id, run_id, channel, conversation_id, "
+                        "content_fingerprint, status, policy_decision_id, requested_by, "
+                        "attempt_count, vendor_message_id) "
+                        "VALUES (:id, :organization_id, :run_id, 'dingtalk', "
+                        "'migration-conversation', :content_fingerprint, :status, "
+                        ":policy_decision_id, :requested_by, 1, :vendor_message_id)"
+                    ),
+                    {
+                        "id": delivery_id,
+                        "organization_id": organization.id,
+                        "run_id": run.id,
+                        "content_fingerprint": "b" * 64,
+                        "status": state,
+                        "policy_decision_id": decision.id,
+                        "requested_by": user.id,
+                        "vendor_message_id": (
+                            "vendor-migration-receipt" if state == "SENT" else None
+                        ),
+                    },
                 )
-                session.add(delivery)
-                await session.flush()
-                ids.append(delivery.id)
+                ids.append(delivery_id)
             return organization.id, user.id, connector.id, ids
     finally:
         await engine.dispose()

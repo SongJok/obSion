@@ -29,10 +29,17 @@ from obsion.db.im_models import (
     ImConversationBinding,
     ImGroupAudience,
     ImInboxMessage,
-    ImInstallation,
     ImInstallationBinding,
 )
-from obsion.db.models import Connector, Organization, Thread, User, Workspace, WorkspaceMember
+from obsion.db.models import (
+    Connector,
+    ImInstallation,
+    Organization,
+    Thread,
+    User,
+    Workspace,
+    WorkspaceMember,
+)
 from obsion.domain.enums import (
     ActorType,
     ConnectorStatus,
@@ -195,6 +202,15 @@ class ImInboxService:
         installation = ImInstallation(
             organization_id=current.organization_id,
             created_by=current.id,
+            channel=request.provider,
+            # The legacy contract has no installation id. Use the vendor app
+            # identity as the compatibility-table key without colliding with
+            # another corporation that reuses the same app id.
+            installation_id=f"{request.external_corp_id}:{request.external_app_id}",
+            corp_id=request.external_corp_id,
+            app_key=request.external_app_id,
+            active=True,
+            status="ACTIVE",
             **request.model_dump(),
         )
         try:

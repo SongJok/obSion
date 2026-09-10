@@ -20,6 +20,47 @@ project follows Semantic Versioning.
   round-trip database to the current head before drift detection, preventing
   intentional later revisions from being misreported as schema drift.
 
+- DingTalk Stream runtime dependencies are an explicit `obsion-im[dingtalk-stream]`
+  extra. It includes the official Stream SDK and SOCKS WebSocket support, while the
+  regular adapter install remains suitable for HTTP ingress and local Outbox use. When
+  a packaged Python runtime exposes no system certificate roots, Stream sets certifi's
+  verified CA bundle for its vendor WebSocket without disabling TLS or overriding an
+  operator-provided `SSL_CERT_FILE`.
+
+- M1b durable IM delivery extends the governed `ImDelivery` record into a
+  PostgreSQL Outbox with channel-scoped rate limiting, leases and generation
+  fencing, immutable attempts, bounded retry, exact vendor receipts, recipient
+  revalidation, `UNKNOWN` hold/reconciliation, and the explicit `obsion-im outbox`
+  worker command. Legacy synchronous custom channels retain their existing failure
+  envelope. `obsion-im stream` exposes the optional DingTalk Stream adapter through
+  the same trusted Inbox boundary. ADR 0081 and the M1b report distinguish local
+  implementation from required test-tenant and promotion evidence.
+
+- M1a trusted IM admission adds administrator-owned installation and sender bindings,
+  a sanitized PostgreSQL Inbox with installation-scoped replay protection, four-class
+  restrictive intent metadata, content-free status lookup, and asynchronous
+  user-owned Harness dispatch. Lease generations, bounded retries, rejection Audit,
+  database mutation guards, and delivery-time installation/audience revalidation
+  prevent duplicate, reassigned, stale-worker, and unsafe group outcomes. Existing
+  channel-only sender mappings remain compatible but cannot authorize trusted vendor
+  ingress until an administrator attributes them to an installation. ADR 0080 and
+  the M1a report distinguish this repository-local control-plane increment from live
+  DingTalk Stream connectivity and outbound delivery.
+
+- Yunxiao repository discovery is now a first-party, read-only Capability Gateway
+  contract. `yunxiao.repositories.list` uses a brokered personal access token only
+  in the official `X-Yunxiao-Token` request header, pins exact HTTPS egress and
+  fixed Codeup paths, enumerates PAT-visible organizations, bounds and normalizes
+  repository output, and never auto-creates an active connector or binding. Remote
+  Yunxiao MCP, its broad write-capable tool catalog, and all Yunxiao mutations remain
+  unavailable. ADR 0079 and the pending Phase 98 readiness gate record the operator
+  activation and live-validation requirements.
+
+- DingTalk outbound delivery now rejects a vendor success response that omits its
+  message receipt. The adapter no longer substitutes an Obsion delivery identifier
+  for a vendor receipt, so an uncertain outbound outcome remains auditable as a
+  failure rather than being recorded as sent.
+
 - Phase 97 Workbench root-orchestration reliability amendment: all
   selection-sensitive Workspace, Thread, source-Run, submit, cancel, replay,
   feedback, Context Picker, upload, and stream operations now capture scoped

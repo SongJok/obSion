@@ -1764,6 +1764,7 @@ name = "obsion-im"
 version = "0.1.0"
 source = { editable = "apps/im-adapter" }
 dependencies = [
+    { name = "certifi" },
     { name = "cryptography" },
     { name = "httpx" },
     { name = "obsion-cli" },
@@ -1771,19 +1772,26 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+dingtalk-stream = [
+    { name = "dingtalk-stream" },
+    { name = "python-socks" },
+]
 stream = [
     { name = "dingtalk-stream" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "certifi", specifier = ">=2025.8.3" },
     { name = "cryptography", specifier = ">=44,<51" },
+    { name = "dingtalk-stream", marker = "extra == 'dingtalk-stream'", specifier = ">=0.24,<0.25" },
     { name = "dingtalk-stream", marker = "extra == 'stream'", specifier = "==0.24.3" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "obsion-cli", editable = "apps/cli" },
     { name = "obsion-sdk", extras = ["app-server"], editable = "packages/sdk-python" },
+    { name = "python-socks", extras = ["asyncio"], marker = "extra == 'dingtalk-stream'", specifier = ">=2.6,<3" },
 ]
-provides-extras = ["stream"]
+provides-extras = ["dingtalk-stream", "stream"]
 
 [[package]]
 name = "obsion-sdk"
@@ -2438,6 +2446,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5b/42/55c32bb9b12693c092ad250a0e82edb5b31ddeda6eb772de5f308b3804ad/python_multipart-0.0.32.tar.gz", hash = "sha256:be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e", size = 46881, upload-time = "2026-06-04T16:18:58.647Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e1/04/e8135ebd1ad02c56ec633277529b2602ff99ff634be76cdba5744cf554fd/python_multipart-0.0.32-py3-none-any.whl", hash = "sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23", size = 30042, upload-time = "2026-06-04T16:18:57.319Z" },
+]
+
+[[package]]
+name = "python-socks"
+version = "2.8.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/ad/5bbfab3d3a266963cca0c09e23a725bbf5f0535d21c8bd1d5272e4430771/python_socks-2.8.2.tar.gz", hash = "sha256:ffc493951854fa3fc0551e0434a09a7b9f9047f9ad666dce42cb94a52e8a34b6", size = 39656, upload-time = "2026-06-23T05:22:01.994Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3d/18/23b981b1cf58c1e7b7e36fa1392daf12878b6a3c26c5e4248601647a6d09/python_socks-2.8.2-py3-none-any.whl", hash = "sha256:7cf785d0631e0659384a773b3c402bc22cccdc23894ba1d65f8524748ace1193", size = 55501, upload-time = "2026-06-23T05:22:00.658Z" },
 ]
 
 [[package]]

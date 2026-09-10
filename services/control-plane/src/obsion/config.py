@@ -91,6 +91,14 @@ class Settings(BaseSettings):
     dingtalk_outbox_poll_interval_seconds: float = Field(default=1.0, ge=0.1, le=30)
     dingtalk_outbox_lease_seconds: int = Field(default=60, ge=10, le=900)
     dingtalk_outbox_max_attempts: int = Field(default=3, ge=1, le=10)
+    im_inbox_poll_interval_seconds: float = Field(default=0.25, ge=0.05, le=30)
+    im_inbox_lease_seconds: int = Field(default=30, ge=10, le=300)
+    im_inbox_max_attempts: int = Field(default=5, ge=1, le=20)
+    im_delivery_lease_seconds: int = Field(default=60, ge=10, le=600)
+    im_delivery_max_attempts: int = Field(default=5, ge=1, le=20)
+    im_delivery_base_backoff_seconds: float = Field(default=1, ge=0.1, le=300)
+    im_delivery_max_backoff_seconds: float = Field(default=60, ge=1, le=3600)
+    im_delivery_rate_limit_per_minute: int = Field(default=120, ge=1, le=100_000)
     automation_enabled: bool = True
     automation_worker_concurrency: int = Field(default=4, ge=1, le=64)
     automation_poll_interval_seconds: float = Field(default=0.5, ge=0.1, le=30)
@@ -186,6 +194,10 @@ class Settings(BaseSettings):
             raise ValueError("automation lease must exceed the polling interval")
         if self.action_lease_seconds <= self.action_poll_interval_seconds:
             raise ValueError("action lease must exceed the polling interval")
+        if self.im_inbox_lease_seconds <= self.im_inbox_poll_interval_seconds:
+            raise ValueError("IM Inbox lease must exceed the polling interval")
+        if self.im_delivery_base_backoff_seconds > self.im_delivery_max_backoff_seconds:
+            raise ValueError("IM delivery base backoff cannot exceed its maximum")
         if self.memory_default_ttl_days > self.memory_max_ttl_days:
             raise ValueError("memory_default_ttl_days cannot exceed memory_max_ttl_days")
         if self.conversation_context_max_chars_per_message > self.conversation_context_max_chars:

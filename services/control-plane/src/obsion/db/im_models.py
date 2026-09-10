@@ -18,50 +18,15 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from obsion.db.base import Base, IdMixin, OrganizationMixin, TimestampMixin
+from obsion.db.models import ImInstallation
 
-
-class ImInstallation(Base, IdMixin, OrganizationMixin, TimestampMixin):
-    __tablename__ = "im_installations"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "id", name="uq_im_installations_org_id"),
-        UniqueConstraint(
-            "provider", "external_corp_id", "external_app_id", name="uq_im_installations_vendor_app"
-        ),
-        ForeignKeyConstraint(
-            ["organization_id", "adapter_principal_id"],
-            ["users.organization_id", "users.id"],
-            name="fk_im_installations_adapter",
-            ondelete="RESTRICT",
-        ),
-        ForeignKeyConstraint(
-            ["organization_id", "created_by"],
-            ["users.organization_id", "users.id"],
-            name="fk_im_installations_creator",
-            ondelete="RESTRICT",
-        ),
-        CheckConstraint("status IN ('ACTIVE', 'REVOKED')", name="valid_installation_status"),
-        CheckConstraint(
-            "provider IN ('dingtalk', 'feishu', 'wecom')", name="valid_installation_provider"
-        ),
-        CheckConstraint(
-            "length(trim(external_corp_id)) > 0 AND "
-            "length(trim(external_app_id)) > 0 AND "
-            "length(trim(verification_source)) > 0",
-            name="installation_identity",
-        ),
-    )
-
-    provider: Mapped[str] = mapped_column(String(32), nullable=False)
-    external_corp_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    external_app_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    connector_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("connectors.id", ondelete="RESTRICT"), nullable=False
-    )
-    adapter_principal_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
-    created_by: Mapped[UUID] = mapped_column(Uuid, nullable=False)
-    verification_source: Mapped[str] = mapped_column(String(255), nullable=False)
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+__all__ = [
+    "ImConversationBinding",
+    "ImGroupAudience",
+    "ImInboxMessage",
+    "ImInstallation",
+    "ImInstallationBinding",
+]
 
 
 class ImInstallationBinding(Base, IdMixin, OrganizationMixin, TimestampMixin):

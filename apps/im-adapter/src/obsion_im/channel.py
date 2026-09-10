@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
@@ -15,6 +16,11 @@ class InboundMessage:
     sender_id: str
     sender_display: str | None = None
     channel: str = "development"
+    installation_id: str | None = None
+    corp_id: str | None = None
+    app_key: str | None = None
+    vendor_event_id: str | None = None
+    vendor_event: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)

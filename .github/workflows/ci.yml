@@ -231,6 +231,10 @@ jobs:
             database: obsion_m4_memory_revoke
             opt_in: OBSION_RUN_MEMORY_REVOKE_MIGRATION_TEST
             test: services/control-plane/tests/integration/test_postgres_memory_revoke_migration.py
+          - name: im-inbox
+            database: obsion_im_inbox_migration
+            opt_in: OBSION_RUN_IM_INBOX_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_im_inbox_migration.py
     name: migration-round-trip (${{ matrix.name }})
     services:
       postgres:

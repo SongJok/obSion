@@ -2,6 +2,7 @@ import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 from pydantic import ValidationError as PydanticValidationError
@@ -9,6 +10,11 @@ from pydantic import ValidationError as PydanticValidationError
 from obsion.capabilities.plugin_governance import validate_manifest_plugin
 
 _SUPPORTED_KINDS = frozenset({"Agent", "Skill", "Workflow", "Connector"})
+_INLINE_CREDENTIAL_KEY = re.compile(
+    r"(?:^|[_-])(?:credential|secret|token|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key)(?:$|[_-])"
+    r"|(?:credential|secret|token|password|passwd|apiKey|accessKey|privateKey)$",
+    re.IGNORECASE,
+)
 
 
 class RegistryManifestError(ValueError):
@@ -231,6 +237,34 @@ def _validate_in_process_connector(
         )
 
 
+def _validate_connector_configuration(
+    value: Any, filename: str, path: str = "configuration"
+) -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            item_path = f"{path}.{key}"
+            if _INLINE_CREDENTIAL_KEY.search(str(key)):
+                raise RegistryManifestError(
+                    f"Connector manifest {filename} cannot contain credential field {item_path}"
+                )
+            _validate_connector_configuration(item, filename, item_path)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_connector_configuration(item, filename, f"{path}.{index}")
+
+
+def _validate_connector_urls(spec: dict[str, Any], filename: str) -> None:
+    for field in ("endpoint", "baseUrl"):
+        value = spec.get(field)
+        if not isinstance(value, str):
+            continue
+        parsed = urlsplit(value)
+        if parsed.username is not None or parsed.password is not None:
+            raise RegistryManifestError(
+                f"Connector manifest {filename} {field} cannot contain embedded credentials"
+            )
+
+
 def _validate_spec(kind: str, spec: dict[str, Any], filename: str) -> None:
     if kind == "Workflow":
         from obsion.automation.schemas import WorkflowSpec
@@ -291,6 +325,8 @@ def _validate_spec(kind: str, spec: dict[str, Any], filename: str) -> None:
             raise RegistryManifestError(
                 f"Connector manifest {filename} has an unsafe credentialRef"
             )
+        _validate_connector_configuration(spec.get("configuration"), filename)
+        _validate_connector_urls(spec, filename)
         if spec["transport"] == "AGENT":
             _validate_in_process_connector(spec, filename, "AGENT", _AGENT_REMOTE_KEYS)
         if spec["transport"] == "GRPC":

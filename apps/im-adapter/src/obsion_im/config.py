@@ -41,6 +41,26 @@ class ImError(CliError):
     """User-facing IM adapter failure that must not include credentials."""
 
 
+class ImDeliveryRejectedError(ImError):
+    """The vendor returned a definitive rejection for an outbound request."""
+
+
+class ImDeliveryPreSendError(ImError):
+    """Authentication failed before the message write was attempted."""
+
+
+class ImDeliveryOutcomeUnknownError(ImError):
+    """The outbound request may have reached the vendor and cannot be retried."""
+
+
+class ImDeliveryRetryableError(ImError):
+    """The vendor definitely did not accept the request and supplied retry guidance."""
+
+    def __init__(self, message: str, *, retry_after_seconds: float = 0.0) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = max(0.0, retry_after_seconds)
+
+
 @dataclass(frozen=True, slots=True)
 class FeishuCredentials:
     app_id: str = field(repr=False)
@@ -51,6 +71,8 @@ class FeishuCredentials:
 class DingTalkCredentials:
     app_key: str = field(repr=False)
     app_secret: str = field(repr=False)
+    unified_app_id: str | None = None
+    robot_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,7 +270,14 @@ def _load_dingtalk_credentials(mapping: Mapping[str, str]) -> DingTalkCredential
         raise ImError("OBSION_DINGTALK_APP_KEY and OBSION_DINGTALK_APP_SECRET must be set together")
     if not app_key:
         return None
-    return DingTalkCredentials(app_key=app_key, app_secret=app_secret)
+    unified_app_id = (mapping.get("OBSION_DINGTALK_UNIFIED_APP_ID") or "").strip() or None
+    robot_code = (mapping.get("OBSION_DINGTALK_ROBOT_CODE") or "").strip() or None
+    return DingTalkCredentials(
+        app_key=app_key,
+        app_secret=app_secret,
+        unified_app_id=unified_app_id,
+        robot_code=robot_code,
+    )
 
 
 def _load_wecom_credentials(mapping: Mapping[str, str]) -> WeComCredentials | None:

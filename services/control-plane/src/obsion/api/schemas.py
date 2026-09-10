@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import AliasPath, BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -15,6 +15,8 @@ from obsion.domain.enums import (
     EvaluationResultStatus,
     EvaluationTarget,
     ImDeliveryStatus,
+    ImInboxStatus,
+    ImIntent,
     MemoryScope,
     MemoryStatus,
     RiskLevel,
@@ -904,6 +906,7 @@ class CreateImBindingRequest(APIModel):
         description="Stable vendor or development sender id. Display names cannot authorize.",
     )
     user_id: UUID
+    installation_id: UUID | None = None
 
 
 class ImBindingView(APIModel):
@@ -911,6 +914,94 @@ class ImBindingView(APIModel):
     channel: str
     sender_id: str
     user_id: UUID
+    installation_id: UUID | None = None
+    active: bool
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
+    revoked_at: datetime | None
+
+
+class CreateImInstallationRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    channel: str | None = Field(default=None, min_length=1, max_length=64)
+    installation_id: str | None = Field(default=None, min_length=1, max_length=255)
+    corp_id: str | None = Field(default=None, min_length=1, max_length=255)
+    app_key: str | None = Field(default=None, min_length=1, max_length=255)
+    provider: Literal["dingtalk", "feishu", "wecom"] | None = None
+    external_corp_id: str | None = Field(default=None, min_length=1, max_length=255)
+    external_app_id: str | None = Field(default=None, min_length=1, max_length=255)
+    connector_id: UUID | None = None
+    adapter_principal_id: UUID | None = None
+    verification_source: str | None = Field(default=None, min_length=1, max_length=255)
+
+    @model_validator(mode="after")
+    def require_one_installation_shape(self) -> "CreateImInstallationRequest":
+        modern = all(
+            value is not None
+            for value in (self.channel, self.installation_id, self.corp_id, self.app_key)
+        )
+        legacy = all(
+            value is not None
+            for value in (
+                self.provider,
+                self.external_corp_id,
+                self.external_app_id,
+                self.connector_id,
+                self.adapter_principal_id,
+                self.verification_source,
+            )
+        )
+        if not modern and not legacy:
+            raise ValueError("an IM installation must use the modern or legacy identity shape")
+        if modern and any(
+            value is not None
+            for value in (
+                self.provider,
+                self.external_corp_id,
+                self.external_app_id,
+                self.connector_id,
+                self.adapter_principal_id,
+                self.verification_source,
+            )
+        ):
+            raise ValueError("modern and legacy IM installation fields cannot be mixed")
+        return self
+
+
+class ImInstallationView(APIModel):
+    id: UUID
+    organization_id: UUID
+    channel: str | None
+    installation_id: str | None
+    corp_id: str | None
+    app_key: str | None
+    active: bool
+    created_by: UUID
+    created_at: datetime
+    provider: str | None = None
+    external_corp_id: str | None = None
+    external_app_id: str | None = None
+    connector_id: UUID | None = None
+    adapter_principal_id: UUID | None = None
+    status: str | None = None
+    verification_source: str | None = None
+    updated_at: datetime
+    revoked_at: datetime | None
+
+
+class CreateImConversationAudienceRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    installation_id: UUID
+    conversation_id: str = Field(min_length=1, max_length=255)
+    workspace_id: UUID
+
+
+class ImConversationAudienceView(APIModel):
+    id: UUID
+    installation_id: UUID
+    conversation_id: str
+    workspace_id: UUID
     active: bool
     created_by: UUID
     created_at: datetime
@@ -946,6 +1037,30 @@ class ImMessageAcceptedView(APIModel):
     workspace_id: UUID
 
 
+class AcceptTrustedImEventRequest(APIModel):
+    """Installation-scoped input emitted by a verified vendor adapter."""
+
+    model_config = ConfigDict(extra="forbid")
+    channel: str = Field(min_length=1, max_length=64)
+    installation_id: str = Field(min_length=1, max_length=255)
+    corp_id: str = Field(min_length=1, max_length=255)
+    app_key: str = Field(min_length=1, max_length=255)
+    vendor_event_id: str = Field(min_length=1, max_length=500)
+    sender_id: str = Field(min_length=1, max_length=255)
+    conversation_id: str = Field(min_length=1, max_length=255)
+    text: str = Field(min_length=1, max_length=100_000)
+    is_group: bool = False
+
+
+class TrustedImEventAcceptedView(APIModel):
+    inbox_event_id: UUID
+    status: ImInboxStatus
+    duplicate: bool
+    run_id: UUID | None
+    safe_status: str
+    intent: ImIntent
+
+
 class ImDeliveryPrepareView(APIModel):
     id: UUID
     run_id: UUID
@@ -956,18 +1071,59 @@ class ImDeliveryPrepareView(APIModel):
     idempotency_key: str
     status: ImDeliveryStatus
     attempt_count: int
+    send_attempt_count: int
+    claim_generation: int
+
+
+class PrepareImDeliveryRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    worker_id: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class ClaimImDeliveryRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    channel: str = Field(min_length=1, max_length=64, pattern="^[a-z0-9_-]+$")
+    worker_id: str = Field(min_length=1, max_length=200)
+
+
+class ImDeliveryClaimView(ImDeliveryPrepareView):
+    thread_id: UUID
+    reply_to_sender_id: str | None
+    lease_expires_at: datetime
 
 
 class CompleteImDeliveryRequest(APIModel):
     model_config = ConfigDict(extra="forbid")
     vendor_message_id: str = Field(min_length=1, max_length=500)
+    claim_generation: int | None = Field(default=None, ge=1)
+    worker_id: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class FailImDeliveryRequest(APIModel):
     model_config = ConfigDict(extra="forbid")
     failure_code: str = Field(
-        pattern="^(vendor_request_failed|delivery_audit_failed)$",
+        pattern=(
+            "^(vendor_request_failed|vendor_request_rejected|vendor_pre_send_failed|"
+            "vendor_rate_limited|delivery_audit_failed)$"
+        ),
     )
+    claim_generation: int | None = Field(default=None, ge=1)
+    worker_id: str | None = Field(default=None, min_length=1, max_length=200)
+    retryable: bool = True
+    retry_after_seconds: float | None = Field(default=None, ge=0, le=3600)
+
+
+class UnknownImDeliveryRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    claim_generation: int | None = Field(default=None, ge=1)
+    worker_id: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class ReconcileImDeliveryRequest(APIModel):
+    model_config = ConfigDict(extra="forbid")
+    outcome: str = Field(pattern="^(SENT|CONFIRMED_UNSENT)$")
+    evidence: str = Field(min_length=1, max_length=500)
+    vendor_message_id: str | None = Field(default=None, min_length=1, max_length=500)
 
 
 class ImDeliveryView(APIModel):
@@ -980,9 +1136,42 @@ class ImDeliveryView(APIModel):
     policy_decision_id: UUID
     requested_by: UUID
     attempt_count: int
+    send_attempt_count: int
+    claim_generation: int
     vendor_message_id: str | None
     failure_code: str | None
     delivered_at: datetime | None
+    next_attempt_at: datetime | None
+    last_attempt_at: datetime | None
+    reconciliation_required_at: datetime | None
+    lease_expires_at: datetime | None
+    reconciled_at: datetime | None
+    reconciled_by: UUID | None
+    reconciliation_outcome: str | None
+    reconciliation_evidence: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ImDeliveryAttemptView(APIModel):
+    id: UUID
+    delivery_id: UUID
+    ordinal: int
+    claim_generation: int
+    channel: str
+    status: ImDeliveryStatus
+    claimed_by: str
+    lease_expires_at: datetime
+    policy_decision_id: UUID
+    content_fingerprint: str
+    idempotency_key: str
+    vendor_message_id: str | None
+    failure_code: str | None
+    completed_at: datetime | None
+    reconciled_at: datetime | None
+    reconciled_by: UUID | None
+    reconciliation_outcome: str | None
+    reconciliation_evidence: str | None
     created_at: datetime
     updated_at: datetime
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -6,6 +7,7 @@ from obsion.registry.agent_spec import ALLOWED_SANDBOX_MOUNTS, AgentSpec
 from obsion.registry.manifests import (
     RegistryManifestError,
     load_registry_specs,
+    parse_loaded_document,
     validate_registry_root,
 )
 
@@ -150,7 +152,7 @@ def test_agent_spec_binds_model_profile_not_provider_details() -> None:
     ],
 )
 def test_agent_spec_rejects_direct_database_and_credential_configuration(
-    unsafe_fragment: dict,
+    unsafe_fragment: dict[str, Any],
 ) -> None:
     spec = {
         "description": "Safe coordinator",
@@ -164,3 +166,63 @@ def test_agent_spec_rejects_direct_database_and_credential_configuration(
 
     with pytest.raises(RegistryManifestError, match="runtime connection|endpoint"):
         AgentSpec.from_dict(spec)
+
+
+def _connector_manifest(spec: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "apiVersion": "obsion.dev/v1",
+        "kind": "Connector",
+        "metadata": {"name": "manifest-test"},
+        "spec": {
+            "type": "http-test",
+            "environment": "development",
+            "transport": "HTTP",
+            "grants": ["code.read"],
+            "allowedEgress": ["https://connector.example"],
+            "capabilities": ["code.read"],
+            **spec,
+        },
+    }
+
+
+def test_yunxiao_connector_example_parses_without_inline_credentials() -> None:
+    import yaml
+
+    path = Path(__file__).parents[3] / "connectors" / "examples" / "yunxiao-read-only.yaml"
+
+    kind, name, spec = parse_loaded_document(
+        yaml.safe_load(path.read_text(encoding="utf-8")),
+        source=path.name,
+    )
+
+    assert (kind, name) == ("Connector", "yunxiao-read-only")
+    assert spec["credentialRef"] == "secret://yunxiao-read-only"
+
+
+def test_connector_manifest_rejects_nested_inline_credential_configuration() -> None:
+    with pytest.raises(
+        RegistryManifestError,
+        match="credential field configuration.auth.accessToken",
+    ):
+        parse_loaded_document(
+            _connector_manifest({"configuration": {"auth": {"accessToken": "inline-value"}}}),
+            source="inline-credential.yaml",
+        )
+
+
+def test_connector_manifest_allows_unrelated_configuration_names() -> None:
+    _kind, _name, spec = parse_loaded_document(
+        _connector_manifest({"configuration": {"tokenization": "standard"}}),
+        source="tokenization.yaml",
+    )
+
+    assert spec["configuration"] == {"tokenization": "standard"}
+
+
+@pytest.mark.parametrize("field", ["endpoint", "baseUrl"])
+def test_connector_manifest_rejects_endpoint_userinfo(field: str) -> None:
+    with pytest.raises(RegistryManifestError, match=f"{field} cannot contain embedded credentials"):
+        parse_loaded_document(
+            _connector_manifest({field: "https://user:password@connector.example"}),
+            source="endpoint-userinfo.yaml",
+        )

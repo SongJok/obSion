@@ -166,6 +166,65 @@ async def test_bridge_ingests_through_control_plane_identity_mapping() -> None:
 
 
 @pytest.mark.asyncio
+async def test_trusted_http_event_uses_inbox_admission_without_waiting_for_a_run() -> None:
+    requests: list[tuple[str, str, dict[str, object]]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content) if request.content else {}
+        requests.append((request.method, request.url.path, body))
+        if request.url.path == "/api/v1/experience/im/trusted-events":
+            return httpx.Response(202, json={"inbox_event_id": "inbox-1", "duplicate": False})
+        raise AssertionError(f"Unexpected synchronous IM request: {request.url.path}")
+
+    rest = AsyncObsionClient(
+        "http://obsion.example",
+        token="im-token",
+        transport=httpx.MockTransport(handler),
+    )
+    runtime = ExperienceRuntime(
+        CliSettings(base_url="http://obsion.example", token="im-token", protocol="rest"),
+        rest=rest,
+        sleep=_no_sleep,
+    )
+    channel = DevelopmentImChannel()
+    outbound = await ImBridge(runtime, channel).handle(
+        InboundMessage(
+            conversation_id="cid-ops",
+            text="status",
+            sender_id="staff-alice",
+            channel="dingtalk",
+            installation_id="installation-1",
+            corp_id="corp-1",
+            app_key="configured-app-key",
+            vendor_event_id="http-event-1",
+            vendor_event={"data": {"conversationType": "2"}, "headers": {}},
+        )
+    )
+    await runtime.aclose()
+
+    assert requests == [
+        (
+            "POST",
+            "/api/v1/experience/im/trusted-events",
+            {
+                "channel": "dingtalk",
+                "installation_id": "installation-1",
+                "corp_id": "corp-1",
+                "app_key": "configured-app-key",
+                "vendor_event_id": "http-event-1",
+                "sender_id": "staff-alice",
+                "conversation_id": "cid-ops",
+                "text": "status",
+                "is_group": True,
+            },
+        )
+    ]
+    assert outbound.run_id == "inbox-1"
+    assert outbound.text == "已接收，正在处理。"
+    assert channel.outbox == []
+
+
+@pytest.mark.asyncio
 async def test_bridge_rejects_empty_text() -> None:
     rest = AsyncObsionClient("http://obsion.example", token="im-token")
     runtime = ExperienceRuntime(

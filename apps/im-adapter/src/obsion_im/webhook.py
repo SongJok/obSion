@@ -17,6 +17,7 @@ from obsion_im.config import (
     WeComEventSecurity,
     normalize_channel,
 )
+from obsion_im.dingtalk_stream import parse_dingtalk_http_event
 from obsion_im.envelopes import Inbound, parse_inbound, reject_wecom_ciphertext
 from obsion_im.signatures import (
     prepare_feishu_http_payload,
@@ -155,6 +156,8 @@ def parse_posted(
     feishu_security: FeishuEventSecurity | None = None,
     wecom_security: WeComEventSecurity | None = None,
     raw_body: bytes | None = None,
+    dingtalk_credentials: DingTalkCredentials | None = None,
+    dingtalk_app_key: str | None = None,
 ) -> Inbound:
     namespace = normalize_channel(channel)
     payload: object
@@ -198,6 +201,19 @@ def parse_posted(
             reject_wecom_ciphertext(payload)
             if isinstance(payload, dict):
                 verify_inbound_signature(namespace, payload, secret=secret)
+    if namespace == "dingtalk" and (
+        dingtalk_credentials is not None or dingtalk_app_key is not None
+    ):
+        return parse_dingtalk_http_event(
+            payload,
+            app_key=(
+                dingtalk_credentials.app_key
+                if dingtalk_credentials is not None
+                else dingtalk_app_key or ""
+            ),
+            headers=request_headers,
+            credentials=dingtalk_credentials,
+        )
     return parse_inbound(namespace, payload)
 
 
@@ -368,6 +384,7 @@ async def run_webhook(
             feishu_security=settings.feishu_security,
             wecom_security=settings.wecom_security,
             raw_body=body,
+            dingtalk_credentials=settings.dingtalk_credentials,
         )
         if isinstance(parsed, UrlVerification):
             payload = json.dumps(

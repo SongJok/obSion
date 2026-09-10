@@ -30,6 +30,7 @@ markers = [
   "live: opt-in tests against an operator-owned external tenant; never enabled in default CI",
   "feishu_browse_live: opt-in non-writing Feishu source browse through Capability Gateway",
   "feishu_send_live: opt-in single-message Feishu delivery to an explicit operator chat; never enabled in default CI",
+  "yunxiao_live: opt-in bounded read-only Yunxiao repository discovery; never enabled in default CI",
 ]
 
 [tool.coverage.report]

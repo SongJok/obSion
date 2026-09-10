@@ -354,6 +354,78 @@ def _engineering_output_schema(operation: str) -> dict[str, Any]:
     }
 
 
+def _yunxiao_repositories_input_schema() -> dict[str, Any]:
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["operation"],
+        "properties": {
+            "operation": {"const": "yunxiao.repositories.list"},
+            "page": {"type": "integer", "minimum": 1, "maximum": 10000},
+            "per_page": {"type": "integer", "minimum": 1, "maximum": 100},
+            "search": {"type": "string", "minLength": 1, "maxLength": 200},
+        },
+    }
+
+
+def _yunxiao_repositories_output_schema() -> dict[str, Any]:
+    nullable_string = {"type": ["string", "null"]}
+    repository = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "organization_id",
+            "id",
+            "name",
+            "path",
+            "path_with_namespace",
+            "namespace_id",
+            "visibility",
+            "archived",
+            "access_level",
+            "description",
+            "web_url",
+            "created_at",
+            "updated_at",
+            "last_activity_at",
+            "star_count",
+        ],
+        "properties": {
+            "organization_id": {"type": "string", "minLength": 1, "maxLength": 200},
+            "id": {"type": "string", "minLength": 1},
+            "name": {"type": "string", "minLength": 1},
+            "path": nullable_string,
+            "path_with_namespace": nullable_string,
+            "namespace_id": nullable_string,
+            "visibility": nullable_string,
+            "archived": {"type": ["boolean", "null"]},
+            "access_level": {"type": ["integer", "null"]},
+            "description": nullable_string,
+            "web_url": nullable_string,
+            "created_at": nullable_string,
+            "updated_at": nullable_string,
+            "last_activity_at": nullable_string,
+            "star_count": {"type": ["integer", "null"]},
+        },
+    }
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["operation", "items", "count", "total", "page", "per_page", "next_page"],
+        "properties": {
+            "operation": {"const": "yunxiao.repositories.list"},
+            "items": {"type": "array", "maxItems": 100, "items": repository},
+            "count": {"type": "integer", "minimum": 0, "maximum": 100},
+            "total": {"type": "integer", "minimum": 0},
+            "page": {"type": "integer", "minimum": 1, "maximum": 10000},
+            "per_page": {"type": "integer", "minimum": 1, "maximum": 100},
+            "next_page": {"type": ["integer", "null"], "minimum": 1, "maximum": 10001},
+        },
+    }
+
+
 def _code_graph_input_schema(operation: str) -> dict[str, Any]:
     properties: dict[str, Any] = {
         "operation": {"const": operation},
@@ -560,6 +632,15 @@ _CAPABILITIES = [
         transport=CapabilityTransport.HTTP,
         input_schema=_engineering_input_schema("git.history"),
         output_schema=_engineering_output_schema("git.history"),
+    ),
+    CapabilitySeed(
+        "yunxiao.repositories.list",
+        "List repositories visible to the configured Yunxiao principal",
+        "code.read",
+        "CODE",
+        transport=CapabilityTransport.HTTP,
+        input_schema=_yunxiao_repositories_input_schema(),
+        output_schema=_yunxiao_repositories_output_schema(),
     ),
     CapabilitySeed(
         "deployment.commit",

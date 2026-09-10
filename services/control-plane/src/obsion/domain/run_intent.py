@@ -52,6 +52,7 @@ _DERIVED_SLOT_PARTS = {
 _PUBLIC_INTENT_KEYS = (
     "schema_version",
     "intent_revision",
+    "admission_intent",
     "domain",
     "route",
     "intent",
@@ -401,6 +402,7 @@ class RunIntent(StrictDomainModel):
         "INTENT_RESOLVED",
         "PLANNED",
     ]
+    admission_intent: str | None = Field(default=None, max_length=32)
     domain: str = Field(min_length=1, max_length=80)
     route: str = Field(min_length=1, max_length=80)
     intent: str = Field(min_length=1, max_length=120)
