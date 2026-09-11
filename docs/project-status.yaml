@@ -110,6 +110,7 @@ tests:
   e2e: passed
 
 known_issues:
+  - 2026-09-11 M1c 当前连接增量已取得真实测试租户证据（ADR0104/0105）：点仔两条真实消息进入持久 Inbox 与 Harness，第二条返回引用答案且厂商 SUCCESS/READ；PAT 自动发现2个组织、完整分页129个唯一仓库，129次元信息读取及每组织一组指定提交文件读取通过，指定管理员cookie会话可访问。修复正式Stream可信CA初始化、目录管理REST、绑定重放409及文件大小字符串兼容，未扩大权限或关闭TLS。相关专项90、最终Python2225passed/221skipped/7deselected、JavaScript265及独立PostgreSQL迁移往返1通过；详细结果及剩余M1/UAT边界见 docs/phases/productization-m1c-validation.md。正式阶段及生产晋级不推进。
   - 2026-09-08 ADR0102 已为 Harness Run 增加不可变项目来源版本固定：新增 a88f69d7c8a0、Git commit/tree 与完整快照校验、run.source_pinned.v1、审计和 GET /api/v1/runs/{run_id}/source-pins；撤销或摘要异常只标记 source_available=false。Run pin 专项3项、契约门禁5项、组合7项和独立 PostgreSQL17 迁移往返1项通过，Ruff/mypy/OpenAPI 当前性通过。真实云效源码获取、实际 scopes、Harness 自动接线、Artifact ACL、沙箱传输/恢复/配额、钉钉租户、UAT 和生产晋级仍未完成。详见 docs/adr/0102-run-source-version-pinning.md、docs/phases/productization-run-source-pinning-validation.md、docs/phases/PHASE-99-REPORT.md 和 docs/architecture/phase-99-run-source-pinning-gate.md。
   - 2026-09-08 ADR0101 已收敛根目录 DWS 兼容入口：`dingtalk_obsion_agent.py` 不再导入 OpenAI、不保存进程内历史、不生成关键词降级答案，只通过 `ExperienceRuntime`/`ImBridge` 将 sender/conversation 消息交给统一控制面 IM/Harness；入口专项 3 passed，Ruff/编译通过。该入口不替代官方 Stream → 持久 Inbox → worker，也不构成真实 DWS/钉钉租户、Outbox、群受众、回执或 UAT 证据。详见 docs/adr/0101-dingtalk-dws-control-plane-bridge.md、docs/product/im-m1-stream-operations.md 和 docs/phases/productization-m1-validation.md。
   - 2026-09-08 ADR0100 已把云效目录条目连接到本地仓库映射：映射前通过 `codeup.repositories.discover` Gateway 重查数字 ID、完整路径和未归档状态，映射事务经 `project_source.codeup.map` Policy、`connectors.write`、本地 ACL、SecretReference 和来源账本审计；同一映射幂等、跨本地仓库的供应商 ID 冲突，响应不含配置或凭据。Codeup Gateway 专项 24 passed（含 5 项映射测试），契约/静态错误门禁 158 passed，来源/Codeup 回归 228 passed/142 skipped，Ruff、format、mypy 通过，OpenAPI 已更新。真实云效目标仓库、实际 scopes、PostgreSQL 多 Worker、来源 commit/tree pin、沙箱传输、钉钉正式租户、UAT 和生产晋级仍未完成。详见 docs/adr/0100-codeup-verified-mapping.md、docs/phases/productization-codeup-mapping-validation.md 和 docs/architecture/productization-codeup-mapping-gate.md。
@@ -150,8 +151,9 @@ next_phase:
     bounded scrypt credential, CLI-only enrollment, shared revocable session,
     accessible password/token Workbench flow, exact local environment-key
     parity, an isolated migration round trip, and a real local Model Gateway
-    Harness validation. The non-sending Feishu live suite passed; no DingTalk
-    or WeCom tenant credential is available. Production promotion remains
+    Harness validation. The non-sending Feishu live suite passed; DingTalk
+    test-tenant Inbox/Run/reply and SUCCESS/READ receipts now passed. WeCom
+    remains unvalidated. Production promotion remains
     fail-closed while clean staging/UAT,
     staging-scoped timed restore, registry HIGH/CRITICAL CVE policy,
     signatures, live OIDC/secret-manager/read-replica evidence,
@@ -159,10 +161,11 @@ next_phase:
     authority are PENDING. Phase 99 may consume real operator evidence; it
     must not fabricate approval, publish with ci.txt credentials, expand
     production writes, or add a second runtime without explicit authority.
-    The repository now contains a DRAFT-only Yunxiao
-    PAT repository-discovery contract (`yunxiao.repositories.list`) that is
-    policy/gateway/egress/audit bounded and has no default connector or binding;
-    it remains unvalidated against a live tenant and does not advance promotion.
+    The Yunxiao PAT catalog now has a governed operator REST surface and
+    explicit local test connections. Two organizations and all 129 visible
+    repositories were enumerated and read; per-organization pinned source
+    samples passed. No automatic grants, remote writes or production promotion
+    are implied. See docs/phases/productization-m1c-validation.md.
 
 active_milestone:
   id: m1
@@ -181,24 +184,26 @@ active_milestone:
       adr: docs/adr/0081-durable-im-delivery-outbox.md
       migration: d0e2f5a7b3c4
     m1c:
-      status: pending_operator_evidence
-      scope: DingTalk Stream lifecycle, test-tenant delivery and timing evidence; signed compatibility HTTP ingress shares the trusted Inbox path in repository-local tests
+      status: verified_test_tenant_connection_slice
+      scope: Official Stream CA initialization, actual direct-message Inbox/Run/reply and receipt, PAT-wide repository reads; full M1 UAT remains pending
+      report: docs/phases/productization-m1c-validation.md
+      adr: docs/adr/0105-pat-catalog-and-stream-trust.md
   validation:
     postgres_100_concurrent_event_admissions: passed
     postgres_single_run_after_repeated_dispatch: passed
     postgres_restart_replay_and_immutable_terminal: passed
     isolated_migration_round_trip_and_drift: passed
     historical_binding_preservation: passed
-    backend_full_suite: 1106 passed, 29 skipped (2026-09-09; opt-in PostgreSQL and operator-owned live integrations skipped)
+    backend_full_suite: M1c working-tree snapshot, 2225 passed, 221 skipped, 7 deselected (2026-09-11; opt-in integration gates remain explicit)
     frontend_workspaces: passed
     strict_python_and_typescript_checks: passed
     secrets_scan: 0 findings
     rejection_audit_and_bounded_retry: passed
     four_intent_admission_and_audit: passed
     group_delivery_uses_persisted_audience: passed
-    live_dingtalk_configuration: published application, ONLINE STREAM configuration; message flow not verified
-    live_dingtalk_stream: not_verified
-    live_yunxiao_repositories: not_verified
-   follow_on:
-     - M1c Stream lifecycle and trusted compatibility HTTP routing.
-     - Real DingTalk tenant and Yunxiao PAT-visible repository usage validation.
+    live_dingtalk_configuration: published application, ONLINE STREAM configuration; two real user messages processed
+    live_dingtalk_stream: verified_direct_inbox_run_reply_success_read
+    live_yunxiao_repositories: verified_all_129_metadata_in_two_orgs_and_per_org_pinned_source_samples
+  follow_on:
+    - Full M1 four-intent and group-audience live UAT, including operator timing evidence.
+    - Source-to-Harness and sandbox delivery validation within the applicable phase contract.

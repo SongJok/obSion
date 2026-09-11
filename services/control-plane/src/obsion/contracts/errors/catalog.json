@@ -410,6 +410,12 @@
       "http_status": 503
     },
     {
+      "category": "conflict",
+      "code": "capability_binding_conflict",
+      "description": "The connector already has a different or disabled binding for this capability version and environment.",
+      "http_status": 409
+    },
+    {
       "category": "execution",
       "code": "capability_denied",
       "description": "Indicates the stable execution condition `capability_denied` (capability denied).",

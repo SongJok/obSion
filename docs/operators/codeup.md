@@ -70,6 +70,11 @@
 4. 用 `GET /api/v1/capabilities` 获得四个 Codeup 能力的定义 ID，逐个通过 `POST /api/v1/admin/capabilities/{definition_id}/bindings` 绑定。
 5. 回到工作台执行四类读取验收。若要在 Agent Run 中使用，还需在对应 Agent 的能力契约中明确声明这些能力并通过既有版本发布流程；本次不会自动扩大任何 Agent 的 grants。
 
+跨组织管理目录见[云效验证手册](yunxiao-live-validation.md)。目录可见性与仓库访问授权分别验证。
+接入全部已选仓库时，为每个仓库建立精确资源选择器和独立 Connector，保留其明确的人员 ACL。
+现有唯一约束为“能力版本 + Connector + 环境”：相同绑定重复提交复用原 ID；不同选择器或已禁用绑定
+返回 `capability_binding_conflict`（409），不会覆盖原授权。不要给同一 Connector 重复创建不同仓库选择器。
+
 ### 从目录条目创建验证映射
 
 如果本地连接器尚未登记目标云效仓库，可在目录查询后使用验证映射入口，避免手工复制过期或错误的数字 ID：

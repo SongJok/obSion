@@ -916,8 +916,30 @@ async def bind_capability(
             resource_selector=request.resource_selector,
             enabled=True,
         )
-        session.add(binding)
-        await session.flush()
+        try:
+            async with session.begin_nested():
+                session.add(binding)
+                await session.flush()
+        except IntegrityError:
+            existing = await session.scalar(
+                select(CapabilityBinding).where(
+                    CapabilityBinding.capability_version_id == version.id,
+                    CapabilityBinding.connector_id == connector.id,
+                    CapabilityBinding.environment == request.environment,
+                    CapabilityBinding.organization_id == principal.organization_id,
+                )
+            )
+            if (
+                existing is None
+                or not existing.enabled
+                or existing.resource_selector != request.resource_selector
+            ):
+                raise ConflictError(
+                    "capability_binding_conflict",
+                    "This connector already has a different binding for the capability version; "
+                    "use a separate connector for a different resource scope.",
+                ) from None
+            binding = existing
         await _audit_admin(session, principal, "capability.bind", "capability", capability_id)
     return {"id": str(binding.id)}
 

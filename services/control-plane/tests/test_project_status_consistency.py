@@ -157,6 +157,26 @@ def test_completed_phase_requires_corresponding_architecture_gate(tmp_path: Path
         validate_project_status(root)
 
 
+@pytest.mark.parametrize("second_status", ["PASS", "PENDING"])
+def test_phase_rejects_multiple_architecture_gates(tmp_path: Path, second_status: str) -> None:
+    root = _repository(tmp_path, current=98, completed=[98], next_phase=99)
+    _report(root, 98)
+    architecture = root / "docs" / "architecture"
+    first = architecture / "phase-98-local-password-credentials.md"
+    second = architecture / "phase-98-yunxiao-readiness-gate.md"
+    first.write_text("# Local operator access\n\nStatus: PASS\n", encoding="utf-8")
+    second.write_text(f"# Yunxiao readiness\n\nStatus: {second_status}\n", encoding="utf-8")
+
+    with pytest.raises(ProjectStatusConsistencyError) as error:
+        validate_project_status(root)
+
+    assert str(error.value) == (
+        "phase phase-98 has multiple architecture gates: "
+        "docs/architecture/phase-98-local-password-credentials.md, "
+        "docs/architecture/phase-98-yunxiao-readiness-gate.md"
+    )
+
+
 def test_current_phase_may_be_completed_but_next_phase_may_not(tmp_path: Path) -> None:
     root = _repository(tmp_path, current=2, completed=[1, 2, 3], next_phase=3)
     _report(root, 1)

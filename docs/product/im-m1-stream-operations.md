@@ -1,5 +1,12 @@
 # M1 钉钉 Stream 与持久 Inbox 恢复操作说明
 
+2026-09-11 更新：正式 Stream 入口现在也在 SDK 建连前初始化 TLS 信任库；系统默认 CA 为空时使用
+certifi，保留显式证书配置，绝不禁用验证。SDK 原始日志仍关闭，应用仅记录 `inbox_accepted` 或带
+`normalize/persist` 固定阶段的 `inbox_rejected`，不记录消息、票据、身份或异常原文。
+点仔真实私聊已经取得 Inbox → Run → Outbox → 厂商 SUCCESS/READ 的关联证据，见
+[M1c 验证记录](../phases/productization-m1c-validation.md)。下文“未执行真实连接”是早期切片的历史边界，
+不覆盖这次新增的测试租户证据；真实群、四意图创建和生产验收仍须分别完成。
+
 本增量仅实现官方 SDK 薄入站适配和控制面 Inbox 恢复客户端，不代表 M1 完成或真实租户验收通过。没有执行真实钉钉连接、消息发送或模型调用。正式入口仍是 Stream → Inbox；根目录 `dingtalk_obsion_agent.py` 仅保留 DWS 兼容用途，并且现在只把消息转发到控制面 Harness，不直调模型、不维护本地历史、不生成关键词回答。该兼容入口的决策见 [ADR 0101](../adr/0101-dingtalk-dws-control-plane-bridge.md)。
 
 ## 安装与启动

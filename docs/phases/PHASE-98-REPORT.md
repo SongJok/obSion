@@ -1,4 +1,30 @@
-# Phase 98 report: local password credentials
+# Phase 98 report: local operator access and enterprise connections
+
+Architecture review: [Phase 98 consolidated gate](../architecture/phase-98-architecture-gate.md),
+including local password credentials and enterprise connection validation.
+
+## 2026-09-11 connection validation increment
+
+[ADR 0105](../adr/0105-pat-catalog-and-stream-trust.md) adds the governed PAT-wide
+inventory REST endpoint, Stream CA initialization and content-free diagnostics,
+idempotent capability binding with explicit conflict responses, and strict
+compatibility for the real Codeup decimal-string file-size representation.
+Existing local edits from ADR 0104 remain part of this validation snapshot.
+
+The designated administrator's password login succeeded. Two actual DingTalk
+messages were admitted into persistent Inbox and Harness Runs; the second returned
+a cited answer and a vendor SUCCESS/READ receipt. The cloud catalog exhausted two
+organizations with 129 unique repositories. All 129 were explicitly registered
+with restricted personnel ACLs and passed native repository reads through the
+deployed REST/Policy/Gateway; the administrator's cookie session sees all 129.
+
+No schema change is required. An isolated PostgreSQL IM migration round trip
+(historical upgrade, downgrade, upgrade to head and drift check) passed, and its
+temporary container was removed. Validation counts, file-read results, failure
+history and remaining product gates are maintained in the
+[M1c validation record](productization-m1c-validation.md).
+These are local deployment/test-tenant results, not production promotion or
+completion of M1's group, four-intent creation and wider UAT gates.
 
 ## What was implemented
 

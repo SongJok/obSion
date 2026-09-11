@@ -7,10 +7,12 @@ third-party Stream runtime.
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import inspect
 import json
 import logging
+import math
 import os
 import ssl
 from collections.abc import Callable, Mapping
@@ -60,19 +62,26 @@ class DingTalkStreamAdapter:
         credentials: DingTalkCredentials,
         *,
         sdk_loader: SdkLoader | None = None,
+        ack_timeout_seconds: float = 0.8,
     ) -> None:
+        if not math.isfinite(ack_timeout_seconds) or ack_timeout_seconds <= 0:
+            raise ImError("Stream ACK timeout must be finite and positive")
         self._bridge = bridge
         self._credentials = credentials
         self._sdk_loader = sdk_loader or _load_sdk
+        self._ack_timeout_seconds = ack_timeout_seconds
 
     async def handle_callback(self, callback: object) -> InboundMessage:
         inbound = parse_dingtalk_stream_event(callback, app_key=self._credentials.app_key)
         validate_dingtalk_application_identity(inbound, self._credentials)
-        await self._bridge.handle(inbound)
+        # ImBridge routes this event to durable admission, never the Run-wait path.
+        async with asyncio.timeout(self._ack_timeout_seconds):
+            await self._bridge.handle(inbound)
         return inbound
 
     def start_forever(self) -> None:
         """Start the vendor SDK after all optional SDK interfaces are verified."""
+        ensure_stream_tls_trust_store()
         client, handler_type, ack_type, topic = self._prepare_client()
         start = _sdk_callable(client, "start_forever")
         start()
@@ -87,8 +96,7 @@ class DingTalkStreamAdapter:
             if inspect.isawaitable(result):
                 await result
                 return
-        start_forever = _sdk_callable(client, "start_forever")
-        start_forever()
+        raise ImError("The installed DingTalk Stream SDK requires an asynchronous start method")
 
     def _prepare_client(self) -> tuple[Any, Any, Any, Any]:
         sdk = self._sdk_loader()
@@ -101,13 +109,23 @@ class DingTalkStreamAdapter:
 
         class Handler(handler_type):  # type: ignore[misc, valid-type]
             async def process(self, callback: object) -> tuple[object, str]:
-                await adapter.handle_callback(callback)
+                try:
+                    await adapter.handle_callback(callback)
+                except Exception:
+                    # Neither ACK nor SDK logs may echo raw vendor/control-plane errors.
+                    return _sdk_value(ack_type, "STATUS_SYSTEM_EXCEPTION"), "Inbox not confirmed"
                 return _sdk_value(ack_type, "STATUS_OK"), "OK"
 
         credential = credential_type(self._credentials.app_key, self._credentials.app_secret)
-        client = client_type(credential)
+        client = client_type(credential, logger=_private_sdk_logger())
+        for name in ("event_handler", "system_handler"):
+            sdk_handler = getattr(client, name, None)
+            if sdk_handler is not None:
+                sdk_handler.logger = _private_sdk_logger()
         register = _sdk_callable(client, "register_callback_handler")
-        register(topic, Handler())
+        handler = Handler()
+        handler.logger = _private_sdk_logger()
+        register(topic, handler)
         return client, handler_type, ack_type, topic
 
 
@@ -161,13 +179,14 @@ def validate_dingtalk_application_identity(
     expected_unified = (credentials.unified_app_id or "").strip()
     expected_robot = (credentials.robot_code or "").strip()
     if expected_unified:
-        actual = _required_identifier(
-            "unified application id", headers, data, keys=_UNIFIED_APP_ID_KEYS
-        )
-        if actual != expected_unified:
-            raise ImError(
-                "DingTalk event unified application id does not match the configured robot"
-            )
+        # Chatbot callbacks may omit this event-only field. Any explicit value
+        # must still match, including aliases in both headers and payload.
+        for source in (headers, data):
+            for key in _UNIFIED_APP_ID_KEYS:
+                if key in source and source[key] != expected_unified:
+                    raise ImError(
+                        "DingTalk event unified application id does not match the configured robot"
+                    )
     if expected_robot:
         actual = _required_identifier("robot code", data, headers, keys=_ROBOT_CODE_KEYS)
         if actual != expected_robot:
@@ -186,7 +205,9 @@ def _parse_trusted_dingtalk_event(
     configured_app_key = app_key.strip()
     if not configured_app_key:
         raise ImError(f"DingTalk {source} requires a configured app key")
-    vendor_event_id = _required_identifier(
+    # Transport message IDs can change on redelivery. Prefer the chatbot's
+    # business key, shared with the installation-scoped Stream ingress.
+    vendor_event_id = _first_identifier(payload, keys=("msgId",)) or _required_identifier(
         "vendor event id", headers, payload, event, keys=_EVENT_ID_KEYS
     )
     installation_id = _required_identifier(
@@ -208,6 +229,14 @@ def _parse_trusted_dingtalk_event(
         vendor_event_id=vendor_event_id,
         vendor_event=event,
     )
+
+
+def _private_sdk_logger() -> logging.Logger:
+    logger = logging.Logger("obsion_im.dingtalk_stream.sdk")
+    logger.addHandler(logging.NullHandler())
+    logger.propagate = False
+    logger.disabled = True
+    return logger
 
 
 def _load_sdk() -> Any:

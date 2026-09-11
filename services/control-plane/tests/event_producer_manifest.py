@@ -175,7 +175,7 @@ REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
     "capabilities/gateway.py::CapabilityGateway.invoke_dingtalk_robot_outbox#"
     "EventDraft[1]": frozenset({("tool.started", 1)}),
     "capabilities/gateway.py::CapabilityGateway.invoke_dingtalk_robot_outbox#"
-    "EventDraft[2]": frozenset({("tool.completed", 1), ("tool.failed", 1)}),
+    "EventDraft[2]": frozenset({("im.delivery.attempted", 1)}),
     "collaboration/service.py::WorkspaceCollaborationService._record#EventDraft[1]": frozenset(
         {
             ("workspace_decision.accepted", 1),
@@ -400,12 +400,6 @@ REVIEWED_EVENT_HELPER_CALLS: dict[str, frozenset[EventContractPair]] = {
 }
 
 REVIEWED_EVENT_ENUMS: dict[str, EnumFingerprint] = {
-    "capabilities/dingtalk_robot.py::RobotSendState": (
-        ("NOT_ATTEMPTED", "NOT_ATTEMPTED"),
-        ("ACCEPTED", "ACCEPTED"),
-        ("REJECTED", "REJECTED"),
-        ("UNKNOWN", "UNKNOWN"),
-    ),
     "domain/enums.py::ActionApprovalPurpose": (
         ("EXECUTE", "EXECUTE"),
         ("ROLLBACK", "ROLLBACK"),

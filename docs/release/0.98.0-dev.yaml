@@ -39,7 +39,7 @@ spec:
     - docs/adr/0077-migration-round-trip-ci-isolation.md
     - docs/adr/0078-local-password-credential-exchange.md
     - docs/api/openapi.json
-    - docs/architecture/phase-98-local-password-credentials.md
+    - docs/architecture/phase-98-architecture-gate.md
     - docs/operators/runbook.md
     - docs/phases/PHASE-98-REPORT.md
     - docs/product/roadmap.md

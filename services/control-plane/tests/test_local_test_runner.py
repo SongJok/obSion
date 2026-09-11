@@ -24,6 +24,7 @@ def test_local_environment_removes_application_and_pytest_configuration() -> Non
         {
             "PATH": "/usr/bin",
             "OBSION_FEISHU_SEND_LIVE": "1",
+            "OBSION_YUNXIAO_LIVE": "1",
             "OBSION_RUN_POSTGRES_TESTS": "1",
             "OBSION_DATABASE_URL": "postgresql://example.invalid/test",
             "OBSION_MODEL_ALLOWED_HOSTS": '["example.invalid"]',
@@ -47,7 +48,7 @@ def test_local_runner_uses_empty_directory_and_preserves_failure() -> None:
         assert kwargs["check"] is False
         assert command[command.index("--rootdir") + 1] == str(ROOT)
         assert command[command.index("-m", 3) + 1] == (
-            "not live and not feishu_browse_live and not feishu_send_live"
+            "not live and not feishu_browse_live and not feishu_send_live and not yunxiao_live"
         )
         assert all(str(ROOT / path) in command for path in module.TEST_PATHS)
         return subprocess.CompletedProcess(command, 1)

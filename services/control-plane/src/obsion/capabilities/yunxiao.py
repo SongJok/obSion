@@ -197,6 +197,8 @@ class YunxiaoClient:
                     normalized = normalize_repository_response(
                         payload, page=local_page, per_page=per_page
                     )
+                    if normalized["total"] != organization_total:
+                        raise YunxiaoResponseError("Yunxiao repository total changed during paging")
                 page_items = normalized["items"][page_offset : page_offset + remaining]
                 items.extend({"organization_id": organization_id, **item} for item in page_items)
                 consumed = len(page_items)
@@ -208,7 +210,7 @@ class YunxiaoClient:
                 local_offset += consumed
             if not remaining:
                 break
-        return {
+        result = {
             "operation": "yunxiao.repositories.list",
             "items": items,
             "count": len(items),
@@ -217,14 +219,26 @@ class YunxiaoClient:
             "per_page": per_page,
             "next_page": page + 1 if page * per_page < total else None,
         }
+        if result["next_page"] is not None and page == MAX_PAGE:
+            raise YunxiaoResponseError("Yunxiao repository pagination exceeded the page limit")
+        if len({(item["organization_id"], item["id"]) for item in items}) != len(items):
+            raise YunxiaoResponseError("Yunxiao repository pages contain duplicate identifiers")
+        return _scrub_credential(result, self._token)
 
     async def _organizations(self, endpoint: str) -> list[str]:
         configured = _configured_organization_ids(_configuration(self._connector))
         if configured:
             return configured
         if _is_central_endpoint(endpoint):
-            payload = await self._get_json(_organizations_url(endpoint))
-            return _organization_ids(payload)
+            payload = await self._get_json(
+                _organizations_url(endpoint), params={"page": "1", "perPage": "100"}
+            )
+            # The discovery contract admits at most 100 organizations. Never
+            # silently accept the first page of a larger organization set.
+            rows, total = _page_values(payload, page=1, per_page=MAX_ORGANIZATIONS)
+            if total > MAX_ORGANIZATIONS:
+                raise YunxiaoResponseError("Yunxiao organization discovery exceeded its limit")
+            return _organization_ids(rows)
         raise ValidationError(
             "capability_input_invalid",
             "A regional Yunxiao connector requires explicit organization_ids",
@@ -234,53 +248,142 @@ class YunxiaoClient:
         self, url: str, *, params: Mapping[str, str] | None = None
     ) -> dict[str, Any] | list[Any]:
         try:
-            async with httpx.AsyncClient(
-                timeout=self._timeout_seconds,
-                follow_redirects=False,
-                transport=self._transport,
-            ) as client:
-                response = await client.get(
+            async with (
+                httpx.AsyncClient(
+                    timeout=self._timeout_seconds,
+                    follow_redirects=False,
+                    trust_env=False,
+                    transport=self._transport,
+                ) as client,
+                client.stream(
+                    "GET",
                     url,
                     params=params,
-                    headers={"Accept": "application/json", "X-Yunxiao-Token": self._token},
-                )
+                    headers={
+                        "Accept": "application/json",
+                        "X-Yunxiao-Token": self._token,
+                        "Accept-Encoding": "identity",
+                    },
+                ) as response,
+            ):
+                if response.status_code >= 500:
+                    raise YunxiaoUnavailableError("Yunxiao repository discovery is unavailable")
+                if response.status_code != 200:
+                    raise YunxiaoResponseError("Yunxiao rejected repository discovery")
+                if (
+                    response.headers.get("content-encoding", "identity").strip().casefold()
+                    != "identity"
+                ):
+                    raise YunxiaoResponseError("Yunxiao response encoding is unsupported")
+                body = bytearray()
+                async for chunk in response.aiter_bytes(chunk_size=65_536):
+                    if len(body) + len(chunk) > MAX_RESPONSE_BYTES:
+                        raise YunxiaoResponseError(
+                            "Yunxiao repository response exceeded the size limit"
+                        )
+                    body.extend(chunk)
         except (httpx.TimeoutException, httpx.TransportError, OSError) as exc:
             raise YunxiaoUnavailableError("Yunxiao repository discovery is unavailable") from exc
-        if response.status_code >= 500:
-            raise YunxiaoUnavailableError("Yunxiao repository discovery is unavailable")
-        if response.status_code < 200 or response.status_code >= 300:
-            raise YunxiaoResponseError("Yunxiao rejected repository discovery")
-        if len(response.content) > MAX_RESPONSE_BYTES:
-            raise YunxiaoResponseError("Yunxiao repository response exceeded the size limit")
         try:
-            payload = response.json()
+            payload = json.loads(body)
         except ValueError as exc:
             raise YunxiaoResponseError("Yunxiao repository response was not valid JSON") from exc
         if not isinstance(payload, (dict, list)):
             raise YunxiaoResponseError("Yunxiao repository response was not structured JSON")
-        return payload
+        return _with_pagination_headers(payload, response.headers, params or {})
+
+
+def _with_pagination_headers(
+    payload: dict[str, Any] | list[Any], headers: httpx.Headers, params: Mapping[str, str]
+) -> dict[str, Any]:
+    """Central OpenAPI returns arrays and carries totals in HTTP headers."""
+    result: dict[str, Any] = dict(payload) if isinstance(payload, dict) else {"data": payload}
+    page = int(params.get("page", "1"))
+    per_page = int(params.get("perPage", "100"))
+    for key, expected in (("x-page", page), ("x-per-page", per_page)):
+        if key in headers and _header_integer(headers[key]) != expected:
+            raise YunxiaoResponseError("Yunxiao pagination does not match the request")
+    if "x-total" in headers:
+        total = _header_integer(headers["x-total"])
+        if "total" in result and (type(result["total"]) is not int or result["total"] != total):
+            raise YunxiaoResponseError("Yunxiao pagination totals conflict")
+        result["total"] = total
+    _, total = _page_values(result, page=page, per_page=per_page)
+    if (
+        "x-total-pages" in headers
+        and _header_integer(headers["x-total-pages"]) != (total + per_page - 1) // per_page
+    ):
+        raise YunxiaoResponseError("Yunxiao pagination totals conflict")
+    if "x-next-page" in headers:
+        next_page = _header_integer(headers["x-next-page"]) if headers["x-next-page"] else 0
+        if page * per_page < total:
+            if next_page != page + 1:
+                raise YunxiaoResponseError("Yunxiao pagination continuation is inconsistent")
+        elif next_page not in {0, page}:
+            # The production Codeup endpoint reports the current page on the
+            # final page; accept that equivalent terminal marker, but reject
+            # any value that could hide an unrequested continuation.
+            raise YunxiaoResponseError("Yunxiao pagination continuation is inconsistent")
+    result["total"] = total
+    return result
+
+
+def _header_integer(value: str) -> int:
+    if not re.fullmatch(r"[0-9]{1,12}", value):
+        raise YunxiaoResponseError("Yunxiao pagination header is invalid")
+    return int(value)
+
+
+def _page_values(payload: Any, *, page: int, per_page: int) -> tuple[list[Any], int]:
+    total = None
+    if isinstance(payload, Mapping):
+        if payload.get("success") is False:
+            raise YunxiaoResponseError("Yunxiao rejected repository discovery")
+        rows = payload.get("result", payload.get("data"))
+        if "total" in payload:
+            total = payload["total"]
+            if type(total) is not int or total < 0:
+                raise YunxiaoResponseError("Yunxiao pagination total is invalid")
+    else:
+        rows = payload
+    if not isinstance(rows, list) or len(rows) > per_page:
+        raise YunxiaoResponseError("Yunxiao repository response has an invalid result page")
+    if total is None:
+        # Preserve unpaginated legacy responses, but a full page is never a total.
+        if page != 1 or len(rows) == per_page:
+            raise YunxiaoResponseError("Yunxiao pagination total is unavailable")
+        total = len(rows)
+    expected = min(per_page, max(0, total - (page - 1) * per_page))
+    if len(rows) != expected:
+        raise YunxiaoResponseError("Yunxiao response size disagrees with its total")
+    return rows, total
+
+
+def _scrub_credential(value: dict[str, Any], credential: str) -> dict[str, Any]:
+    def visit(item: Any) -> Any:
+        if isinstance(item, str):
+            return item.replace(credential, "[REDACTED]")
+        if isinstance(item, list):
+            return [visit(child) for child in item]
+        if isinstance(item, dict):
+            return {key: visit(child) for key, child in item.items()}
+        return item
+
+    result: dict[str, Any] = visit(value)
+    return result
 
 
 def normalize_repository_response(payload: Any, *, page: int, per_page: int) -> dict[str, Any]:
     """Reduce one organization response to bounded read-only repository metadata."""
 
     _validate_page(page, per_page, None)
-    if isinstance(payload, Mapping):
-        if payload.get("success") is False:
-            raise YunxiaoResponseError("Yunxiao rejected repository discovery")
-        result = payload.get("result", payload.get("data"))
-        total = payload.get("total")
-    else:
-        result = payload
-        total = len(result) if isinstance(result, list) else None
-    if not isinstance(result, list) or len(result) > per_page:
-        raise YunxiaoResponseError("Yunxiao repository response has an invalid result page")
-    if not isinstance(total, int) or isinstance(total, bool) or total < 0:
-        total = len(result)
+    result, total = _page_values(payload, page=page, per_page=per_page)
     try:
         items = [_normalize_repository(item) for item in result]
     except (TypeError, ValueError) as exc:
         raise YunxiaoResponseError("Yunxiao repository response contains an invalid row") from exc
+    if len({item["id"] for item in items}) != len(items):
+        raise YunxiaoResponseError("Yunxiao repository response contains duplicate identifiers")
     return {
         "operation": "yunxiao.repositories.list",
         "items": items,
@@ -415,7 +518,7 @@ def _repository_params(
     per_page: int,
     search: str | None,
 ) -> dict[str, str]:
-    params = {"page": str(page), "perPage": str(per_page)}
+    params = {"page": str(page), "perPage": str(per_page), "orderBy": "path", "sort": "asc"}
     if not _is_central_endpoint(endpoint):
         params["organizationId"] = organization_id
     if search is not None:

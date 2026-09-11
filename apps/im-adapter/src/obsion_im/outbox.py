@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import os
 import socket
@@ -139,12 +140,24 @@ class ImOutboxWorker:
                 worker_id=self.worker_id,
             )
             return False
-        await self.runtime.rest.complete_im_delivery(
-            delivery_id,
-            vendor_message_id=receipt.vendor_message_id,
-            claim_generation=generation,
-            worker_id=self.worker_id,
-        )
+        try:
+            await self.runtime.rest.complete_im_delivery(
+                delivery_id,
+                vendor_message_id=receipt.vendor_message_id,
+                claim_generation=generation,
+                worker_id=self.worker_id,
+            )
+        except Exception:
+            # A lost completion response cannot justify another vendor write.
+            # If reconciliation reporting also fails, the durable lease expires
+            # into UNKNOWN; keep the worker alive for other deliveries.
+            with contextlib.suppress(Exception):
+                await self.runtime.rest.mark_im_delivery_unknown(
+                    delivery_id,
+                    claim_generation=generation,
+                    worker_id=self.worker_id,
+                )
+            return False
         return True
 
 

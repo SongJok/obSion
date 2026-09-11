@@ -442,6 +442,16 @@
       ]
     },
     {
+      "name": "im.delivery.attempted",
+      "versions": [
+        {
+          "payload_schema": "payloads/im.delivery.attempted.v1.schema.json",
+          "payload_schema_sha256": "f3ea8d8e54afc5ec1fe969c804e9ea843d10a44e4029a9edac041361c33f09a1",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
       "name": "intent.detected",
       "versions": [
         {

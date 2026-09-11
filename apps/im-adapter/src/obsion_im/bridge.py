@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import socket
@@ -87,6 +88,8 @@ class ImBridge:
                 raise ImError("Control-plane IM delivery authorization was inconsistent")
             answer = prepared_text
             conversation_id_for_delivery = str(prepared_conversation)
+            if delivery_status not in {"SENT", "PENDING", "PROCESSING"}:
+                raise ImError("Control-plane IM delivery requires reconciliation before sending")
             if delivery_status != "SENT":
                 claim_generation = _claim_generation(prepared)
                 # A modern control plane atomically leases the exact prepared
@@ -166,12 +169,28 @@ class ImBridge:
                     worker_id=claim_worker_id,
                 )
                 raise
-            await self.runtime.rest.complete_im_delivery(
-                delivery_id,
-                vendor_message_id=receipt.vendor_message_id,
-                claim_generation=claim_generation,
-                worker_id=claim_worker_id,
-            )
+            try:
+                await self.runtime.rest.complete_im_delivery(
+                    delivery_id,
+                    vendor_message_id=receipt.vendor_message_id,
+                    claim_generation=claim_generation,
+                    worker_id=claim_worker_id,
+                )
+            except Exception:
+                # The vendor already accepted the message. Never turn a lost
+                # completion acknowledgement into a retryable send failure.
+                with contextlib.suppress(Exception):
+                    if claim_generation is None:
+                        await self.runtime.rest.fail_im_delivery(
+                            delivery_id, failure_code="delivery_audit_failed"
+                        )
+                    else:
+                        await self.runtime.rest.mark_im_delivery_unknown(
+                            delivery_id,
+                            claim_generation=claim_generation,
+                            worker_id=claim_worker_id,
+                        )
+                raise ImError("IM delivery requires receipt reconciliation") from None
         else:
             await self.channel.reply(outbound)
         return outbound
@@ -239,13 +258,13 @@ def _is_group_event(event: object) -> bool:
 def _claim_generation(claim: dict[str, Any]) -> int | None:
     value = claim.get("claim_generation")
     status = str(claim.get("status") or "").upper()
-    if isinstance(value, int) and value >= 1:
+    if type(value) is int and value >= 1:
         return value
-    if status in {"PENDING", "FAILED"} and value in (None, 0):
+    if status == "PENDING" and (value is None or type(value) is int and value == 0):
         return None
     if status == "SENT":
         return None
-    if not isinstance(value, int) or value < 1:
+    if type(value) is not int or value < 1:
         raise ImError("Control-plane IM delivery claim is missing claim generation")
     return value
 

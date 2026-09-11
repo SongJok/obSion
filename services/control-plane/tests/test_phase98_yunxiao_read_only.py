@@ -10,6 +10,7 @@ from obsion.capabilities.circuit_breaker import ConnectorCircuitBreaker
 from obsion.capabilities.connectors import ConnectorContext, ConnectorResult, HttpJsonExecutor
 from obsion.capabilities.gateway import CapabilityGateway, GatewayRequest, GatewayStatus
 from obsion.capabilities.yunxiao import (
+    MAX_RESPONSE_BYTES,
     YUNXIAO_PROTOCOL,
     YunxiaoClient,
     YunxiaoResponseError,
@@ -35,6 +36,219 @@ from obsion.security.identity import Principal
 from obsion.security.policy import Decision, PolicyEngine
 
 _TOKEN = "yunxiao-pat-sentinel"
+
+
+@pytest.mark.asyncio
+async def test_official_array_headers_drive_cross_organization_pages() -> None:
+    repositories = {
+        "org-a": [{"id": index, "name": f"a-{index}"} for index in range(1, 4)],
+        "org-b": [{"id": 1, "name": "b-1"}, {"id": 2, "name": "b-2"}],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/oapi/v1/platform/organizations":
+            return httpx.Response(
+                200, json=[{"id": key} for key in repositories], headers={"x-total": "2"}
+            )
+        assert request.url.params["orderBy"] == "path"
+        assert request.url.params["sort"] == "asc"
+        page = int(request.url.params["page"])
+        rows = repositories[request.url.path.split("/")[-2]]
+        return httpx.Response(
+            200,
+            json=rows[(page - 1) * 2 : page * 2],
+            headers={"x-total": str(len(rows)), "x-page": str(page), "x-per-page": "2"},
+        )
+
+    client = YunxiaoClient(
+        _connector(), _TOKEN, timeout_seconds=1, transport=httpx.MockTransport(handler)
+    )
+    pages = [await client.list_repositories(page=page, per_page=2) for page in (1, 2, 3)]
+    assert [page["total"] for page in pages] == [5, 5, 5]
+    assert [page["next_page"] for page in pages] == [2, 3, None]
+    assert [(item["organization_id"], item["id"]) for page in pages for item in page["items"]] == [
+        ("org-a", "1"),
+        ("org-a", "2"),
+        ("org-a", "3"),
+        ("org-b", "1"),
+        ("org-b", "2"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_organization_pagination_cannot_silently_truncate() -> None:
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=[{"id": "org-a"}], headers={"x-total": "2"})
+
+    client = YunxiaoClient(
+        _connector(), _TOKEN, timeout_seconds=1, transport=httpx.MockTransport(handler)
+    )
+    with pytest.raises(YunxiaoResponseError):
+        await client.list_repositories()
+    assert len(requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_vendor_cannot_reflect_pat_in_repository_metadata() -> None:
+    client = YunxiaoClient(
+        _connector(organization_ids=["org-a"]),
+        _TOKEN,
+        timeout_seconds=1,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": 1,
+                        "name": _TOKEN,
+                        "path": _TOKEN,
+                        "webUrl": f"https://example.invalid/{_TOKEN}",
+                    }
+                ],
+            )
+        ),
+    )
+    result = await client.list_repositories()
+    assert _TOKEN not in repr(result)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        [{"id": 1, "name": "a"}],
+        {"data": [{"id": 1, "name": "a"}], "total": True},
+        {"data": [{"id": 1, "name": "a"}], "total": 0},
+    ],
+)
+def test_unknown_or_inconsistent_total_is_not_exhaustion(payload: object) -> None:
+    with pytest.raises(YunxiaoResponseError):
+        normalize_repository_response(payload, page=1, per_page=1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"x-total": "bad"},
+        {"x-total": "-1"},
+        {"x-total": "0"},
+        {"x-total": "1", "x-page": "2"},
+        {"x-total": "1", "x-per-page": "1"},
+        {"x-total": "1", "x-next-page": "2"},
+        {"x-total": "1", "x-total-pages": "2"},
+    ],
+)
+async def test_malformed_pagination_headers_fail_closed(headers: dict[str, str]) -> None:
+    client = YunxiaoClient(
+        _connector(organization_ids=["org-a"]),
+        _TOKEN,
+        timeout_seconds=1,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=[{"id": 1, "name": "a"}], headers=headers)
+        ),
+    )
+    with pytest.raises(YunxiaoResponseError):
+        await client.list_repositories()
+
+
+@pytest.mark.asyncio
+async def test_final_page_accepts_vendor_current_page_continuation_marker() -> None:
+    client = YunxiaoClient(
+        _connector(organization_ids=["org-a"]),
+        _TOKEN,
+        timeout_seconds=1,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json=[{"id": 1, "name": "a"}],
+                headers={
+                    "x-total": "1",
+                    "x-page": "1",
+                    "x-per-page": "10",
+                    "x-next-page": "1",
+                    "x-total-pages": "1",
+                },
+            )
+        ),
+    )
+    result = await client.list_repositories(page=1, per_page=10)
+    assert result["next_page"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("total", [100, 101])
+async def test_organization_header_total_respects_budget(total: int) -> None:
+    paths = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        if request.url.path == "/oapi/v1/platform/organizations":
+            assert request.url.params == httpx.QueryParams({"page": "1", "perPage": "100"})
+            return httpx.Response(
+                200, json=[{"id": f"org-{i}"} for i in range(100)], headers={"x-total": str(total)}
+            )
+        return httpx.Response(200, json=[], headers={"x-total": "0"})
+
+    client = YunxiaoClient(
+        _connector(), _TOKEN, timeout_seconds=1, transport=httpx.MockTransport(handler)
+    )
+    if total == 101:
+        with pytest.raises(YunxiaoResponseError):
+            await client.list_repositories()
+        assert len(paths) == 1
+    else:
+        assert (await client.list_repositories())["total"] == 0
+        assert len(paths) == 101
+
+
+@pytest.mark.asyncio
+async def test_repository_total_drift_during_aggregation_is_rejected() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params["page"])
+        rows = [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}] if page == 1 else []
+        return httpx.Response(200, json=rows, headers={"x-total": "3" if page == 1 else "2"})
+
+    client = YunxiaoClient(
+        _connector(organization_ids=["org-a"]),
+        _TOKEN,
+        timeout_seconds=1,
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(YunxiaoResponseError):
+        await client.list_repositories(page=2, per_page=2)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("encoding", ["gzip", "identity"])
+async def test_response_budget_is_enforced_before_buffering_entire_stream(encoding: str) -> None:
+    class Body(httpx.AsyncByteStream):
+        reads = 0
+        closed = False
+
+        async def __aiter__(self):
+            for _ in range(MAX_RESPONSE_BYTES // 65_536 + 10):
+                self.reads += 1
+                yield b"x" * 65_536
+
+        async def aclose(self) -> None:
+            self.closed = True
+
+    body = Body()
+    client = YunxiaoClient(
+        _connector(organization_ids=["org-a"]),
+        _TOKEN,
+        timeout_seconds=1,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, headers={"content-encoding": encoding}, stream=body)
+        ),
+    )
+    with pytest.raises(YunxiaoResponseError):
+        await client.list_repositories()
+    assert body.closed
+    assert body.reads == (0 if encoding == "gzip" else MAX_RESPONSE_BYTES // 65_536 + 1)
 
 
 def _connector(

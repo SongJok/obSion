@@ -18,6 +18,7 @@ from obsion.capabilities.codeup import (
     is_codeup_catalog_connector,
     is_codeup_connector,
     repository_allowed,
+    yunxiao_catalog_allowed,
 )
 from obsion.capabilities.codeup_contract import (
     CODEUP_ALL_OPERATIONS,
@@ -485,11 +486,10 @@ class CapabilityGateway:
             )
         finally:
             credential = None
-        event_name = "tool.completed" if outcome.state == RobotSendState.ACCEPTED else "tool.failed"
         await self.events.append(
             session,
             EventDraft(
-                name=event_name,
+                name="im.delivery.attempted",
                 aggregate_type="run",
                 aggregate_id=request.run_id,
                 organization_id=request.principal.organization_id,
@@ -497,7 +497,12 @@ class CapabilityGateway:
                 actor_type=ActorType.SYSTEM,
                 actor_id=None,
                 run_id=request.run_id,
-                payload={"capability": definition.name, "state": outcome.state},
+                payload={
+                    "capability": definition.name,
+                    "outbox_id": str(request.outbox_id),
+                    "state": outcome.state,
+                    "latency_ms": int((perf_counter() - started) * 1000),
+                },
             ),
         )
         await self._audit(
@@ -896,7 +901,16 @@ class CapabilityGateway:
             and version.side_effect == SideEffect.NONE
             and (is_codeup_connector(connector) or is_codeup_catalog_connector(connector))
         )
-        is_source_operation = is_source_write or is_source_browse or is_codeup_read
+        is_yunxiao_catalog = (
+            request.capability_name == "yunxiao.repositories.list"
+            and request.resource.get("source") == "yunxiao-catalog"
+            and version.permission_action == "code.read"
+            and version.risk_level == RiskLevel.L1
+            and version.side_effect == SideEffect.NONE
+        )
+        is_source_operation = (
+            is_source_write or is_source_browse or is_codeup_read or is_yunxiao_catalog
+        )
         decision = await self.policy.evaluate_resource(
             session,
             ResourcePolicyInput(
@@ -1676,6 +1690,19 @@ class CapabilityGateway:
         version: CapabilityVersion,
         request: GatewayRequest | OperatorGatewayRequest,
     ) -> bool:
+        if (
+            isinstance(request, OperatorGatewayRequest)
+            and request.capability_name == "yunxiao.repositories.list"
+        ):
+            return not (
+                version.permission_action == "code.read"
+                and version.side_effect == SideEffect.NONE
+                and version.risk_level == RiskLevel.L1
+                and request.payload.get("operation") == "yunxiao.repositories.list"
+                and await yunxiao_catalog_allowed(
+                    session, request.principal, connector, request.resource
+                )
+            )
         if (
             not is_codeup_connector(connector)
             and not is_codeup_catalog_connector(connector)

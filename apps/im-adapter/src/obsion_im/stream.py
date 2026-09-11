@@ -8,7 +8,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from obsion_im.config import ImError
+from obsion_im.dingtalk_stream import ensure_stream_tls_trust_store
 from obsion_im.inbox import InboxClient, InboxSettings
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +36,7 @@ def _field(payload: dict[str, object], key: str, maximum: int) -> str:
 
 def normalize_message(message: Any, settings: StreamSettings) -> dict[str, str]:
     payload = message.data
-    if not isinstance(payload, dict) or payload.get("msgtype") != "text":
+    if not isinstance(payload, dict) or payload.get("msgtype") not in ("text", "richText"):
         raise ImError("Stream 仅接收规范文本消息")
     # 安装来自受管启动配置；payload 的 installation/URL/token 永不参与路由。
     if payload.get("senderCorpId") != settings.corp_id:
@@ -55,6 +58,26 @@ def normalize_message(message: Any, settings: StreamSettings) -> dict[str, str]:
     if kind not in ("1", "2"):
         raise ImError("Stream 会话类型无效")
     text = payload.get("text")
+    if payload.get("msgtype") == "richText":
+        content = payload.get("content")
+        pieces = content.get("richText") if isinstance(content, dict) else None
+        if not isinstance(pieces, list) or not 1 <= len(pieces) <= 128:
+            raise ImError("Stream 富文本片段缺失或超限")
+        parts: list[str] = []
+        size = 0
+        for piece in pieces:
+            if (
+                not isinstance(piece, dict)
+                or piece.get("type", "text") != "text"
+                or not isinstance(piece.get("text"), str)
+                or any(key in piece for key in ("downloadCode", "picture", "file"))
+            ):
+                raise ImError("Stream 富文本包含不支持的非文本片段")
+            size += len(piece["text"])
+            if size > 32000:
+                raise ImError("Stream 富文本超出长度限制")
+            parts.append(piece["text"])
+        text = {"content": "".join(parts)}
     if not isinstance(text, dict):
         raise ImError("Stream 文本缺失")
     return {
@@ -82,8 +105,10 @@ def create_stream_handler(
     class DurableInboxHandler(sdk.CallbackHandler):  # type: ignore[misc]
         # 官方 CallbackHandler.raw_process 将此二元组转换为同 messageId 的 ACK。
         async def process(self, message: Any) -> tuple[int, str]:
+            stage = "normalize"
             try:
                 payload = normalize_message(message, settings)
+                stage = "persist"
                 async with asyncio.timeout(settings.inbox.timeout_seconds):
                     client = client_factory(settings.inbox)
                     try:
@@ -94,8 +119,12 @@ def create_stream_handler(
                             async with asyncio.timeout(0.05):
                                 await client.aclose()
             except Exception:
+                # Only locally chosen codes; no payload, identifiers, tickets,
+                # exception text or SDK objects may enter operational logs.
+                _logger.warning("dingtalk.stream.inbox_rejected stage=%s", stage)
                 return sdk.AckMessage.STATUS_SYSTEM_EXCEPTION, "Inbox 未确认持久接收"
             # 不调用 process，不等待 Turn/Run，不调用 SDK 回复方法。
+            _logger.info("dingtalk.stream.inbox_accepted")
             return sdk.AckMessage.STATUS_OK, "Inbox 已持久接收"
 
     handler = DurableInboxHandler()
@@ -115,6 +144,7 @@ def _private_logger() -> logging.Logger:
 def run_stream(settings: StreamSettings, *, sdk: Any = None) -> None:
     sdk = sdk if sdk is not None else load_stream_sdk()
     try:
+        ensure_stream_tls_trust_store()
         client = sdk.DingTalkStreamClient(
             sdk.Credential(settings.app_key, settings.app_secret), logger=_private_logger()
         )

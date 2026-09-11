@@ -78,6 +78,39 @@ def receipt(event="stable-event", **changes):
     return value
 
 
+def test_rich_text_preserves_text_order_and_same_business_identity():
+    result = normalize_message(
+        message(
+            msgtype="richText",
+            content={"richText": [{"text": "查询："}, {"type": "text", "text": "项目\n状态"}]},
+        ),
+        SETTINGS,
+    )
+    assert result["text"] == "查询：项目\n状态"
+    assert result["vendor_event_id"] == "stable-event"
+    assert result["sender_id"] == "staff"
+    assert "sessionWebhook" not in result
+
+
+@pytest.mark.parametrize(
+    "pieces",
+    [
+        [],
+        None,
+        [{"type": "picture", "downloadCode": "opaque"}],
+        [{"text": "查询"}, {"type": "file"}],
+        [{"text": 12}],
+        [{"text": "x" * 32001}],
+        [{"text": "x"}] * 129,
+        [{"text": "x", "downloadCode": "opaque"}],
+        [{"text": " "}],
+    ],
+)
+def test_rich_text_rejects_unsupported_or_over_budget_content(pieces):
+    with pytest.raises(ImError):
+        normalize_message(message(msgtype="richText", content={"richText": pieces}), SETTINGS)
+
+
 def handler(transport):
     return create_stream_handler(
         SDK, SETTINGS, client_factory=lambda settings: InboxClient(settings, transport=transport)
@@ -202,8 +235,11 @@ def test_missing_optional_sdk_is_clear(monkeypatch):
     assert "secret-package-path" not in str(exc.value)
 
 
-def test_official_lifecycle_interface_without_real_connection(caplog):
+def test_official_lifecycle_interface_without_real_connection(caplog, monkeypatch):
     calls = []
+    monkeypatch.setattr(
+        "obsion_im.stream.ensure_stream_tls_trust_store", lambda: calls.append("tls")
+    )
 
     class Client:
         def __init__(self, credential, logger):
@@ -229,7 +265,28 @@ def test_official_lifecycle_interface_without_real_connection(caplog):
         ChatbotMessage=SimpleNamespace(TOPIC="/v1.0/im/bot/messages/get"),
     )
     run_stream(SETTINGS, sdk=fake)
-    assert calls == [("app-key", "app-secret"), "start"]
+    assert calls == ["tls", ("app-key", "app-secret"), "start"]
+    assert "secret" not in caplog.text
+
+
+def test_stream_tls_failure_prevents_sdk_connection(monkeypatch, caplog):
+    def unavailable():
+        raise RuntimeError("private-ca-path-secret")
+
+    monkeypatch.setattr("obsion_im.stream.ensure_stream_tls_trust_store", unavailable)
+    with pytest.raises(ImError, match="Stream 生命周期失败") as error:
+        run_stream(SETTINGS, sdk=SDK)
+    assert "secret" not in str(error.value) + caplog.text
+
+
+@pytest.mark.asyncio
+async def test_stream_diagnostics_distinguish_normalization_and_persistence(caplog):
+    callback = handler(httpx.MockTransport(lambda request: httpx.Response(503)))
+    assert (await callback.process(message(senderCorpId="untrusted-secret")))[0] == 500
+    assert "stage=normalize" in caplog.text
+    caplog.clear()
+    assert (await callback.process(message()))[0] == 500
+    assert "stage=persist" in caplog.text
     assert "secret" not in caplog.text
 
 

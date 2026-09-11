@@ -278,6 +278,24 @@ async def test_fixed_file_commit_path_and_hash_are_not_mutable_ref() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("content", ["print('hello')\n", "", "中文文件\n"])
+async def test_live_decimal_string_file_size_preserves_byte_and_blob_validation(content):
+    data = file_data(content)
+    data["size"] = str(data["size"])
+    payload = {
+        "operation": "codeup.file.read",
+        "repository": NAME,
+        "path": "src/main.py",
+        "commit_id": SHA,
+    }
+    result = await invoke(payload, httpx.Response(200, json=data))
+    assert result["items"][0]["content"] == content
+    assert result["items"][0]["source_size_bytes"] == len(content.encode())
+    with pytest.raises(ObsionError, match="校验"):
+        await invoke(payload, httpx.Response(200, json={**data, "blobId": "b" * 40}))
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -285,6 +303,7 @@ async def test_fixed_file_commit_path_and_hash_are_not_mutable_ref() -> None:
         ("blobId", "b" * 40),
         ("size", 1),
         ("size", True),
+        *(("size", value) for value in ["1", "01", "-1", "+14", "14 ", "1.0", "９", "9" * 100]),
         ("filePath", "other.py"),
         ("encoding", "hex"),
         ("content", "%%%"),

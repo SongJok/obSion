@@ -1,0 +1,34 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/im.delivery.attempted.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability": {
+      "const": "im.dingtalk.robot.reply"
+    },
+    "latency_ms": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "outbox_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "ACCEPTED",
+        "REJECTED",
+        "UNKNOWN",
+        "NOT_ATTEMPTED"
+      ]
+    }
+  },
+  "required": [
+    "capability",
+    "outbox_id",
+    "state",
+    "latency_ms"
+  ],
+  "title": "IM delivery attempt payload v1",
+  "type": "object"
+}

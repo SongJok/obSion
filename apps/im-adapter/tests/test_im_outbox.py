@@ -142,6 +142,30 @@ def _worker(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("report_fails", [False, True])
+async def test_lost_completion_does_not_resend_or_kill_worker(report_fails: bool) -> None:
+    class LostCompletion(FakeRest):
+        async def complete_im_delivery(self, delivery_id: str, **kwargs: Any) -> dict[str, Any]:
+            await super().complete_im_delivery(delivery_id, **kwargs)
+            raise TimeoutError("completion response lost")
+
+        async def mark_im_delivery_unknown(self, delivery_id: str, **kwargs: Any) -> dict[str, Any]:
+            result = await super().mark_im_delivery_unknown(delivery_id, **kwargs)
+            if report_fails:
+                raise TimeoutError("reconciliation response lost")
+            return result
+
+    rest = LostCompletion([_claim()])
+    channel = RecordingChannel(ImDeliveryReceipt(vendor_message_id="vendor-receipt"))
+    worker = _worker(rest, channel)
+    assert await worker.run(once=True) is False
+    assert await worker.run(once=True) is False
+    assert len(channel.messages) == 1
+    assert rest.failures == []
+    assert rest.unknown == [("delivery-1", {"claim_generation": 7, "worker_id": "outbox-worker-1"})]
+
+
+@pytest.mark.asyncio
 async def test_claimed_delivery_with_receipt_completes_using_claim_fencing() -> None:
     rest = FakeRest([_claim()])
     channel = RecordingChannel(ImDeliveryReceipt(vendor_message_id="om_1"))

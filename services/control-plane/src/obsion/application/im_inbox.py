@@ -22,6 +22,7 @@ from obsion.api.im_inbox_schemas import (
 )
 from obsion.api.schemas import CreateTurnRequest, CreateWorkspaceRequest
 from obsion.application.workspaces import WorkspaceService
+from obsion.capabilities.dingtalk_robot import DINGTALK_ROBOT_PROTOCOL, ORIGIN
 from obsion.common.errors import AuthorizationError, ConflictError, NotFoundError
 from obsion.common.ids import new_id
 from obsion.common.time import ensure_utc, utc_now
@@ -54,6 +55,21 @@ from obsion.security.identity import Principal
 from obsion.security.policy import PolicyEngine, ResourcePolicyInput
 from obsion.security.redaction import redact_text
 from obsion.security.workspace_access import require_workspace_access
+
+
+def _installation_connector_allowed(connector: Connector, provider: str | None) -> bool:
+    if connector.connector_type == f"{provider}-docs":
+        return True
+    return (
+        provider == "dingtalk"
+        and connector.connector_type == "dingtalk-robot"
+        and isinstance(connector.configuration, dict)
+        and connector.configuration.get("protocol") == DINGTALK_ROBOT_PROTOCOL
+        and connector.endpoint == ORIGIN
+        and ORIGIN in connector.allowed_egress
+        and "im.reply.deliver" in connector.declared_grants
+        and bool(connector.credential_ref)
+    )
 
 
 class ImInboxService:
@@ -156,11 +172,12 @@ class ImInboxService:
             select(Connector).where(
                 Connector.id == installation.connector_id,
                 Connector.organization_id == installation.organization_id,
-                Connector.connector_type == f"{installation.provider}-docs",
                 Connector.status == ConnectorStatus.ACTIVE,
             )
         )
-        if connector is None:
+        if connector is None or not _installation_connector_allowed(
+            connector, installation.provider
+        ):
             raise AuthorizationError("im_delegate_denied", "Installation connector is not active")
         return current
 
@@ -193,11 +210,10 @@ class ImInboxService:
             select(Connector).where(
                 Connector.id == request.connector_id,
                 Connector.organization_id == current.organization_id,
-                Connector.connector_type == f"{request.provider}-docs",
                 Connector.status == ConnectorStatus.ACTIVE,
             )
         )
-        if connector is None:
+        if connector is None or not _installation_connector_allowed(connector, request.provider):
             raise NotFoundError("Active connector", request.connector_id)
         installation = ImInstallation(
             organization_id=current.organization_id,

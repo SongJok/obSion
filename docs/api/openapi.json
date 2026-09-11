@@ -12128,6 +12128,166 @@
         "title": "WorkspaceView",
         "type": "object"
       },
+      "YunxiaoCatalogRepository": {
+        "properties": {
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "path_with_namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path With Namespace"
+          }
+        },
+        "required": [
+          "organization_id",
+          "id",
+          "name",
+          "path_with_namespace",
+          "archived"
+        ],
+        "title": "YunxiaoCatalogRepository",
+        "type": "object"
+      },
+      "YunxiaoCatalogRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "operation": {
+            "const": "yunxiao.repositories.list",
+            "title": "Operation",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 50,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "title": "YunxiaoCatalogRequest",
+        "type": "object"
+      },
+      "YunxiaoCatalogView": {
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "connector_id": {
+            "format": "uuid",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/YunxiaoCatalogRepository"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Page"
+          },
+          "operation": {
+            "const": "yunxiao.repositories.list",
+            "title": "Operation",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operation",
+          "connector_id",
+          "items",
+          "count",
+          "total",
+          "page",
+          "per_page",
+          "next_page",
+          "complete",
+          "policy_decision_id"
+        ],
+        "title": "YunxiaoCatalogView",
+        "type": "object"
+      },
       "obsion__api__im_inbox_schemas__ImInstallationView": {
         "additionalProperties": false,
         "properties": {
@@ -23032,6 +23192,136 @@
         "summary": "Bind Role",
         "tags": [
           "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/yunxiao/connectors/{connector_id}/repositories": {
+      "post": {
+        "description": "Enumerate configured/PAT-visible organizations without granting repository access.",
+        "operationId": "discover_yunxiao_catalog_api_v1_admin_yunxiao_connectors__connector_id__repositories_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connector_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connector Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YunxiaoCatalogRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/YunxiaoCatalogView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Discover Yunxiao Catalog",
+        "tags": [
+          "codeup"
         ]
       }
     },

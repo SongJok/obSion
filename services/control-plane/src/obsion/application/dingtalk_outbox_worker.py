@@ -45,12 +45,18 @@ class DingTalkOutboxWorker:
 
     async def _loop(self) -> None:
         while not self._stop.is_set():
-            stats = await self.run_once()
-            if self.on_round is not None:
+            try:
+                stats = await self.run_once()
+            except Exception:
+                # A send may have succeeded before its transaction failed. Leave
+                # the durable claim intact; expiry moves it to UNKNOWN, never retry.
+                logger.error("dingtalk.outbox.round_failed")
+                stats = None
+            if self.on_round is not None and stats is not None:
                 try:
                     self.on_round(stats)
                 except Exception:
-                    logger.exception("dingtalk.outbox.observer_failed")
+                    logger.error("dingtalk.outbox.observer_failed")
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=self.poll_interval_seconds)
 

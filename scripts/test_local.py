@@ -43,7 +43,7 @@ def main() -> int:
         "--rootdir",
         str(ROOT),
         "-m",
-        "not live and not feishu_browse_live and not feishu_send_live",
+        "not live and not feishu_browse_live and not feishu_send_live and not yunxiao_live",
         *(str(ROOT / path) for path in TEST_PATHS),
     ]
     with tempfile.TemporaryDirectory(prefix="obsion-local-tests-") as directory:

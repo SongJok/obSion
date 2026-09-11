@@ -35,6 +35,7 @@ from obsion.capabilities.codeup_contract import (
     MAX_RESPONSE_BYTES,
     input_schema,
 )
+from obsion.capabilities.yunxiao import assert_yunxiao_egress, is_yunxiao_connector
 from obsion.code_intelligence.service import repository_access_clause
 from obsion.common.errors import AuthorizationError, ObsionError, ValidationError
 from obsion.db.models import CodeRepository, Connector, Organization
@@ -277,6 +278,36 @@ async def catalog_allowed(
     )
 
 
+async def yunxiao_catalog_allowed(
+    session: AsyncSession,
+    principal: Principal,
+    connector: Connector,
+    resource: dict[str, Any],
+) -> bool:
+    """PAT-wide metadata is an operator inventory, with pre/postflight checks."""
+    try:
+        assert_yunxiao_egress(connector)
+        current = await load_principal_by_id(session, principal.organization_id, principal.id)
+    except ObsionError:
+        return False
+    if (
+        not is_yunxiao_connector(connector)
+        or connector.organization_id != current.organization_id
+        or not current.can("admin.read")
+        or not current.can("connectors.read")
+        or not current.can("code.read")
+        or resource != {"connector_id": str(connector.id), "source": "yunxiao-catalog"}
+    ):
+        return False
+    await session.flush()
+    organization_active = await session.scalar(
+        select(Organization.active).where(Organization.id == current.organization_id)
+    )
+    return bool(organization_active) and await _connector_unchanged(
+        session, connector, current.organization_id
+    )
+
+
 def _request(repository: CodeupRepository, payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     operation = payload.get("operation")
     if not isinstance(operation, str) or operation not in CODEUP_OPERATIONS:
@@ -388,6 +419,15 @@ def _file(value: Any, payload: dict[str, Any]) -> dict[str, Any]:
     ):
         raise ValueError("file identity mismatch")
     size = value.get("size")
+    # Central returns a canonical decimal string in real file responses even
+    # though its documentation declares an integer. Normalize only this wire
+    # representation; retain the byte budget, exact length and Git blob checks.
+    if (
+        isinstance(size, str)
+        and len(size) <= len(str(MAX_FILE_BYTES))
+        and re.fullmatch(r"0|[1-9][0-9]*", size)
+    ):
+        size = int(size)
     content = value.get("content")
     if type(size) is not int or not 0 <= size <= MAX_FILE_BYTES or not isinstance(content, str):
         raise ValueError("invalid file size")

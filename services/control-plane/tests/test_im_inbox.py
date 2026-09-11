@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
+from obsion.application.im_inbox import _installation_connector_allowed
 from obsion.common.time import utc_now
 from obsion.db.im_models import ImConversationBinding, ImInboxMessage
 from obsion.db.models import (
@@ -36,13 +37,24 @@ MESSAGE = {
 }
 
 
-def provision(client: TestClient, suffix: str = "one") -> dict[str, Any]:
+def provision(client: TestClient, suffix: str = "one", *, robot: bool = False) -> dict[str, Any]:
     auth = client.get("/api/v1/auth/session").json()
     connector = client.post(
         "/api/v1/admin/connectors",
         json={
             "name": f"im-inbox-{suffix}",
-            "connector_type": "dingtalk-docs",
+            "connector_type": "dingtalk-robot" if robot else "dingtalk-docs",
+            **(
+                {
+                    "endpoint": "https://api.dingtalk.com",
+                    "configuration": {"protocol": "dingtalk.robot.oto.v1"},
+                    "credential_ref": "env://OBSION_TEST_ROBOT_SECRET",
+                    "declared_grants": ["im.reply.deliver"],
+                    "allowed_egress": ["https://api.dingtalk.com"],
+                }
+                if robot
+                else {}
+            ),
             "environment": "test",
             "status": "ACTIVE",
         },
@@ -75,6 +87,43 @@ def provision(client: TestClient, suffix: str = "one") -> dict[str, Any]:
         "auth": auth,
         "url": f"/api/v1/experience/im/installations/{value['id']}/inbox",
     }
+
+
+def test_robot_connector_can_admit_and_process_durable_message(client: TestClient) -> None:
+    installation = provision(client, robot=True)
+    response = client.post(installation["url"], json={**MESSAGE, "conversation_type": "direct"})
+    assert response.status_code == 202, response.text
+    processed = client.post(f"{installation['url']}/{response.json()['id']}/process")
+    assert processed.status_code == 200, processed.text
+    assert processed.json()["status"] == "PROCESSED"
+    assert counts(client) == (1, 1, 1)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"connector_type": "http"},
+        {"configuration": {}},
+        {"endpoint": "https://example.invalid"},
+        {"allowed_egress": []},
+        {"declared_grants": []},
+        {"credential_ref": None},
+    ],
+)
+def test_robot_installation_rejects_incomplete_connection(changes: dict[str, Any]) -> None:
+    connector = Connector(
+        **{
+            "connector_type": "dingtalk-robot",
+            "configuration": {"protocol": "dingtalk.robot.oto.v1"},
+            "endpoint": "https://api.dingtalk.com",
+            "allowed_egress": ["https://api.dingtalk.com"],
+            "declared_grants": ["im.reply.deliver"],
+            "credential_ref": "env://OBSION_TEST_ROBOT_SECRET",
+            **changes,
+        }
+    )
+    assert not _installation_connector_allowed(connector, "dingtalk")
+    assert not _installation_connector_allowed(connector, "feishu")
 
 
 def counts(client: TestClient) -> tuple[int, int, int]:

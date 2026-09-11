@@ -123,6 +123,83 @@ class CodeupMappingView(APIModel):
     policy_decision_id: UUID
 
 
+class YunxiaoCatalogRequest(CodeupRequest):
+    operation: Literal["yunxiao.repositories.list"]
+    page: int = Field(default=1, ge=1, le=10000, strict=True)
+    per_page: int = Field(default=50, ge=1, le=100, strict=True)
+    search: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class YunxiaoCatalogRepository(APIModel):
+    organization_id: str
+    id: str
+    name: str
+    path_with_namespace: str | None
+    archived: bool | None
+
+
+class YunxiaoCatalogView(APIModel):
+    operation: Literal["yunxiao.repositories.list"]
+    connector_id: UUID
+    items: list[YunxiaoCatalogRepository]
+    count: int
+    total: int
+    page: int
+    per_page: int
+    next_page: int | None
+    complete: bool
+    policy_decision_id: UUID
+
+
+@router.post(
+    "/admin/yunxiao/connectors/{connector_id}/repositories",
+    response_model=YunxiaoCatalogView,
+)
+async def discover_yunxiao_catalog(
+    connector_id: UUID,
+    body: YunxiaoCatalogRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    settings: Settings = Depends(get_app_settings),
+    gateway: CapabilityGateway = Depends(get_capability_gateway),
+) -> YunxiaoCatalogView:
+    """Enumerate configured/PAT-visible organizations without granting repository access."""
+    try:
+        result = await gateway.invoke_operator(
+            session,
+            OperatorGatewayRequest(
+                principal=principal,
+                capability_name="yunxiao.repositories.list",
+                payload=body.model_dump(exclude_none=True),
+                resource={"connector_id": str(connector_id), "source": "yunxiao-catalog"},
+                environment=(
+                    "development"
+                    if settings.environment == Environment.TEST
+                    else settings.environment.value
+                ),
+                correlation_id=_correlation_id(request),
+                context={"surface": "yunxiao-catalog-rest"},
+            ),
+        )
+    except NotFoundError:
+        raise ValidationError(
+            "codeup_configuration_invalid", "云效跨组织目录尚未绑定，请管理员检查连接配置。"
+        ) from None
+    if result.status == GatewayStatus.COMPLETED and result.output is not None:
+        return YunxiaoCatalogView(
+            **result.output,
+            connector_id=connector_id,
+            complete=result.output["next_page"] is None,
+            policy_decision_id=result.policy_decision_id,
+        )
+    _raise_gateway_failure(
+        result,
+        message="云效目录查询未完成。",
+        documentation_url="/docs/operators/yunxiao-live-validation.md",
+    )
+
+
 def _correlation_id(request: Request) -> UUID:
     try:
         return UUID(str(getattr(request.state, "correlation_id", "")))

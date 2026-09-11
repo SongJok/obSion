@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 
 import pytest
 
+from obsion_im.bridge import ImBridge
 from obsion_im.channel import InboundMessage, OutboundMessage
 from obsion_im.config import DingTalkCredentials, ImError
 from obsion_im.dingtalk_stream import (
@@ -82,7 +87,7 @@ def test_stream_event_preserves_full_event_and_tenant_identity() -> None:
         installation_id="installation-1",
         corp_id="corp-1",
         app_key="stream-app-key",
-        vendor_event_id="stream-event-1",
+        vendor_event_id="vendor-event-1",
         vendor_event={
             "data": _PAYLOAD,
             "headers": {
@@ -107,7 +112,7 @@ def test_signed_http_event_preserves_the_same_trusted_identity() -> None:
     assert inbound.installation_id == "installation-1"
     assert inbound.corp_id == "corp-1"
     assert inbound.app_key == _CREDENTIALS.app_key
-    assert inbound.vendor_event_id == "header-event-1"
+    assert inbound.vendor_event_id == "vendor-event-1"
     assert inbound.vendor_event["headers"]["eventUnifiedAppId"] == "unified-app-1"
 
 
@@ -221,6 +226,35 @@ def test_dingtalk_application_identity_rejects_wrong_configured_robot(field: str
         )
 
 
+def test_unified_identity_can_be_absent_but_conflicting_alias_cannot_hide() -> None:
+    payload = {**_PAYLOAD, "robotCode": "robot-1"}
+    assert (
+        parse_dingtalk_http_event(
+            payload, app_key=_CREDENTIALS.app_key, credentials=_IDENTITY_CREDENTIALS
+        ).vendor_event_id
+        == "vendor-event-1"
+    )
+    with pytest.raises(ImError, match="does not match"):
+        parse_dingtalk_http_event(
+            {**payload, "unifiedAppId": "other-app"},
+            headers={"eventUnifiedAppId": "unified-app-1"},
+            app_key=_CREDENTIALS.app_key,
+            credentials=_IDENTITY_CREDENTIALS,
+        )
+
+
+def test_business_event_id_survives_transport_redelivery_and_http_fallback() -> None:
+    ids = {
+        parse_dingtalk_stream_event(
+            _Callback(data=_PAYLOAD, headers={"messageId": transport_id}),
+            app_key=_CREDENTIALS.app_key,
+        ).vendor_event_id
+        for transport_id in ("connection-1", "connection-2")
+    }
+    ids.add(parse_dingtalk_http_event(_PAYLOAD, app_key=_CREDENTIALS.app_key).vendor_event_id)
+    assert ids == {"vendor-event-1"}
+
+
 @pytest.mark.parametrize(
     ("field", "message"),
     [
@@ -325,8 +359,9 @@ async def test_stream_sdk_is_loaded_only_when_starting_the_adapter() -> None:
         registered: tuple[str, object] | None = None
         started: bool = False
 
-        def __init__(self, credential: Credential) -> None:
+        def __init__(self, credential: Credential, *, logger: logging.Logger) -> None:
             self.credential = credential
+            self.logger = logger
 
         def register_callback_handler(self, topic: str, handler: object) -> None:
             type(self).registered = (topic, handler)
@@ -392,8 +427,9 @@ async def test_stream_async_start_prefers_sdk_async_start() -> None:
         started = False
         sync_started = False
 
-        def __init__(self, credential: Credential) -> None:
+        def __init__(self, credential: Credential, *, logger: logging.Logger) -> None:
             self.credential = credential
+            self.logger = logger
 
         def register_callback_handler(self, topic: str, handler: object) -> None:
             del topic, handler
@@ -472,3 +508,66 @@ def test_stream_sdk_missing_is_an_explicit_optional_dependency_error(
 
     with pytest.raises(ImError, match="optional dingtalk-stream SDK"):
         adapter.start_forever()
+
+
+@pytest.mark.asyncio
+async def test_real_sdk_ack_waits_only_for_durable_admission_and_suppresses_logs(caplog) -> None:
+    import dingtalk_stream as sdk
+
+    entered = asyncio.Event()
+    committed = asyncio.Event()
+
+    async def accept(**kwargs):
+        assert kwargs["vendor_event_id"] == "vendor-event-1"
+        entered.set()
+        await committed.wait()
+        return {"inbox_event_id": "inbox-1"}
+
+    runtime = SimpleNamespace(rest=SimpleNamespace(accept_trusted_im_event=accept))
+    channel = SimpleNamespace(name="dingtalk", delivery="local_outbox", reply=AsyncMock())
+    bridge = ImBridge(cast(Any, runtime), cast(Any, channel))
+    adapter = DingTalkStreamAdapter(bridge, _CREDENTIALS, sdk_loader=lambda: sdk)
+    client, _, _, topic = adapter._prepare_client()
+    handler = client.callback_handler_map[topic]
+    for owner in (client, client.event_handler, client.system_handler, handler):
+        assert owner.logger.disabled and not owner.logger.propagate
+        owner.logger.error("synthetic-sensitive-marker")
+    task = asyncio.create_task(handler.process(_Callback(data=_PAYLOAD, headers={})))
+    await asyncio.wait_for(entered.wait(), 1)
+    assert not task.done()
+    committed.set()
+    assert await task == (sdk.AckMessage.STATUS_OK, "OK")
+    channel.reply.assert_not_awaited()
+    assert "synthetic-sensitive-marker" not in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["timeout", "exception", "receipt"])
+async def test_real_sdk_admission_failure_returns_bounded_redacted_negative_ack(failure) -> None:
+    import dingtalk_stream as sdk
+
+    async def accept(**kwargs):
+        if failure == "timeout":
+            await asyncio.Event().wait()
+        if failure == "exception":
+            raise RuntimeError("synthetic-sensitive-marker")
+        return {}  # Missing durable receipt must not become a successful ACK.
+
+    runtime = SimpleNamespace(rest=SimpleNamespace(accept_trusted_im_event=accept))
+    channel = SimpleNamespace(name="dingtalk", delivery="local_outbox", reply=AsyncMock())
+    adapter = DingTalkStreamAdapter(
+        ImBridge(cast(Any, runtime), cast(Any, channel)),
+        _CREDENTIALS,
+        sdk_loader=lambda: sdk,
+        ack_timeout_seconds=0.01,
+    )
+    client, _, _, topic = adapter._prepare_client()
+    handler = client.callback_handler_map[topic]
+    callback = sdk.CallbackMessage()
+    callback.data = _PAYLOAD
+    callback.headers.message_id = "transport-1"
+    ack = await asyncio.wait_for(handler.raw_process(callback), 1)
+    assert ack.code == sdk.AckMessage.STATUS_SYSTEM_EXCEPTION
+    assert ack.headers.message_id == "transport-1"
+    assert ack.data == {"response": "Inbox not confirmed"}
+    channel.reply.assert_not_awaited()

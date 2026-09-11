@@ -7,10 +7,16 @@ import pytest
 
 from obsion_cli.config import CliSettings
 from obsion_cli.runtime import ExperienceRuntime
-from obsion_im.bridge import ImBridge
+from obsion_im.bridge import ImBridge, _claim_generation
 from obsion_im.channel import ImDeliveryReceipt, InboundMessage, OutboundMessage
 from obsion_im.config import ImError
 from obsion_sdk import AsyncObsionClient
+
+
+@pytest.mark.parametrize("value", [True, False, "1", 0, -1, None])
+def test_processing_delivery_requires_integer_generation(value: object) -> None:
+    with pytest.raises(ImError):
+        _claim_generation({"status": "PROCESSING", "claim_generation": value})
 
 
 @pytest.mark.asyncio

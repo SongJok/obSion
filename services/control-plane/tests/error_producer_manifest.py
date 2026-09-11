@@ -5,6 +5,10 @@ from static_error_analysis import ErrorCodeDomain
 REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
     [
         (
+            "api/admin.py::bind_capability#ConflictError[1]",
+            frozenset({"capability_binding_conflict"}),
+        ),
+        (
             "application/im_identity.py::ImIdentityService.get_inbox_status#NotFoundError[1]",
             frozenset({"resource_not_found"}),
         ),
@@ -3508,6 +3512,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"codeup_configuration_invalid"}),
         ),
         (
+            "api/codeup.py::discover_yunxiao_catalog#ValidationError[1]",
+            frozenset({"codeup_configuration_invalid"}),
+        ),
+        (
             "api/codeup.py::_mapping_result#AuthorizationError[1]",
             frozenset({"project_source_denied"}),
         ),
@@ -3825,31 +3833,31 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[3]",
-            "forward:capabilities/gateway.py:1306:exc.code",
+            "forward:capabilities/gateway.py:1320:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[9]",
-            "forward:capabilities/gateway.py:1488:exc.code",
+            "forward:capabilities/gateway.py:1502:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._execute_operator#GatewayResult[2]",
-            "forward:capabilities/gateway.py:1149:exc.code",
+            "forward:capabilities/gateway.py:1163:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#GatewayResult[1]",
-            "forward:capabilities/gateway.py:757:exc.code",
+            "forward:capabilities/gateway.py:762:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[1]",
-            "forward:capabilities/gateway.py:827:rate_result.error_code",
+            "forward:capabilities/gateway.py:832:rate_result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[2]",
-            "forward:capabilities/gateway.py:847:result.error_code",
+            "forward:capabilities/gateway.py:852:result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._operator_result_from_record#GatewayResult[1]",
-            "forward:capabilities/gateway.py:1200:record.error_code",
+            "forward:capabilities/gateway.py:1214:record.error_code",
         ),
         (
             "evaluations/engine.py::EvaluationEngine.evaluate#CaseEvaluation[2]",
@@ -3884,11 +3892,11 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "api/codeup.py::_raise_gateway_failure#ObsionError[1]",
-            "forward:api/codeup.py:136:result.error_code",
+            "forward:api/codeup.py:213:result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[4]",
-            "forward:capabilities/gateway.py:991:exc.code",
+            "forward:capabilities/gateway.py:1005:exc.code",
         ),
     ]
 )
