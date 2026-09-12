@@ -22,6 +22,7 @@ from typing import Any, Protocol
 
 from obsion_im.channel import InboundMessage, OutboundMessage
 from obsion_im.config import DingTalkCredentials, ImError
+from obsion_im.dingtalk import configure_stream_connection
 from obsion_im.envelopes import parse_inbound
 
 _SDK_MODULE = "dingtalk_stream"
@@ -118,6 +119,7 @@ class DingTalkStreamAdapter:
 
         credential = credential_type(self._credentials.app_key, self._credentials.app_secret)
         client = client_type(credential, logger=_private_sdk_logger())
+        configure_stream_connection(client)
         for name in ("event_handler", "system_handler"):
             sdk_handler = getattr(client, name, None)
             if sdk_handler is not None:

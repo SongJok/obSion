@@ -1,6 +1,13 @@
+import json
 import time
+from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from obsion.db.models import Evidence
+from obsion.model_gateway.gateway import ModelGateway, ModelResult
 
 
 def _wait_terminal(client: TestClient, run_id: str) -> dict:
@@ -28,7 +35,49 @@ def _create_thread(client: TestClient) -> dict:
     return thread.json()
 
 
-def test_knowledge_route_pins_knowledge_agent_skill_and_citations(client: TestClient) -> None:
+def test_knowledge_route_pins_knowledge_agent_skill_and_citations(
+    client: TestClient, monkeypatch
+) -> None:
+    # Explicit synthetic author/reviewer; retrieving a document without an
+    # eligible model must no longer masquerade as a verified answer.
+    statement = "Every production release requires an owner and rollback plan."
+    stages = []
+
+    async def complete(self, session, **kwargs):
+        source = await session.scalar(select(Evidence).where(Evidence.run_id == kwargs["run_id"]))
+        assert source and any(statement in hit["content"] for hit in source.content["hits"])
+        if kwargs["step_id"] is None:
+            stages.append("author")
+            payload = {
+                "answerable": True,
+                "answer": statement,
+                "claims": [{"statement": statement, "evidence_ids": [str(source.id)]}],
+            }
+        else:
+            stages.append("review")
+            payload = {
+                "answer_supported": True,
+                "question_answered": True,
+                "claims": [
+                    {
+                        "claim_index": 1,
+                        "verdict": "SUPPORTED",
+                        "quotes": [{"evidence_id": str(source.id), "quote": statement}],
+                    }
+                ],
+            }
+        return ModelResult(
+            content=json.dumps(payload),
+            profile_id=kwargs["profile_id"],
+            endpoint_id=uuid4(),
+            input_tokens=10,
+            output_tokens=10,
+            latency_ms=1,
+            cost_amount=Decimal("0"),
+            finish_reason="stop",
+        )
+
+    monkeypatch.setattr(ModelGateway, "complete", complete)
     document = client.post(
         "/api/v1/knowledge/documents",
         files={
@@ -74,6 +123,8 @@ def test_knowledge_route_pins_knowledge_agent_skill_and_citations(client: TestCl
     assert "[1]" in answer["markdown"]
     claims = client.get(f"/api/v1/runs/{run['id']}/claims").json()
     assert claims and claims[0]["evidence_ids"]
+    assert stages == ["author", "review"]
+    assert answer["verification"]["verified"] is True
 
 
 def test_knowledge_agent_says_unknown_without_authorized_evidence(client: TestClient) -> None:

@@ -60,3 +60,11 @@ def test_operator_idempotency_retention_is_independent_and_reconciliation_sized(
 
     with pytest.raises(PydanticValidationError):
         Settings(_env_file=None, operator_capability_idempotency_retention_hours=23)
+
+
+@pytest.mark.parametrize(
+    "encoded,expected", [("null", None), ("[]", []), ('["kimi-k3-kimi"]', ["kimi-k3-kimi"])]
+)
+def test_model_allowlist_environment_preserves_explicit_deny_all(monkeypatch, encoded, expected):
+    monkeypatch.setenv("OBSION_MODEL_ALLOWED_IDS", encoded)
+    assert Settings(_env_file=None).model_allowed_ids == expected

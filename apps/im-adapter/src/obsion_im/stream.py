@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from obsion_im.config import ImError
+from obsion_im.dingtalk import configure_stream_connection
 from obsion_im.dingtalk_stream import ensure_stream_tls_trust_store
 from obsion_im.inbox import InboxClient, InboxSettings
 
@@ -148,6 +149,7 @@ def run_stream(settings: StreamSettings, *, sdk: Any = None) -> None:
         client = sdk.DingTalkStreamClient(
             sdk.Credential(settings.app_key, settings.app_secret), logger=_private_logger()
         )
+        configure_stream_connection(client)
         client.event_handler.logger = _private_logger()
         client.system_handler.logger = _private_logger()
         client.register_callback_handler(

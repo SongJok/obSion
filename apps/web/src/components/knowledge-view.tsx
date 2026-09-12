@@ -6,6 +6,7 @@ import { FormEvent, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { KnowledgeSearchHit } from "@/lib/knowledge-citation";
 import { KnowledgeProvenance } from "./knowledge-provenance";
+import { KnowledgeSources } from "./knowledge-sources";
 
 export function KnowledgeView() {
   const [query, setQuery] = useState("");
@@ -72,7 +73,7 @@ export function KnowledgeView() {
         <div>
           <span className="eyebrow">OBSION KNOWLEDGE</span>
           <h1>企业知识</h1>
-          <p>文档权限在分块和检索阶段继承。飞书、钉钉、企微与 Confluence 云文档经 Capability Gateway 进入同一条 Knowledge Pipeline，检索结果与回答引用展示连接器溯源，不编造缺失字段。</p>
+          <p>管理已授权的文档同步、上传资料，并搜索你有权访问的内容。</p>
         </div>
         <button className="primary-button" onClick={() => fileRef.current?.click()} disabled={uploading}>
           <UploadCloud size={17} /> {uploading ? "正在上传…" : "上传文档"}
@@ -90,6 +91,8 @@ export function KnowledgeView() {
           }}
         />
       </header>
+
+      <KnowledgeSources />
 
       <form
         className="feature-search"

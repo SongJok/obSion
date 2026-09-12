@@ -82,6 +82,7 @@ from obsion.common.errors import ValidationError
 from obsion.config import Settings
 from obsion.data_intelligence.sql_policy import SqlPolicyValidator
 from obsion.db.models import Connector, SecretReference
+from obsion.domain.enums import Classification
 from obsion.knowledge.connector_contract import KnowledgeConnectorBudget, SyncBudgetTracker
 from obsion.security.identity import Principal
 from obsion.telemetry import sql_duration
@@ -93,6 +94,7 @@ class ConnectorResult:
     source: str
     resource: str
     observed_at: datetime | None = None
+    classification: Classification | None = None
 
 
 @dataclass(frozen=True, slots=True)

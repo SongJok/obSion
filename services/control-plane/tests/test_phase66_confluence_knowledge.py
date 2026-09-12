@@ -9,6 +9,7 @@ from uuid import uuid4
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from synthetic_knowledge_model import install_grounded_answer
 
 from obsion.capabilities.confluence import (
     ConfluenceClient,
@@ -287,6 +288,9 @@ def test_confluence_page_ingest_enters_knowledge_pipeline_and_harness_citations(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    install_grounded_answer(
+        monkeypatch, "Every Confluence SOP requires an owner and rollback plan."
+    )
     monkeypatch.setenv("OBSION_CONFLUENCE_EMAIL", "bot@example.com")
     monkeypatch.setenv("OBSION_CONFLUENCE_API_TOKEN", "token-test")
 

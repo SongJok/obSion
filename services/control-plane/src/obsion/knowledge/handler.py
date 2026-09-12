@@ -6,7 +6,10 @@ from obsion.capabilities.connectors import ConnectorContext, ConnectorResult
 from obsion.config import Settings
 from obsion.db.models import Connector
 from obsion.db.session import Database
+from obsion.domain.enums import Classification
+from obsion.knowledge.document_read import read_document_page
 from obsion.knowledge.service import KnowledgeService, bounded_search_limit
+from obsion.security.classification import maximum_classification
 
 
 def create_knowledge_search_handler(
@@ -19,6 +22,14 @@ def create_knowledge_search_handler(
     ) -> ConnectorResult:
         async with database.sessions() as session:
             operation = str(payload.get("operation") or "knowledge.search")
+            if operation == "document.read":
+                page = await read_document_page(session, context.principal, payload)
+                return ConnectorResult(
+                    data=page,
+                    source=connector.name,
+                    resource="authorized-document-index",
+                    classification=Classification(page["classification"]),
+                )
             sources = ("ticket",) if operation == "ticket.search" else None
             exclude_sources = None if sources is not None else ("ticket",)
             raw_limit = payload.get("limit", 8)
@@ -58,6 +69,7 @@ def create_knowledge_search_handler(
             },
             source=connector.name,
             resource="authorized-document-index",
+            classification=maximum_classification(*(hit.classification for hit in hits)),
         )
 
     return handler

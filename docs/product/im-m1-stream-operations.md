@@ -1,11 +1,46 @@
 # M1 钉钉 Stream 与持久 Inbox 恢复操作说明
 
 2026-09-11 更新：正式 Stream 入口现在也在 SDK 建连前初始化 TLS 信任库；系统默认 CA 为空时使用
-certifi，保留显式证书配置，绝不禁用验证。SDK 原始日志仍关闭，应用仅记录 `inbox_accepted` 或带
-`normalize/persist` 固定阶段的 `inbox_rejected`，不记录消息、票据、身份或异常原文。
+certifi，保留显式证书配置，绝不禁用验证。SDK 原始日志仍关闭，应用记录无正文的连接生命周期、
+`inbox_accepted` 或带 `normalize/persist` 固定阶段的 `inbox_rejected`，不记录消息、票据、身份或异常原文。
 点仔真实私聊已经取得 Inbox → Run → Outbox → 厂商 SUCCESS/READ 的关联证据，见
 [M1c 验证记录](../phases/productization-m1c-validation.md)。下文“未执行真实连接”是早期切片的历史边界，
 不覆盖这次新增的测试租户证据；真实群、四意图创建和生产验收仍须分别完成。
+
+建连请求现有显式阶段超时与固定官方 origin；`connection_ticket_ready` 表示取得票据，
+`websocket_connected` 才表示进入 SDK 已连接上下文，二者都不表示某条消息已经入站。
+详见 [ADR 0108](../adr/0108-stream-connection-timeout.md) 和
+[连接稳定性记录](../phases/productization-stream-stability-validation.md)。
+
+## 多组织测试与收发核对
+
+测试前分别核对以下事实，不用其中一个代替其他项：
+
+1. DWS `profile list --format json` 返回的 corpId、corpName、userId 与明确当前 profile。
+2. 用户实际发送消息时的客户端组织。切换桌面组织不能证明 DWS profile 已切换，反之亦然。
+3. 在同一 profile 解析到的目标机器人与会话；其他组织的人员、机器人、会话 ID 不可复用。
+4. 受管 Stream 的 corpId、appKey 以及控制面 ACTIVE 安装、sender 绑定是否对应实际目标。
+
+只有一个已登录 DWS profile 不能证明用户只属于一个组织。不能自动选取列表第一项，不能为了接收
+其他组织消息而删除 corp/app 校验，也不能把客户端切换当作服务器安装授权。
+
+使用唯一非敏感测试标记定位同一条消息，按下表区分结果：
+
+| 可见事实 | 能证明的结果 | 仍需核对 |
+| --- | --- | --- |
+| DWS 发送任务 SUCCESS、会话中能看到消息 | 发送任务成功及消息存在 | 机器人是否收到 |
+| 对应安装 Inbox 持久记录 | 入站已保存 | 是否创建并完成目标 Run |
+| Run 完成且有答案 Artifact | 控制面生成了结果 | 内容是否满足问题、是否有依据 |
+| Outbox ACCEPTED | 厂商接受发送请求 | 厂商投递与已读状态 |
+| 厂商 SUCCESS / READ | 返回的投递 / 已读状态 | 内容质量仍须单独验收 |
+
+Inbox 列表按 UUID 升序分页，排查新消息须使用最近游标继续读取，不能只看第一页旧记录。
+发送成功但找不到入站时，保留未知状态并检查组织、连接、标准化拒绝和持久化阶段；不反复发送同一
+消息，也不把未观察到事件归结为确定的厂商机制。输入框中已有用户草稿时，不替换或代发该草稿。
+
+当前 zziv 点仔用例23已取得新的日常问答 Inbox → GENERAL Run → Outbox SUCCESS/READ 证据，
+厂商消息 ID 与 Inbox 完全相等；见日常问答和连接专项账本。用例20/21仍未观察到入站，
+不能据此声称DWS消息绝不触发机器人，也不能用一个成功样例替代群聊或长期验收。
 
 本增量仅实现官方 SDK 薄入站适配和控制面 Inbox 恢复客户端，不代表 M1 完成或真实租户验收通过。没有执行真实钉钉连接、消息发送或模型调用。正式入口仍是 Stream → Inbox；根目录 `dingtalk_obsion_agent.py` 仅保留 DWS 兼容用途，并且现在只把消息转发到控制面 Harness，不直调模型、不维护本地历史、不生成关键词回答。该兼容入口的决策见 [ADR 0101](../adr/0101-dingtalk-dws-control-plane-bridge.md)。
 
@@ -68,3 +103,16 @@ obsion-im inbox-worker --installation-id UUID --limit 20 --max-events 200 --poll
 本增量在 `inbox.py` 封装固定控制面 typed HTTP client；底层使用已有 httpx 依赖，不包含厂商 HTTP endpoint。现有 `AsyncObsionClient._request` 丢弃 HTTP 状态并接受任意 2xx，不能证明恰好 202，因此此处使用最小独立控制面 transport，严格状态校验、禁 redirect 和环境代理；不是第二后端或新 Harness。
 
 本入口没有出站能力，也不把 process 等同于运行/发送完成。Capability Gateway、群受众发布、Outbox、UNKNOWN 对账、真实租户机器人配置、并发去重与 PostgreSQL 事务门禁仍需对应服务端增量和独立验证。本地 MockTransport/假 SDK 结果不能替代真实 ACK 延迟、断网恢复或租户权限验收。
+
+## 2026-09-12 受管企业资料发送补充
+
+按 [ADR0121](../adr/0121-final-dingtalk-send-authorization.md)，受管企业资料正文使用新版受控 Outbox。旧版 IM prepare 接口返回 `im_delivery_denied` 时，不应绕过校验或直接读取存储发送。普通问答及固定群状态保留原有接口行为。
+
+新版单聊和群聊在获取应用令牌后、真正提交消息前重新检查当前组织、收件人、资料访问租约及群受众。群内每位受众均须有答案来源权限；有成员无权访问时只发固定完成状态。提交前拒绝保留可重新核验的投递状态，已尝试发送但结果不明的投递保持 UNKNOWN，不盲重发。本补充尚未代表普通运行环境升级或真实文档问答验收。
+
+
+## 2026-09-12 日常开发环境实测
+
+点仔24/25/26均由DWS当前用户发送，厂商消息ID与持久Inbox完全一致，经官方Stream、Harness与Outbox单次成功投递。已知四类内容经过K3作者和独立原文复核；缺容量依据时发送本地构造的明确弃答；同一私聊的翻译进入GENERAL且无企业引用。实际聊天正文逐字匹配产物，三条厂商回执均为SUCCESS/UNREAD。查询聊天不等于用户已读。
+
+两条DWS消息从厂商创建到Inbox约60秒，一条约0.2秒；端到端分别92、11、73秒。原因尚未定位，不将发送接口成功等同于即时入站，也不重发观察未到达的同条消息。该证据不支持30秒目标或所有DWS消息总能触发入站。见[日常环境验收账本](../release/evidence/productization/20260912-normal-managed-source-qa.json)。

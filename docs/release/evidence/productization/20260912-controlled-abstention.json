@@ -1,0 +1,137 @@
+{
+  "adr": "0124",
+  "scope": "Real zziv managed source and allowed Kimi model, isolated development REST/Harness; no mocks in live case",
+  "case": {
+    "case": "unknown",
+    "workspace_id": "01a09478-1710-7e05-83ad-245d947d9d69",
+    "thread_id": "01a09478-17d5-78ff-be84-030d20fe9401",
+    "run_id": "01a09478-1806-779a-995c-49ca18485d90",
+    "question": "请根据已授权的《🎉 欢迎开启「知识库」》回答：知识库单个空间的存储容量上限是多少 GB？资料没有给出数字就明确说明，不要推测。",
+    "status": "COMPLETED",
+    "seconds": 24.84,
+    "route": "KNOWLEDGE",
+    "answer": "不知道：本次取得的授权资料不足以确认「知识库单个空间的存储容量上限是多少 GB」。请补充直接说明这一事项的资料，或指定其他已授权来源。",
+    "verification": {
+      "verified": false,
+      "confidence": 0.7,
+      "coverage": 1.0,
+      "missing_evidence": [],
+      "conflicts": [
+        {
+          "kind": "VALUE",
+          "severity": "HIGH",
+          "reason": "Answer does not contain a deterministic signal that the question was addressed",
+          "reason_codes": [
+            "question_not_covered"
+          ]
+        }
+      ],
+      "checks": {
+        "required_evidence": true,
+        "claim_links": false,
+        "source_diversity": true,
+        "duplicate_evidence": true
+      }
+    },
+    "grounding": null,
+    "citations": [],
+    "error_code": null,
+    "input_tokens": 4014,
+    "output_tokens": 411,
+    "answer_generation": {
+      "status": "INSUFFICIENT_EVIDENCE",
+      "requested_information": "知识库单个空间的存储容量上限是多少 GB"
+    },
+    "run_seconds": 24.207658,
+    "model_calls": [
+      {
+        "model_id": "kimi-k3-kimi",
+        "outcome": "SUCCESS",
+        "latency_ms": 23547,
+        "input_tokens": 4014,
+        "output_tokens": 411
+      }
+    ]
+  },
+  "source_counts_before_pause": {
+    "files": 12,
+    "available": 3,
+    "pending": 0,
+    "partial": 8,
+    "failed": 1,
+    "removed": 0,
+    "containers": 3,
+    "awaiting_access_check": 0
+  },
+  "source_paused": true,
+  "after_pause_artifacts_http": 404,
+  "after_pause_general_history_http": 200,
+  "after_pause_plan_redacted": true,
+  "metadata_seconds_after_pause": 0.024,
+  "model_prose_published": false,
+  "independent_factual_review": false,
+  "real_im_sends": 0,
+  "ordinary_runtime_deployed": false,
+  "live_runtime_matches_worktree": true,
+  "source_sha256": {
+    "services/control-plane/src/obsion/harness/runtime.py": "2eb8bec7be5e6923f9afda4bfeb244a7f14f525ae8a0e1afc0bb0177fe0f5ed4",
+    "services/control-plane/src/obsion/harness/answerability.py": "162c99ae3d52bf40de7e9d39e363ca5387b88011f1f804d78045f5a579007e8e",
+    "services/control-plane/tests/test_answerability.py": "7d5482d6be8bf97d05376319bb8350cc8c1b78d5c5d6acb21c2b478c35cfb9aa"
+  },
+  "local_suites": [
+    {
+      "scope": "independent staged implementation; overlaps later suites",
+      "passed": 53,
+      "seconds": 13.66
+    },
+    {
+      "scope": "merged publication, managed access, final send and ordinary Q&A",
+      "passed": 114,
+      "seconds": 64.8
+    },
+    {
+      "scope": "final answerability, publication, managed access, final send, ordinary Q&A, error/event/contract gates",
+      "passed": 151,
+      "seconds": 99.47
+    }
+  ],
+  "suites_overlap": true,
+  "postgresql": {
+    "cases_passed": 6,
+    "cases": [
+      "insufficient",
+      "legacy",
+      "foreign",
+      "contradictory",
+      "malformed",
+      "unavailable"
+    ],
+    "schema_head": "a3b5c7d9e1f2",
+    "schema_drift": false,
+    "new_migration": false,
+    "isolated_databases_removed": true
+  },
+  "baseline_full_python": {
+    "scope": "ADR0122/0123 snapshot BEFORE this increment",
+    "passed": 2532,
+    "skipped": 252,
+    "deselected": 7,
+    "seconds": 678.51,
+    "new_full_run_after_this_increment": false
+  },
+  "static_checks": {
+    "mypy_source_files": 271,
+    "ruff": true,
+    "ruff_format_files": 1031,
+    "secret_findings": 0
+  },
+  "isolated_services_stopped": true,
+  "owned_redis_removed": true,
+  "live_database_retained": "obsion_managed_qa_20260912",
+  "remaining": [
+    "Normal-runtime integration and Pointbot live document-answer delivery/receipt",
+    "Incomplete or unsupported document formats",
+    "Knowledge answer latency and large-corpus capacity",
+    "Complete M1 and enterprise autonomy acceptance"
+  ]
+}

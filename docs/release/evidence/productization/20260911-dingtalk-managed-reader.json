@@ -1,0 +1,192 @@
+{
+  "scope": "Real host-managed DWS and native application reads through Gateway/Policy; isolated PostgreSQL; no ingestion or model call",
+  "records": [
+    {
+      "node_id": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+      "workspace_id": "9r09jSMrX1KEG18A",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": true,
+      "gaps": [],
+      "revision": "5",
+      "text_characters": 666,
+      "raw_checksum_sha256": "3f16635a631db6596d69c432888be1ac591cee63cbe073bfce9ea5c8e4aab437",
+      "policy_decision_id": "01a0909e-74f0-79eb-a666-2ac04a934807"
+    },
+    {
+      "node_id": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": true,
+      "gaps": [],
+      "revision": "0",
+      "text_characters": 880,
+      "raw_checksum_sha256": "ba3097495c1ab6e52d46782ad118cce8422aabf4a70032925fa3fa8a4ec653b7",
+      "policy_decision_id": "01a0909e-7ed4-7d3d-a059-cb7f41d7c791"
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": false,
+      "gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "non_text_span",
+        "ordered_list_labels",
+        "unexpected_leaf_content",
+        "unsupported_code",
+        "unsupported_element"
+      ],
+      "revision": "0",
+      "text_characters": 3001,
+      "raw_checksum_sha256": "f598f06c61b00c548e385a9f8461e79e8e988cd4a4b48aea39932cd828900c89",
+      "policy_decision_id": "01a0909e-8777-7512-89ea-8449214ab40b"
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": false,
+      "gaps": [
+        "unsupported_element"
+      ],
+      "revision": "0",
+      "text_characters": 516,
+      "raw_checksum_sha256": "abb34f0378ee4a98591041ee2bd9605f3e17be2f275472982e18ef54dec74c5f",
+      "policy_decision_id": "01a0909e-907c-724c-94de-33675fcd06c3"
+    },
+    {
+      "node_id": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": false,
+      "gaps": [
+        "unsupported_element"
+      ],
+      "revision": "0",
+      "text_characters": 229,
+      "raw_checksum_sha256": "bed21a98587de21f249c6f772c78ed04ad45ca4a4906e1b9ed3389268cf9869f",
+      "policy_decision_id": "01a0909e-992b-71b2-a401-795c1e207521"
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": false,
+      "gaps": [
+        "ordered_list_labels",
+        "unsupported_element"
+      ],
+      "revision": "0",
+      "text_characters": 1076,
+      "raw_checksum_sha256": "ad74afd2b8df2dc2f2b38fd130d100b00017ccecfe9834388af9166f3647f2a9",
+      "policy_decision_id": "01a0909e-a1d7-7c4e-9c4b-3e02b8b027ce"
+    },
+    {
+      "node_id": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": true,
+      "gaps": [],
+      "revision": "0",
+      "text_characters": 323,
+      "raw_checksum_sha256": "ce659bf2233b40a2f592713f99e79067a56b1c0f22c1c61d7c7c22250c4069ef",
+      "policy_decision_id": "01a0909e-aa96-7431-9eaa-7567affd13a0"
+    },
+    {
+      "node_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": false,
+      "gaps": [
+        "ordered_list_labels"
+      ],
+      "revision": "0",
+      "text_characters": 507,
+      "raw_checksum_sha256": "85ba0645c8283d2cdf5ef8e02ee8cac18c684425d05a088e06aa67ca8fdb1066",
+      "policy_decision_id": "01a0909e-b2e5-7bf8-8cad-726f2fc7281e"
+    },
+    {
+      "node_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": false,
+      "gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "ordered_list_labels"
+      ],
+      "revision": "0",
+      "text_characters": 809,
+      "raw_checksum_sha256": "55505589f396765b5c3a9874394753eec71a67e78efd079259def85cc8c5ded1",
+      "policy_decision_id": "01a0909e-bbb2-7a82-a587-4c9dd9d1871c"
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "status": "COMPLETED",
+      "error_code": null,
+      "complete": false,
+      "gaps": [
+        "ordered_list_labels"
+      ],
+      "revision": "0",
+      "text_characters": 494,
+      "raw_checksum_sha256": "4bfd1406e7ec1bbf355708af63cfb2595934e248fbaeb81a837a43f9cf90b2fe",
+      "policy_decision_id": "01a0909e-c46a-7c24-a86e-dbf9610b2afd"
+    }
+  ],
+  "audit": [
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-74f0-79eb-a666-2ac04a934807"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-7ed4-7d3d-a059-cb7f41d7c791"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-8777-7512-89ea-8449214ab40b"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-907c-724c-94de-33675fcd06c3"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-992b-71b2-a401-795c1e207521"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-a1d7-7c4e-9c4b-3e02b8b027ce"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-aa96-7431-9eaa-7567affd13a0"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-b2e5-7bf8-8cad-726f2fc7281e"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-bbb2-7a82-a587-4c9dd9d1871c"
+    },
+    {
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a0909e-c46a-7c24-a86e-dbf9610b2afd"
+    }
+  ],
+  "validation_date": "2026-09-11",
+  "limitation": "Reader integration only. No ingestion, persistent sync, model call, or bot answer. Live run preceded empty-code-placeholder parsing correction; that correction has separate local regression."
+}

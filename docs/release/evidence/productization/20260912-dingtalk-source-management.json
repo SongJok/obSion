@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-09-12T04:28:01.956177+00:00",
+  "scope": "Isolated PostgreSQL/MinIO; real zziv read-only Gateway worker controlled through the local Web and REST management API. No model call, IM send or ordinary-runtime deployment.",
+  "source_id": "01a093b3-983c-77f8-9630-946fa4f54cbc",
+  "browser_checks": {
+    "explicit_connection_choice_with_multiple_connections": true,
+    "resume_displayed_zero_available_and_three_pending": true,
+    "worker_completed_cycle": true,
+    "completed_available_documents": 3,
+    "completed_files": 12,
+    "completed_partial_files": 8,
+    "completed_failed_files": 1,
+    "individual_item_states_verified": true,
+    "390px_layout_and_pause_control_verified": true,
+    "pause_displayed_zero_available": true
+  },
+  "final_source_active": false,
+  "final_items": 15,
+  "post_ui_pause_document_reads_denied": 3,
+  "pause_policy_audit_verified": true,
+  "scan_finished_at": "2026-09-12T04:25:54.926033+00:00"
+}

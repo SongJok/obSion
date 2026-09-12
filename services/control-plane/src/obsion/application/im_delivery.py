@@ -31,6 +31,7 @@ from obsion.domain.enums import (
     RiskLevel,
     RunStatus,
 )
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.security.auth import load_principal_by_id
 from obsion.security.identity import Principal
@@ -163,6 +164,38 @@ class ImDeliveryService:
             outcome="SUCCESS",
         )
         return _prepared_delivery(delivery, text)
+
+    async def audit_prepare_denial(
+        self, session: AsyncSession, principal: Principal, run_id: UUID, reason_code: str
+    ) -> None:
+        """Record a rejected prepare after its business transaction rolls back."""
+        decision = await self.policy.evaluate_resource(
+            session,
+            ResourcePolicyInput(
+                principal=principal,
+                action=IM_DELIVERY_ACTION,
+                resource={"run_id": str(run_id)},
+                context={"entrypoint": "im-prepare-denial", "reason_code": reason_code},
+                risk_level=RiskLevel.L1,
+                resource_type="im_delivery",
+            ),
+        )
+        await self.audit.write(
+            session,
+            AuditDraft(
+                organization_id=principal.organization_id,
+                correlation_id=run_id,
+                actor_type=ActorType.USER,
+                actor_id=principal.id,
+                action="experience.im.delivery.reject",
+                resource_type="run",
+                resource_id=str(run_id),
+                outcome="DENIED",
+                policy_decision_id=decision.id,
+                risk_level=RiskLevel.L1,
+                metadata={"stage": "prepare", "reason_code": reason_code},
+            ),
+        )
 
     def _claim_prepared_delivery(
         self,
@@ -708,8 +741,35 @@ class ImDeliveryService:
                 reasons=list(decision.reason_codes),
             )
         snapshot = await self._recipient_snapshot(session, run, turn, context)
-        answer = await _answer_for_run(session, principal.organization_id, run.id)
-        text = _safe_group_status(run.id) if snapshot["status_only"] else answer
+        if snapshot["status_only"]:
+            text = _safe_group_status(run.id)
+        else:
+            recipient = await load_principal_by_id(session, run.organization_id, turn.created_by)
+            corp_id = ""
+            if context["channel"] == "dingtalk" and snapshot.get("installation_id"):
+                corp_id = (
+                    await session.scalar(
+                        select(ImInstallation.corp_id).where(
+                            ImInstallation.id == UUID(str(snapshot["installation_id"])),
+                            ImInstallation.organization_id == run.organization_id,
+                        )
+                    )
+                    or ""
+                )
+            if not await KnowledgePublicationGuard().check(
+                session,
+                recipient,
+                [],
+                run_id=run.id,
+                stage="legacy_im_delivery",
+                allow_managed=False,
+                expected_corp_id=corp_id,
+            ):
+                raise AuthorizationError(
+                    "im_delivery_denied",
+                    "Managed source content requires the governed final-send boundary",
+                )
+            text = await _answer_for_run(session, principal.organization_id, run.id)
         fingerprint = hashlib.sha256(text.encode()).hexdigest()
         return context, text, fingerprint, snapshot, decision.id
 

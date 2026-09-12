@@ -5,6 +5,454 @@ from static_error_analysis import ErrorCodeDomain
 REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
     [
         (
+            "release/drill_model.py::OfflineDrillModels.complete#ModelUnavailableError[1]",
+            frozenset({"model_unavailable"}),
+        ),
+        (
+            "release/drill_model.py::OfflineDrillModels.complete#ModelUnavailableError[2]",
+            frozenset({"model_unavailable"}),
+        ),
+        (
+            "release/drill_model.py::OfflineDrillModels.complete#ModelUnavailableError[3]",
+            frozenset({"model_unavailable"}),
+        ),
+        (
+            "api/model_endpoint_policy.py::update_model_processing_scope#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/model_endpoint_policy.py::update_model_processing_scope#AuthorizationError[1]",
+            frozenset({"admin_access_denied"}),
+        ),
+        (
+            "knowledge/document_read.py::read_document_page#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "security/source_fence.py::acquire_source_publication_fence#ObsionError[1]",
+            frozenset({"authorization_fence_unavailable"}),
+        ),
+        (
+            "application/im_delivery.py::ImDeliveryService._authorized_payload#AuthorizationError[2]",
+            frozenset({"im_delivery_denied"}),
+        ),
+        (
+            "harness/replay.py::RunReplayService.materialize#NotFoundError[4]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "harness/runtime.py::HarnessRuntime._ingest_attachments#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "security/workspace_access.py::require_run_access#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/knowledge_sync.py::_owned_source#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "api/knowledge_sync.py::source_service#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.schedule_source#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.schedule_source#AuthorizationError[2]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.schedule_source#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.schedule_source#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner.read.selected_identity#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner.read.selected_identity#DingTalkDocsDeniedError[2]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor._discover#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor.invoke#ValidationError[4]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.node_page#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.node_page#DingTalkDocsDeniedError[2]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.node_page#DingTalkDocsDeniedError[3]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.node_page#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.node_page#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.node_page#DingTalkDocsResponseError[3]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.workspace_page#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.workspace_page#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.workspace_page#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#DingTalkDocsResponseError[3]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#DingTalkDocsResponseError[4]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker._failure#KnowledgeSyncItem.last_error_code[1]",
+            frozenset(
+                {
+                    "artifact_store_unavailable",
+                    "resource_not_found",
+                    "dingtalk_docs_response_invalid",
+                    "document_parse_failed",
+                    "capability_rate_limited",
+                    "credential_unavailable",
+                    "dingtalk_docs_upstream_unavailable",
+                    "knowledge_write_denied",
+                    "dingtalk_docs_upstream_denied",
+                }
+            ),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker._failure#KnowledgeSyncSource.last_error_code[1]",
+            frozenset(
+                {
+                    "artifact_store_unavailable",
+                    "resource_not_found",
+                    "dingtalk_docs_response_invalid",
+                    "document_parse_failed",
+                    "capability_rate_limited",
+                    "credential_unavailable",
+                    "dingtalk_docs_upstream_unavailable",
+                    "knowledge_write_denied",
+                    "dingtalk_docs_upstream_denied",
+                }
+            ),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker._page#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker._page#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker._page#DingTalkDocsResponseError[3]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker._page#DingTalkDocsResponseError[4]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker._page#DingTalkDocsResponseError[5]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker.tick#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker.tick#AuthorizationError[2]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker.tick#AuthorizationError[3]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker.tick#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync_worker.py::KnowledgeSyncWorker.tick#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService._authorize#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService._identity#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#AuthorizationError[1]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#AuthorizationError[2]",
+            frozenset({"knowledge_write_denied"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.accept_read#ValidationError[1]",
+            frozenset({"document_parse_failed"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.create_source#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "knowledge/sync.py::KnowledgeSyncService.disable_source#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "knowledge/sync_queue.py::checkpoint_source#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[3]",
+            frozenset({"capability_input_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor._binding#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor._binding#DingTalkDocsDeniedError[2]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor._binding#DingTalkDocsDeniedError[3]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor.invoke#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor.invoke#DingTalkDocsDeniedError[2]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor.invoke#DingTalkDocsUnavailableError[1]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor.invoke#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor.invoke#ValidationError[2]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::DingTalkManagedSdkExecutor.invoke#ValidationError[3]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner.__init__#DingTalkDocsUnavailableError[1]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner._call#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner._call#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner._call#DingTalkDocsUnavailableError[1]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner._call#DingTalkDocsUnavailableError[2]",
+            frozenset({"dingtalk_docs_upstream_unavailable"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner._call.collect#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner.read#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_managed.py::HostDwsReadRunner.read#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.verify_document_reader#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.verify_document_reader#DingTalkDocsDeniedError[2]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.verify_document_reader#DingTalkDocsDeniedError[3]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.verify_document_reader#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.verify_document_reader#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::_Parser.render#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::_Parser.render#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::_Parser.render#DingTalkDocsResponseError[3]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::_Parser._visit#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::_Parser._table#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::extract_full_document#DingTalkDocsResponseError[5]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::extract_full_document#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::extract_full_document#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::extract_full_document#DingTalkDocsResponseError[3]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk_jsonml.py::extract_full_document#DingTalkDocsResponseError[4]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.__init__#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient._pages#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.fetch_document#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspace_nodes#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspace_nodes#DingTalkDocsDeniedError[2]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspace_nodes#DingTalkDocsDeniedError[3]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspace_nodes#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspace_nodes#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspaces#DingTalkDocsDeniedError[1]",
+            frozenset({"dingtalk_docs_upstream_denied"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspaces#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::DingTalkWikiClient.list_workspaces#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::_page#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::_page#DingTalkDocsResponseError[2]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::_page#DingTalkDocsResponseError[3]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::_page#DingTalkDocsResponseError[4]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "capabilities/dingtalk_wiki.py::_required_text#DingTalkDocsResponseError[1]",
+            frozenset({"dingtalk_docs_response_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk.py::ingest_dingtalk_document#ValidationError[2]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
+            "knowledge/dingtalk.py::sync_dingtalk_workspace#ValidationError[1]",
+            frozenset({"dingtalk_docs_operation_invalid"}),
+        ),
+        (
             "api/admin.py::bind_capability#ConflictError[1]",
             frozenset({"capability_binding_conflict"}),
         ),
@@ -3137,6 +3585,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"document_acl_required"}),
         ),
         (
+            "knowledge/parsers.py::_dingtalk_layout_chunks#ValidationError[1]",
+            frozenset({"document_parse_failed"}),
+        ),
+        (
             "knowledge/parsers.py::chunk_document#ValidationError[1]",
             frozenset({"document_empty"}),
         ),
@@ -3624,11 +4076,11 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"codeup_repository_denied"}),
         ),
         (
-            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[3]",
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[4]",
             frozenset({"connector_grant_missing"}),
         ),
         (
-            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[5]",
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[6]",
             frozenset({"capability_transport_unavailable"}),
         ),
         (
@@ -3675,16 +4127,17 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             "application/dingtalk_outbox.py::DingTalkOutboxService._set_last_error#DingTalkRobotOutbox.last_error_code[1]",
             frozenset(
                 {
-                    "capability_rate_limited",
-                    "connector_egress_invalid",
-                    "connector_grant_missing",
-                    "credential_unavailable",
                     "dependency_failed",
                     "im_delivery_answer_missing",
-                    "im_delivery_denied",
-                    "im_delivery_lineage_changed",
                     "im_delivery_receipt_conflict",
+                    "im_delivery_denied",
                     "inline_secret_denied",
+                    "connector_grant_missing",
+                    "im_delivery_lineage_changed",
+                    "capability_rate_limited",
+                    "connector_egress_invalid",
+                    "credential_unavailable",
+                    "authorization_fence_unavailable",
                 }
             ),
         ),
@@ -3833,31 +4286,31 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[3]",
-            "forward:capabilities/gateway.py:1320:exc.code",
+            "forward:capabilities/gateway.py:1374:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke#GatewayResult[9]",
-            "forward:capabilities/gateway.py:1502:exc.code",
+            "forward:capabilities/gateway.py:1560:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._execute_operator#GatewayResult[2]",
-            "forward:capabilities/gateway.py:1163:exc.code",
+            "forward:capabilities/gateway.py:1217:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#GatewayResult[1]",
-            "forward:capabilities/gateway.py:762:exc.code",
+            "forward:capabilities/gateway.py:770:exc.code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[1]",
-            "forward:capabilities/gateway.py:832:rate_result.error_code",
+            "forward:capabilities/gateway.py:840:rate_result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._invoke_operator_durable#OperatorCapabilityInvocation.error_code[2]",
-            "forward:capabilities/gateway.py:852:result.error_code",
+            "forward:capabilities/gateway.py:860:result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._operator_result_from_record#GatewayResult[1]",
-            "forward:capabilities/gateway.py:1214:record.error_code",
+            "forward:capabilities/gateway.py:1268:record.error_code",
         ),
         (
             "evaluations/engine.py::EvaluationEngine.evaluate#CaseEvaluation[2]",
@@ -3869,34 +4322,29 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/replay.py::RunReplayService.materialize#Run.error_code[1]",
-            "forward:harness/replay.py:720:source.error_code",
+            "forward:harness/replay.py:734:source.error_code",
         ),
         (
             "harness/replay.py::RunReplayService.materialize#RunStep.error_code[1]",
-            "forward:harness/replay.py:339:source_step.error_code",
+            "forward:harness/replay.py:346:source_step.error_code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:3159:exc.code",
+            "forward:harness/runtime.py:3806:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",
-            (
-                "forward:harness/runtime.py:1457:exc.code | "
-                "forward:harness/runtime.py:1487:result.error_code"
-            ),
+            "forward:harness/runtime.py:1593:exc.code | "
+            "forward:harness/runtime.py:1623:result.error_code",
         ),
-        (
-            "main.py::_error_response#ErrorBody[1]",
-            "forward:main.py:421:exc.code",
-        ),
+        ("main.py::_error_response#ErrorBody[1]", "forward:main.py:423:exc.code"),
         (
             "api/codeup.py::_raise_gateway_failure#ObsionError[1]",
             "forward:api/codeup.py:213:result.error_code",
         ),
         (
-            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[4]",
-            "forward:capabilities/gateway.py:1005:exc.code",
+            "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[5]",
+            "forward:capabilities/gateway.py:1055:exc.code",
         ),
     ]
 )

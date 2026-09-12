@@ -110,6 +110,26 @@ tests:
   e2e: passed
 
 known_issues:
+  - 发布与历史来源再校验目前覆盖受管钉钉资料；原生上传及其他导入来源在读取时检查ACL/版本，但尚需将后续发布与历史检查扩展到这些来源并验证并发撤权。ADR0128不宣称所有来源均具备受管钉钉相同保证。
+  - 2026-09-12 ADR0128：受控搜索/逐页读取、自主重规划及完整复核已部署到日常开发环境，修复资料路由、模型不可用伪验证和密级丢失。最终Python2650通过/262跳过/7排除（751.92秒），13项真实PostgreSQL及1项真实备份演练入库通过；278源码Mypy、Ruff/1057格式和秘密扫描通过。真实K3完成虚构资料READ后复核、企业差旅表原文复核，以及企业容量问题三轮查阅后明确资料不足。两个Kimi端点按用户许可经Policy/API扩大密级范围，真实企业资料保持RESTRICTED；日常API253源码匹配、宿主版本固定、6篇资料恢复且标识保留。点仔32已完成三轮查阅，7次K3调用；34日常翻译1次K3，两条实际聊天与产物一致、单次发送并获SUCCESS；33未观察到入站，不计通过。完整M1/M2/M3、全部文档格式及自主项目仍未完成。
+  - 2026-09-12 ADR0127：统一正文复核与平台引用职责，保留经本地校验的整体支持/问题完成判断；内部编号触发重验权限后至多重写一次，仍须事实复核。五条内容读取路径不再等待模型Run锁，最终PostgreSQL正常/撤权10项通过；整合Python2596passed/262skipped/7deselected（704.80秒）、专项86passed、273源码Mypy与Ruff/1044格式通过。日常API248源码与固定宿主快照匹配，6篇可用且标识保留。隔离及点仔30/31共8次K3调用全部成功，四条答案完整复核通过；两条点仔聊天正文与产物一致、单次SUCCESS/UNREAD，分别103秒和80秒，其中合同入站前60.700秒。真实样例未触发重写，不宣称真实纠错验收。按用户新要求质量优先于速度，继续发展受控多轮分析、工具/文档调用和复核；完整M1和自主项目未完成。
+  - 2026-09-12 ADR0126：保留编号、合并表格、分栏和重复代码，检索不拆开结构片段；最终Python2579passed/252skipped/7deselected（636.10秒）、85项专项及PostgreSQL版本/撤权/恢复通过。日常API247源码与固定宿主版本一致，授权可用文档3→6，原文档标识保留。5次真实K3调用：表格含义经独立复核通过，但答案出现内部证据编号；点仔额度问题明确弃答并成功投递；合同分类三个Claim均有据却被整体复核拦截，不计问答通过。另有一条已发送消息未见入站，一条约60秒发生在本地回调前；完整质量、格式、M1和自主项目仍在推进。
+  - 2026-09-12 ADR0125：补齐普通启动的受管目录/正文能力注册，测试改用正式描述符，并验证管理员接口完整注册流程。整合Python2548passed/252skipped/7deselected（633.88秒），注册专项56项、最终HTTP2项及隔离PostgreSQL2项通过；271源码Mypy、Ruff/1033格式通过。已备份、真实备份恢复试升级并将日常API/Web升级到a3b5c7d9e1f2，修复本机5432端口冲突，项目宿主端口改为56324；246后端源码与运行镜像一致。zziv/Joony来源经正式API注册并由受监督宿主进程持续同步，3篇可用、7篇adoc不完整、1篇AI表格不支持、1篇空正文失败。点仔24/25/26均真实入站并单次成功投递，聊天正文与产物一致：四类内容逐项原文复核、容量问题明确弃答、同私聊正常英文翻译；共4次K3调用。三条回执UNREAD，不声称已读；两条上游入站约60秒延迟，完整格式、时延与M1/自主项目仍继续推进。
+  - 2026-09-12 ADR0124：企业问答区分资料不足、生成格式错误和模型不可用；缺项主题仅允许摘取当前用户问题的原文，最终提示由本地生成，不发布模型弃答正文。真实zziv资料与一次K3调用约24秒返回明确的容量上限缺项说明；仍为WITHHOLD/未核验、无事实引用，不冒充独立复核。暂停后该历史答案拒绝且计划隐藏，日常历史保留。最终151项通过（99.47秒）、6项隔离PostgreSQL通过，271源码Mypy、Ruff/1031格式、秘密扫描通过；无新迁移，隔离服务已停止。前版完整2532项通过与本次增量分开记账；普通环境、点仔文档投递、完整格式和M1继续推进。
+  - 2026-09-12 ADR0122/0123：真实zziv持续同步+Kimi问答发现并修复例行扫描清除有效授权、状态审计等待模型Run锁两处问题。新增read_generation及a3b5c7d9e1f2迁移，6项同步PostgreSQL和12项并发/状态通过；最终79项回归（105.44秒）、270源码Mypy/Ruff1029通过。真实7次K3调用：日常翻译通过，两次知识答案及逐条原文复核通过，第二次持续状态可读且约44秒完成；未知数字未编造但弃答笼统，未计质量验收。暂停后企业历史拒绝、日常历史保留；隔离服务已停，普通环境未部署。此前因状态修复停止的全量不计通过；最终ADR0122/0123完整Python2532passed/252skipped/7deselected（678.51秒），该源码快照早于ADR0124；完整M1、点仔文档投递与格式覆盖继续推进。
+  - 2026-09-12 ADR0121：单聊/群聊取得令牌后、消息POST前重查租约、资料、组织及群受众；群答案对每个成员核验来源，无权成员存在时仅发固定状态。旧IM明文接口拒绝受管正文，业务回滚后另事务保留Policy关联拒绝审计。最终167项通过（110.97秒）、9项隔离PostgreSQL场景通过；270源码Mypy、Ruff/1025格式与秘密扫描通过。复用f2a4b6c8d0e1，无新迁移或普通环境部署；真实点仔文档问答和完整M1继续验收。
+  - 2026-09-12 ADR0120 已实现最终发布和新版Outbox的PostgreSQL事务屏障，23表权限事实变更参与排序；真实并发10项及f2a4b6c8d0e1迁移往返/无差异通过，来源与契约118项通过。新增发送总时限及投递/契约最终119项、270源码Mypy/Ruff1023格式通过；主分支重新fetch后0/0，工作树未提交；普通环境未部署，厂商POST新鲜度、旧IM明文交接及真实文档问答仍待处理。
+  - 2026-09-12 ADR0119 已补历史内容、派生副本、对话复用和钉钉发送前来源及组织校验，任务元信息安全投影和前端缓存隐藏；14合成Harness、5隔离PostgreSQL场景、Web222及244源码Mypy/Ruff1018格式通过。实数据库暴露的回放外键写入顺序已修复。完整Python2502passed/240skipped/7deselected和1处旧夹具失败（820.64秒），补入真实权限组件并修复AppServer重试缓存后最终68passed（87.55秒），五项PostgreSQL重验及269源码Mypy/Ruff1019格式通过；不冒充新的全量全绿，不部署正常环境，并发撤权和真实点仔文档验收仍待完成，详见ADR0119及专项账本。
+  - 2026-09-12 ADR0118 已增加受管文档作答前、复核前和发布前的Policy及来源权限/版本检查，变化时WITHHOLD并保留无正文审计；重复文档读取刷新旧ACL。9个合成Harness场景与错误/契约最终33passed（58.18秒），控制面241源码Mypy和Ruff1014格式通过，Web221passed及最新构建通过。历史内容与副本访问、Outbox发送前检查和并发撤权仍待完成，不开启正常环境来源，不声明完整发布门禁或M1完成。
+  - 2026-09-12 ADR0117 来源管理REST与Web已在隔离环境验证，可分页查看状态、显式选择连接、暂停/恢复/重扫。真实zziv页面恢复后后台完成扫描，显示3可用、8不完整或不支持、1空正文失败；窄屏暂停后0可用且3文档均拒绝，Policy审计通过。专项57passed/17显式跳过、Web221passed及控制面240源码Mypy通过；复用既有迁移。最终发布和历史访问复核、普通运行接入及点仔文档问答仍待完成，完整M1不推进。
+  - 2026-09-12 ADR0115/0116 已实现持久来源访问屏障、固定连接的逐页自动同步、断点继续与登录到期刷新。真实zziv后台扫描15节点，3篇完整文档写入隔离PostgreSQL/MinIO，重建客户端后3篇正文可读，停用来源后3篇均拒绝；7篇正文不完整、1篇新文档为空、3目录和1AI表格未计入成功。来源双数据库34passed，受管读取/Worker50passed，全包263源码Mypy及Ruff1007格式通过；宿主Worker整合完整Python2481passed/240skipped/7deselected（643.94秒），其后补齐失败提交跨过租约到期时的原子回滚，最终Worker/受管读取/错误/契约组合77passed（56.67秒）。管理入口、正常运行环境接入、最终发布权限复核、完整格式和点仔文档答案仍待完成，不推进M1或生产门禁。
+  - 2026-09-11 ADR0114 开发受管正文读取已接入 Gateway/Policy，zziv 的10篇 adoc 均取得正文并有关联审计，3篇解析完整、7篇明确保留图片/卡片/复杂表格/编号缺口。读取前后核对原生权限、组织与本地主体绑定；SDK旧行为保持。专项组合81passed（49.24秒），Ruff和控制面233文件Mypy通过。没有正文入库、自动同步、模型调用或部署；持久队列、来源撤销检索屏障及真实问答继续实施，不宣称完整M1通过。
+  - 2026-09-11 Wiki v2 整合的隔离完整Python2407passed/223skipped/7deselected（588.58秒），Ruff/992格式/mypy256及契约/状态/秘密扫描通过；随后补显式失败响应的54项组合验证通过、1项显式跳过。10篇文字文档的同组织完整结构已只读取得，3篇原生块接口缺失内容；新后台自动入库尚未完成，不把个人读取或目录成功当作同步完成。
+  - 2026-09-11 ADR0113 新版钉钉知识库目录已在 zziv 真实应用身份下经 Gateway/Policy 和隔离 PostgreSQL 读取两个知识库及14节点，三次请求均有审计；50专项/契约通过、1显式Feishu验收跳过。用户补齐权限后操作者解析成功，新旧workspaceId确有区别。自动正文入库、来源ACL与撤销、持久同步仍在进行，不以目录成功声明企业文档问答完成；详见专项报告。
+  - 2026-09-11 ADR0112 正文投影与精确引用已通过冻结源码全量Python2382passed/223skipped/7deselected，Ruff984格式、mypy255及独立PostgreSQL空库升级/无差异；真实K3隔离双文档与部署README复核通过，230源文件与运行镜像一致。点仔用例23已核对同一厂商消息ID入站、GENERAL答案及SUCCESS/READ。README两次模型调用约225秒、同文档重复标题与完整M1仍未完成；zziv组织文档自动发现与同步为当前新增工作，现有应用文档浏览返回403，不能把操作者DWS可见目录当作服务端同步成功。
+  - 2026-09-11 ADR0110/0111 增加独立正文复核与部署模型ID限制；本地只允许kimi-k3-kimi和kimi-k2.7-kimi，旧端点仍留存历史但不可调用。模型限制整合全量Python2378passed/223skipped/7deselected（639.72秒），其后作者提示增量专项74passed；Web215、Ruff980格式、mypy254、契约/状态/秘密扫描通过。K3真实翻译及8/8隔离复核样例通过，README改进后7Claim有据，但两次模型调用约76秒且正文来源编号仍冗余；K2.7诊断HTTP503。模型限制切片已本地验证，M1h/完整M1、30秒目标、最新钉钉入站、自主项目与生产门禁仍未完成，见对应专项报告。
+  - 2026-09-11 ADR0107—0109 增加受管日常问答、Stream 有界建连与无凭据诊断、企业知识金额/比例来源拦截。整合后完整 Python 2337passed/223skipped/7deselected（614.78秒），Ruff/973格式/mypy228控制面源文件通过；金额拦截独立PostgreSQL API/Harness场景及空库升级/无差异通过。当前API镜像228源文件与仓库一致；真实模型README有据回答与未知问题弃答通过。日常用例19曾误入知识路由，已补修复及回归；20/21发送成功尚无Inbox，22普通输入待核对。完整M1、逐Claim语义核验、自主沙箱、项目闭环与生产门禁仍未完成，见各产品化专项报告。
+  - 2026-09-11 ADR0106 中文召回、严格引用、模型输出契约与 WITHHOLD 发布屏障已完成本地及点仔样例验证。完整 Python 2274passed/223skipped/7deselected；回执零时间戳后续专项85passed，真实 PostgreSQL 中文组合9passed，JS265passed。已知与未知问题分别验证，完整证据和限制见 docs/phases/productization-answer-quality-validation.md。逐 Claim 语义核验、完整M1、自主沙箱与生产门禁未完成；用户追加的日常问答由M1e处理。
   - 2026-09-11 M1c 当前连接增量已取得真实测试租户证据（ADR0104/0105）：点仔两条真实消息进入持久 Inbox 与 Harness，第二条返回引用答案且厂商 SUCCESS/READ；PAT 自动发现2个组织、完整分页129个唯一仓库，129次元信息读取及每组织一组指定提交文件读取通过，指定管理员cookie会话可访问。修复正式Stream可信CA初始化、目录管理REST、绑定重放409及文件大小字符串兼容，未扩大权限或关闭TLS。相关专项90、最终Python2225passed/221skipped/7deselected、JavaScript265及独立PostgreSQL迁移往返1通过；详细结果及剩余M1/UAT边界见 docs/phases/productization-m1c-validation.md。正式阶段及生产晋级不推进。
   - 2026-09-08 ADR0102 已为 Harness Run 增加不可变项目来源版本固定：新增 a88f69d7c8a0、Git commit/tree 与完整快照校验、run.source_pinned.v1、审计和 GET /api/v1/runs/{run_id}/source-pins；撤销或摘要异常只标记 source_available=false。Run pin 专项3项、契约门禁5项、组合7项和独立 PostgreSQL17 迁移往返1项通过，Ruff/mypy/OpenAPI 当前性通过。真实云效源码获取、实际 scopes、Harness 自动接线、Artifact ACL、沙箱传输/恢复/配额、钉钉租户、UAT 和生产晋级仍未完成。详见 docs/adr/0102-run-source-version-pinning.md、docs/phases/productization-run-source-pinning-validation.md、docs/phases/PHASE-99-REPORT.md 和 docs/architecture/phase-99-run-source-pinning-gate.md。
   - 2026-09-08 ADR0101 已收敛根目录 DWS 兼容入口：`dingtalk_obsion_agent.py` 不再导入 OpenAI、不保存进程内历史、不生成关键词降级答案，只通过 `ExperienceRuntime`/`ImBridge` 将 sender/conversation 消息交给统一控制面 IM/Harness；入口专项 3 passed，Ruff/编译通过。该入口不替代官方 Stream → 持久 Inbox → worker，也不构成真实 DWS/钉钉租户、Outbox、群受众、回执或 UAT 证据。详见 docs/adr/0101-dingtalk-dws-control-plane-bridge.md、docs/product/im-m1-stream-operations.md 和 docs/phases/productization-m1-validation.md。
@@ -172,6 +192,54 @@ active_milestone:
   name: dingtalk-product-entry
   status: in_progress_repository_local
   increments:
+    m1k:
+      status: normal_runtime_sources_verified_answer_quality_in_progress
+      scope: Ordinary zziv runtime has six authorized readable documents, durable source guards and verified table parsing; presentation, aggregate review rejection, ingress latency and full format coverage remain open
+      report: docs/phases/productization-dingtalk-org-documents-validation.md
+      architecture_gate: docs/architecture/productization-dingtalk-org-documents-gate.md
+      adr: docs/adr/0126-preserve-dingtalk-document-layout.md
+    m1j:
+      status: verified_repository_local
+      scope: Document-only author context and citations narrowed to independently quoted source bodies
+      report: docs/phases/productization-precise-source-validation.md
+      architecture_gate: docs/architecture/productization-precise-source-gate.md
+      adr: docs/adr/0112-precise-knowledge-source-projection.md
+    m1i:
+      status: verified_repository_local
+      scope: Deployment model ID allowlist restricted locally to the two user-authorized Kimi models
+      report: docs/phases/productization-model-allowlist-validation.md
+      architecture_gate: docs/architecture/productization-model-allowlist-gate.md
+      adr: docs/adr/0111-model-id-allowlist.md
+    m1h:
+      status: implemented_validation_in_progress
+      scope: Independent knowledge claim and answer review with exact source quotations
+      report: docs/phases/productization-independent-review-validation.md
+      architecture_gate: docs/architecture/productization-independent-review-gate.md
+      adr: docs/adr/0110-independent-knowledge-review.md
+    m1g:
+      status: verified_repository_local
+      scope: Reject unsupported explicit decimal monetary and percentage values in knowledge answers
+      report: docs/phases/productization-quantity-grounding-validation.md
+      architecture_gate: docs/architecture/productization-quantity-grounding-gate.md
+      adr: docs/adr/0109-knowledge-quantity-grounding.md
+    m1f:
+      status: verified_test_tenant_connection_slice
+      scope: Bounded Stream connection handshake and credential-free connection diagnostics
+      report: docs/phases/productization-stream-stability-validation.md
+      architecture_gate: docs/architecture/productization-stream-stability-gate.md
+      adr: docs/adr/0108-stream-connection-timeout.md
+    m1e:
+      status: verified_test_tenant_answer_slice
+      scope: Everyday questions without fabricating enterprise evidence or external actions
+      report: docs/phases/productization-everyday-answer-validation.md
+      architecture_gate: docs/architecture/productization-everyday-answer-gate.md
+      adr: docs/adr/0107-everyday-questions.md
+    m1d:
+      status: verified_test_tenant_answer_slice
+      scope: Chinese natural-question retrieval, strict model claims and enforced answer publication decision
+      report: docs/phases/productization-answer-quality-validation.md
+      architecture_gate: docs/architecture/productization-answer-quality-gate.md
+      adr: docs/adr/0106-answer-publication-and-chinese-retrieval.md
     m1a:
       status: complete_repository_local
       report: docs/phases/M1A-TRUSTED-IM-INGRESS-REPORT.md
@@ -194,7 +262,7 @@ active_milestone:
     postgres_restart_replay_and_immutable_terminal: passed
     isolated_migration_round_trip_and_drift: passed
     historical_binding_preservation: passed
-    backend_full_suite: M1c working-tree snapshot, 2225 passed, 221 skipped, 7 deselected (2026-09-11; opt-in integration gates remain explicit)
+    backend_full_suite: ADR0127 integrated final source, 2596 passed, 262 skipped, 7 deselected, 704.80 seconds (2026-09-12); real known-answer cases pass, broad quality and autonomous tool loops remain incomplete
     frontend_workspaces: passed
     strict_python_and_typescript_checks: passed
     secrets_scan: 0 findings

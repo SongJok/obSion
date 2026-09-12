@@ -1,0 +1,76 @@
+{
+  "scope": "Read-only same document comparison; content and personal data omitted",
+  "application_blocks_success": true,
+  "operator_full_success": true,
+  "application_blocks": 9,
+  "full_blocks": 9,
+  "revision": "5",
+  "rows": [
+    {
+      "position": 0,
+      "type": "paragraph",
+      "api_text_length": 167,
+      "full_text_length": 167,
+      "text_equal": true
+    },
+    {
+      "position": 1,
+      "type": "paragraph",
+      "api_text_length": 75,
+      "full_text_length": 75,
+      "text_equal": true
+    },
+    {
+      "position": 2,
+      "type": "paragraph",
+      "api_text_length": 72,
+      "full_text_length": 72,
+      "text_equal": true
+    },
+    {
+      "position": 3,
+      "type": "paragraph",
+      "api_text_length": 137,
+      "full_text_length": 137,
+      "text_equal": true
+    },
+    {
+      "position": 4,
+      "type": "paragraph",
+      "api_text_length": 0,
+      "full_text_length": 0,
+      "text_equal": true
+    },
+    {
+      "position": 5,
+      "type": "paragraph",
+      "api_text_length": 30,
+      "full_text_length": 30,
+      "text_equal": true
+    },
+    {
+      "position": 6,
+      "type": "blockquote",
+      "api_text_length": 0,
+      "full_text_length": 70,
+      "text_equal": false
+    },
+    {
+      "position": 7,
+      "type": "paragraph",
+      "api_text_length": 9,
+      "full_text_length": 9,
+      "text_equal": true
+    },
+    {
+      "position": 8,
+      "type": "blockquote",
+      "api_text_length": 0,
+      "full_text_length": 86,
+      "text_equal": false
+    }
+  ],
+  "all_body_text_preserved": false,
+  "missing_characters": 156,
+  "ingested": false
+}

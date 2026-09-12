@@ -1,0 +1,131 @@
+{
+  "date": "2026-09-11",
+  "scope": "zziv operator-visible organization spaces only; not server ingestion",
+  "corp_id": "ding1309fda8c58033082e2feadba6d9041e",
+  "user_id": "013526256671757557",
+  "knowledge_workspaces": 2,
+  "organization_drive_spaces": 1,
+  "nodes": [
+    {
+      "nodeId": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+      "workspaceId": "E0VzgWeEYPO5YzJe",
+      "name": "身份信息",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "P0MALyR8kNlvEblofDopxP9nJ3bzYmDO",
+      "workspaceId": "E0VzgWeEYPO5YzJe",
+      "name": "无标题 AI 表格",
+      "type": "file",
+      "extension": "able",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "PwkYGxZV33Z5xyZdupGmNwOQVAgozOKL",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "你可以这么用『知识库』",
+      "type": "folder",
+      "extension": null,
+      "hasChildren": true
+    },
+    {
+      "nodeId": "NDoBb60VLkQnR9QNCa3D5b75WlemrZQ3",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "示例-新人入职引导",
+      "type": "folder",
+      "extension": null,
+      "hasChildren": true
+    },
+    {
+      "nodeId": "LeBq413JAYwbNewdFzM7LgX6JDOnGvpb",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "示例-规章制度",
+      "type": "folder",
+      "extension": null,
+      "hasChildren": true
+    },
+    {
+      "nodeId": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "合同管理制度",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "财务报销制度",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "薪酬福利制度",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "新人手册",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "常用工具指南",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "🎉 欢迎开启「知识库」",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "✏️ 第一步：开始你的创作",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "💬 第二步：分享你的知识",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    },
+    {
+      "nodeId": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+      "workspaceId": "E0VzgaW36DBJxmJe",
+      "name": "🔍 第三步：快速搜索知识",
+      "type": "file",
+      "extension": "adoc",
+      "hasChildren": false
+    }
+  ],
+  "source_access": {
+    "operator_dws": "success",
+    "existing_application_browse": "HTTP 403 dingtalk_docs_upstream_denied",
+    "authed_wiki_scopes": []
+  },
+  "content_ingested": false,
+  "folder_count": 3,
+  "document_count": 10,
+  "aitable_count": 1
+}

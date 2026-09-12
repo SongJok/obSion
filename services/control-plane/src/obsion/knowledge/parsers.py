@@ -9,6 +9,7 @@ from openpyxl import load_workbook
 from pypdf import PdfReader
 
 from obsion.common.errors import ValidationError
+from obsion.knowledge.dingtalk_layout import MAX_LAYOUT_CHARS
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,8 +78,14 @@ def parse_document(content: bytes, media_type: str, filename: str) -> ParsedDocu
 
 
 def chunk_document(
-    text: str, *, max_chars: int = 1400, overlap_chars: int = 160
+    text: str,
+    *,
+    max_chars: int = 1400,
+    overlap_chars: int = 160,
+    preserve_dingtalk_layout: bool = False,
 ) -> list[tuple[list[str], str]]:
+    if preserve_dingtalk_layout:
+        return _dingtalk_layout_chunks(text, max_chars=max_chars, overlap_chars=overlap_chars)
     cleaned = text.replace("\x00", "").replace("\r\n", "\n").strip()
     if not cleaned:
         raise ValidationError("document_empty", "The document contains no extractable text")
@@ -122,4 +129,38 @@ def chunk_document(
         buffer = f"{buffer}\n\n{block}" if buffer else block
     if buffer.strip():
         chunks.append((buffer_heading.copy(), buffer.strip()))
+    return chunks
+
+
+def _dingtalk_layout_chunks(
+    text: str, *, max_chars: int, overlap_chars: int
+) -> list[tuple[list[str], str]]:
+    # Only the managed JSONML v2 ingestion path opts in. Generated layout blocks
+    # are escaped, non-nesting markup. Never overlap an incomplete table tail into
+    # the next evidence chunk, or strip the labels from a row-spanning value.
+    chunks: list[tuple[list[str], str]] = []
+    position = 0
+    opening = re.compile(r'<table>\n|<div class="columns">\n')
+    blocks: list[tuple[bool, str]] = []
+    while match := opening.search(text, position):
+        closing = "\n</table>" if match.group().startswith("<table>") else "\n</div>"
+        end = text.find(closing, match.end())
+        if end < 0:
+            break
+        end += len(closing)
+        blocks.append((False, text[position : match.start()]))
+        blocks.append((True, text[match.start() : end]))
+        position = end
+    blocks.append((False, text[position:]))
+    for layout, block in blocks:
+        if not block.strip():
+            continue
+        if layout:
+            if len(block) > min(max_chars, MAX_LAYOUT_CHARS):
+                raise ValidationError(
+                    "document_parse_failed", "The document layout exceeds the evidence budget"
+                )
+            chunks.append(([], block))
+        else:
+            chunks.extend(chunk_document(block, max_chars=max_chars, overlap_chars=overlap_chars))
     return chunks

@@ -31,8 +31,10 @@ from obsion.db.models import (
 )
 from obsion.domain.enums import ActorType, RunStatus
 from obsion.domain.run_state import is_terminal, validate_run_transition
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
+from obsion.security.auth import load_principal_by_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +106,11 @@ class RunReplayService:
         )
         if source_turn is None:
             raise NotFoundError("Replay source turn", source.turn_id)
+        principal = await load_principal_by_id(session, organization_id, source_turn.created_by)
+        if not await KnowledgePublicationGuard().check(
+            session, principal, [], run_id=target.id, stage="replay_materialization"
+        ):
+            raise NotFoundError("Replay source content", source.id)
 
         source_steps = list(
             await session.scalars(
@@ -342,6 +349,9 @@ class RunReplayService:
                 )
             )
         session.add_all(cloned_steps)
+        # These aggregates use scalar IDs rather than ORM relationships. Flush
+        # each parent group before inserting its composite-FK dependents.
+        await session.flush()
 
         cloned_evidence: list[Evidence] = []
         for source_item in source_evidence:
@@ -377,6 +387,7 @@ class RunReplayService:
                 )
             )
         session.add_all(cloned_evidence)
+        await session.flush()
 
         session.add_all(
             [
@@ -425,6 +436,7 @@ class RunReplayService:
             for item in source_claims
         ]
         session.add_all(cloned_claims)
+        await session.flush()
         session.add_all(
             [
                 ClaimEvidence(
@@ -547,6 +559,7 @@ class RunReplayService:
                 for item in source_assessments
             ]
         )
+        await session.flush()
         session.add_all(
             [
                 ClaimVerificationResult(
@@ -569,6 +582,7 @@ class RunReplayService:
                 for item in source_claim_results
             ]
         )
+        await session.flush()
         session.add_all(
             [
                 VerificationEvidenceLink(

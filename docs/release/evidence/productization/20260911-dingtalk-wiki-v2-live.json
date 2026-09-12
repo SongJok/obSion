@@ -1,0 +1,139 @@
+{
+  "scope": "Real application reads through CapabilityGateway and Policy; isolated PostgreSQL",
+  "records": [
+    {
+      "workspace": {
+        "workspace_id": "9r09jSMrX1KEG18A",
+        "name": "Joony知识库",
+        "description": ""
+      },
+      "nodes": [
+        {
+          "workspace_id": "9r09jSMrX1KEG18A",
+          "node_id": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+          "document_id": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+          "node_type": "adoc",
+          "title": "身份信息.adoc"
+        },
+        {
+          "workspace_id": "9r09jSMrX1KEG18A",
+          "node_id": "P0MALyR8kNlvEblofDopxP9nJ3bzYmDO",
+          "document_id": "P0MALyR8kNlvEblofDopxP9nJ3bzYmDO",
+          "node_type": "able",
+          "title": "无标题 AI 表格.able"
+        }
+      ]
+    },
+    {
+      "workspace": {
+        "workspace_id": "MJ0pDS2n4mOPqx0E",
+        "name": "你可以这么用『知识库』",
+        "description": "管理员可根据实际情况修改新人入职引导、组织规章制度模板，还可放入更多组织公共信息，全员可自主查看。"
+      },
+      "nodes": [
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "PwkYGxZV33Z5xyZdupGmNwOQVAgozOKL",
+          "document_id": "",
+          "node_type": "folder",
+          "title": "你可以这么用『知识库』"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "NDoBb60VLkQnR9QNCa3D5b75WlemrZQ3",
+          "document_id": "",
+          "node_type": "folder",
+          "title": "示例-新人入职引导"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "LeBq413JAYwbNewdFzM7LgX6JDOnGvpb",
+          "document_id": "",
+          "node_type": "folder",
+          "title": "示例-规章制度"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+          "document_id": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+          "node_type": "adoc",
+          "title": "🎉 欢迎开启「知识库」.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+          "document_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+          "node_type": "adoc",
+          "title": "✏️ 第一步：开始你的创作.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+          "document_id": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+          "node_type": "adoc",
+          "title": "💬 第二步：分享你的知识.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+          "document_id": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+          "node_type": "adoc",
+          "title": "🔍 第三步：快速搜索知识.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+          "document_id": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+          "node_type": "adoc",
+          "title": "新人手册.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+          "document_id": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+          "node_type": "adoc",
+          "title": "常用工具指南.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+          "document_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+          "node_type": "adoc",
+          "title": "合同管理制度.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+          "document_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+          "node_type": "adoc",
+          "title": "财务报销制度.adoc"
+        },
+        {
+          "workspace_id": "MJ0pDS2n4mOPqx0E",
+          "node_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+          "document_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+          "node_type": "adoc",
+          "title": "薪酬福利制度.adoc"
+        }
+      ]
+    }
+  ],
+  "audit": [
+    {
+      "action": "knowledge.write",
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a09077-5dcf-7069-b81d-2f3b09142b9e"
+    },
+    {
+      "action": "knowledge.write",
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a09077-5cb6-787b-9d0b-ef59e23ad862"
+    },
+    {
+      "action": "knowledge.write",
+      "outcome": "SUCCESS",
+      "policy_decision_id": "01a09077-5bab-7068-8be2-2e142899c748"
+    }
+  ],
+  "ingested": false
+}

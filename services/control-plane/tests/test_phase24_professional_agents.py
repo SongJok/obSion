@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from synthetic_knowledge_model import install_grounded_answer
 
 from obsion.harness.agent_router import AgentRouter
 from obsion.harness.planner import Planner
@@ -192,7 +193,11 @@ def test_operation_plan_is_read_only_status_and_never_writes() -> None:
 
 def test_support_diagnosis_e2e_pins_agent_and_cites_ticket_evidence(
     client: TestClient,
+    monkeypatch,
 ) -> None:
+    install_grounded_answer(
+        monkeypatch, "用户投诉无法退款。客服必须遵循已授权退款政策，不得在政策外发放现金。"
+    )
     ticket = client.post(
         "/api/v1/knowledge/documents",
         files={

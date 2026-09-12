@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from obsion.common.text import contains_cjk, lexical_terms
 from obsion.db.models import Evidence
+from obsion.harness.quantities import quantity_conflicts
 
 _TYPE_ALIASES: dict[str, frozenset[str]] = {
     "DATA": frozenset({"DATA", "SQL"}),
@@ -44,6 +46,15 @@ class Critic:
         answer: str | None = None,
         time_range: dict[str, Any] | None = None,
     ) -> CriticResult:
+        if route == "GENERAL" and not evidence and not required_types and not claims:
+            return CriticResult(
+                verified=False,
+                confidence=0.0,
+                coverage=0.0,
+                missing_evidence=(),
+                conflicts=(),
+                checks={"general_response_scope": True, "enterprise_verification": False},
+            )
         substantive = Critic.substantive_records(evidence)
         missing = Critic.missing_required_types(substantive, required_types)
         coverage = 1.0 if not required_types else 1 - len(missing) / len(required_types)
@@ -89,10 +100,12 @@ class Critic:
         conflicts_list.extend(
             self._detect_alternative_explanation_conflicts(evidence, claims, route)
         )
+        if route == "KNOWLEDGE":
+            conflicts_list.extend(quantity_conflicts(substantive, claims, answer))
         if (
             claims_required
             and question
-            and answer
+            and answer is not None
             and not self._question_is_covered(question, answer, claims)
         ):
             conflicts_list.append(
@@ -200,22 +213,80 @@ class Critic:
         answer: str,
         claims: list[dict[str, Any]],
     ) -> bool:
-        """Require a small lexical anchor without attempting semantic grading.
+        """Require a topic anchor in the answer body, not in detached claim metadata.
 
-        CJK questions do not have whitespace-delimited words, so for those we
-        only require a non-empty answer and at least one Claim.  English and
-        other latin-script questions require one meaningful token in the answer
-        or a cited Claim statement.
+        This rejects clearly unrelated text; overlap is not semantic entailment.
+        Citations are appended only after this check so titles cannot rescue an
+        unrelated answer. Chinese questions use bigrams rather than bypassing it.
         """
         if not answer.strip() or not claims:
             return False
-        if re.search(r"[\u4e00-\u9fff]", question):
-            return True
-        tokens = {token.casefold() for token in re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", question)}
-        response = " ".join(
-            [answer, *(str(claim.get("statement", "")) for claim in claims)]
-        ).casefold()
-        return bool(tokens and any(token in response for token in tokens))
+        stop_words = {
+            "the",
+            "and",
+            "for",
+            "are",
+            "was",
+            "were",
+            "does",
+            "did",
+            "has",
+            "have",
+            "had",
+            "can",
+            "could",
+            "would",
+            "should",
+            "what",
+            "which",
+            "when",
+            "where",
+            "why",
+            "how",
+            "that",
+            "this",
+            "with",
+            "from",
+            "about",
+            "please",
+            "tell",
+            "什么",
+            "为何",
+            "怎么",
+            "如何",
+            "是否",
+            "能否",
+            "可以",
+            "一下",
+            "请问",
+            "请帮",
+            "帮我",
+            "告诉",
+            "我们",
+            "你们",
+            "需要",
+            "哪些",
+            "多少",
+            "目前",
+            "现在",
+            "进行",
+            "查询",
+            "查看",
+            "根据",
+            "有关",
+            "关于",
+            "请你",
+            "谢谢",
+        }
+        tokens = {term for term in lexical_terms(question) if term not in stop_words}
+        response = answer.casefold()
+        return any(
+            term in response
+            if contains_cjk(term) and len(term) >= 2
+            else len(term) >= 3
+            and re.search(rf"(?<![a-z0-9_]){re.escape(term)}(?![a-z0-9_])", response) is not None
+            for term in tokens
+        )
 
     @classmethod
     def _detect_alternative_explanation_conflicts(

@@ -3,6 +3,7 @@ from __future__ import annotations
 from static_contract_analysis import EnumFingerprint, EventContractPair
 
 REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
+    "harness/runtime.py::HarnessRuntime._event#EventDraft[1]": frozenset({("plan.updated", 2)}),
     "actions/gateway.py::ActionGateway._invoke#EventDraft[1]": frozenset(
         {("action.policy_decided", 1)}
     ),
@@ -199,7 +200,10 @@ REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
     "harness/replay.py::RunReplayService.materialize#EventDraft[3]": frozenset(
         {("run.replay.completed", 1)}
     ),
-    "harness/runtime.py::HarnessRuntime._event#EventDraft[1]": frozenset(
+    "harness/runtime.py::HarnessRuntime._event#EventDraft[2]": frozenset({("intent.detected", 2)}),
+    "harness/runtime.py::HarnessRuntime._event#EventDraft[3]": frozenset({("plan.created", 2)}),
+    "harness/runtime.py::HarnessRuntime._event#EventDraft[4]": frozenset({("critic.completed", 2)}),
+    "harness/runtime.py::HarnessRuntime._event#EventDraft[5]": frozenset(
         {
             ("answer.delta", 1),
             ("artifact.created", 1),
@@ -374,13 +378,13 @@ REVIEWED_EVENT_HELPER_CALLS: dict[str, frozenset[EventContractPair]] = {
     "harness/runtime.py::HarnessRuntime._emit_preparation_context_events#_event[2]": frozenset(
         {("intent.detected", 1)}
     ),
-    "harness/runtime.py::HarnessRuntime._apply_gap_replan#_event[1]": frozenset(
+    "harness/runtime.py::HarnessRuntime._append_capability_replan#_event[1]": frozenset(
         {("run.state_changed", 1)}
     ),
-    "harness/runtime.py::HarnessRuntime._apply_gap_replan#_event[2]": frozenset(
+    "harness/runtime.py::HarnessRuntime._append_capability_replan#_event[2]": frozenset(
         {("plan.updated", 1)}
     ),
-    "harness/runtime.py::HarnessRuntime._apply_gap_replan#_event[3]": frozenset(
+    "harness/runtime.py::HarnessRuntime._append_capability_replan#_event[3]": frozenset(
         {("run.state_changed", 1)}
     ),
     "harness/runtime.py::HarnessRuntime._replan_transient_failures#_event[1]": frozenset(

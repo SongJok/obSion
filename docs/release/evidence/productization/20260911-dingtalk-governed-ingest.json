@@ -1,0 +1,121 @@
+{
+  "scope": "Real Gateway/Policy/DWS to governed KnowledgeService ingestion in isolated PostgreSQL; no background worker, model call, deployment or IM answer",
+  "records": [
+    {
+      "node_id": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+      "status": "READY",
+      "revision": "5",
+      "gaps": [],
+      "document_id": "01a090b4-4849-7666-8ce5-50c6f6d20c69",
+      "retrievable": true,
+      "content_version": 1
+    },
+    {
+      "node_id": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+      "status": "READY",
+      "revision": "0",
+      "gaps": [],
+      "document_id": "01a090b4-5182-7a2d-93ad-a2ffeb720084",
+      "retrievable": true,
+      "content_version": 1
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "non_text_span",
+        "ordered_list_labels",
+        "unsupported_code",
+        "unsupported_element"
+      ],
+      "document_id": null
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "unsupported_element"
+      ],
+      "document_id": null
+    },
+    {
+      "node_id": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "unsupported_element"
+      ],
+      "document_id": null
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "ordered_list_labels",
+        "unsupported_element"
+      ],
+      "document_id": null
+    },
+    {
+      "node_id": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+      "status": "READY",
+      "revision": "0",
+      "gaps": [],
+      "document_id": "01a090b4-7e0c-7c8c-a696-d2c878c063c2",
+      "retrievable": true,
+      "content_version": 1
+    },
+    {
+      "node_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "ordered_list_labels"
+      ],
+      "document_id": null
+    },
+    {
+      "node_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "ordered_list_labels"
+      ],
+      "document_id": null
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "ordered_list_labels"
+      ],
+      "document_id": null
+    }
+  ],
+  "source_id": "01a090b4-3ecb-7871-a0f4-075985d514ab",
+  "disabled_source_denied_documents": 3,
+  "audit_outcomes": [
+    "PARTIAL",
+    "READY",
+    "READY",
+    "PARTIAL",
+    "PARTIAL",
+    "PARTIAL",
+    "PARTIAL",
+    "READY",
+    "PARTIAL",
+    "PARTIAL",
+    "DISABLED"
+  ],
+  "object_store": "isolated in-memory test adapter; not durable blob storage validation",
+  "validation_date": "2026-09-11",
+  "limitation": "Live run preceded provenance-label and same-text new-source-revision handling additions, covered by separate local/PostgreSQL regression. No production or background-sync claim."
+}

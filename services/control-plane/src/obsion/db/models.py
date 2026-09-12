@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from pgvector.sqlalchemy import VECTOR
@@ -2384,7 +2384,10 @@ class RunConversationSnapshot(Base, IdMixin, OrganizationMixin):
 
 class Document(Base, IdMixin, OrganizationMixin, TimestampMixin):
     __tablename__ = "documents"
-    __table_args__ = (UniqueConstraint("organization_id", "source", "external_id"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "source", "external_id"),
+        UniqueConstraint("organization_id", "id", name="uq_documents_org_id"),
+    )
 
     source: Mapped[str] = mapped_column(String(200), nullable=False)
     external_id: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -3289,3 +3292,108 @@ class CodeRepositoryGrant(Base, OrganizationMixin):
 # Register the legacy Phase 98 IM tables after this module has defined the
 # shared installation table. The compatibility module reuses ImInstallation.
 from obsion.db import im_models as im_models  # noqa: E402,F401
+
+
+class KnowledgeSyncSource(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    __tablename__ = "knowledge_sync_sources"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_knowledge_sync_sources_org_id"),
+        UniqueConstraint(
+            "organization_id",
+            "connector_version_id",
+            "principal_binding_id",
+            name="uq_knowledge_sync_sources_binding",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "connector_version_id"],
+            [
+                "connector_configuration_versions.organization_id",
+                "connector_configuration_versions.id",
+            ],
+            name="fk_knowledge_sync_sources_connector_version",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "principal_binding_id"],
+            ["im_principal_bindings.organization_id", "im_principal_bindings.id"],
+            name="fk_knowledge_sync_sources_principal",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["users.organization_id", "users.id"],
+            name="fk_knowledge_sync_sources_user",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("generation >= 0", name="nonnegative_generation"),
+        CheckConstraint("length(trim(corp_id)) > 0", name="nonempty_corp_id"),
+        CheckConstraint("(lease_token IS NULL) = (lease_expires_at IS NULL)", name="paired_lease"),
+    )
+
+    connector_version_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    principal_binding_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    corp_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    app_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    scan_state: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    next_poll_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error_code: Mapped[str | None] = mapped_column(ErrorCodeType(100))
+
+
+class KnowledgeSyncItem(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    __tablename__ = "knowledge_sync_items"
+    __table_args__ = (
+        UniqueConstraint("source_id", "node_id", name="uq_knowledge_sync_items_node"),
+        ForeignKeyConstraint(
+            ["organization_id", "source_id"],
+            ["knowledge_sync_sources.organization_id", "knowledge_sync_sources.id"],
+            name="fk_knowledge_sync_items_source",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "document_id"],
+            ["documents.organization_id", "documents.id"],
+            name="fk_knowledge_sync_items_document",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING', 'READY', 'PARTIAL', 'DENIED', 'MISSING', 'FAILED')",
+            name="valid_status",
+        ),
+        CheckConstraint("seen_generation >= 0", name="nonnegative_generation"),
+        CheckConstraint("read_generation >= 0", name="nonnegative_read_generation"),
+        CheckConstraint(
+            "status != 'READY' OR (document_id IS NOT NULL AND checked_at IS NOT NULL "
+            "AND access_expires_at IS NOT NULL)",
+            name="ready_has_access_lease",
+        ),
+        CheckConstraint(
+            "access_expires_at IS NULL OR (checked_at IS NOT NULL "
+            "AND access_expires_at > checked_at)",
+            name="ordered_access_lease",
+        ),
+    )
+
+    source_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    node_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    workspace_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    seen_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    read_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
+    document_id: Mapped[UUID | None] = mapped_column(Uuid, index=True)
+    source_revision: Mapped[str | None] = mapped_column(String(200))
+    gaps: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    access_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_error_code: Mapped[str | None] = mapped_column(ErrorCodeType(100))

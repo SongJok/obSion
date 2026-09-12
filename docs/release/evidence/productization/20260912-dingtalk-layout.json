@@ -1,0 +1,681 @@
+{
+  "date": "2026-09-12",
+  "parser_version": "dingtalk-jsonml-v2",
+  "scope": "Ordinary development deployment, real governed zziv sources, real Kimi calls and Pointbot messages; incomplete usability cases retained",
+  "worker_baseline_fingerprint": "bfaa9713d5f7d394a9ae4c52838db085e39eaf0ab8d484c7ceb8ec468517e1ce",
+  "cases": [
+    {
+      "node_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+      "title": "财务报销制度",
+      "raw_checksum_sha256": "55505589f396765b5c3a9874394753eec71a67e78efd079259def85cc8c5ded1",
+      "before_gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "ordered_list_labels"
+      ],
+      "after_gaps": [],
+      "complete": true,
+      "text_checksum_sha256": "b14f41e7bd1e6bd8994b209128a3b29dbc603fc9d2cee558f76323e562803ccd",
+      "chunks": 5,
+      "chunk_characters": [
+        185,
+        277,
+        18,
+        410,
+        231
+      ],
+      "independent_finance_geometry_checked": true,
+      "contains_placeholders_not_actual_limits": true
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+      "title": "薪酬福利制度",
+      "raw_checksum_sha256": "4bfd1406e7ec1bbf355708af63cfb2595934e248fbaeb81a837a43f9cf90b2fe",
+      "before_gaps": [
+        "ordered_list_labels"
+      ],
+      "after_gaps": [],
+      "complete": true,
+      "text_checksum_sha256": "d29644fadec1cda089231b19be224c23126286a7f134bdc427f8b681ea87e038",
+      "chunks": 3,
+      "chunk_characters": [
+        183,
+        143,
+        240
+      ]
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+      "title": "✏️ 第一步：开始你的创作",
+      "raw_checksum_sha256": "f598f06c61b00c548e385a9f8461e79e8e988cd4a4b48aea39932cd828900c89",
+      "before_gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "non_text_span",
+        "ordered_list_labels",
+        "unsupported_code",
+        "unsupported_element"
+      ],
+      "after_gaps": [
+        "non_text_span",
+        "unsupported_element"
+      ],
+      "complete": false,
+      "text_checksum_sha256": "676c322f898ea34d6ec2ac6f004f8c788cf420c1d1adcd2eb31287cdd504dcf9",
+      "chunks": 0,
+      "chunk_characters": []
+    },
+    {
+      "node_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+      "title": "合同管理制度",
+      "raw_checksum_sha256": "85ba0645c8283d2cdf5ef8e02ee8cac18c684425d05a088e06aa67ca8fdb1066",
+      "before_gaps": [
+        "ordered_list_labels"
+      ],
+      "after_gaps": [],
+      "complete": true,
+      "text_checksum_sha256": "017b10edf04fc289b1e4296761824e1aae4d67b9218d7b0c21d078fc5b41e51a",
+      "chunks": 1,
+      "chunk_characters": [
+        501
+      ],
+      "three_labels_checked": true
+    }
+  ],
+  "fail_first": {
+    "failed": 7,
+    "passed": 19
+  },
+  "postgres": {
+    "layout_refresh_revocation_recovery": true,
+    "migration_head": "a3b5c7d9e1f2",
+    "drift": false,
+    "disposable_databases_removed": true
+  },
+  "limitations": [
+    "Images, cards, mentions and AI tables remain unsupported",
+    "Layouts over 1400 characters stay incomplete",
+    "Complete parsing does not turn template placeholders into business facts",
+    "REST table answer exposed internal Evidence UUID/body_index in prose; factual support passed, presentation did not",
+    "Pointbot contract-category case was withheld despite three supported claims; not accepted as successful Q&A",
+    "Case 27 has a real sent message but no observed Inbox entry at this snapshot; no blind resend",
+    "Case 29 waited about 60 seconds before local handler entry; no assertion about the upstream root cause",
+    "Artifact listing during the active case 29 Run timed out at 20 seconds; after completion it returned normally, root cause remains to reproduce",
+    "Complete M1 and autonomous project execution remain unfinished"
+  ],
+  "local_tests": {
+    "final_focused": {
+      "passed": 85,
+      "seconds": 56.2
+    },
+    "suites_overlap": true,
+    "mypy_source_files": 272,
+    "ruff_format_files": 1039,
+    "secret_findings": 0,
+    "full_python": {
+      "passed": 2579,
+      "skipped": 252,
+      "deselected": 7,
+      "seconds": 636.1
+    },
+    "main_fetch_head_left_right": [
+      0,
+      0
+    ],
+    "final_scanner_real_payload_cases": 4,
+    "interrupted_full_runs_counted_as_passed": false
+  },
+  "source_sha256": {
+    "services/control-plane/src/obsion/knowledge/dingtalk_jsonml.py": "d6f05e37719dacefe67266bd6bd175ec1611dd3f9243e62ec0caf7dfe0cf1fc7",
+    "services/control-plane/src/obsion/knowledge/dingtalk_layout.py": "637660cdc1b96c681404678ebc3667aac98eeb691367353a8b64bbe96c26b709",
+    "services/control-plane/src/obsion/knowledge/parsers.py": "d661a4cce515d05ced890e71878578c93f4d64a4c88bc473c66a8ec537fd4def",
+    "services/control-plane/src/obsion/knowledge/service.py": "57148ac85cc1edf9b567dbd7c5ae00a6e851bdab53b3b92c6f6d721e3e309538"
+  },
+  "recorded_at": "2026-09-12T10:07:15.180684+00:00",
+  "ordinary_development_deployed": true,
+  "production_deployed": false,
+  "deployment": {
+    "source_id": "01a094d6-dd77-78bb-8e9f-82e9a0c8ef0d",
+    "backup": ".data/backups/before-jsonml-layout-20260912.dump",
+    "backup_sha256": "ab88c1b1886bd1cd6d926e0a11de44ac66e6e67d0504f95457fab4f6556fc230",
+    "worker_previous_fingerprint": "bfaa9713d5f7d394a9ae4c52838db085e39eaf0ab8d484c7ceb8ec468517e1ce",
+    "worker_fingerprint": "5b343dc2988600bfd17ba22c7fc0af43c8a33eb4bc43530dddc22e5c8dd62df3",
+    "api_python_files_matched": 247,
+    "source_resumed": true,
+    "image": "obsion-api:jsonml-layout-20260912"
+  },
+  "source": {
+    "id": "01a094d6-dd77-78bb-8e9f-82e9a0c8ef0d",
+    "counts": {
+      "files": 12,
+      "available": 6,
+      "pending": 0,
+      "partial": 5,
+      "failed": 1,
+      "removed": 0,
+      "containers": 3,
+      "awaiting_access_check": 0
+    },
+    "existing_document_ids_preserved": true,
+    "items": [
+      {
+        "node_id": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+        "document_id": "01a094da-2444-7ded-855a-00ec74bd74c1",
+        "title": "身份信息",
+        "status": "READY",
+        "gaps": [],
+        "version": 2
+      },
+      {
+        "node_id": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+        "document_id": "01a094da-2fde-7ed6-a324-47915dbb25ed",
+        "title": "🎉 欢迎开启「知识库」",
+        "status": "READY",
+        "gaps": [],
+        "version": 2
+      },
+      {
+        "node_id": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+        "document_id": "01a094da-6bcd-70bc-9643-a81c5482c64a",
+        "title": "常用工具指南",
+        "status": "READY",
+        "gaps": [],
+        "version": 2
+      },
+      {
+        "node_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+        "document_id": "01a0950a-dd8b-7d50-bf86-4e2c8b719f7e",
+        "title": "合同管理制度",
+        "status": "READY",
+        "gaps": [],
+        "version": 1
+      },
+      {
+        "node_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+        "document_id": "01a0950a-e81b-79c3-b810-52031c378fd1",
+        "title": "财务报销制度.adoc",
+        "status": "READY",
+        "gaps": [],
+        "version": 1
+      },
+      {
+        "node_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+        "document_id": "01a0950a-f239-78d4-8571-a8bc5bd96563",
+        "title": "薪酬福利制度.adoc",
+        "status": "READY",
+        "gaps": [],
+        "version": 1
+      },
+      {
+        "node_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+        "document_id": null,
+        "title": "✏️ 第一步：开始你的创作",
+        "status": "PARTIAL",
+        "gaps": [
+          "non_text_span",
+          "unsupported_element"
+        ],
+        "version": null
+      },
+      {
+        "node_id": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+        "document_id": null,
+        "title": "🔍 第三步：快速搜索知识",
+        "status": "PARTIAL",
+        "gaps": [
+          "unsupported_element"
+        ],
+        "version": null
+      },
+      {
+        "node_id": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+        "document_id": null,
+        "title": "💬 第二步：分享你的知识",
+        "status": "PARTIAL",
+        "gaps": [
+          "unsupported_element"
+        ],
+        "version": null
+      },
+      {
+        "node_id": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+        "document_id": null,
+        "title": "新人手册",
+        "status": "PARTIAL",
+        "gaps": [
+          "ordered_list_labels",
+          "unsupported_element"
+        ],
+        "version": null
+      },
+      {
+        "node_id": "QBnd5ExVEyvb21v4H6j5Ar5qVyeZqMmz",
+        "document_id": null,
+        "title": "无标题文档.adoc",
+        "status": "FAILED",
+        "gaps": [],
+        "version": null
+      },
+      {
+        "node_id": "LeBq413JAYwbNewdFzM7LgX6JDOnGvpb",
+        "document_id": null,
+        "title": "示例-规章制度",
+        "status": "PARTIAL",
+        "gaps": [
+          "container"
+        ],
+        "version": null
+      },
+      {
+        "node_id": "NDoBb60VLkQnR9QNCa3D5b75WlemrZQ3",
+        "document_id": null,
+        "title": "示例-新人入职引导",
+        "status": "PARTIAL",
+        "gaps": [
+          "container"
+        ],
+        "version": null
+      },
+      {
+        "node_id": "PwkYGxZV33Z5xyZdupGmNwOQVAgozOKL",
+        "document_id": null,
+        "title": "你可以这么用『知识库』",
+        "status": "PARTIAL",
+        "gaps": [
+          "container"
+        ],
+        "version": null
+      },
+      {
+        "node_id": "P0MALyR8kNlvEblofDopxP9nJ3bzYmDO",
+        "document_id": null,
+        "title": "无标题 AI 表格.able",
+        "status": "PARTIAL",
+        "gaps": [
+          "unsupported_format"
+        ],
+        "version": null
+      }
+    ]
+  },
+  "rest_table_case": {
+    "case": "knowledge",
+    "workspace_id": "01a0950f-d06e-7e78-a0e5-cadc410dbbfe",
+    "thread_id": "01a0950f-d095-7cb0-8ca0-f6f283faae5f",
+    "run_id": "01a0950f-d0b0-7b53-8b1b-c3b11401a321",
+    "question": "根据《财务报销制度》，表格中的“飞机等级”和“火车等级”属于哪一类费用？只说明文档表格内容并注明出处，不把模板当成已批准政策。",
+    "status": "COMPLETED",
+    "seconds": 48.54,
+    "route": "KNOWLEDGE",
+    "answer": "按当前授权文档中《财务报销制度》的表格结构，“飞机等级”和“火车等级”列在“交通费用”这一合并表头之下，因此表格内容显示它们属于交通费用；该表格同时并列列出住宿费用、餐饮费用。出处：DOCUMENT 01a0950f-d236-762f-aa46-d2b5291579ba，body_index 0《财务报销制度》表格。仅说明该文档表格内容，不把模板占位内容视为已批准政策。\n\n### 引用\n- [1] **财务报销制度**（版本 1）",
+    "verification": {
+      "verified": true,
+      "confidence": 0.9,
+      "coverage": 1.0,
+      "missing_evidence": [],
+      "conflicts": [],
+      "checks": {
+        "required_evidence": true,
+        "claim_links": true,
+        "source_diversity": true,
+        "duplicate_evidence": true
+      }
+    },
+    "grounding": {
+      "version": "knowledge-grounding.v1",
+      "method": "model_review_with_exact_quotes",
+      "accepted": true,
+      "reason_code": "grounding_supported",
+      "candidate_fingerprint": "4e0be0be6aedece4a137972af667e539a64eff7de3188b621e8ec746bd38b71f",
+      "input_fingerprint": "cb675c9c6fd0107ac2d10c7d57f07768485d93c1052adc1016c4e1dc5c422edd",
+      "response_fingerprint": "56a2ffc57f99934a1941fb562a81d8148facc0292affdb6450c7dfd537075d09",
+      "claims": [
+        {
+          "claim_index": 1,
+          "verdict": "SUPPORTED",
+          "quotes": [
+            {
+              "evidence_id": "01a0950f-d236-762f-aa46-d2b5291579ba",
+              "body_index": 0,
+              "start": 8,
+              "length": 84,
+              "sha256": "9a2441f945342c218d53a2d70611430d6a240e09a2dad7c1a736626308b062b4"
+            },
+            {
+              "evidence_id": "01a0950f-d236-762f-aa46-d2b5291579ba",
+              "body_index": 0,
+              "start": 93,
+              "length": 87,
+              "sha256": "98b5764dafeaf867d516c0cfc6c4ee59c301f9fa63ede32bb13599f3009a4a99"
+            }
+          ]
+        },
+        {
+          "claim_index": 2,
+          "verdict": "SUPPORTED",
+          "quotes": [
+            {
+              "evidence_id": "01a0950f-d236-762f-aa46-d2b5291579ba",
+              "body_index": 0,
+              "start": 8,
+              "length": 84,
+              "sha256": "9a2441f945342c218d53a2d70611430d6a240e09a2dad7c1a736626308b062b4"
+            }
+          ]
+        }
+      ],
+      "duration_ms": 25829
+    },
+    "citations": [
+      {
+        "label": "[1]",
+        "evidence_id": "01a0950f-d236-762f-aa46-d2b5291579ba",
+        "source": "dingtalk-managed",
+        "resource": "authorized-document-index",
+        "title": "财务报销制度",
+        "version": 1,
+        "chunk_id": "01a0950a-e827-7d81-9d07-d5751d126910",
+        "external_id": "01a094d6-dd77-78bb-8e9f-82e9a0c8ef0d:dxXB52LJqNnkAenofZzN20ll8qjMp697",
+        "revision_id": "0",
+        "connector_name": "zziv-joony-managed-documents",
+        "operation": "knowledge.dingtalk.read",
+        "body_index": 0
+      }
+    ],
+    "error_code": null,
+    "input_tokens": 8929,
+    "output_tokens": 1274,
+    "model_calls": [
+      {
+        "model_id": "kimi-k3-kimi",
+        "outcome": "SUCCESS",
+        "latency_ms": 22052,
+        "input_tokens": 4714,
+        "output_tokens": 738
+      },
+      {
+        "model_id": "kimi-k3-kimi",
+        "outcome": "SUCCESS",
+        "latency_ms": 25820,
+        "input_tokens": 4215,
+        "output_tokens": 536
+      }
+    ],
+    "fact_grounding_accepted": true,
+    "presentation_quality_accepted": false,
+    "presentation_issue": "Internal Evidence UUID and body_index appear in answer prose"
+  },
+  "im_cases": {
+    "28": {
+      "id": "01a0950e-d497-7326-9773-f67ee1ba1caa",
+      "installation_id": "01a08b98-84c8-7663-b254-cac904638437",
+      "subject_user_id": "00000000-0000-7000-8000-000000000002",
+      "vendor_event_id": "msgNvvbeNyqb/DO8YFcS5pRyQ==",
+      "text": "OW-QA-20260912-28 根据《财务报销制度》，火车一等座的具体报销限额是多少元？如果原文只有占位内容，请明确说明无法确认，不要猜测金额。",
+      "status": "PROCESSED",
+      "run_id": "01a0950e-d505-772c-89d6-991b0e3b94bd",
+      "created_at": "2026-09-12 09:59:32.233490+00:00",
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 15447,
+          "input_tokens": 5016,
+          "output_tokens": 515
+        }
+      ],
+      "outbox": [
+        {
+          "id": "01a0950f-15c9-7c9b-82f9-d0fffc81192f",
+          "status": "ACCEPTED",
+          "recipient_sender_id": "013526256671757557",
+          "conversation_type": "direct",
+          "delivery_mode": "FINAL",
+          "attempt_count": 1,
+          "vendor_send_status": "SUCCESS",
+          "vendor_read_status": "UNREAD",
+          "last_error_code": null,
+          "blocked_reason": null
+        }
+      ],
+      "run_status": "COMPLETED",
+      "error_code": null,
+      "route": "KNOWLEDGE",
+      "artifacts_http": 200,
+      "answer": {
+        "markdown": "不知道：本次取得的授权资料不足以确认「火车一等座的具体报销限额是多少元」。请补充直接说明这一事项的资料，或指定其他已授权来源。",
+        "verification": {
+          "verified": false,
+          "confidence": 0.7,
+          "coverage": 1.0,
+          "missing_evidence": [],
+          "conflicts": [
+            {
+              "kind": "VALUE",
+              "severity": "HIGH",
+              "reason": "Answer does not contain a deterministic signal that the question was addressed",
+              "reason_codes": [
+                "question_not_covered"
+              ]
+            }
+          ],
+          "checks": {
+            "required_evidence": true,
+            "claim_links": false,
+            "source_diversity": true,
+            "duplicate_evidence": true
+          }
+        },
+        "claim_ids": [],
+        "citations": [],
+        "verification_assessment_id": "01a0950f-155b-7c97-9ed3-e937354d5bb6"
+      },
+      "vendor_message_id_matches_inbox": true,
+      "chat_reply": {
+        "message_id": "msg5//brAAektcHlefdnSzBew==",
+        "create_time": "2026-09-12 17:59:50",
+        "matches_artifact": true
+      },
+      "latency": {
+        "event_id_sha256": "d246095984a2cead54b0ee3d71317d8d8fae52cc4949c3dbf97de053889b65d2",
+        "handler_entered_at": "2026-09-12T09:59:32.178976+00:00",
+        "handler_completed_at": "2026-09-12T09:59:32.258979+00:00",
+        "handler_duration_ms": 79.955,
+        "ack_status": 200,
+        "user_created_to_handler_seconds": 0.179,
+        "user_created_to_bot_reply_seconds": 18.0,
+        "vendor_time_resolution_seconds": 1
+      },
+      "answer_quality_accepted": true
+    },
+    "29": {
+      "id": "01a09512-0b63-7a50-9337-925c0733d8c0",
+      "installation_id": "01a08b98-84c8-7663-b254-cac904638437",
+      "subject_user_id": "00000000-0000-7000-8000-000000000002",
+      "vendor_event_id": "msgqYIn5CbEu4WdpfUWrfT8OQ==",
+      "text": "OW-QA-20260912-29 根据《合同管理制度》，文档按编号列出了哪三类合同？请注明出处，只说明文档内容，不把模板当成已批准政策。",
+      "status": "PROCESSED",
+      "run_id": "01a09512-0e32-710d-a67d-833ff1361370",
+      "created_at": "2026-09-12 10:03:02.864982+00:00",
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 26888,
+          "input_tokens": 5524,
+          "output_tokens": 864
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 34365,
+          "input_tokens": 4491,
+          "output_tokens": 1436
+        }
+      ],
+      "outbox": [
+        {
+          "id": "01a09513-03f3-705c-9077-cdae3d1490e3",
+          "status": "ACCEPTED",
+          "recipient_sender_id": "013526256671757557",
+          "conversation_type": "direct",
+          "delivery_mode": "FINAL",
+          "attempt_count": 1,
+          "vendor_send_status": "SUCCESS",
+          "vendor_read_status": "UNREAD",
+          "last_error_code": null,
+          "blocked_reason": null
+        }
+      ],
+      "run_status": "COMPLETED",
+      "error_code": null,
+      "route": "KNOWLEDGE",
+      "artifacts_http": 200,
+      "answer": {
+        "markdown": "不知道：本次回答未通过证据核验，暂时不能确认结论。请核对资料的版本、时间和适用范围，或补充更直接的依据后重试。",
+        "verification": {
+          "verified": false,
+          "confidence": 0.49,
+          "coverage": 1.0,
+          "missing_evidence": [],
+          "conflicts": [
+            {
+              "kind": "VALUE",
+              "severity": "HIGH",
+              "reason": "Independent document review did not support publication",
+              "reason_codes": [
+                "grounding_not_supported"
+              ]
+            }
+          ],
+          "checks": {
+            "required_evidence": true,
+            "claim_links": true,
+            "source_diversity": true,
+            "duplicate_evidence": true
+          }
+        },
+        "claim_ids": [
+          "01a09513-0020-7e39-98e3-f4b32a4d6ed7",
+          "01a09513-0023-778f-bdf4-c422d6060243",
+          "01a09513-0025-70c7-b83a-740e6e978772"
+        ],
+        "citations": [],
+        "verification_assessment_id": "01a09513-0028-750b-b240-12ffe41ca292",
+        "grounding": {
+          "version": "knowledge-grounding.v1",
+          "method": "model_review_with_exact_quotes",
+          "accepted": false,
+          "reason_code": "grounding_not_supported",
+          "candidate_fingerprint": "778bcebcb01086d64619cf9648f6fcad5e72720c5ed32514b43791dc51af397a",
+          "input_fingerprint": "75d2a36daccadc204cb92c3a2bbfde38026d62852996ffbb2c2c8a934f5c74dd",
+          "response_fingerprint": "04eb17a574a2ed3cc065661e226fcb33f73b45a52867c659859fb41f461e1331",
+          "claims": [
+            {
+              "claim_index": 1,
+              "verdict": "SUPPORTED",
+              "quotes": [
+                {
+                  "evidence_id": "01a09512-1003-7a8d-bf1a-98e2f6e55236",
+                  "body_index": 0,
+                  "start": 161,
+                  "length": 25,
+                  "sha256": "becf7828f99790fe371d8cdf8433c327814f433ce3baa62de96adf79199b9d25"
+                },
+                {
+                  "evidence_id": "01a09512-1003-7a8d-bf1a-98e2f6e55236",
+                  "body_index": 0,
+                  "start": 217,
+                  "length": 8,
+                  "sha256": "8388c8d4d93ad3a0a012e4b1f166e3686bf9309f9bdd0b64dd55a2a1d66fb53a"
+                },
+                {
+                  "evidence_id": "01a09512-1003-7a8d-bf1a-98e2f6e55236",
+                  "body_index": 0,
+                  "start": 290,
+                  "length": 10,
+                  "sha256": "dc6766bc7c4ba895f8d77c7063ec183032cdafffa441a4cc084c452ed2b2e69d"
+                }
+              ]
+            },
+            {
+              "claim_index": 2,
+              "verdict": "SUPPORTED",
+              "quotes": [
+                {
+                  "evidence_id": "01a09512-1003-7a8d-bf1a-98e2f6e55236",
+                  "body_index": 0,
+                  "start": 178,
+                  "length": 37,
+                  "sha256": "aeea58284dd7e972d40d49e200dc8df4c39cc16232c6c417a1d13838f7c788ed"
+                }
+              ]
+            },
+            {
+              "claim_index": 3,
+              "verdict": "SUPPORTED",
+              "quotes": [
+                {
+                  "evidence_id": "01a09512-1003-7a8d-bf1a-98e2f6e55236",
+                  "body_index": 0,
+                  "start": 217,
+                  "length": 71,
+                  "sha256": "eb95bfbace697fa0fe3de136075dd424dcdbf3cf6c77aab7e4815108b3469e3c"
+                }
+              ]
+            }
+          ],
+          "duration_ms": 34382
+        }
+      },
+      "vendor_message_id_matches_inbox": true,
+      "chat_reply": {
+        "message_id": "msgU4TZg3ybJPB+48V2fp4z6Q==",
+        "create_time": "2026-09-12 18:04:07",
+        "matches_artifact": true
+      },
+      "latency": {
+        "event_id_sha256": "b66a2191af5bf3f8f0abb48e76f1460fce763b857cbb5924b4ec54e670a4eb1d",
+        "handler_entered_at": "2026-09-12T10:03:02.808745+00:00",
+        "handler_completed_at": "2026-09-12T10:03:02.894940+00:00",
+        "handler_duration_ms": 86.092,
+        "ack_status": 200,
+        "user_created_to_handler_seconds": 59.809,
+        "user_created_to_bot_reply_seconds": 124.0,
+        "vendor_time_resolution_seconds": 1
+      },
+      "answer_quality_accepted": false,
+      "quality_issue": "All three claim reviews SUPPORTED, but aggregate review rejected; the two global review booleans are not persisted, so the exact rejection cause is not yet established."
+    }
+  },
+  "im_27": {
+    "message_id": "msgXPLfyc6I79C4NF0/udIl6A==",
+    "create_time": "2026-09-12 17:55:50",
+    "chat_send_status": "SUCCESS",
+    "inbox_observed": false,
+    "answer_quality_accepted": false,
+    "not_resent": true
+  },
+  "stream_observation": {
+    "runtime": "Original SDK handler with local hash-only timing wrapper; original normalization/Inbox/ACK retained",
+    "new_pid": 26030,
+    "old_pid_replaced": 49811,
+    "global_profile_changed": false,
+    "organization": "zziv",
+    "user": "Joony"
+  },
+  "real_model_calls": 5,
+  "allowed_models": [
+    "kimi-k3-kimi",
+    "kimi-k2.7-kimi"
+  ],
+  "human_read_confirmed": false,
+  "final_health": {
+    "api_ready_http": 200,
+    "source_worker_running": true,
+    "source_worker_pid": 25517,
+    "source_matches_deployed_snapshot": true,
+    "case27_inbox_count": 0,
+    "active_runs": 0
+  }
+}

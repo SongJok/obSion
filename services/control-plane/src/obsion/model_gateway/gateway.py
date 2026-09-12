@@ -57,8 +57,14 @@ class EmbeddingResult:
 
 
 class ModelUnavailableError(ObsionError):
-    def __init__(self, message: str = "No eligible model endpoint is configured") -> None:
+    def __init__(
+        self,
+        message: str = "No eligible model endpoint is configured",
+        *,
+        no_model_route: bool = False,
+    ) -> None:
         super().__init__("model_unavailable", message, status_code=503)
+        self.no_model_route = no_model_route
 
 
 class ModelGateway:
@@ -512,7 +518,7 @@ class ModelGateway:
             )
         )
         if requested_profile is None:
-            raise ModelUnavailableError()
+            raise ModelUnavailableError(no_model_route=True)
         profile = await self._effective_profile(
             session,
             organization_id,
@@ -527,7 +533,7 @@ class ModelGateway:
             required_capabilities,
         )
         if not endpoints:
-            raise ModelUnavailableError()
+            raise ModelUnavailableError(no_model_route=True)
         return profile, endpoints
 
     async def _route_by_name(
@@ -593,7 +599,9 @@ class ModelGateway:
             )
         )
         if private_profile is None:
-            raise ModelUnavailableError("Sensitive model input requires an enabled private profile")
+            raise ModelUnavailableError(
+                "Sensitive model input requires an enabled private profile", no_model_route=True
+            )
         return private_profile
 
     async def _eligible_endpoints(
@@ -631,6 +639,11 @@ class ModelGateway:
         private_only = requirements.get("private") is True
         eligible: list[ModelEndpoint] = []
         for endpoint in endpoints:
+            if (
+                self.settings.model_allowed_ids is not None
+                and endpoint.model_id not in self.settings.model_allowed_ids
+            ):
+                continue
             capabilities = set(endpoint.capabilities)
             endpoint_context = int(endpoint.limits.get("context_window", 0))
             if classification.value not in set(endpoint.classifications):

@@ -214,7 +214,9 @@ async def test_capability_gateway_invokes_agent_executor() -> None:
     gateway._policy_event = AsyncMock()  # noqa: SLF001
     gateway._gateway_event = AsyncMock()  # noqa: SLF001
     gateway._audit = AsyncMock()  # noqa: SLF001
-    gateway._evidence = AsyncMock(return_value=SimpleNamespace(id=uuid4()))  # noqa: SLF001
+    gateway._evidence = AsyncMock(
+        return_value=SimpleNamespace(id=uuid4(), classification=version.data_classification)
+    )  # noqa: SLF001
 
     result = await gateway._invoke(  # noqa: SLF001
         SimpleNamespace(),

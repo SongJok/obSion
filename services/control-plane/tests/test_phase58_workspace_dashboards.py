@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from synthetic_knowledge_model import install_grounded_answer
 
 from obsion.common.ids import new_id
 from obsion.common.time import utc_now
@@ -181,7 +182,12 @@ def test_conversation_runs_do_not_invent_workspace_dashboards(client: TestClient
     assert dashboards.json() == []
 
 
-def test_knowledge_reports_do_not_invent_workspace_dashboards(client: TestClient) -> None:
+def test_knowledge_reports_do_not_invent_workspace_dashboards(
+    client: TestClient, monkeypatch
+) -> None:
+    install_grounded_answer(
+        monkeypatch, "Every production release requires an owner and rollback plan."
+    )
     document = client.post(
         "/api/v1/knowledge/documents",
         files={

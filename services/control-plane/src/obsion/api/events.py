@@ -9,11 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.schemas import EventView
+from obsion.common.errors import AuthorizationError, NotFoundError
 from obsion.config import Settings
 from obsion.db.models import Run
 from obsion.domain.run_state import is_terminal
+from obsion.knowledge.publication import filter_run_content
 from obsion.persistence.events import EventStore
-from obsion.security.auth import get_app_settings, get_principal, get_session
+from obsion.persistence.reads import audited_read_session
+from obsion.security.auth import get_app_settings, get_principal, get_read_session
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_run_access, require_workspace_access
 
@@ -25,10 +28,10 @@ async def list_run_events(
     run_id: UUID,
     after: int = Query(default=0, ge=0),
     limit: int = Query(default=500, ge=1, le=2000),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[EventView]:
-    await require_run_access(session, principal, run_id)
+    await require_run_access(session, principal, run_id, source_content=True)
     events = await EventStore().list_run(
         session, principal.organization_id, run_id, after_sequence=after, limit=limit
     )
@@ -39,7 +42,7 @@ async def list_run_events(
 async def list_workspace_timeline(
     workspace_id: UUID,
     limit: int = Query(default=500, ge=1, le=2000),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[EventView]:
     await require_workspace_access(session, principal, workspace_id)
@@ -49,6 +52,7 @@ async def list_workspace_timeline(
         workspace_id,
         limit=limit,
     )
+    events = await filter_run_content(session, principal, events, stage="workspace_timeline")
     return [EventView.model_validate(event) for event in events]
 
 
@@ -58,11 +62,11 @@ async def stream_run_events(
     run_id: UUID,
     after: int = Query(default=0, ge=0),
     last_event_id: int | None = Header(default=None, alias="Last-Event-ID", ge=0),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     settings: Settings = Depends(get_app_settings),
 ) -> StreamingResponse:
-    await require_run_access(session, principal, run_id)
+    await require_run_access(session, principal, run_id, source_content=True)
     database = request.app.state.database
 
     async def generate() -> AsyncIterator[str]:
@@ -72,15 +76,18 @@ async def stream_run_events(
         while True:
             if await request.is_disconnected():
                 return
-            async with database.sessions() as stream_session:
-                await require_run_access(stream_session, principal, run_id)
-                events = await EventStore().list_run(
-                    stream_session,
-                    principal.organization_id,
-                    run_id,
-                    after_sequence=cursor,
-                    limit=200,
-                )
+            try:
+                async with audited_read_session(database) as stream_session:
+                    await require_run_access(stream_session, principal, run_id, source_content=True)
+                    events = await EventStore().list_run(
+                        stream_session,
+                        principal.organization_id,
+                        run_id,
+                        after_sequence=cursor,
+                        limit=200,
+                    )
+            except (AuthorizationError, NotFoundError):
+                return
             if events:
                 idle_seconds = 0.0
                 terminal = False

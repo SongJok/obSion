@@ -129,7 +129,8 @@ def is_dingtalk_docs_connector(connector: Connector) -> bool:
     configuration = connector.configuration if isinstance(connector.configuration, dict) else {}
     protocol = configuration.get("protocol")
     return connector_type in DINGTALK_DOCS_CONNECTOR_TYPES or (
-        isinstance(protocol, str) and protocol.casefold() == DINGTALK_DOCS_PROTOCOL
+        isinstance(protocol, str)
+        and protocol.casefold() in {DINGTALK_DOCS_PROTOCOL, "dingtalk.wiki.v2"}
     )
 
 

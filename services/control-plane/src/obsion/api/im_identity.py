@@ -34,6 +34,7 @@ from obsion.api.schemas import (
 from obsion.application.im_delivery import ImDeliveryService
 from obsion.application.im_identity import ImIdentityService
 from obsion.application.im_inbox import ImInboxService
+from obsion.common.errors import AuthorizationError
 from obsion.security.auth import get_principal, get_session
 from obsion.security.identity import Principal
 
@@ -262,13 +263,18 @@ async def prepare_im_delivery(
     principal: Principal = Depends(get_principal),
     service: ImDeliveryService = Depends(get_im_delivery_service),
 ) -> ImDeliveryPrepareView:
-    async with session.begin():
-        delivery = await service.prepare(
-            session,
-            principal,
-            run_id,
-            worker_id=request.worker_id if request is not None else None,
-        )
+    try:
+        async with session.begin():
+            delivery = await service.prepare(
+                session,
+                principal,
+                run_id,
+                worker_id=request.worker_id if request is not None else None,
+            )
+    except AuthorizationError as error:
+        async with session.begin():
+            await service.audit_prepare_denial(session, principal, run_id, error.code)
+        raise
     return ImDeliveryPrepareView.model_validate(delivery)
 
 

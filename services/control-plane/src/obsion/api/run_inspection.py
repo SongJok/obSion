@@ -29,9 +29,10 @@ from obsion.db.models import (
     Turn,
 )
 from obsion.db.project_source_models import ConnectorConfigurationVersion, RunSourcePin
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.sandbox.project import ProjectRejected, ProjectRevision
 from obsion.sandbox.source_state import check_project_source_state
-from obsion.security.auth import get_principal, get_session
+from obsion.security.auth import get_principal, get_read_session
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_run_access, require_workspace_access
 
@@ -39,13 +40,13 @@ router = APIRouter(tags=["runs"])
 
 
 async def _require_run(session: AsyncSession, principal: Principal, run_id: UUID) -> None:
-    await require_run_access(session, principal, run_id)
+    await require_run_access(session, principal, run_id, source_content=True)
 
 
 @router.get("/runs/{run_id}/steps", response_model=list[RunStepView])
 async def list_steps(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[RunStepView]:
     await _require_run(session, principal, run_id)
@@ -63,7 +64,7 @@ async def list_steps(
 @router.get("/runs/{run_id}/evidence", response_model=list[EvidenceView])
 async def list_evidence(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[EvidenceView]:
     await _require_run(session, principal, run_id)
@@ -81,7 +82,7 @@ async def list_evidence(
 @router.get("/workspaces/{workspace_id}/evidence", response_model=list[EvidenceView])
 async def list_workspace_evidence(
     workspace_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[EvidenceView]:
     await require_workspace_access(session, principal, workspace_id)
@@ -98,13 +99,28 @@ async def list_workspace_evidence(
         .order_by(Evidence.ingested_at.desc())
         .limit(500)
     )
-    return [EvidenceView.model_validate(item) for item in evidence]
+    allowed: dict[UUID, bool] = {}
+    guard = KnowledgePublicationGuard()
+    result = []
+    for item in evidence:
+        if item.run_id not in allowed:
+            allowed[item.run_id] = await guard.check(
+                session,
+                principal,
+                [],
+                run_id=item.run_id,
+                stage="workspace_evidence",
+                link_policy_run=False,
+            )
+        if allowed[item.run_id]:
+            result.append(EvidenceView.model_validate(item))
+    return result
 
 
 @router.get("/runs/{run_id}/claims", response_model=list[ClaimView])
 async def list_claims(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[ClaimView]:
     await _require_run(session, principal, run_id)
@@ -150,7 +166,7 @@ async def list_claims(
 @router.get("/runs/{run_id}/artifacts", response_model=list[ArtifactView])
 async def list_artifacts(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[ArtifactView]:
     await _require_run(session, principal, run_id)
@@ -168,7 +184,7 @@ async def list_artifacts(
 @router.get("/runs/{run_id}/source-pins", response_model=list[RunSourcePinView])
 async def list_source_pins(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[RunSourcePinView]:
     """Inspect immutable source pins while rechecking current source usability."""
@@ -236,7 +252,7 @@ async def list_source_pins(
 @router.get("/runs/{run_id}/memories", response_model=list[RunMemorySnapshotView])
 async def list_run_memories(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[RunMemorySnapshotView]:
     await _require_run(session, principal, run_id)
@@ -257,7 +273,7 @@ async def list_run_memories(
 )
 async def list_run_conversation(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> list[RunConversationSnapshotView]:
     await _require_run(session, principal, run_id)
@@ -269,13 +285,26 @@ async def list_run_conversation(
         )
         .order_by(RunConversationSnapshot.ordinal)
     )
-    return [RunConversationSnapshotView.model_validate(item) for item in snapshots]
+    result = []
+    guard = KnowledgePublicationGuard()
+    for item in snapshots:
+        if item.source_run_id and not await guard.check(
+            session,
+            principal,
+            [],
+            run_id=item.source_run_id,
+            stage="conversation_inspection",
+            link_policy_run=False,
+        ):
+            continue
+        result.append(RunConversationSnapshotView.model_validate(item))
+    return result
 
 
 @router.get("/artifacts/{artifact_id}", response_model=ArtifactView)
 async def get_artifact(
     artifact_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> ArtifactView:
     artifact = await session.scalar(
@@ -287,13 +316,15 @@ async def get_artifact(
     if artifact is None:
         raise NotFoundError("Artifact", artifact_id)
     await require_workspace_access(session, principal, artifact.workspace_id)
+    if artifact.run_id is not None:
+        await require_run_access(session, principal, artifact.run_id, source_content=True)
     return ArtifactView.model_validate(artifact)
 
 
 @router.get("/evidence/{evidence_id}", response_model=EvidenceView)
 async def get_evidence(
     evidence_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
 ) -> EvidenceView:
     evidence = await session.scalar(
@@ -304,5 +335,5 @@ async def get_evidence(
     )
     if evidence is None:
         raise NotFoundError("Evidence", evidence_id)
-    await require_run_access(session, principal, evidence.run_id)
+    await require_run_access(session, principal, evidence.run_id, source_content=True)
     return EvidenceView.model_validate(evidence)

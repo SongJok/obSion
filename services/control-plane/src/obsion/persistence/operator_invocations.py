@@ -28,6 +28,7 @@ def operator_request_fingerprint(
     resource: dict[str, Any],
     environment: str,
     context: dict[str, Any],
+    connector_id: UUID | None = None,
 ) -> str:
     encoded = json.dumps(
         {
@@ -36,6 +37,8 @@ def operator_request_fingerprint(
             "resource": resource,
             "environment": environment,
             "context": context,
+            # Keep fingerprints of existing unpinned requests byte-for-byte stable.
+            **({"connector_id": str(connector_id)} if connector_id is not None else {}),
         },
         sort_keys=True,
         separators=(",", ":"),

@@ -1,0 +1,238 @@
+{
+  "started_at": "2026-09-12T03:40:15.807459+00:00",
+  "finished_at": "2026-09-12T03:40:50.017112+00:00",
+  "scope": "Real DingTalk Gateway/Policy worker in isolated PostgreSQL with durable MinIO; recreated worker each unit and recreated database/blob clients before retrieval. No model, IM send, or main runtime deployment.",
+  "source_id": "01a093b3-983c-77f8-9630-946fa4f54cbc",
+  "units": 18,
+  "enumeration_and_read_cycle_completed": true,
+  "error_code": null,
+  "records": [
+    {
+      "node_id": "P0MALyR8kNlvEblofDopxP9nJ3bzYmDO",
+      "kind": "able",
+      "status": "PARTIAL",
+      "revision": null,
+      "gaps": [
+        "unsupported_format"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "PwkYGxZV33Z5xyZdupGmNwOQVAgozOKL",
+      "kind": "folder",
+      "status": "PARTIAL",
+      "revision": null,
+      "gaps": [
+        "container"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "NDoBb60VLkQnR9QNCa3D5b75WlemrZQ3",
+      "kind": "folder",
+      "status": "PARTIAL",
+      "revision": null,
+      "gaps": [
+        "container"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "LeBq413JAYwbNewdFzM7LgX6JDOnGvpb",
+      "kind": "folder",
+      "status": "PARTIAL",
+      "revision": null,
+      "gaps": [
+        "container"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+      "kind": "adoc",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "non_text_span",
+        "ordered_list_labels",
+        "unsupported_code",
+        "unsupported_element"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+      "kind": "adoc",
+      "status": "READY",
+      "revision": "0",
+      "gaps": [],
+      "document_id": "01a093b3-cca3-7582-b8e9-31426345c728",
+      "error_code": null
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+      "kind": "adoc",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "unsupported_element"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+      "kind": "adoc",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "unsupported_element"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+      "kind": "adoc",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "ordered_list_labels",
+        "unsupported_element"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+      "kind": "adoc",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "ordered_list_labels"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+      "kind": "adoc",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "hidden_table_cell",
+        "merged_table_cell",
+        "ordered_list_labels"
+      ],
+      "document_id": null,
+      "error_code": null
+    },
+    {
+      "node_id": "QBnd5ExVEyvb21v4H6j5Ar5qVyeZqMmz",
+      "kind": "adoc",
+      "status": "FAILED",
+      "revision": null,
+      "gaps": [],
+      "document_id": null,
+      "error_code": "document_parse_failed"
+    },
+    {
+      "node_id": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+      "kind": "adoc",
+      "status": "READY",
+      "revision": "5",
+      "gaps": [],
+      "document_id": "01a093b3-c24f-73b3-ae57-628bc8571acc",
+      "error_code": null
+    },
+    {
+      "node_id": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+      "kind": "adoc",
+      "status": "READY",
+      "revision": "0",
+      "gaps": [],
+      "document_id": "01a093b3-fe80-732b-ba10-d8bad0f1fd66",
+      "error_code": null
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+      "kind": "adoc",
+      "status": "PARTIAL",
+      "revision": "0",
+      "gaps": [
+        "ordered_list_labels"
+      ],
+      "document_id": null,
+      "error_code": null
+    }
+  ],
+  "persistent_content_verified_documents": [
+    "01a093b3-cca3-7582-b8e9-31426345c728",
+    "01a093b3-c24f-73b3-ae57-628bc8571acc",
+    "01a093b3-fe80-732b-ba10-d8bad0f1fd66"
+  ],
+  "disabled_source_denied_documents": 3,
+  "authentication_refresh_validation": {
+    "before": "expired",
+    "after": "active",
+    "organization_selection": "exact configured corpId:userId; no global profile change",
+    "real_read_after_refresh": "COMPLETED; complete body"
+  },
+  "limitations": [
+    "Normal development API/host rollout and management API/UI are pending.",
+    "No model call or DingTalk message in this slice.",
+    "7 adoc documents contain unsupported content; 1 new adoc is empty and failed parsing; folders and AI tables are not documents.",
+    "Source disabled after validation; its private blobs remain in an isolated validation MinIO bucket."
+  ],
+  "audit_verification": {
+    "scope": "same organization and final isolated cycle time window",
+    "capability_outcomes": [
+      {
+        "operation": "knowledge.dingtalk.discover",
+        "outcome": "SUCCESS",
+        "count": 6
+      },
+      {
+        "operation": "knowledge.dingtalk.read",
+        "outcome": "SUCCESS",
+        "count": 11
+      }
+    ],
+    "all_capability_audits_have_policy_decision": true,
+    "source_outcomes": {
+      "AUTHORIZED": 35,
+      "FAILED": 1,
+      "READY": 3,
+      "PARTIAL": 7,
+      "DISABLED": 1
+    }
+  },
+  "code_validation": {
+    "full_python_before_final_failure_lease_delta": {
+      "passed": 2481,
+      "skipped": 240,
+      "deselected": 7,
+      "seconds": 643.94
+    },
+    "final_failure_lease_delta_combination": {
+      "passed": 77,
+      "seconds": 56.67
+    },
+    "sqlite_and_postgresql_source_access": {
+      "passed": 34,
+      "seconds": 35.59
+    },
+    "mypy_source_files": 263,
+    "ruff": "passed",
+    "formatted_files": 1007,
+    "secret_findings": 0,
+    "real_cycle_precedes_final_failure_checkpoint_rollback_delta": true
+  }
+}

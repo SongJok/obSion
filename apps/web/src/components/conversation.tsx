@@ -58,11 +58,13 @@ export function Conversation({
 
   return (
     <div className="conversation" aria-live="polite">
-      {messages.map(({ turn, run, artifact, artifacts }) => {
+      {messages.map(({ turn, run, artifact: cachedArtifact, artifacts }) => {
+        const sourceUnavailable = run?.source_content_available === false;
+        const artifact = sourceUnavailable ? undefined : cachedArtifact;
         const markdown = artifact?.inline_content?.markdown;
         const feedback = run ? feedbackByRun[run.id] : undefined;
         const feedbackPending = feedbackPendingRunId === run?.id;
-        const canAct = Boolean(run && TERMINAL.has(run.status));
+        const canAct = Boolean(run && TERMINAL.has(run.status) && !sourceUnavailable);
         return (
           <div className="message-pair" key={turn.id}>
             <article className="user-message">
@@ -72,7 +74,11 @@ export function Conversation({
             <article className="assistant-message">
               <div className="assistant-avatar">O</div>
               <div className="assistant-body">
-                {!artifact && run?.status === "FAILED" && (
+                {sourceUnavailable && <div className="run-error" role="status">
+                  <CircleAlert size={18} />
+                  <div><strong>资料权限或版本已变化</strong><p>旧回答和引用暂不可用。资料重新核验后，可以重新提问。</p></div>
+                </div>}
+                {!sourceUnavailable && !artifact && run?.status === "FAILED" && (
                   <div className="run-error">
                     <CircleAlert size={18} />
                     <div>
@@ -81,7 +87,7 @@ export function Conversation({
                     </div>
                   </div>
                 )}
-                {!artifact && run && !["FAILED", "CANCELLED"].includes(run.status) && (
+                {!sourceUnavailable && !artifact && run && !["FAILED", "CANCELLED"].includes(run.status) && (
                   <div className="thinking">
                     <span className="thinking-dot" />
                     <span>{statusCopy(run.status)}</span>
@@ -92,7 +98,20 @@ export function Conversation({
                     <div className="markdown-content">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
                     </div>
-                    {artifact.inline_content?.verification && (
+                    {artifact.inline_content?.response_kind === "GENERAL" ? (
+                      <div className="verification-strip general">
+                        <span>通用回答</span>
+                      </div>
+                    ) : artifact.inline_content?.grounding ? (
+                      <div className={`verification-strip ${artifact.inline_content.grounding.accepted && artifact.inline_content.verification?.verified ? "verified" : "partial"}`}>
+                        <ShieldCheck size={16} />
+                        <span>
+                          {artifact.inline_content.grounding.accepted && artifact.inline_content.verification?.verified
+                            ? "已对照原文复核"
+                            : "未通过原文复核"}
+                        </span>
+                      </div>
+                    ) : artifact.inline_content?.verification && (
                       <div
                         className={`verification-strip ${artifact.inline_content.verification.verified ? "verified" : "partial"}`}
                       >

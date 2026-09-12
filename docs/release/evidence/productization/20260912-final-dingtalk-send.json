@@ -1,0 +1,109 @@
+{
+  "recorded_at": "2026-09-12T06:31:16.635645+00:00",
+  "scope": "Final DingTalk POST authorization, group managed-source audience, and legacy plaintext denial",
+  "adr": "0121-final-dingtalk-send-authorization",
+  "migration_head": "f2a4b6c8d0e1",
+  "new_migration": false,
+  "local_regression": {
+    "passed": 167,
+    "failed": 0,
+    "seconds": 110.97,
+    "scope": "Harness/source, native transport, new Outbox, legacy IM, phase62 compatibility, errors, events and quality contracts"
+  },
+  "not_a_full_python_rerun": true,
+  "postgresql": {
+    "passed": 9,
+    "failed": 0,
+    "fresh_databases_migrated_from_empty": true,
+    "cases": [
+      {
+        "case": "none",
+        "group": false,
+        "passed": true
+      },
+      {
+        "case": "source",
+        "group": false,
+        "passed": true
+      },
+      {
+        "case": "claim",
+        "group": false,
+        "passed": true
+      },
+      {
+        "case": "none",
+        "group": true,
+        "passed": true
+      },
+      {
+        "case": "source",
+        "group": true,
+        "passed": true
+      },
+      {
+        "case": "claim",
+        "group": true,
+        "passed": true
+      },
+      {
+        "case": "audience",
+        "group": true,
+        "passed": true
+      },
+      {
+        "case": "member",
+        "group": true,
+        "passed": true
+      },
+      {
+        "case": "legacy",
+        "group": false,
+        "passed": true
+      }
+    ]
+  },
+  "static_checks": {
+    "mypy_source_files": 270,
+    "ruff": true,
+    "ruff_format_files": 1025,
+    "phase_declarations": true,
+    "secret_findings": 0,
+    "diff_whitespace": true
+  },
+  "failure_first_regression": "A verified workspace member without managed-source access previously received the cited answer body; the final test requires the fixed status instead.",
+  "fixture_corrections": [
+    "Parametrized arguments cannot have defaults",
+    "Workspace is resolved through Turn and Thread, not Run",
+    "Workspace member creation includes its required timestamp"
+  ],
+  "authorization_callback": "Required by internal durable Gateway; invoked after token and before single/group message POST in the same source-fenced transaction",
+  "pre_send_refusal": "Known not attempted; bounded queue and revalidation rules preserved",
+  "uncertain_attempted_post": "UNKNOWN; no blind resend",
+  "legacy_denial_audit": "Business rollback, then content-free rejection linked to a fresh Policy evaluation in its own transaction",
+  "real_model_calls": 0,
+  "real_im_sends": 0,
+  "synthetic_model_and_http": true,
+  "real_gateway_and_policy": true,
+  "normal_runtime_deployed": false,
+  "normal_databases_migrated": false,
+  "success_and_diagnostic_databases_removed": true,
+  "remaining": [
+    "Normal-runtime integration and live Pointbot document-answer acceptance",
+    "Broader authorization and provenance mutation surfaces",
+    "Incomplete document formats and AI tables",
+    "Complete M1 and enterprise autonomy acceptance"
+  ],
+  "source_sha256": {
+    "services/control-plane/src/obsion/application/dingtalk_outbox.py": "6b74ce43269e77d1654d175993faf9898330132ec8bc46a1321499d78fd0cfe5",
+    "services/control-plane/src/obsion/application/im_delivery.py": "b7f7f593995b359cf186add68632bdfdeb87baa3e538b3481761874e62ba4b34",
+    "services/control-plane/src/obsion/api/im_identity.py": "df44e04049ddf2b246a2cf4395996b0b22a77939c5bcc70ba6bd5091885c2b2f",
+    "services/control-plane/src/obsion/capabilities/gateway.py": "c41bcdb47741b8e3492f0ea2f8b87c2df7da97be73318975dd74851ca2dfc61f",
+    "services/control-plane/src/obsion/capabilities/dingtalk_robot.py": "991cf33cd23106cc1ddb6979218bf5044aa539bb7ede9d05827327b9d6238104",
+    "services/control-plane/src/obsion/knowledge/publication.py": "e4128787eb544bda1f168bb99d9da0cd7c7b06f309164b3144d45b1e70637b13",
+    "services/control-plane/tests/test_dingtalk_final_source_access.py": "95597ed97e12f985daf61e6f502ebc6d0301dad5122880b485035ccacc885ce2",
+    "services/control-plane/tests/test_dingtalk_robot_transport.py": "50dabb39363249a2176245ef83f9a4d084e2cd86f235aaf2fdeabed6f3ec5141",
+    "services/control-plane/tests/managed_outbox_fixture.py": "42e4618bd4d9fec8ca03a07cab3ac9ed8b7a31b938bd6eb0b49a9e8e1c248a6a",
+    "services/control-plane/tests/error_producer_manifest.py": "3d1f456713f25c17aa4d9ec76acc88c147f338648be9728689ec4caf1fc8157f"
+  }
+}

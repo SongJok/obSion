@@ -20,6 +20,7 @@ from obsion.common.ids import new_id
 from obsion.common.time import utc_now
 from obsion.db.models import Artifact, Run, Thread, Turn
 from obsion.domain.enums import ActorType, ArtifactKind, Classification
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.persistence.events import EventDraft, EventStore
 from obsion.security.identity import Principal
@@ -32,6 +33,29 @@ class ArtifactService:
         self.max_upload_bytes = max_upload_bytes
         self.events = EventStore()
         self.audit = AuditWriter()
+
+    @staticmethod
+    async def _accessible_sources(
+        session: AsyncSession, principal: Principal, artifacts: list[Artifact]
+    ) -> list[Artifact]:
+        allowed: dict[UUID, bool] = {}
+        guard = KnowledgePublicationGuard()
+        result = []
+        for artifact in artifacts:
+            if artifact.run_id is not None:
+                if artifact.run_id not in allowed:
+                    allowed[artifact.run_id] = await guard.check(
+                        session,
+                        principal,
+                        [],
+                        run_id=artifact.run_id,
+                        stage="artifact_content",
+                        link_policy_run=False,
+                    )
+                if not allowed[artifact.run_id]:
+                    continue
+            result.append(artifact)
+        return result
 
     async def create_file(
         self,
@@ -169,16 +193,20 @@ class ArtifactService:
         self, session: AsyncSession, principal: Principal, workspace_id: UUID
     ) -> list[Artifact]:
         await require_workspace_access(session, principal, workspace_id)
-        return list(
-            await session.scalars(
-                select(Artifact)
-                .where(
-                    Artifact.organization_id == principal.organization_id,
-                    Artifact.workspace_id == workspace_id,
+        return await self._accessible_sources(
+            session,
+            principal,
+            list(
+                await session.scalars(
+                    select(Artifact)
+                    .where(
+                        Artifact.organization_id == principal.organization_id,
+                        Artifact.workspace_id == workspace_id,
+                    )
+                    .order_by(Artifact.created_at.desc())
+                    .limit(500)
                 )
-                .order_by(Artifact.created_at.desc())
-                .limit(500)
-            )
+            ),
         )
 
     async def list_files(
@@ -198,10 +226,14 @@ class ArtifactService:
         )
         if not include_superseded:
             query = query.where(Artifact.superseded_at.is_(None))
-        return list(
-            await session.scalars(
-                query.order_by(Artifact.path, Artifact.file_version.desc()).limit(500)
-            )
+        return await self._accessible_sources(
+            session,
+            principal,
+            list(
+                await session.scalars(
+                    query.order_by(Artifact.path, Artifact.file_version.desc()).limit(500)
+                )
+            ),
         )
 
     async def list_reports(
@@ -211,18 +243,22 @@ class ArtifactService:
         workspace_id: UUID,
     ) -> list[Artifact]:
         await require_workspace_access(session, principal, workspace_id)
-        return list(
-            await session.scalars(
-                select(Artifact)
-                .where(
-                    Artifact.organization_id == principal.organization_id,
-                    Artifact.workspace_id == workspace_id,
-                    Artifact.kind == ArtifactKind.REPORT,
-                    Artifact.superseded_at.is_(None),
+        return await self._accessible_sources(
+            session,
+            principal,
+            list(
+                await session.scalars(
+                    select(Artifact)
+                    .where(
+                        Artifact.organization_id == principal.organization_id,
+                        Artifact.workspace_id == workspace_id,
+                        Artifact.kind == ArtifactKind.REPORT,
+                        Artifact.superseded_at.is_(None),
+                    )
+                    .order_by(Artifact.created_at.desc())
+                    .limit(500)
                 )
-                .order_by(Artifact.created_at.desc())
-                .limit(500)
-            )
+            ),
         )
 
     async def list_dashboards(
@@ -232,18 +268,22 @@ class ArtifactService:
         workspace_id: UUID,
     ) -> list[Artifact]:
         await require_workspace_access(session, principal, workspace_id)
-        return list(
-            await session.scalars(
-                select(Artifact)
-                .where(
-                    Artifact.organization_id == principal.organization_id,
-                    Artifact.workspace_id == workspace_id,
-                    Artifact.kind == ArtifactKind.DASHBOARD,
-                    Artifact.superseded_at.is_(None),
+        return await self._accessible_sources(
+            session,
+            principal,
+            list(
+                await session.scalars(
+                    select(Artifact)
+                    .where(
+                        Artifact.organization_id == principal.organization_id,
+                        Artifact.workspace_id == workspace_id,
+                        Artifact.kind == ArtifactKind.DASHBOARD,
+                        Artifact.superseded_at.is_(None),
+                    )
+                    .order_by(Artifact.created_at.desc())
+                    .limit(500)
                 )
-                .order_by(Artifact.created_at.desc())
-                .limit(500)
-            )
+            ),
         )
 
     async def list_sql(
@@ -253,18 +293,22 @@ class ArtifactService:
         workspace_id: UUID,
     ) -> list[Artifact]:
         await require_workspace_access(session, principal, workspace_id)
-        return list(
-            await session.scalars(
-                select(Artifact)
-                .where(
-                    Artifact.organization_id == principal.organization_id,
-                    Artifact.workspace_id == workspace_id,
-                    Artifact.kind == ArtifactKind.SQL,
-                    Artifact.superseded_at.is_(None),
+        return await self._accessible_sources(
+            session,
+            principal,
+            list(
+                await session.scalars(
+                    select(Artifact)
+                    .where(
+                        Artifact.organization_id == principal.organization_id,
+                        Artifact.workspace_id == workspace_id,
+                        Artifact.kind == ArtifactKind.SQL,
+                        Artifact.superseded_at.is_(None),
+                    )
+                    .order_by(Artifact.created_at.desc())
+                    .limit(500)
                 )
-                .order_by(Artifact.created_at.desc())
-                .limit(500)
-            )
+            ),
         )
 
     async def get_metadata(
@@ -279,6 +323,8 @@ class ArtifactService:
         if artifact is None:
             raise NotFoundError("Artifact", artifact_id)
         await require_workspace_access(session, principal, artifact.workspace_id)
+        if artifact.run_id is not None:
+            await require_run_access(session, principal, artifact.run_id, source_content=True)
         return artifact
 
     async def content(

@@ -74,6 +74,21 @@ class ModelProviderAdapter(Protocol):
     def parse_completion_response(self, response: httpx.Response) -> ProviderCompletion: ...
 
 
+def _coalesce_system_prefix(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Some compatible endpoints consume only the first system message. Preserve
+    # every ordered policy in that message, without moving data/tool history or
+    # promoting untrusted content into the instruction prefix.
+    count = 0
+    while count < len(messages) and messages[count].get("role") == "system":
+        count += 1
+    if count < 2:
+        return messages
+    return [
+        {"role": "system", "content": "\n\n".join(m["content"] for m in messages[:count])},
+        *messages[count:],
+    ]
+
+
 class OpenAICompatibleAdapter:
     """Adapter for providers implementing the OpenAI chat-completions wire contract."""
 
@@ -88,7 +103,7 @@ class OpenAICompatibleAdapter:
             headers["Authorization"] = f"Bearer {credential}"
         payload: dict[str, Any] = {
             "model": request.model_id,
-            "messages": request.messages,
+            "messages": _coalesce_system_prefix(request.messages),
             "temperature": request.temperature,
             "stream": False,
             "max_tokens": request.max_output_tokens,

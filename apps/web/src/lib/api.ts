@@ -1,3 +1,4 @@
+import type { KnowledgeSource, KnowledgeSourceConnection, KnowledgeSourceItem, SourcePage } from "./knowledge-sources";
 import type {
   Artifact,
   ClarificationAnswerSubmission,
@@ -133,6 +134,16 @@ async function request<T>(
 }
 
 export const api = {
+  knowledgeSourceConnections: () =>
+    request<KnowledgeSourceConnection[]>("/knowledge/sources/dingtalk/managed/connections"),
+  knowledgeSources: (cursor?: string) =>
+    request<SourcePage<KnowledgeSource>>(`/knowledge/sources/dingtalk/managed${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
+  registerKnowledgeSource: (input: { connector_id: string; binding_id: string }) =>
+    request<KnowledgeSource>("/knowledge/sources/dingtalk/managed", { method: "POST", body: JSON.stringify(input) }),
+  controlKnowledgeSource: (id: string, operation: "pause" | "resume" | "sync") =>
+    request<KnowledgeSource>(`/knowledge/sources/dingtalk/managed/${encodeURIComponent(id)}/control`, { method: "POST", body: JSON.stringify({ operation }) }),
+  knowledgeSourceItems: (id: string, cursor?: string) =>
+    request<SourcePage<KnowledgeSourceItem>>(`/knowledge/sources/dingtalk/managed/${encodeURIComponent(id)}/items${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
   createSession: (accessToken: string) =>
     request<SessionPrincipal>(
       "/auth/session",

@@ -6,9 +6,10 @@ are wired. The caller must commit the dispatch claim before invoking send_text.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, TypeGuard
@@ -22,6 +23,7 @@ GROUP_SEND_PATH = "/v1.0/robot/groupMessages/send"
 QUERY_PATH = "/v1.0/robot/oToMessages/readStatus"
 MAX_TEXT_BYTES = 4096
 MAX_RESPONSE_BYTES = 65_536
+SEND_DEADLINE_SECONDS = 30.0
 DINGTALK_ROBOT_CAPABILITY = "im.dingtalk.robot.reply"
 DINGTALK_ROBOT_PROTOCOL = "dingtalk.robot.oto.v1"
 
@@ -136,6 +138,7 @@ class DingTalkRobotTransport:
         robot_code: str,
         user_id: str,
         text: str,
+        authorize_send: Callable[[], Awaitable[bool]] | None = None,
     ) -> RobotSendResult:
         # Invalid caller input fails before authentication or message I/O.
         if not _opaque(robot_code, 255) or not _opaque(user_id, 255):
@@ -144,13 +147,16 @@ class DingTalkRobotTransport:
 
         message_attempted = False
         try:
-            async with httpx.AsyncClient(
-                transport=self._transport,
-                timeout=httpx.Timeout(15.0, connect=5.0),
-                follow_redirects=False,
-                trust_env=False,
-                headers={"Accept": "application/json", "Accept-Encoding": "identity"},
-            ) as client:
+            async with (
+                asyncio.timeout(SEND_DEADLINE_SECONDS),
+                httpx.AsyncClient(
+                    transport=self._transport,
+                    timeout=httpx.Timeout(15.0, connect=5.0),
+                    follow_redirects=False,
+                    trust_env=False,
+                    headers={"Accept": "application/json", "Accept-Encoding": "identity"},
+                ) as client,
+            ):
                 token_response = await self._json(
                     client,
                     TOKEN_PATH,
@@ -160,6 +166,10 @@ class DingTalkRobotTransport:
                 if token in text:
                     return RobotSendResult(
                         RobotSendState.NOT_ATTEMPTED, reason="credential_in_text"
+                    )
+                if authorize_send is not None and await authorize_send() is not True:
+                    return RobotSendResult(
+                        RobotSendState.NOT_ATTEMPTED, reason="delivery_not_authorized"
                     )
                 message_attempted = True
                 response = await self._json(
@@ -189,6 +199,7 @@ class DingTalkRobotTransport:
         robot_code: str,
         open_conversation_id: str,
         text: str,
+        authorize_send: Callable[[], Awaitable[bool]] | None = None,
     ) -> RobotSendResult:
         """Send one text message to an operator-authorized group.
 
@@ -202,13 +213,16 @@ class DingTalkRobotTransport:
         _validate_text(text, credentials)
         message_attempted = False
         try:
-            async with httpx.AsyncClient(
-                transport=self._transport,
-                timeout=httpx.Timeout(15.0, connect=5.0),
-                follow_redirects=False,
-                trust_env=False,
-                headers={"Accept": "application/json", "Accept-Encoding": "identity"},
-            ) as client:
+            async with (
+                asyncio.timeout(SEND_DEADLINE_SECONDS),
+                httpx.AsyncClient(
+                    transport=self._transport,
+                    timeout=httpx.Timeout(15.0, connect=5.0),
+                    follow_redirects=False,
+                    trust_env=False,
+                    headers={"Accept": "application/json", "Accept-Encoding": "identity"},
+                ) as client,
+            ):
                 token_response = await self._json(
                     client,
                     TOKEN_PATH,
@@ -218,6 +232,10 @@ class DingTalkRobotTransport:
                 if token in text:
                     return RobotSendResult(
                         RobotSendState.NOT_ATTEMPTED, reason="credential_in_text"
+                    )
+                if authorize_send is not None and await authorize_send() is not True:
+                    return RobotSendResult(
+                        RobotSendState.NOT_ATTEMPTED, reason="delivery_not_authorized"
                     )
                 message_attempted = True
                 response = await self._json(
@@ -391,6 +409,10 @@ class DingTalkRobotTransport:
                 )
             read_status = candidate_status
             read_timestamp_ms = candidate_timestamp
+            # Live direct-message receipts also return epoch seconds. Normalize
+            # at the vendor boundary; downstream persistence uses milliseconds.
+            if read_timestamp_ms is not None and 0 < read_timestamp_ms < 100_000_000_000:
+                read_timestamp_ms *= 1000
         return RobotQueryResult(
             state,
             send_status=status,

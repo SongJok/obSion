@@ -1,0 +1,76 @@
+{
+  "recorded_at": "2026-09-12T06:07:22.891129+00:00",
+  "scope": "Isolated PostgreSQL source-publication ordering and local native-transport deadline regression",
+  "migration_head": "f2a4b6c8d0e1",
+  "migration_round_trip": {
+    "from_empty_to_head": true,
+    "downgrade_to": "e1f3a6b8c5d7",
+    "reupgrade_to_head": true,
+    "schema_drift": false
+  },
+  "postgresql": {
+    "passed": 10,
+    "failed": 0,
+    "seconds": 9.37,
+    "lock_wait_evidence": "pg_blocking_pids with live backend identifiers",
+    "scenarios": [
+      "publisher_first_commit",
+      "publisher_first_rollback",
+      "revoker_first_current_snapshot",
+      "parallel_publishers_and_other_org_write",
+      "bounded_wait_preserves_caller_transaction",
+      "repeatable_read_refused",
+      "serializable_refused",
+      "real_harness_publication_and_history_revocation",
+      "claimed_outbox_busy_recovery_and_dispatch_commit",
+      "connector_serialized_json_change"
+    ]
+  },
+  "local_suites": [
+    {
+      "scope": "managed source, reader, worker, replay, outbox, errors and events",
+      "passed": 118,
+      "failed": 0,
+      "seconds": 89.99
+    },
+    {
+      "scope": "native transport deadlines, outbox, errors and events after deadline increment",
+      "passed": 119,
+      "failed": 0,
+      "seconds": 41.56
+    }
+  ],
+  "suites_overlap_and_are_not_a_full_python_rerun": true,
+  "static_checks": {
+    "mypy_source_files": 270,
+    "ruff": true,
+    "ruff_format_files": 1023,
+    "diff_whitespace": true
+  },
+  "native_send_deadline_seconds": 30,
+  "known_pre_send_busy_outcome": "BLOCKED with the same logical outbox identity available for revalidation",
+  "after_message_attempt_timeout_outcome": "UNKNOWN; no blind resend",
+  "real_model_calls": 0,
+  "real_im_sends": 0,
+  "synthetic_gateway_result_used": true,
+  "normal_runtime_deployed": false,
+  "normal_databases_migrated": false,
+  "temporary_and_diagnostic_databases_removed": true,
+  "remaining": [
+    "Final vendor-POST freshness across source lease expiry",
+    "Compatibility IM plaintext handoff across processes",
+    "Broader authorization/lineage changes outside this allowlist",
+    "Normal-runtime and live pointbot document-answer acceptance",
+    "Unsupported document formats and AI tables"
+  ],
+  "source_sha256": {
+    "services/control-plane/alembic/versions/f2a4b6c8d0e1_add_source_publication_fence.py": "909336c2b609ab5bc45fe2d53a448071280ed1c3fdd7203c94dee4140140f5cf",
+    "services/control-plane/src/obsion/security/source_fence.py": "934a3a7ec2e94a3b4c77a8ae7d2a175e5bdf0cf0d5e11c5eeadd1c2cbe1f0174",
+    "services/control-plane/src/obsion/knowledge/publication.py": "b2608611a314986f48253b8f039b42085c306f0e8885efd4d43be5f89a729991",
+    "services/control-plane/src/obsion/application/dingtalk_outbox.py": "afd163b6d86f4d10e68fbbfdd19ed531f620a4bb61030b402892b331b7e13ddb",
+    "services/control-plane/src/obsion/capabilities/dingtalk_robot.py": "3a8ff4ac94dc03d98fc34df3f93eb1ca5fbc3a449e6d0a7c7208177feea4c0f1",
+    "services/control-plane/tests/integration/test_postgres_source_fence.py": "9a4d98d2504990e461e31aae98afb4cf5240334c030a107951f63118cf3868eb",
+    "services/control-plane/tests/test_dingtalk_robot_transport.py": "9cdd3fee89441fd778eb77c9d77cb688c665232107ce4c0e53c43b4a8e0dad42",
+    "services/control-plane/src/obsion/contracts/errors/catalog.json": "2d60ad1b12aa14beeefe1f25d1c1789c3c1d4bfb48d955c2c09593bb7d09c906"
+  }
+}

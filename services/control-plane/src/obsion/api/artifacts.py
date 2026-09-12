@@ -11,7 +11,7 @@ from obsion.artifacts.service import ArtifactService
 from obsion.common.errors import ObsionError, ValidationError
 from obsion.config import Settings
 from obsion.domain.enums import ArtifactKind, Classification
-from obsion.security.auth import get_app_settings, get_principal, get_session
+from obsion.security.auth import get_app_settings, get_principal, get_read_session, get_session
 from obsion.security.identity import Principal
 
 router = APIRouter(tags=["artifacts"])
@@ -81,7 +81,7 @@ async def upload_artifact(
 @router.get("/workspaces/{workspace_id}/artifacts", response_model=list[ArtifactView])
 async def list_workspace_artifacts(
     workspace_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: ArtifactService = Depends(get_artifact_service),
 ) -> list[ArtifactView]:
@@ -93,7 +93,7 @@ async def list_workspace_artifacts(
 async def list_workspace_files(
     workspace_id: UUID,
     include_superseded: bool = Query(default=False),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: ArtifactService = Depends(get_artifact_service),
 ) -> list[ArtifactView]:
@@ -109,7 +109,7 @@ async def list_workspace_files(
 @router.get("/workspaces/{workspace_id}/reports", response_model=list[ArtifactView])
 async def list_workspace_reports(
     workspace_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: ArtifactService = Depends(get_artifact_service),
 ) -> list[ArtifactView]:
@@ -120,7 +120,7 @@ async def list_workspace_reports(
 @router.get("/workspaces/{workspace_id}/dashboards", response_model=list[ArtifactView])
 async def list_workspace_dashboards(
     workspace_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: ArtifactService = Depends(get_artifact_service),
 ) -> list[ArtifactView]:
@@ -131,7 +131,7 @@ async def list_workspace_dashboards(
 @router.get("/workspaces/{workspace_id}/sql", response_model=list[ArtifactView])
 async def list_workspace_sql(
     workspace_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: ArtifactService = Depends(get_artifact_service),
 ) -> list[ArtifactView]:
@@ -142,7 +142,7 @@ async def list_workspace_sql(
 @router.get("/artifacts/{artifact_id}/content")
 async def download_artifact(
     artifact_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: ArtifactService = Depends(get_artifact_service),
 ) -> Response:

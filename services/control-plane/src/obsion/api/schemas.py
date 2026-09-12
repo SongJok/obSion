@@ -150,6 +150,7 @@ class RunView(APIModel):
     id: UUID
     turn_id: UUID
     status: RunStatus
+    source_content_available: bool = True
     agent_version_id: UUID | None
     model_profile_id: UUID | None
     prompt_pins: list[dict[str, Any]] = Field(default_factory=list)

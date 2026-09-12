@@ -326,6 +326,12 @@
       "http_status": 403
     },
     {
+      "code": "authorization_fence_unavailable",
+      "category": "authorization",
+      "http_status": 503,
+      "description": "Current authorization cannot be serialized within the transaction boundary."
+    },
+    {
       "category": "execution",
       "code": "automation_cancelled",
       "description": "Indicates the stable execution condition `automation_cancelled` (automation cancelled).",

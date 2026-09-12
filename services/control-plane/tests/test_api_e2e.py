@@ -2,6 +2,7 @@ import time
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from synthetic_knowledge_model import install_grounded_answer
 
 from obsion.security.auth import get_principal
 from obsion.security.identity import Principal
@@ -93,7 +94,10 @@ def test_capability_catalog_and_data_query_contracts_are_exposed(client: TestCli
     assert invalid_prompt.json()["code"] == "prompt_variables_schema_invalid"
 
 
-def test_governed_knowledge_run_is_replayable(client: TestClient) -> None:
+def test_governed_knowledge_run_is_replayable(client: TestClient, monkeypatch) -> None:
+    install_grounded_answer(
+        monkeypatch, "Every production release requires an owner and rollback plan."
+    )
     workspace = create_workspace(client)
     document = client.post(
         "/api/v1/knowledge/documents",
@@ -433,7 +437,10 @@ def test_memory_requires_scope_and_redacts_candidates(client: TestClient) -> Non
     assert replay_completed["payload"]["memories"] == 1
 
 
-def test_workspace_attachment_becomes_untrusted_evidence(client: TestClient) -> None:
+def test_workspace_attachment_becomes_untrusted_evidence(client: TestClient, monkeypatch) -> None:
+    install_grounded_answer(
+        monkeypatch, "The controlled attachment says the recovery objective is 17 minutes."
+    )
     workspace = create_workspace(client)
     uploaded = client.post(
         f"/api/v1/workspaces/{workspace['id']}/artifacts",
@@ -474,7 +481,8 @@ def test_workspace_attachment_becomes_untrusted_evidence(client: TestClient) -> 
     assert "17 minutes" in answer["inline_content"]["markdown"]
 
 
-def test_version_pinned_evaluation_records_case_results(client: TestClient) -> None:
+def test_version_pinned_evaluation_records_case_results(client: TestClient, monkeypatch) -> None:
+    install_grounded_answer(monkeypatch, "Every release gate requires immutable evidence.")
     workspace = create_workspace(client)
     document = client.post(
         "/api/v1/knowledge/documents",

@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import secrets
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -26,6 +27,7 @@ from obsion.capabilities.codeup_contract import (
     CODEUP_OPERATIONS,
 )
 from obsion.capabilities.connectors import ConnectorContext, ConnectorExecutor, CredentialBroker
+from obsion.capabilities.dingtalk_managed import MANAGED_CONNECTOR_TYPE, MANAGED_OPERATIONS
 from obsion.capabilities.dingtalk_robot import (
     DINGTALK_ROBOT_CAPABILITY,
     DINGTALK_ROBOT_PROTOCOL,
@@ -82,6 +84,7 @@ from obsion.persistence.operator_invocations import (
     operator_request_fingerprint,
 )
 from obsion.registry.agent_spec import sandbox_allows_capabilities
+from obsion.security.classification import maximum_classification
 from obsion.security.identity import Principal
 from obsion.security.masking import apply_obligations
 from obsion.security.policy import Decision, PolicyEngine, PolicyInput, ResourcePolicyInput
@@ -132,6 +135,7 @@ class OperatorGatewayRequest:
     capability_version: int | None = None
     capability_version_id: UUID | None = None
     context: dict[str, Any] = field(default_factory=dict)
+    connector_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,6 +292,7 @@ class CapabilityGateway:
         session: AsyncSession,
         request: DingTalkRobotOutboxRequest,
         *,
+        authorize_send: Callable[[], Awaitable[bool]],
         transport: DingTalkRobotTransport | None = None,
     ) -> DingTalkRobotOutboxResult:
         """Execute a claimed one-to-one robot delivery through the Gateway.
@@ -470,6 +475,7 @@ class CapabilityGateway:
                     robot_code=request.robot_code,
                     open_conversation_id=request.recipient_conversation_id,
                     text=request.text,
+                    authorize_send=authorize_send,
                 )
             else:
                 outcome = await robot.send_text(
@@ -477,6 +483,7 @@ class CapabilityGateway:
                     robot_code=request.robot_code,
                     user_id=request.recipient_sender_id,
                     text=request.text,
+                    authorize_send=authorize_send,
                 )
         except ObsionError:
             outcome = RobotSendResult(RobotSendState.NOT_ATTEMPTED, reason="credential_unavailable")
@@ -733,6 +740,7 @@ class CapabilityGateway:
                 resource=request.resource,
                 environment=request.environment,
                 context=request.context,
+                connector_id=request.connector_id,
             )
             try:
                 claim = await self.operator_invocations.claim(
@@ -909,7 +917,19 @@ class CapabilityGateway:
             and version.side_effect == SideEffect.NONE
         )
         is_source_operation = (
-            is_source_write or is_source_browse or is_codeup_read or is_yunxiao_catalog
+            is_source_write
+            or is_source_browse
+            or is_codeup_read
+            or is_yunxiao_catalog
+            or (
+                request.capability_name in MANAGED_OPERATIONS
+                and version.transport.value == "SDK"
+                and connector.connector_type == MANAGED_CONNECTOR_TYPE
+                and connector.environment == "development"
+                and version.permission_action == "knowledge.write"
+                and version.risk_level == RiskLevel.L2
+                and version.side_effect == SideEffect.NONE
+            )
         )
         decision = await self.policy.evaluate_resource(
             session,
@@ -968,6 +988,36 @@ class CapabilityGateway:
                 policy_decision_id=decision.id,
                 error_code="codeup_repository_denied",
                 error_message="云效仓库未获授权，请检查项目权限与仓库映射。",
+                capability_version_id=version.id,
+                connector_id=connector.id,
+            )
+        if request.capability_name in MANAGED_OPERATIONS and (
+            connector.connector_type != MANAGED_CONNECTOR_TYPE
+            or connector.environment != "development"
+            or version.transport.value != "SDK"
+            or version.permission_action != "knowledge.write"
+            or version.risk_level != RiskLevel.L2
+            or version.side_effect != SideEffect.NONE
+            or request.resource.get("source") != "dingtalk-managed"
+            or request.resource.get("corp_id") != connector.configuration.get("corp_id")
+            or request.resource.get("workspace_id") != request.payload.get("workspace_id")
+            or request.resource.get("node_id") != request.payload.get("node_id")
+            or request.resource.get("parent_id") != request.payload.get("parent_id")
+            or request.resource.get("stage") != request.payload.get("stage")
+        ):
+            await self._audit_operator(
+                session,
+                request,
+                version,
+                decision,
+                "DENIED",
+                metadata={"error_code": "capability_input_invalid"},
+            )
+            return GatewayResult(
+                status=GatewayStatus.DENIED,
+                policy_decision_id=decision.id,
+                error_code="capability_input_invalid",
+                error_message="The managed document read does not match its policy resource",
                 capability_version_id=version.id,
                 connector_id=connector.id,
             )
@@ -1146,6 +1196,10 @@ class CapabilityGateway:
                     "source": connector_result.source,
                     "result_resource": connector_result.resource,
                 },
+                result_classification=maximum_classification(
+                    version.data_classification,
+                    connector_result.classification,
+                ),
             )
             return GatewayResult(
                 status=GatewayStatus.COMPLETED,
@@ -1452,6 +1506,9 @@ class CapabilityGateway:
                 result.source,
                 result.resource,
                 result.observed_at,
+                classification=maximum_classification(
+                    version.data_classification, getattr(result, "classification", None)
+                ),
             )
             latency_ms = int((perf_counter() - started) * 1000)
             await self.events.append(
@@ -1481,6 +1538,7 @@ class CapabilityGateway:
                 "SUCCESS",
                 latency_ms=latency_ms,
                 metadata={"evidence_id": str(evidence.id)},
+                result_classification=evidence.classification,
             )
             return GatewayResult(
                 status=GatewayStatus.COMPLETED,
@@ -1574,6 +1632,8 @@ class CapabilityGateway:
             statement = statement.where(CapabilityVersion.version == request.capability_version)
         if request.capability_version_id is not None:
             statement = statement.where(CapabilityVersion.id == request.capability_version_id)
+        if isinstance(request, OperatorGatewayRequest) and request.connector_id is not None:
+            statement = statement.where(Connector.id == request.connector_id)
         rows = (await session.execute(statement)).all()
         row = next(
             (
@@ -1868,6 +1928,8 @@ class CapabilityGateway:
         source: str,
         resource: str,
         observed_at: datetime | None,
+        *,
+        classification: Classification | None = None,
     ) -> Evidence:
         mapping_type = version.evidence_mapping.get("type", "TOOL")
         try:
@@ -1886,7 +1948,7 @@ class CapabilityGateway:
                 observed_at=observed_at or utc_now(),
                 content=output,
                 confidence=version.evidence_mapping.get("confidence", 1.0),
-                classification=version.data_classification,
+                classification=maximum_classification(version.data_classification, classification),
                 permissions=(version.permission_action,),
                 lineage={
                     "capability_version_id": str(version.id),
@@ -1922,6 +1984,7 @@ class CapabilityGateway:
         *,
         latency_ms: int | None = None,
         metadata: dict[str, Any] | None = None,
+        result_classification: Classification | None = None,
     ) -> None:
         await self.audit.write(
             session,
@@ -1942,7 +2005,9 @@ class CapabilityGateway:
                 model_profile_id=request.model_profile_id,
                 capability_version_id=version.id,
                 resource=request.resource,
-                result_classification=version.data_classification,
+                result_classification=maximum_classification(
+                    version.data_classification, result_classification
+                ),
             ),
         )
 
@@ -1956,6 +2021,7 @@ class CapabilityGateway:
         *,
         latency_ms: int | None = None,
         metadata: dict[str, Any] | None = None,
+        result_classification: Classification | None = None,
     ) -> None:
         await self.audit.write(
             session,
@@ -1978,6 +2044,8 @@ class CapabilityGateway:
                 latency_ms=latency_ms,
                 capability_version_id=version.id,
                 resource=request.resource,
-                result_classification=version.data_classification,
+                result_classification=maximum_classification(
+                    version.data_classification, result_classification
+                ),
             ),
         )

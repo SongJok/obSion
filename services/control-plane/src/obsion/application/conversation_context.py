@@ -18,6 +18,7 @@ from obsion.db.models import (
     Workspace,
 )
 from obsion.domain.enums import ArtifactKind, Classification, RunStatus
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.security.identity import Principal
 from obsion.security.redaction import redact_text
 from obsion.telemetry import conversation_context_counter
@@ -73,7 +74,14 @@ class ConversationContextService:
             current_turn.created_at,
             workspace_classification,
         )
-        selected = self._bounded(candidates)
+        selected = []
+        guard = KnowledgePublicationGuard()
+        for item in self._bounded(candidates):
+            if item.source_run_id and not await guard.check(
+                session, principal, [], run_id=item.source_run_id, stage="conversation_capture"
+            ):
+                continue
+            selected.append(item)
         captured_at = current_turn.created_at
         snapshots = [
             RunConversationSnapshot(

@@ -21,6 +21,7 @@ from obsion.capabilities.dingtalk_docs import (
     normalize_workspace_id,
     resolve_dingtalk_docs_credentials,
 )
+from obsion.capabilities.dingtalk_wiki import DINGTALK_WIKI_PROTOCOL, DingTalkWikiClient
 from obsion.common.errors import AuthorizationError, NotFoundError, ObsionError, ValidationError
 from obsion.db.models import Connector, Document, DocumentVersion
 from obsion.domain.enums import Classification, ConnectorStatus
@@ -94,6 +95,17 @@ def _require_knowledge_write(principal: Principal) -> None:
 
 def _client(connector: Connector, credential: str | None, transport: Any) -> DingTalkDocsClient:
     app_key, app_secret = resolve_dingtalk_docs_credentials(connector, credential)
+    configuration = connector.configuration or {}
+    if str(configuration.get("protocol", "")).casefold() == DINGTALK_WIKI_PROTOCOL:
+        corp_id = configuration.get("corp_id")
+        operator_id = configuration.get("operator_id")
+        return DingTalkWikiClient(
+            corp_id=corp_id if isinstance(corp_id, str) else "",
+            operator_id=operator_id if isinstance(operator_id, str) else "",
+            app_key=app_key,
+            app_secret=app_secret,
+            transport=transport,
+        )
     return DingTalkDocsClient(app_key=app_key, app_secret=app_secret, transport=transport)
 
 
@@ -123,6 +135,14 @@ async def ingest_dingtalk_document(
             "The connector is not a DingTalk docs Knowledge source",
         )
     assert_dingtalk_docs_egress(connector)
+    if (
+        str((connector.configuration or {}).get("protocol", "")).casefold()
+        == DINGTALK_WIKI_PROTOCOL
+    ):
+        raise ValidationError(
+            "dingtalk_docs_operation_invalid",
+            "Wiki v2 discovery does not authorize legacy document ingestion",
+        )
     app_key, app_secret = resolve_dingtalk_docs_credentials(connector, credential)
     fetched = await fetch_authorized_dingtalk_document(
         app_key=app_key,
@@ -250,6 +270,14 @@ async def sync_dingtalk_workspace(
     connector = connector or await resolve_dingtalk_docs_connector(
         session, principal.organization_id
     )
+    if (
+        str((connector.configuration or {}).get("protocol", "")).casefold()
+        == DINGTALK_WIKI_PROTOCOL
+    ):
+        raise ValidationError(
+            "dingtalk_docs_operation_invalid",
+            "Wiki v2 content synchronization is not configured",
+        )
     budget = KnowledgeConnectorBudget.from_connector(connector)
     tracker = SyncBudgetTracker(budget)
     nodes = await list_dingtalk_workspace_nodes(

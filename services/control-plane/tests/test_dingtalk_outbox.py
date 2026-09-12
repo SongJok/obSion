@@ -520,6 +520,16 @@ async def test_reconciliation_claim_is_committed_and_stale_claim_is_rejected(tmp
             None,
         ),
         (
+            RobotQueryResult(
+                RobotQueryState.SUCCESS,
+                send_status="SUCCESS",
+                read_status="UNREAD",
+                read_timestamp_ms=0,
+            ),
+            DingTalkOutboxStatus.ACCEPTED,
+            None,
+        ),
+        (
             RobotQueryResult(RobotQueryState.FAILURE, send_status="FAILED"),
             DingTalkOutboxStatus.REJECTED,
             "dependency_failed",
@@ -566,10 +576,12 @@ async def test_reconciliation_persists_vendor_state_without_resending(
         assert result.vendor_send_status == query.send_status
         assert result.vendor_read_status == query.read_status
         assert gateway.calls == 1
-        if query.read_timestamp_ms is not None:
+        if query.read_timestamp_ms:
             assert result.vendor_read_at == datetime.fromtimestamp(
                 query.read_timestamp_ms / 1000, tz=UTC
             )
+        else:
+            assert result.vendor_read_at is None
     await database.dispose()
 
 

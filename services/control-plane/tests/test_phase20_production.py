@@ -48,6 +48,7 @@ from obsion.harness.critic import Critic
 from obsion.harness.incident import IncidentEvidenceFusion
 from obsion.harness.replay import RunReplayService
 from obsion.harness.runtime import HarnessRuntime
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.persistence.audit import AuditWriter
 from obsion.persistence.events import EventStore
 
@@ -551,6 +552,7 @@ async def test_incident_golden_response_persists_verified_claims_and_replays_gra
         runtime.events = EventStore()
         runtime.critic = Critic()
         runtime.incident_fusion = IncidentEvidenceFusion()
+        runtime.knowledge_publication = KnowledgePublicationGuard()
         runtime.audit = AuditWriter()
         await runtime._respond(organization_id, source_run_id)
 

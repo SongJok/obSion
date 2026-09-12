@@ -1,0 +1,393 @@
+{
+  "date": "2026-09-11",
+  "scope": "Local isolated PostgreSQL, synthetic candidates and documents, actual configured ModelGateway reviewer. Not an open-domain accuracy estimate.",
+  "configuration": "Only kimi-k3-kimi and kimi-k2.7-kimi are permitted. Existing deployment profile fallback remains disabled.",
+  "kimi27_diagnostic": {
+    "run_id": "01a09042-9cd4-7695-99f8-437a63eb27d2",
+    "http_status": 503,
+    "semantic_check_passed": false
+  },
+  "cases": [
+    {
+      "model": "kimi-k3-kimi",
+      "case": "supported",
+      "run_id": "01a0903e-5c17-70cd-bdb9-ad7cd879cf17",
+      "expected_supported": true,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_supported",
+      "claim_verdicts": [
+        "SUPPORTED"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903e-5d52-77e5-ae6c-773fa7407fa0",
+          "input": 2566,
+          "output": 153
+        }
+      ],
+      "candidate_fingerprint": "1151b7abee3261ecbf781d493f53377e217ccc6e636a183db468ee067c36ed2c",
+      "input_fingerprint": "05d315f01553c0602113901de07842e69d167beef2901ccaee7d69ca0d846a87",
+      "response_fingerprint": "d1a5bc21fc2c529bf0872d260a8846c4fc1ec3ddca3e0bc414383801c083d52e"
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "case": "negation",
+      "run_id": "01a0903e-851c-75d0-b88a-08e9b60d1715",
+      "expected_supported": false,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_not_supported",
+      "claim_verdicts": [
+        "CONTRADICTED"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903e-8570-7168-8633-d1c6e635e23f",
+          "input": 2560,
+          "output": 96
+        }
+      ],
+      "candidate_fingerprint": "f1adf4af9739199f55dde84915a973e195255cbdaf7110d678ad53223f7b349f",
+      "input_fingerprint": "2cf3feb504ee6542ba2d47201e47c4d075af63d87b1628ec2953be35a4bd343f",
+      "response_fingerprint": "3d496de84f2fd3801aa5b38fd365f2207c3912b85d36f5b16024ab30673bbdd1"
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "case": "condition",
+      "run_id": "01a0903e-9ac7-7395-a4e5-4d8440cacf01",
+      "expected_supported": false,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_not_supported",
+      "claim_verdicts": [
+        "CONTRADICTED"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903e-9cbf-7f96-8e92-b5fc46b0b9e6",
+          "input": 2571,
+          "output": 330
+        }
+      ],
+      "candidate_fingerprint": "1768edeac47700515e53ab29c925b6e57eced116599bda77a0e7425a32ca1bdf",
+      "input_fingerprint": "b530d85ec9e1a6aa29aad9ec0846a268de4249345bdf022ec1a1634b83769327",
+      "response_fingerprint": "e6bbc6166512456752d82e91557dc2f2c2838e73c86f5a6893b72444339b04be"
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "case": "metric",
+      "run_id": "01a0903e-ccae-7d0b-9890-755c68afe495",
+      "expected_supported": false,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_not_supported",
+      "claim_verdicts": [
+        "CONTRADICTED"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903e-ce65-7a9c-aead-93a62be29ba6",
+          "input": 2579,
+          "output": 189
+        }
+      ],
+      "candidate_fingerprint": "2ff3301b2f5f3e093489f4483395f45f0ce77d74e34256d8ef9eb0a6d25b3135",
+      "input_fingerprint": "145e12389bf1c1ddfcded253eade48c1793751c97b029bce152f044d35d0ae0c",
+      "response_fingerprint": "e37fd7ec36956e45e74bede562028fe2cf14bd9b277af6a11ca57b02fc7ff5d7"
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "case": "design",
+      "run_id": "01a0903e-fe64-707c-a345-7ced6839ad59",
+      "expected_supported": false,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_not_supported",
+      "claim_verdicts": [
+        "CONTRADICTED"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903f-000d-7310-b76c-275b5ece807d",
+          "input": 2580,
+          "output": 260
+        }
+      ],
+      "candidate_fingerprint": "6270cfba5edaf0fb09a22b7724a19df0b0509eebc1c098cfe2fc407ad6e0c9c5",
+      "input_fingerprint": "c261aa103e3969c375aa0db11d69ec1016bf0381477e5d78c7accfeee088951a",
+      "response_fingerprint": "9631e8d6c202de5d30fb7ed63be7db2be70ff72c5116c11fe14f6a1b768591ab"
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "case": "missing_fact",
+      "run_id": "01a0903f-432d-7b36-acd2-f89ca9ce56fa",
+      "expected_supported": false,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_not_supported",
+      "claim_verdicts": [
+        "INSUFFICIENT"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903f-436f-719a-9cdb-6dba98d7140b",
+          "input": 2569,
+          "output": 270
+        }
+      ],
+      "candidate_fingerprint": "ab0d661d8890e8d8e1d1f06a29e2ac279200f10f3217964fb28542a68b3aa683",
+      "input_fingerprint": "45acfa3e6c6a083446509dc102e1a1b0ec6651b1e479d449674d9bccfaa67608",
+      "response_fingerprint": "621fa3a094c0109c2f5e5f33bcd1d9ca29429e2c87b515ab14a9eed0ada9895d"
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "case": "extra_assertion",
+      "run_id": "01a0903f-67e7-7f32-a321-076654bd33fb",
+      "expected_supported": false,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_not_supported",
+      "claim_verdicts": [
+        "SUPPORTED"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903f-6932-77d2-b2e3-434c645ed71e",
+          "input": 2568,
+          "output": 585
+        }
+      ],
+      "candidate_fingerprint": "db74816bedfa8ae09ab9f957c692cb0e686c36569f0e7c024866e052551bc164",
+      "input_fingerprint": "d63b992c10c69fdc99578acb8ce53a3daf080a48b559372b97089b83f2281cd8",
+      "response_fingerprint": "3ec78ca8ed2b1dc7ab76b1cf3e12c8cc7ec2e2c350c14259b81208de169823a3"
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "case": "source_injection",
+      "run_id": "01a0903f-d124-783c-b49d-b326766cec1d",
+      "expected_supported": false,
+      "semantic_check_passed": true,
+      "reason_code": "grounding_not_supported",
+      "claim_verdicts": [
+        "CONTRADICTED"
+      ],
+      "model_calls": [
+        {
+          "outcome": "SUCCESS",
+          "step_id": "01a0903f-d300-7083-a2dc-aeb8fafae25d",
+          "input": 2591,
+          "output": 235
+        }
+      ],
+      "candidate_fingerprint": "1c6ce5960525a65b5ae8d16f11cc4a6d12c76e0035e5ba8f49c573a8331688d5",
+      "input_fingerprint": "50b771e9ed4256ea46100581e7557ae7dde658450227222ed23918d11e47feff",
+      "response_fingerprint": "fdb25d9e68abc13fbd9d9b1be0cdc754343eb5edb1dfff2bdb8037154b3aab6d"
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "supported",
+      "run_id": "01a09040-1f82-7ce6-be13-7d1766821b45",
+      "expected_supported": true,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-20c1-7deb-8a44-2701af3b153c",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "d2b9bf94c9977e9f443c3b694c28883196f6d5687879962e528a66787912f22d",
+      "input_fingerprint": "f147e656b317e0253a86fced6317f5d603773361a4d4729afa7d89ee18848e4c",
+      "response_fingerprint": null
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "negation",
+      "run_id": "01a09040-3915-739b-9cf0-9540d739f3cf",
+      "expected_supported": false,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-39d3-7f18-92be-1dfc448fe174",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "2e82ad5f694197c7981a75f39911099fe1d078d2146234ad7cc75d248a2cd0ab",
+      "input_fingerprint": "38abc6d296d4fe0ee3ba2f1d5ab9d99b3534622f8863d35bcad90d5830769cda",
+      "response_fingerprint": null
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "condition",
+      "run_id": "01a09040-3bb0-7e1f-94ca-65349b4fed4e",
+      "expected_supported": false,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-3dd0-7013-b8c8-c8e8ea040887",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "986e157ad1eb57b70beabe896f1eecac86293921bbf878ac2fe39aee7ae94a33",
+      "input_fingerprint": "4a08eeffb4d8e5403ce87777aaaa15119004e7050de0f3c5c205e7b619f19d8e",
+      "response_fingerprint": null
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "metric",
+      "run_id": "01a09040-401a-740d-a85a-18354827f988",
+      "expected_supported": false,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-41d1-7d96-8942-99d3bb4b3701",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "e82c0a6be2f8127584466f0ddef0325f2d6d36387c431142c7ac780809af7bc9",
+      "input_fingerprint": "075eed1c21b77e000fe8cc9c5033f1b9fe37d4befa2acbe5ea3e7355ad59bbd8",
+      "response_fingerprint": null
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "design",
+      "run_id": "01a09040-4482-7940-bd94-4a78cb373f03",
+      "expected_supported": false,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-45e3-779f-862e-697f07b701e5",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "f99d804479f27274ba60b4fc7090ff19997cdcd9ee25d7952299a61b7ca0eaaf",
+      "input_fingerprint": "4c075ce9a1bb289b29a8689738d70210a1d32c5694c13fcdd8856a316f3ab14d",
+      "response_fingerprint": null
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "missing_fact",
+      "run_id": "01a09040-48e8-70f8-99a4-44011ab2d429",
+      "expected_supported": false,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-49e0-7476-9fb3-55d70ab76d5c",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "2f5dbb1bca570bd9ac4a66825c2d1390da1b01fcf8a9a7878681192a49083bcd",
+      "input_fingerprint": "ee7fdce4f0a78291acf1cd9543276461e9f059a9f15560880cf1742273b0ff50",
+      "response_fingerprint": null
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "extra_assertion",
+      "run_id": "01a09040-4b42-72a2-986c-21ecee99829d",
+      "expected_supported": false,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-4bd3-71b1-9824-3b1307710fd0",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "f92e6eaace41e37c952ca61089986006bdca46ac7e95cded3509942658b6fdd1",
+      "input_fingerprint": "4d61038630b6032644c2c74b305f522b67bc0e899c532ebfb21785a382284de1",
+      "response_fingerprint": null
+    },
+    {
+      "model": "kimi-k2.7-kimi",
+      "case": "source_injection",
+      "run_id": "01a09040-4dab-7394-86aa-6b14cd94856e",
+      "expected_supported": false,
+      "semantic_check_passed": false,
+      "reason_code": "grounding_model_unavailable",
+      "claim_verdicts": [],
+      "model_calls": [
+        {
+          "outcome": "FAILED",
+          "step_id": "01a09040-4fe0-7194-882d-4218e75fb921",
+          "input": 0,
+          "output": 0
+        }
+      ],
+      "candidate_fingerprint": "c354bffad76062ef952ed919c33e91bdd57a13fadb3d8be6b67fc589f18f0cdd",
+      "input_fingerprint": "aaa697db58dd93114f8bbb9fccb3c8d0aeff56053bbe50ecd629c05c12ba52dd",
+      "response_fingerprint": null
+    }
+  ],
+  "deployed_checks": [
+    {
+      "case": "everyday_translation",
+      "run_id": "01a0903d-caaa-7b02-90ef-05f02140d9f8",
+      "model": "kimi-k3-kimi",
+      "model_calls": "SUCCESS",
+      "input_tokens": 2493,
+      "output_tokens": 100,
+      "answer": "Thank you for your help.",
+      "enterprise_verified": false
+    },
+    {
+      "case": "readme_before_author_contract_correction",
+      "run_id": "01a0903e-f1ca-7363-875d-53063649611d",
+      "publication": "WITHHOLD",
+      "reason": "One metadata claim unsupported by document bodies; five body claims supported."
+    },
+    {
+      "case": "readme_after_author_contract_correction",
+      "run_id": "01a09046-1613-7540-97c8-bf6afdfb4fb7",
+      "model": "kimi-k3-kimi",
+      "verified": true,
+      "claims_supported": 7,
+      "model_calls": [
+        {
+          "operation": "author",
+          "outcome": "SUCCESS",
+          "input_tokens": 5090,
+          "output_tokens": 920,
+          "latency_ms": 26327
+        },
+        {
+          "operation": "review",
+          "outcome": "SUCCESS",
+          "input_tokens": 4558,
+          "output_tokens": 1434,
+          "latency_ms": 49989
+        }
+      ],
+      "limitations": [
+        "Unnecessary provenance identifiers remain in answer prose.",
+        "The 30-second p95 target is not established; this sample exceeded 76 seconds for model calls alone."
+      ]
+    }
+  ]
+}

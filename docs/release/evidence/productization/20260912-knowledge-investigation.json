@@ -1,0 +1,940 @@
+{
+  "date": "2026-09-12",
+  "adr": "0128",
+  "scope": "Development-only governed knowledge investigation and processing scope",
+  "migration_head": "a3b5c7d9e1f2",
+  "new_migration": false,
+  "full_python": {
+    "status": "passed",
+    "passed": 2650,
+    "skipped": 262,
+    "deselected": 7,
+    "seconds": 751.92
+  },
+  "focused": {
+    "investigation_registry_answerability_native_read_passed": 58,
+    "seconds": 36.44,
+    "api_and_scope_passed": 16,
+    "api_and_scope_seconds": 23.29,
+    "contracts_and_scope_passed": 26,
+    "contracts_and_scope_seconds": 48.62
+  },
+  "postgres": {
+    "final_cases_passed": 13,
+    "upgrade_and_schema_drift_check_passed": true,
+    "owned_case_databases_removed": true
+  },
+  "mypy_source_files": 278,
+  "secrets_findings": 0,
+  "real_cases": [
+    {
+      "case": "investigation",
+      "synthetic_document": true,
+      "acceptance": "failed_general_routing",
+      "run_id": "01a09566-ef5b-7327-be98-db2a6c800fee",
+      "status": "COMPLETED",
+      "route": "GENERAL",
+      "seconds": 14.58,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 13801,
+          "input_tokens": 2508,
+          "output_tokens": 268,
+          "request_fingerprint": "b48c6879854b502b6666f28b9f0e3780107281e7ff8d8907379ec95819478417"
+        }
+      ],
+      "capability_steps": [],
+      "capability_audits": [],
+      "investigation": null,
+      "replans": null,
+      "verified": false,
+      "grounding": null,
+      "answer_sha256": "8ac0cb1ac8ae3b3da1246b36b9758d619969d01aeb61ba3981243b15acd8b884",
+      "citations_count": 0
+    },
+    {
+      "case": "investigation-grounded",
+      "synthetic_document": true,
+      "acceptance": "failed_false_verified_without_model",
+      "run_id": "01a0956a-474f-7377-89c3-a25fc803a62f",
+      "status": "COMPLETED",
+      "route": "KNOWLEDGE",
+      "seconds": 1.28,
+      "model_calls": [],
+      "capability_steps": [
+        {
+          "ordinal": 4,
+          "capability": "knowledge.search",
+          "classification": "RESTRICTED"
+        }
+      ],
+      "capability_audits": [
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a0956a-482e-71f3-a96c-89bb38385c48"
+        }
+      ],
+      "investigation": null,
+      "replans": null,
+      "verified": true,
+      "grounding": null,
+      "answer_sha256": "18e703f7bfabfaf473ada6435760f01b8f0be8021497098b67251680d5ad1051",
+      "citations_count": 8
+    },
+    {
+      "case": "investigation-internal-v3",
+      "synthetic_document": true,
+      "acceptance": "safe_no_eligible_endpoint",
+      "run_id": "01a09576-65ef-7a20-b3ca-b71e4c8cd26f",
+      "status": "COMPLETED",
+      "route": "KNOWLEDGE",
+      "seconds": 1.11,
+      "model_calls": [],
+      "capability_steps": [
+        {
+          "ordinal": 4,
+          "capability": "knowledge.search",
+          "classification": "RESTRICTED"
+        }
+      ],
+      "capability_audits": [
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a09576-6823-73ed-bf68-9bc1474c919f"
+        }
+      ],
+      "investigation": null,
+      "replans": null,
+      "verified": false,
+      "grounding": null,
+      "answer_sha256": "3d9243ae49253504329d75ac43998d89d1d71bc7eef78775c219707a0eb0731c",
+      "citations_count": 0
+    },
+    {
+      "case": "investigation-internal-v4",
+      "synthetic_document": true,
+      "acceptance": "passed_controlled_investigation",
+      "run_id": "01a0957a-4825-78c7-a593-ddf2a81b4e28",
+      "status": "COMPLETED",
+      "route": "KNOWLEDGE",
+      "seconds": 82.36,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 34698,
+          "input_tokens": 7170,
+          "output_tokens": 854,
+          "request_fingerprint": "1f693d172ee9a4b00de759061915d7ef25e49f1041ae5a0fc6c09d5f6d3e27f0"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 8297,
+          "input_tokens": 6411,
+          "output_tokens": 88,
+          "request_fingerprint": "ee76ef0e3dadd3971b46817e2447d197a7bdedaa295ced8c10e471ee3eb0112a"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 27738,
+          "input_tokens": 8229,
+          "output_tokens": 1015,
+          "request_fingerprint": "fd941cca3b9615d6f6846f76be4deb968b303e0992d44590210c08592032b280"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 9863,
+          "input_tokens": 3671,
+          "output_tokens": 196,
+          "request_fingerprint": "a4e9ca93c519b6fb67aea19a7ec78801c61e14f721d7307e8f784368ae65964c"
+        }
+      ],
+      "capability_steps": [
+        {
+          "ordinal": 4,
+          "capability": "knowledge.search",
+          "classification": "INTERNAL"
+        },
+        {
+          "ordinal": 5,
+          "capability": "document.read",
+          "classification": "INTERNAL"
+        }
+      ],
+      "capability_audits": [
+        {
+          "outcome": "SUCCESS",
+          "classification": "INTERNAL",
+          "policy_decision_id": "01a0957a-49ca-7885-82d2-c373be0c2db5"
+        },
+        {
+          "outcome": "SUCCESS",
+          "classification": "INTERNAL",
+          "policy_decision_id": "01a0957a-f31f-7195-ba21-8ac831fc5e9a"
+        }
+      ],
+      "investigation": [
+        {
+          "version": "knowledge-investigation-v1",
+          "reason": "insufficient_evidence",
+          "input_sha256": "b24222f7e82ecbe2cd5b8aa5fe6ad201960cb0bc781f1fb992aa501809ebadd2",
+          "status": "planned",
+          "response_sha256": "c16481926accbf7984704ca796dc229f2857375ee3d21caaf55de27c3404f723",
+          "action": "document.read",
+          "round": 1
+        }
+      ],
+      "replans": [
+        {
+          "attempt": 1,
+          "reason": "knowledge_investigation",
+          "missing_evidence": [
+            "DOCUMENT"
+          ],
+          "capabilities": [
+            "document.read"
+          ],
+          "step_ordinals": [
+            5
+          ]
+        }
+      ],
+      "verified": true,
+      "grounding": {
+        "version": "knowledge-grounding.v1",
+        "method": "model_review_with_exact_quotes",
+        "accepted": true,
+        "reason_code": "grounding_supported",
+        "candidate_fingerprint": "012c0ed6819cb9e4b7c7930687737f77cb6911f680f6c66b3717882d98c152c1",
+        "input_fingerprint": "da78364e632024873bb74577a8fbbd0276c88018eb8553a482ba540cab71ecf2",
+        "response_fingerprint": "3142432dc84b38db3defc64f5121491bbe81773615c2405a3d808cd8ce9ad4a5",
+        "claims": [
+          {
+            "claim_index": 1,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a0957a-f399-7ece-9a73-bed0c9337586",
+                "body_index": 0,
+                "start": 61,
+                "length": 39,
+                "sha256": "77a0d6338aca934c385f3984678fe57e9bedbf292247620290a6fac1ab9768cf"
+              },
+              {
+                "evidence_id": "01a0957a-f399-7ece-9a73-bed0c9337586",
+                "body_index": 3,
+                "start": 161,
+                "length": 21,
+                "sha256": "28c0ec076e7795bff5198a333086445352c9dc57d35fc389dd9f02510d88f991"
+              }
+            ]
+          }
+        ],
+        "duration_ms": 9879,
+        "answer_supported": true,
+        "question_answered": true
+      },
+      "answer_sha256": "405a7fa292af2c9bb1604c2ad95a9624f795f377ee1d4355dcdb6f9ebcf4fed3",
+      "citations_count": 2
+    },
+    {
+      "case": "finance-authorized",
+      "synthetic_document": false,
+      "acceptance": "safe_private_route_unavailable",
+      "run_id": "01a09585-1f2a-75b1-b77e-971669af16d7",
+      "status": "COMPLETED",
+      "route": "KNOWLEDGE",
+      "seconds": 1.42,
+      "model_calls": [],
+      "capability_steps": [
+        {
+          "ordinal": 4,
+          "capability": "knowledge.search",
+          "classification": "RESTRICTED"
+        }
+      ],
+      "capability_audits": [
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a09585-2034-7ff9-8ba4-a05ae5c26730"
+        }
+      ],
+      "investigation": null,
+      "replans": null,
+      "verified": false,
+      "grounding": null,
+      "answer_sha256": "3d9243ae49253504329d75ac43998d89d1d71bc7eef78775c219707a0eb0731c",
+      "citations_count": 0
+    },
+    {
+      "case": "finance-approved-routing",
+      "synthetic_document": false,
+      "acceptance": "passed_enterprise_answer",
+      "run_id": "01a09586-9223-79ae-8a70-7131717dda3a",
+      "status": "COMPLETED",
+      "route": "KNOWLEDGE",
+      "seconds": 31.89,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 13790,
+          "input_tokens": 4697,
+          "output_tokens": 354,
+          "request_fingerprint": "83df736e6aa227dfde621fd8f93556f98b58fe2f27c8e9c3dc1d73cff91302db"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 15784,
+          "input_tokens": 4135,
+          "output_tokens": 961,
+          "request_fingerprint": "dc39bb0d2adb134d5fb3f6ae205db6c4387a27d178c4ab74d5b2f2a308e7bb7e"
+        }
+      ],
+      "capability_steps": [
+        {
+          "ordinal": 4,
+          "capability": "knowledge.search",
+          "classification": "RESTRICTED"
+        }
+      ],
+      "capability_audits": [
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a09586-94d7-799c-bb0e-f1e1e64f06de"
+        }
+      ],
+      "investigation": null,
+      "replans": null,
+      "verified": true,
+      "grounding": {
+        "version": "knowledge-grounding.v1",
+        "method": "model_review_with_exact_quotes",
+        "accepted": true,
+        "reason_code": "grounding_supported",
+        "candidate_fingerprint": "b4d705b6b2bfdc4a915aaa770f53602db61a56e422f493590796e47a816a0a75",
+        "input_fingerprint": "09b0fd1ffb1640c1b6e461fc5d01a24fc115f6a6607f628e10fa4bbba5f5f21c",
+        "response_fingerprint": "0631963b44b68039a7379e606a4fbb2b1ea44184a406f51704a47ea3cb1ef68e",
+        "claims": [
+          {
+            "claim_index": 1,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a09586-955c-7baa-a40e-8a96f0e956ed",
+                "body_index": 5,
+                "start": 8,
+                "length": 84,
+                "sha256": "9a2441f945342c218d53a2d70611430d6a240e09a2dad7c1a736626308b062b4"
+              },
+              {
+                "evidence_id": "01a09586-955c-7baa-a40e-8a96f0e956ed",
+                "body_index": 5,
+                "start": 93,
+                "length": 87,
+                "sha256": "98b5764dafeaf867d516c0cfc6c4ee59c301f9fa63ede32bb13599f3009a4a99"
+              }
+            ]
+          },
+          {
+            "claim_index": 2,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a09586-955c-7baa-a40e-8a96f0e956ed",
+                "body_index": 5,
+                "start": 8,
+                "length": 84,
+                "sha256": "9a2441f945342c218d53a2d70611430d6a240e09a2dad7c1a736626308b062b4"
+              }
+            ]
+          }
+        ],
+        "duration_ms": 15804,
+        "answer_supported": true,
+        "question_answered": true
+      },
+      "answer_sha256": "6b3631a9fb88e0071e53c94139247d79c7f90625629b0ae796487af9b5d5ac69",
+      "citations_count": 1
+    },
+    {
+      "case": "unknown-approved-routing",
+      "synthetic_document": false,
+      "acceptance": "passed_bounded_investigation_and_abstention",
+      "run_id": "01a09587-ba37-703f-bb0d-11c821735801",
+      "status": "COMPLETED",
+      "route": "KNOWLEDGE",
+      "seconds": 98.4,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 15310,
+          "input_tokens": 5209,
+          "output_tokens": 339,
+          "request_fingerprint": "4219d5b9213428c7b1fc909a875be49c30c48ca1b272f64430b01d293ccee909"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 14500,
+          "input_tokens": 4483,
+          "output_tokens": 285,
+          "request_fingerprint": "cac228fd7a927c32fd1139b8f39adedeee032620205808e46f2e6a3d002fc928"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 11301,
+          "input_tokens": 6175,
+          "output_tokens": 495,
+          "request_fingerprint": "2e2f205d96cf67630da7b2f5ece2fecca153e951f0b139bcac8183b144d48cf5"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 13070,
+          "input_tokens": 5389,
+          "output_tokens": 234,
+          "request_fingerprint": "fb9e52f5202ee469565319fcbd51bfc4d9d733a14eeef3752fce66f2d795c904"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 12228,
+          "input_tokens": 6823,
+          "output_tokens": 292,
+          "request_fingerprint": "b8c49e24bbd204a2c54b52f9652368ba86b274c1e413e1df56bf8ff12bf512c1"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 9572,
+          "input_tokens": 5950,
+          "output_tokens": 239,
+          "request_fingerprint": "61986584d35c21d5c3be49b09f32bb78f4403833b69b084f1adcc7ae739fd45b"
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 19843,
+          "input_tokens": 7989,
+          "output_tokens": 745,
+          "request_fingerprint": "81d1d644fd8f48103ab3ba9f76f3e14adc4bb77baa166f6a2ca78de96b9106e6"
+        }
+      ],
+      "capability_steps": [
+        {
+          "ordinal": 4,
+          "capability": "knowledge.search",
+          "classification": "RESTRICTED"
+        },
+        {
+          "ordinal": 5,
+          "capability": "knowledge.search",
+          "classification": "RESTRICTED"
+        },
+        {
+          "ordinal": 6,
+          "capability": "document.read",
+          "classification": "RESTRICTED"
+        },
+        {
+          "ordinal": 7,
+          "capability": "knowledge.search",
+          "classification": "RESTRICTED"
+        }
+      ],
+      "capability_audits": [
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a09587-bb76-7bcb-b1c1-f27020deb3c9"
+        },
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a09588-320d-7572-ba13-9a970299fcf9"
+        },
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a09588-92c2-7150-a744-15d979d15b67"
+        },
+        {
+          "outcome": "SUCCESS",
+          "classification": "RESTRICTED",
+          "policy_decision_id": "01a09588-e981-7d2f-a3b8-db66594206fa"
+        }
+      ],
+      "investigation": [
+        {
+          "version": "knowledge-investigation-v1",
+          "reason": "insufficient_evidence",
+          "input_sha256": "e0d5415057df7b822a348e70fc1bf03bbd94b7572d8bed09f65f89798b99b0ce",
+          "status": "planned",
+          "response_sha256": "899acfb2a6007c20172c79d279cd45cdfaef898acf351100ddfeb5a81f55cd66",
+          "action": "knowledge.search",
+          "round": 1
+        },
+        {
+          "version": "knowledge-investigation-v1",
+          "reason": "insufficient_evidence",
+          "input_sha256": "4786a72d5a68b8c6cd8a6850e239fadd8e7457ea82efa8c5a05f194160991509",
+          "status": "planned",
+          "response_sha256": "dfbeb163ec96274718df24c11a294508202665fa39041c57f7351c8ec46b8875",
+          "action": "document.read",
+          "round": 2
+        },
+        {
+          "version": "knowledge-investigation-v1",
+          "reason": "insufficient_evidence",
+          "input_sha256": "d644883630ea530415577a382b53ef2cfe8f4eea625e6d81b637d22de7672b35",
+          "status": "planned",
+          "response_sha256": "1c916b6925379fa46e1f3170fd5b939ef8f3dc71d9ea22c0dea7ecfd83fab6e7",
+          "action": "knowledge.search",
+          "round": 3
+        }
+      ],
+      "replans": [
+        {
+          "attempt": 1,
+          "reason": "knowledge_investigation",
+          "missing_evidence": [
+            "DOCUMENT"
+          ],
+          "capabilities": [
+            "knowledge.search"
+          ],
+          "step_ordinals": [
+            5
+          ]
+        },
+        {
+          "attempt": 2,
+          "reason": "knowledge_investigation",
+          "missing_evidence": [
+            "DOCUMENT"
+          ],
+          "capabilities": [
+            "document.read"
+          ],
+          "step_ordinals": [
+            6
+          ]
+        },
+        {
+          "attempt": 3,
+          "reason": "knowledge_investigation",
+          "missing_evidence": [
+            "DOCUMENT"
+          ],
+          "capabilities": [
+            "knowledge.search"
+          ],
+          "step_ordinals": [
+            7
+          ]
+        }
+      ],
+      "verified": false,
+      "grounding": null,
+      "answer_sha256": "0804c0016879cecd13a0d0114c0b4bba0f03615f562423dbb9ce4dfe7dcf2219",
+      "citations_count": 0
+    }
+  ],
+  "user_approved_existing_kimi_sensitive_processing": true,
+  "isolated_scope_update": {
+    "environment": "isolated",
+    "user_approval": "explicit_20260912_two_existing_kimi_endpoints",
+    "endpoints": [
+      {
+        "endpoint_id": "01a09454-0079-7cda-8d33-373bb9381f24",
+        "model": "kimi-k2.7-kimi",
+        "before": [
+          "PUBLIC",
+          "INTERNAL"
+        ],
+        "after": [
+          "PUBLIC",
+          "INTERNAL",
+          "CONFIDENTIAL",
+          "RESTRICTED"
+        ],
+        "public_configuration_preserved": true
+      },
+      {
+        "endpoint_id": "01a09454-0030-728b-91ff-30c40d935cd8",
+        "model": "kimi-k3-kimi",
+        "before": [
+          "PUBLIC",
+          "INTERNAL"
+        ],
+        "after": [
+          "PUBLIC",
+          "INTERNAL",
+          "CONFIDENTIAL",
+          "RESTRICTED"
+        ],
+        "public_configuration_preserved": true
+      }
+    ],
+    "policy_scope": {
+      "actions": [
+        "models.write"
+      ],
+      "user_ids": [
+        "00000000-0000-7000-8000-000000000002"
+      ],
+      "resource": {
+        "endpoint_id": [
+          "01a09454-0030-728b-91ff-30c40d935cd8",
+          "01a09454-0079-7cda-8d33-373bb9381f24"
+        ]
+      },
+      "context": {
+        "operation": "model.processing_scope.update"
+      }
+    }
+  },
+  "runtime_private_only_switch": {
+    "repository_default": true,
+    "approved_local_setting": false,
+    "model_id_allowlist": [
+      "kimi-k3-kimi",
+      "kimi-k2.7-kimi"
+    ],
+    "external_endpoints_not_mislabeled_private": true
+  },
+  "ordinary_deployment": {
+    "source_id": "01a094d6-dd77-78bb-8e9f-82e9a0c8ef0d",
+    "backup": ".data/backups/before-investigation-20260912.dump",
+    "backup_sha256": "fd394420b0caf4779341b77f92e965fb2b9bbb37cfb12a8538fcfa9f46c9dc52",
+    "worker_previous_fingerprint": "95a502f2636c5cf16dc10a84a42210811d47130ffd018ece4d3a0f90de2037bc",
+    "worker_fingerprint": "6c6fa66f56e95f05ffca9894fe994931981abab24c1917362db7c401c1fe026a",
+    "api_python_files_matched": 253,
+    "source_resumed": true,
+    "image": "obsion-api:investigation-20260912",
+    "rollback_image": "obsion-api:grounding-contract-20260912",
+    "private_only": false,
+    "approved_model_ids": [
+      "kimi-k3-kimi",
+      "kimi-k2.7-kimi"
+    ],
+    "full_python_passed": 2650,
+    "full_python_seconds": 751.92,
+    "status": "deployed",
+    "source_paused_for_classification_fix": false,
+    "available_documents": 6,
+    "existing_document_ids_preserved": true,
+    "rollback_requires_source_paused": true
+  },
+  "production_ready": false,
+  "autonomous_project_delivery_complete": false,
+  "isolated_cleanup": {
+    "sources_paused": true,
+    "active_runs": 0,
+    "active_sources": 0,
+    "source_leases": 0,
+    "enterprise_history_denied": true,
+    "api_stopped": true,
+    "worker_stopped": true,
+    "owned_redis_removed": true
+  },
+  "legacy_fixture_regression": {
+    "passed": 34,
+    "skipped": 3,
+    "seconds": 11.68,
+    "synthetic_models_explicit": true,
+    "existing_citation_and_accuracy_assertions_preserved": true
+  },
+  "image_check": {
+    "image": "obsion-api:investigation-20260912",
+    "api_python_files": 253,
+    "all_match": true,
+    "source_sha256": "2a9609ea00b95ee466ba4c4fea8af45fb5bbe9b0b25e8c57d2d1685f073616fc"
+  },
+  "ruff_format_files": 1057,
+  "remaining_scope": [
+    "Publication/history ACL and version revalidation for non-managed native/imported documents",
+    "Complete DingTalk document format coverage",
+    "MCP investigation contracts beyond native search/read",
+    "Full M1/M2/M3 and autonomous project execution"
+  ],
+  "legacy_registered_endpoints": {
+    "other_registration_present": true,
+    "excluded_by_model_id_allowlist": true,
+    "sensitive_processing_grant_excludes_other_endpoints": true
+  },
+  "full_python_before_final_fixes": {
+    "passed": 2638,
+    "failed": 10,
+    "skipped": 262,
+    "deselected": 7,
+    "seconds": 751.05
+  },
+  "final_followup_checks": {
+    "transport_report_dashboards_passed": 66,
+    "transport_report_dashboards_seconds": 16.7,
+    "drill_environment_passed": 54,
+    "drill_environment_seconds": 13.96,
+    "gates_drill_scope_passed": 52,
+    "gates_drill_scope_seconds": 51.84
+  },
+  "offline_drill_postgres": {
+    "postgres_offline_drill_seed_passed": true,
+    "claims": 1,
+    "real_model_calls": 0,
+    "run_marked_synthetic": true,
+    "migration_and_drift_passed": true,
+    "owned_database_removed": true
+  },
+  "normal_scope_update": {
+    "environment": "normal",
+    "user_approval": "explicit_20260912_two_existing_kimi_endpoints",
+    "endpoints": [
+      {
+        "endpoint_id": "01a0903d-845e-7ae8-94e5-0f8ab1e623eb",
+        "model": "kimi-k2.7-kimi",
+        "before": [
+          "PUBLIC",
+          "INTERNAL"
+        ],
+        "after": [
+          "PUBLIC",
+          "INTERNAL",
+          "CONFIDENTIAL",
+          "RESTRICTED"
+        ],
+        "public_configuration_preserved": true
+      },
+      {
+        "endpoint_id": "01a0903d-83a1-72c6-a805-80fa9364acd4",
+        "model": "kimi-k3-kimi",
+        "before": [
+          "PUBLIC",
+          "INTERNAL"
+        ],
+        "after": [
+          "PUBLIC",
+          "INTERNAL",
+          "CONFIDENTIAL",
+          "RESTRICTED"
+        ],
+        "public_configuration_preserved": true
+      }
+    ],
+    "policy_scope": {
+      "actions": [
+        "models.write"
+      ],
+      "user_ids": [
+        "00000000-0000-7000-8000-000000000002"
+      ],
+      "resource": {
+        "endpoint_id": [
+          "01a0903d-83a1-72c6-a805-80fa9364acd4",
+          "01a0903d-845e-7ae8-94e5-0f8ab1e623eb"
+        ]
+      },
+      "context": {
+        "operation": "model.processing_scope.update"
+      }
+    }
+  },
+  "normal_im_cases": [
+    {
+      "case": 32,
+      "run_id": "01a095b0-b2fd-7ebd-ae24-b61c27d25be5",
+      "route": "KNOWLEDGE",
+      "acceptance": "passed_bounded_abstention",
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 16315,
+          "input_tokens": 5188,
+          "output_tokens": 300
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 7790,
+          "input_tokens": 4001,
+          "output_tokens": 146
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 12615,
+          "input_tokens": 5837,
+          "output_tokens": 127
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 25317,
+          "input_tokens": 4562,
+          "output_tokens": 821
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 13670,
+          "input_tokens": 7004,
+          "output_tokens": 141
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 24416,
+          "input_tokens": 5665,
+          "output_tokens": 617
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 14397,
+          "input_tokens": 7247,
+          "output_tokens": 126
+        }
+      ],
+      "investigation": [
+        {
+          "version": "knowledge-investigation-v1",
+          "reason": "insufficient_evidence",
+          "input_sha256": "c4d49aec2963737cd3dde1506671171c3a57108f4bfa1aca850b0495bb9be425",
+          "status": "planned",
+          "response_sha256": "dfbeb163ec96274718df24c11a294508202665fa39041c57f7351c8ec46b8875",
+          "action": "document.read",
+          "round": 1
+        },
+        {
+          "version": "knowledge-investigation-v1",
+          "reason": "insufficient_evidence",
+          "input_sha256": "bc9073e7f9d3f089f55b8d2791031dd8b0329e99f1cfae58aa4dd291c4f8abad",
+          "status": "planned",
+          "response_sha256": "244d09683458e35c6b0737208931f63039c7a4d51eb0c1fac262cb584c2706ef",
+          "action": "knowledge.search",
+          "round": 2
+        },
+        {
+          "version": "knowledge-investigation-v1",
+          "reason": "insufficient_evidence",
+          "input_sha256": "f30eff7f83d0774f288249781c8437c4ec3a56aa76a5aeae1a2552b244623935",
+          "status": "planned",
+          "response_sha256": "fbf7de765fb58f219eb3b5c60aa44f2f8383c717c0cba1372d82aa0f281fee42",
+          "action": "document.read",
+          "round": 3
+        }
+      ],
+      "verified": false,
+      "citation_count": 0,
+      "answer_sha256": "0804c0016879cecd13a0d0114c0b4bba0f03615f562423dbb9ce4dfe7dcf2219",
+      "chat_matches_artifact": true,
+      "matching_bot_messages": 1,
+      "sent_at": "2026-09-12 20:55:19",
+      "bot_reply_at": "2026-09-12 20:58:20",
+      "outbox": [
+        {
+          "id": "01a095b2-810c-7b64-9b1d-1d41f077aa20",
+          "status": "ACCEPTED",
+          "recipient_sender_id": "013526256671757557",
+          "conversation_type": "direct",
+          "delivery_mode": "FINAL",
+          "attempt_count": 1,
+          "vendor_send_status": "SUCCESS",
+          "vendor_read_status": "UNREAD",
+          "last_error_code": null,
+          "blocked_reason": null
+        }
+      ]
+    },
+    {
+      "case": 34,
+      "run_id": "01a095b6-09ee-74bb-b5c1-33aaa0143a3f",
+      "route": "GENERAL",
+      "acceptance": "passed_everyday_translation",
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 10100,
+          "input_tokens": 2514,
+          "output_tokens": 167
+        }
+      ],
+      "investigation": null,
+      "verified": false,
+      "citation_count": 0,
+      "answer_sha256": "472bd64b606a5909b66eb6b2c629d8f7d4a6c0b702317e46c102f27cfac2a62a",
+      "chat_matches_artifact": true,
+      "matching_bot_messages": 1,
+      "sent_at": "2026-09-12 21:02:10",
+      "bot_reply_at": "2026-09-12 21:02:22",
+      "outbox": [
+        {
+          "id": "01a095b6-3490-7c9e-8930-e17f719aee94",
+          "status": "ACCEPTED",
+          "recipient_sender_id": "013526256671757557",
+          "conversation_type": "direct",
+          "delivery_mode": "FINAL",
+          "attempt_count": 1,
+          "vendor_send_status": "SUCCESS",
+          "vendor_read_status": "UNREAD",
+          "last_error_code": null,
+          "blocked_reason": null
+        }
+      ]
+    }
+  ],
+  "normal_im_case_33": {
+    "acceptance": "not_accepted_inbound_not_observed",
+    "message_sent_in_correct_organization": true,
+    "resubmitted": false,
+    "cause_not_established": true
+  },
+  "normal_im_case_34_reconciliation": {
+    "first_query_unavailable": true,
+    "automatic_read_only_retry_succeeded": true,
+    "send_attempt_count": 1
+  },
+  "frontend": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "web_tests_passed": 222,
+    "other_javascript_tests_passed": 55
+  },
+  "compose_investigation_setting": {
+    "api_and_migrate_values_verified": [
+      0,
+      3,
+      6
+    ],
+    "python_sources_unchanged_after_full_run": true
+  },
+  "additional_cli_checks": {
+    "contracts": "passed",
+    "project_status": "passed",
+    "evaluations": "passed",
+    "eval_gates": "passed",
+    "release_notes": "passed",
+    "release_candidate_contract_only": "passed",
+    "dataset_execution": {
+      "executed": 11,
+      "skipped": 27,
+      "failed": 0
+    }
+  }
+}

@@ -1,28 +1,27 @@
 import hashlib
-import re
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, delete, exists, false, func, literal_column, or_, select
+from sqlalchemy import and_, case, delete, exists, false, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from obsion.artifacts.store import ObjectStore, StoredObject
 from obsion.common.errors import AuthorizationError, NotFoundError, ObsionError, ValidationError
 from obsion.common.ids import new_id
+from obsion.common.text import contains_cjk, lexical_terms
 from obsion.common.time import utc_now
 from obsion.config import Settings
 from obsion.db.models import Document, DocumentChunk, DocumentChunkGrant, DocumentVersion
 from obsion.domain.enums import Classification
 from obsion.knowledge.connector_contract import provenance_fields_from_version
 from obsion.knowledge.parsers import chunk_document, parse_document
+from obsion.knowledge.source_access import MANAGED_KNOWLEDGE_SOURCE, external_access_clause
 from obsion.model_gateway.gateway import ModelGateway
 from obsion.security.identity import Principal
 from obsion.telemetry import retrieval_duration
-
-_TOKEN = re.compile(r"[\w\u3400-\u9fff]+", re.UNICODE)
 
 
 def bounded_search_limit(limit: int, maximum: int) -> int:
@@ -282,7 +281,17 @@ class KnowledgeService:
                     DocumentVersion.version == document.current_version,
                 )
             )
-            if current is not None and current.checksum_sha256 == checksum:
+            if (
+                current is not None
+                and current.checksum_sha256 == checksum
+                and (
+                    source != MANAGED_KNOWLEDGE_SOURCE
+                    or all(
+                        current.metadata_json.get(key) == (extra_metadata or {}).get(key)
+                        for key in ("revision_id", "source_parser", "raw_checksum_sha256")
+                    )
+                )
+            ):
                 # Re-ingesting identical bytes is still an authorization mutation:
                 # callers may tighten ACL/classification without creating a new
                 # content version. Rebuild chunk grants atomically before returning.
@@ -341,7 +350,11 @@ class KnowledgeService:
         )
         session.add(version)
         await session.flush()
-        chunks = chunk_document(parsed.text)
+        chunks = chunk_document(
+            parsed.text,
+            preserve_dingtalk_layout=(extra_metadata or {}).get("source_parser")
+            == "dingtalk-jsonml-v2",
+        )
         embeddings: list[list[float] | None] = [None] * len(chunks)
         embedding_refs: list[str | None] = [None] * len(chunks)
         if self.settings.knowledge_embedding_profile and chunks:
@@ -411,7 +424,7 @@ class KnowledgeService:
         sources: tuple[str, ...] | None = None,
         exclude_sources: tuple[str, ...] | None = None,
     ) -> list[SearchHit]:
-        terms = [term.lower() for term in _TOKEN.findall(query) if term.strip()]
+        terms = lexical_terms(query)
         if not terms:
             raise ValidationError(
                 "knowledge_query_empty", "The search query has no searchable terms"
@@ -428,6 +441,7 @@ class KnowledgeService:
             Document.deleted_at.is_(None),
             DocumentVersion.version == Document.current_version,
             _authorization_clause(principal),
+            external_access_clause(principal),
             *source_filters,
         )
         dialect = session.get_bind().dialect.name
@@ -508,13 +522,25 @@ class KnowledgeService:
         unique_terms = list(dict.fromkeys(terms))[:32]
         search_query = func.to_tsquery(language, " | ".join(unique_terms))
         search_vector = func.to_tsvector(language, DocumentChunk.content)
-        lexical_score = func.ts_rank_cd(search_vector, search_query).label("lexical_score")
+        # PostgreSQL's simple dictionary does not segment Chinese sentences.
+        # Match bounded bigrams inside the same ACL/version-filtered query, before
+        # the candidate cap; never retrieve an unfiltered corpus into Python.
+        cjk_matches = [
+            DocumentChunk.content.contains(term, autoescape=True)
+            for term in unique_terms
+            if contains_cjk(term)
+        ]
+        lexical_match = or_(search_vector.op("@@")(search_query), *cjk_matches)
+        lexical_score = (
+            func.ts_rank_cd(search_vector, search_query)
+            + sum((case((match, 1.0), else_=0.0) for match in cjk_matches), start=0)
+        ).label("lexical_score")
         lexical_rows = (
             await session.execute(
                 select(DocumentChunk, DocumentVersion, Document, lexical_score)
                 .join(DocumentVersion, DocumentVersion.id == DocumentChunk.document_version_id)
                 .join(Document, Document.id == DocumentVersion.document_id)
-                .where(*base_filters, search_vector.op("@@")(search_query))
+                .where(*base_filters, lexical_match)
                 .order_by(lexical_score.desc(), DocumentChunk.id)
                 .limit(candidates)
             )
@@ -586,8 +612,9 @@ class KnowledgeService:
         hits.sort(key=lambda hit: (-hit.score, hit.title, str(hit.chunk_id)))
         return hits[:limit]
 
+    @staticmethod
     async def get_document(
-        self, session: AsyncSession, principal: Principal, document_id: UUID
+        session: AsyncSession, principal: Principal, document_id: UUID
     ) -> tuple[Document, DocumentVersion]:
         row = (
             await session.execute(
@@ -601,7 +628,9 @@ class KnowledgeService:
                     Document.id == document_id,
                     Document.organization_id == principal.organization_id,
                     Document.deleted_at.is_(None),
+                    external_access_clause(principal),
                 )
+                .execution_options(populate_existing=True)
             )
         ).one_or_none()
         if row is None:

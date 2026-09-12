@@ -1,0 +1,432 @@
+{
+  "recorded_at": "2026-09-12T09:11:33.389064+00:00",
+  "adrs": [
+    "0124",
+    "0125"
+  ],
+  "scope": "Ordinary local development API/Web/PostgreSQL/MinIO, persistent supervised host worker, real zziv Pointbot messages via DWS and official Stream; no synthetic transports or model outputs in live cases",
+  "production_deployed": false,
+  "ordinary_development_deployed": true,
+  "migration_head": "a3b5c7d9e1f2",
+  "development_host_database_port": 56324,
+  "host_database_matches_container": true,
+  "port_collision_fixed_without_modifying_other_postgres": true,
+  "backup_restore_and_upgrade_check": {
+    "passed": true,
+    "database": "obsion_normal_upgrade_20260912",
+    "counts_preserved": {
+      "runs": 83,
+      "documents": 2,
+      "document_versions": 2,
+      "dingtalk_robot_outbox": 13,
+      "im_installation_bindings": 1,
+      "im_principal_bindings": 1
+    },
+    "diagnostic_clone_removed": true
+  },
+  "images": {
+    "obsion-api-1": {
+      "image_id": "sha256:dc84877b7b6784662caf95264ac65a3a1257e44a1abd707aebf94030cd512695",
+      "health": "healthy"
+    },
+    "obsion-web-1": {
+      "image_id": "sha256:8c55dab751b5b9d82c0f0c18cca891402c70a4555d4527f5857c3e275effc408",
+      "health": "healthy"
+    }
+  },
+  "api_image_python_files_matched": 246,
+  "dependency_lock_changed": false,
+  "build_path": "Local derivative images from saved installed runtimes and unchanged dependency locks; normal public frontend image resolution stalled; backend sources compared byte-for-byte; web standalone rebuilt with configured API origin",
+  "source": {
+    "id": "01a094d6-dd77-78bb-8e9f-82e9a0c8ef0d",
+    "active": true,
+    "generation": 6,
+    "last_error_code": null,
+    "last_success_at": "2026-09-12 09:09:01.312351+00:00"
+  },
+  "source_counts": [
+    {
+      "status": "READY",
+      "kind": "adoc",
+      "count": 3
+    },
+    {
+      "status": "PARTIAL",
+      "kind": "folder",
+      "count": 3
+    },
+    {
+      "status": "FAILED",
+      "kind": "adoc",
+      "count": 1
+    },
+    {
+      "status": "PENDING",
+      "kind": "adoc",
+      "count": 7
+    },
+    {
+      "status": "PARTIAL",
+      "kind": "able",
+      "count": 1
+    }
+  ],
+  "supervised_host_worker_running": true,
+  "worker_restart_preserved_document_ids": true,
+  "global_dingtalk_profile_changed": false,
+  "observed_profile": {
+    "organization": "zziv",
+    "user": "Joony"
+  },
+  "cases": {
+    "known": {
+      "id": "01a094dc-edf7-7c78-af7d-f4cc2629e863",
+      "installation_id": "01a08b98-84c8-7663-b254-cac904638437",
+      "subject_user_id": "00000000-0000-7000-8000-000000000002",
+      "vendor_event_id": "msgE1P0nsVH9XrPDPTKW0RaaA==",
+      "text": "OW-QA-20260912-24 请根据已授权的《🎉 欢迎开启「知识库」》说明知识库支持创建哪几类内容；只列文档明确提到的四类，并注明出处。",
+      "status": "PROCESSED",
+      "run_id": "01a094dc-eeeb-7fcd-9e62-78bcdcefb80b",
+      "created_at": "2026-09-12 09:05:01.917156+00:00",
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 17429,
+          "input_tokens": 4712,
+          "output_tokens": 482
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 12280,
+          "input_tokens": 3837,
+          "output_tokens": 459
+        }
+      ],
+      "outbox": [
+        {
+          "id": "01a094dd-68b2-74df-81a3-078be50b8b35",
+          "status": "ACCEPTED",
+          "recipient_sender_id": "013526256671757557",
+          "conversation_type": "direct",
+          "delivery_mode": "FINAL",
+          "attempt_count": 1,
+          "vendor_send_status": "SUCCESS",
+          "vendor_read_status": "UNREAD",
+          "last_error_code": null,
+          "blocked_reason": null
+        }
+      ],
+      "run_status": "COMPLETED",
+      "error_code": null,
+      "route": "KNOWLEDGE",
+      "artifacts_http": 200,
+      "answer": {
+        "markdown": "文档明确提到的四类内容是：文件夹、文档、表格、脑图。出处：《🎉 欢迎开启「知识库」》。\n\n### 引用\n- [1] **🎉 欢迎开启「知识库」**（版本 1）",
+        "verification": {
+          "verified": true,
+          "confidence": 0.9,
+          "coverage": 1.0,
+          "missing_evidence": [],
+          "conflicts": [],
+          "checks": {
+            "required_evidence": true,
+            "claim_links": true,
+            "source_diversity": true,
+            "duplicate_evidence": true
+          }
+        },
+        "claim_ids": [
+          "01a094dd-67db-7cf1-946e-2abaf71f9def",
+          "01a094dd-67ee-7d64-98e5-b30d03f843d8",
+          "01a094dd-67f4-7edb-811a-6a3ea58faceb",
+          "01a094dd-67f5-7013-b7b1-2f7e4cc22ed4"
+        ],
+        "citations": [
+          {
+            "label": "[1]",
+            "evidence_id": "01a094dc-f240-7e7a-8050-4b23477c7019",
+            "source": "dingtalk-managed",
+            "resource": "authorized-document-index",
+            "title": "🎉 欢迎开启「知识库」",
+            "version": 1,
+            "chunk_id": "01a094da-2fe2-7d56-8c7e-04010e65bf9f",
+            "external_id": "01a094d6-dd77-78bb-8e9f-82e9a0c8ef0d:4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+            "revision_id": "0",
+            "connector_name": "zziv-joony-managed-documents",
+            "operation": "knowledge.dingtalk.read",
+            "body_index": 0
+          }
+        ],
+        "verification_assessment_id": "01a094dd-67fd-7ee3-8a68-856cf2c503c7",
+        "grounding": {
+          "version": "knowledge-grounding.v1",
+          "method": "model_review_with_exact_quotes",
+          "accepted": true,
+          "reason_code": "grounding_supported",
+          "candidate_fingerprint": "29fe03b68be5ceee21cfb0cf663924700b31f0ff370c8aae4df1e933ce4e1f4b",
+          "input_fingerprint": "60adc2dfa9ba81888da37604b6ef9906022c9369c45aecbb7c95888eb26b1afb",
+          "response_fingerprint": "e4f28ad606b79899e6e401210a93cfe360df315dd6edaa566f3d35c4f558f1db",
+          "claims": [
+            {
+              "claim_index": 1,
+              "verdict": "SUPPORTED",
+              "quotes": [
+                {
+                  "evidence_id": "01a094dc-f240-7e7a-8050-4b23477c7019",
+                  "body_index": 0,
+                  "start": 454,
+                  "length": 30,
+                  "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+                }
+              ]
+            },
+            {
+              "claim_index": 2,
+              "verdict": "SUPPORTED",
+              "quotes": [
+                {
+                  "evidence_id": "01a094dc-f240-7e7a-8050-4b23477c7019",
+                  "body_index": 0,
+                  "start": 454,
+                  "length": 30,
+                  "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+                }
+              ]
+            },
+            {
+              "claim_index": 3,
+              "verdict": "SUPPORTED",
+              "quotes": [
+                {
+                  "evidence_id": "01a094dc-f240-7e7a-8050-4b23477c7019",
+                  "body_index": 0,
+                  "start": 454,
+                  "length": 30,
+                  "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+                }
+              ]
+            },
+            {
+              "claim_index": 4,
+              "verdict": "SUPPORTED",
+              "quotes": [
+                {
+                  "evidence_id": "01a094dc-f240-7e7a-8050-4b23477c7019",
+                  "body_index": 0,
+                  "start": 454,
+                  "length": 30,
+                  "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+                }
+              ]
+            }
+          ],
+          "duration_ms": 12299
+        }
+      },
+      "vendor_message_id_matches_inbox": true,
+      "actual_bot_message_id": "msgRQ73YIxShVwRy+ZNsKAb6g==",
+      "chat_body_matches_artifact": true,
+      "vendor_sent_at": "2026-09-12T17:04:02+08:00",
+      "bot_reply_at": "2026-09-12T17:05:34+08:00",
+      "end_to_end_seconds": 92.0,
+      "vendor_to_inbox_seconds": 59.917,
+      "answer_generation": {
+        "status": "CANDIDATE"
+      },
+      "run_seconds": 30.500562
+    },
+    "unknown": {
+      "id": "01a094de-6de7-7881-aeb3-75448246d7f0",
+      "installation_id": "01a08b98-84c8-7663-b254-cac904638437",
+      "subject_user_id": "00000000-0000-7000-8000-000000000002",
+      "vendor_event_id": "msgagOqVUpy8i43iMcdHnzJYg==",
+      "text": "OW-QA-20260912-25 请根据已授权的《🎉 欢迎开启「知识库」》回答：知识库单个空间的存储容量上限是多少 GB？资料没有给出数字就明确说明，不要推测。",
+      "status": "PROCESSED",
+      "run_id": "01a094de-6e12-7d17-bcf3-48f878194826",
+      "created_at": "2026-09-12 09:06:40.213669+00:00",
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 8681,
+          "input_tokens": 4651,
+          "output_tokens": 99
+        }
+      ],
+      "outbox": [
+        {
+          "id": "01a094de-95dd-7655-b3e5-414bd6ddeffe",
+          "status": "ACCEPTED",
+          "recipient_sender_id": "013526256671757557",
+          "conversation_type": "direct",
+          "delivery_mode": "FINAL",
+          "attempt_count": 1,
+          "vendor_send_status": "SUCCESS",
+          "vendor_read_status": "UNREAD",
+          "last_error_code": null,
+          "blocked_reason": null
+        }
+      ],
+      "run_status": "COMPLETED",
+      "error_code": null,
+      "route": "KNOWLEDGE",
+      "artifacts_http": 200,
+      "answer": {
+        "markdown": "不知道：本次取得的授权资料不足以确认「知识库单个空间的存储容量上限是多少 GB」。请补充直接说明这一事项的资料，或指定其他已授权来源。",
+        "verification": {
+          "verified": false,
+          "confidence": 0.7,
+          "coverage": 1.0,
+          "missing_evidence": [],
+          "conflicts": [
+            {
+              "kind": "VALUE",
+              "severity": "HIGH",
+              "reason": "Answer does not contain a deterministic signal that the question was addressed",
+              "reason_codes": [
+                "question_not_covered"
+              ]
+            }
+          ],
+          "checks": {
+            "required_evidence": true,
+            "claim_links": false,
+            "source_diversity": true,
+            "duplicate_evidence": true
+          }
+        },
+        "claim_ids": [],
+        "citations": [],
+        "verification_assessment_id": "01a094de-9424-70df-80cc-60d5e2da2ba1"
+      },
+      "vendor_message_id_matches_inbox": true,
+      "actual_bot_message_id": "msgpjK7yPRkUdJD0Gsj+o86LQ==",
+      "chat_body_matches_artifact": true,
+      "vendor_sent_at": "2026-09-12T17:06:40+08:00",
+      "bot_reply_at": "2026-09-12T17:06:51+08:00",
+      "end_to_end_seconds": 11.0,
+      "vendor_to_inbox_seconds": 0.214,
+      "answer_generation": {
+        "status": "INSUFFICIENT_EVIDENCE",
+        "requested_information": "知识库单个空间的存储容量上限是多少 GB"
+      },
+      "run_seconds": 9.168614
+    },
+    "everyday": {
+      "id": "01a094e0-6243-78eb-872d-10c08610ea49",
+      "installation_id": "01a08b98-84c8-7663-b254-cac904638437",
+      "subject_user_id": "00000000-0000-7000-8000-000000000002",
+      "vendor_event_id": "msgJKQmSaE4u/4l5Jt5zcvAyA==",
+      "text": "OW-QA-20260912-26 请把这句话翻译成自然的英文，只给译文：我们今天下午三点开会，请提前准备好项目进度报告。",
+      "status": "PROCESSED",
+      "run_id": "01a094e0-6369-7b47-849f-1456c9e31ec5",
+      "created_at": "2026-09-12 09:08:48.298047+00:00",
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 10792,
+          "input_tokens": 2514,
+          "output_tokens": 144
+        }
+      ],
+      "outbox": [
+        {
+          "id": "01a094e0-9063-7d75-b164-ef9426c498c1",
+          "status": "ACCEPTED",
+          "recipient_sender_id": "013526256671757557",
+          "conversation_type": "direct",
+          "delivery_mode": "FINAL",
+          "attempt_count": 1,
+          "vendor_send_status": "SUCCESS",
+          "vendor_read_status": "UNREAD",
+          "last_error_code": null,
+          "blocked_reason": null
+        }
+      ],
+      "run_status": "COMPLETED",
+      "error_code": null,
+      "route": "GENERAL",
+      "artifacts_http": 200,
+      "answer": {
+        "markdown": "We're having a meeting at 3 PM today. Please prepare the project progress report in advance.",
+        "verification": {
+          "verified": false,
+          "confidence": 0.0,
+          "coverage": 0.0,
+          "missing_evidence": [],
+          "conflicts": [],
+          "checks": {
+            "general_response_scope": true,
+            "enterprise_verification": false
+          }
+        },
+        "claim_ids": [],
+        "citations": [],
+        "response_kind": "GENERAL",
+        "verification_scope": "not_applicable"
+      },
+      "vendor_message_id_matches_inbox": true,
+      "actual_bot_message_id": "msgceemC79sIQB7bBklSrQ1Ag==",
+      "chat_body_matches_artifact": true,
+      "vendor_sent_at": "2026-09-12T17:07:48+08:00",
+      "bot_reply_at": "2026-09-12T17:09:01+08:00",
+      "end_to_end_seconds": 73.0,
+      "vendor_to_inbox_seconds": 60.298,
+      "answer_generation": null,
+      "run_seconds": 10.983943
+    }
+  },
+  "real_model_calls": 4,
+  "allowed_models": [
+    "kimi-k3-kimi",
+    "kimi-k2.7-kimi"
+  ],
+  "real_user_test_messages": 3,
+  "real_bot_replies": 3,
+  "chat_read_complete_for_recorded_range": true,
+  "human_read_confirmed": false,
+  "local_tests": {
+    "final_full_python": {
+      "passed": 2548,
+      "skipped": 252,
+      "deselected": 7,
+      "seconds": 633.88
+    },
+    "registration_reader_worker_registry": {
+      "passed": 56,
+      "seconds": 22.15
+    },
+    "final_registration_http": {
+      "passed": 2,
+      "seconds": 2.61
+    },
+    "suites_overlap": true,
+    "postgres_registration_cases": 2,
+    "disposable_registration_databases_removed": true,
+    "mypy_source_files": 271,
+    "ruff_format_files": 1033,
+    "secret_findings": 0,
+    "main_fetch_head_left_right": [
+      0,
+      0
+    ]
+  },
+  "source_sha256": {
+    "services/control-plane/src/obsion/registry/builtins.py": "4b4ac346ac3cbb8b1ca0bf21cd86db7a7ca578f7748516b9d279097a2e1c1f0c",
+    "services/control-plane/src/obsion/harness/runtime.py": "2eb8bec7be5e6923f9afda4bfeb244a7f14f525ae8a0e1afc0bb0177fe0f5ed4",
+    "services/control-plane/src/obsion/harness/answerability.py": "162c99ae3d52bf40de7e9d39e363ca5387b88011f1f804d78045f5a579007e8e",
+    "services/control-plane/tests/test_managed_source_registration.py": "9532bc3d39247f7d4a76b2ebe30ea8c243d96dc5588b6790e289018402e748cc",
+    "services/control-plane/tests/test_knowledge_sync_worker.py": "ef2cae9937b32fc125eb1e8c69022e11fd7e4f09ab4877137b12f5a0793907dd",
+    "services/control-plane/tests/test_dingtalk_managed_reader.py": "94327636677087ec1596e087ba282ccf2e36dccd4d51ec1a1f40a8640428f342"
+  },
+  "remaining": [
+    "Seven incomplete adoc bodies, one unsupported AI table and one empty adoc are not usable as complete documents",
+    "Broader enterprise source/format coverage and large-corpus renewal capacity",
+    "Two observed user-message-to-inbox delays of approximately 60 seconds; latency target is not accepted",
+    "Pointbot replies currently have UNREAD receipts; human reading is not inferred from API retrieval",
+    "Complete M1, autonomous project execution and production gates"
+  ]
+}

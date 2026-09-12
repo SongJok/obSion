@@ -824,3 +824,24 @@ a { color: inherit; }
 .codeup-result time { color: var(--muted); font-size: 12px; }
 .codeup-message { white-space: pre-wrap; }
 .codeup-result pre { max-height: 420px; overflow: auto; padding: 16px; border-radius: 8px; color: var(--ink); background: var(--panel-soft); white-space: pre; }
+
+.knowledge-sources { max-width: 1080px; margin: 0 auto 24px; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel, #fff); min-width: 0; }
+.knowledge-source-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.knowledge-source-heading h2 { margin: 0 0 6px; font-size: 16px; }
+.knowledge-source-heading h3 { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.knowledge-sources p { font-size: 12px; line-height: 1.7; color: var(--muted); overflow-wrap: anywhere; }
+.knowledge-sources button, .knowledge-sources select { min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel, #fff); color: var(--ink); font-size: 12px; max-width: 100%; }
+.knowledge-sources button:disabled { opacity: .55; cursor: not-allowed; }
+.knowledge-source-connect { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 18px 0; }
+.knowledge-source-connect label { display: grid; gap: 6px; flex: 1 1 220px; min-width: 0; font-size: 12px; }
+.knowledge-source-list { display: grid; gap: 12px; }
+.knowledge-source-list article { padding: 16px; border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+.knowledge-source-heading > span { color: var(--brand); font-size: 12px; }
+.knowledge-source-counts strong { color: var(--ink); font-size: 22px; }
+.knowledge-source-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.knowledge-source-items { display: grid; gap: 10px; margin-top: 18px; }
+.knowledge-source-items > div { padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; }
+.knowledge-source-items strong { overflow-wrap: anywhere; }
+.knowledge-source-items span { margin-left: 12px; color: var(--muted); }
+.knowledge-source-note { margin-bottom: 0; }
+@media (max-width: 520px) { .knowledge-sources { padding: 14px; } .knowledge-source-heading > button { width: 100%; } .knowledge-source-connect label { flex-basis: 100%; } }

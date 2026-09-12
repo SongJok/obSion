@@ -29,7 +29,7 @@ from obsion.capabilities.gateway import (
     DingTalkRobotOutboxQueryRequest,
     DingTalkRobotOutboxRequest,
 )
-from obsion.common.errors import AuthorizationError
+from obsion.common.errors import AuthorizationError, NotFoundError, ObsionError
 from obsion.common.time import ensure_utc, utc_now
 from obsion.db.im_models import (
     ImGroupAudience,
@@ -60,9 +60,11 @@ from obsion.domain.enums import (
     RunStatus,
     SideEffect,
 )
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.security.auth import load_principal_by_id
 from obsion.security.identity import Principal
+from obsion.security.source_fence import acquire_source_publication_fence
 from obsion.security.workspace_access import require_run_access
 
 _CAPABILITY: Final = "im.dingtalk.robot.reply"
@@ -402,7 +404,7 @@ class DingTalkOutboxService:
                 )
                 if audience is None:
                     return None
-        except (AuthorizationError, ValueError):
+        except (AuthorizationError, NotFoundError, ValueError):
             return None
         return installation, connector, outbox.capability_version_id, principal
 
@@ -446,6 +448,14 @@ class DingTalkOutboxService:
             or outbox.fencing_token != claim.fencing_token
         ):
             return None
+        try:
+            await acquire_source_publication_fence(session, outbox.organization_id)
+        except ObsionError as error:
+            if error.code != "authorization_fence_unavailable":
+                raise
+            # No Gateway call has occurred: this is known not to have sent.
+            await self._block(session, outbox, "authorization_fence_unavailable")
+            return outbox
         inputs = await self._dispatch_inputs(session, outbox)
         if inputs is None:
             await self._block(session, outbox, "delivery_preconditions_changed")
@@ -460,6 +470,15 @@ class DingTalkOutboxService:
             capability_version_id,
             principal,
         ) = inputs
+
+        async def authorize_send() -> bool:
+            # The native transport calls this after token acquisition, before
+            # attempting the one vendor message POST. Keep the same DB fence.
+            if outbox.lease_expires_at is None or ensure_utc(outbox.lease_expires_at) <= utc_now():
+                return False
+            current = await self._dispatch_inputs(session, outbox)
+            return current is not None and current[5] == text
+
         result = await self.gateway.invoke_dingtalk_robot_outbox(
             session,
             DingTalkRobotOutboxRequest(
@@ -478,6 +497,7 @@ class DingTalkOutboxService:
                 conversation_type=outbox.conversation_type,
                 recipient_conversation_id=outbox.recipient_conversation_id,
             ),
+            authorize_send=authorize_send,
             transport=self.transport,
         )
         outbox.policy_decision_id = result.policy_decision_id
@@ -525,8 +545,14 @@ class DingTalkOutboxService:
             principal = await load_principal_by_id(
                 session, run.organization_id, inbox.subject_user_id
             )
-            await require_run_access(session, principal, run.id)
-        except (AuthorizationError, ValueError):
+            await require_run_access(
+                session,
+                principal,
+                run.id,
+                source_content=True,
+                source_corp_id=installation.external_corp_id or "",
+            )
+        except (AuthorizationError, NotFoundError, ValueError):
             await self._block(session, outbox, "delivery_answer_or_access_missing")
             return
         delivery_mode = "FINAL"
@@ -657,8 +683,14 @@ class DingTalkOutboxService:
             principal = await load_principal_by_id(
                 session, outbox.organization_id, outbox.recipient_user_id
             )
-            await require_run_access(session, principal, run.id)
-        except (AuthorizationError, ValueError):
+            await require_run_access(
+                session,
+                principal,
+                run.id,
+                source_content=True,
+                source_corp_id=installation.external_corp_id or "",
+            )
+        except (AuthorizationError, NotFoundError, ValueError):
             return None
         return (
             inbox,
@@ -713,6 +745,8 @@ class DingTalkOutboxService:
             mapped_code = "im_delivery_receipt_conflict"
         elif value == "capability_rate_limited":
             mapped_code = "capability_rate_limited"
+        elif value == "authorization_fence_unavailable":
+            mapped_code = "authorization_fence_unavailable"
         elif value == "connector_grant_missing":
             mapped_code = "connector_grant_missing"
         elif value == "credential_unavailable":
@@ -824,7 +858,7 @@ def _configured_identity(connector: Connector, key: str, *, fallback: str | None
 def _millis_to_datetime(value: int | None) -> datetime | None:
     """Convert a vendor epoch millisecond value without letting bad data abort reconciliation."""
 
-    if value is None or value < 0:
+    if value is None or value <= 0:
         return None
     try:
         return datetime.fromtimestamp(value / 1000, tz=UTC)
@@ -1040,6 +1074,29 @@ async def _group_delivery(
         and max_classification in _CLASSIFICATION_RANK
         and _CLASSIFICATION_RANK[classification] <= _CLASSIFICATION_RANK[max_classification]
     )
+    if permitted:
+        corp_id = await session.scalar(
+            select(ImInstallation.external_corp_id).where(
+                ImInstallation.id == inbox.installation_id,
+                ImInstallation.organization_id == run.organization_id,
+            )
+        )
+        guard = KnowledgePublicationGuard()
+        for member_id in sorted(configured_members):
+            try:
+                member = await load_principal_by_id(session, run.organization_id, member_id)
+                permitted = await guard.check(
+                    session,
+                    member,
+                    [],
+                    run_id=run.id,
+                    stage="im_group_delivery",
+                    expected_corp_id=corp_id or "",
+                )
+            except (AuthorizationError, NotFoundError):
+                permitted = False
+            if not permitted:
+                break
     if permitted:
         return audience, "FINAL", text
     if audience.allow_status:

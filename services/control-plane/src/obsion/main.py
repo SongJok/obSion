@@ -33,7 +33,9 @@ from obsion.api import (
     im_identity,
     im_inbox,
     knowledge,
+    knowledge_sync,
     memory,
+    model_endpoint_policy,
     project_sources,
     run_inspection,
     studio,
@@ -493,6 +495,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     protected_api.include_router(capabilities.router)
     protected_api.include_router(collaboration.router)
     protected_api.include_router(knowledge.router)
+    protected_api.include_router(knowledge_sync.router)
     protected_api.include_router(code.router)
     protected_api.include_router(codeup.router)
     protected_api.include_router(memory.router)
@@ -500,6 +503,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     protected_api.include_router(evaluations.router)
     protected_api.include_router(run_inspection.router)
     protected_api.include_router(admin.router)
+    protected_api.include_router(model_endpoint_policy.router)
     protected_api.include_router(project_sources.router)
     protected_api.include_router(im_identity.admin_router)
     protected_api.include_router(im_identity.installation_router)

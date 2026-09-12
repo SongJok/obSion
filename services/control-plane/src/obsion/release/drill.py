@@ -624,12 +624,13 @@ def _rows(execute: CommandRunner, container: str, database: str, query: str) -> 
 
 
 def _seed_drill_dataset(database_url: str) -> None:
-    """Drive a real governed Harness scenario through the control-plane REST API."""
+    """Drive the real REST/Harness with explicitly synthetic offline model decisions."""
 
     from fastapi.testclient import TestClient
 
     from obsion.config import Environment, Settings
     from obsion.main import create_app
+    from obsion.release.drill_model import OfflineDrillModels
 
     settings = Settings(
         environment=Environment.TEST,
@@ -639,10 +640,12 @@ def _seed_drill_dataset(database_url: str) -> None:
         run_worker_concurrency=2,
         event_stream_heartbeat_seconds=5,
     )
+    app = create_app(settings)
     with TestClient(
-        create_app(settings),
+        app,
         headers={"Authorization": f"Bearer {settings.dev_bearer_token.get_secret_value()}"},
     ) as client:
+        app.state.run_worker.runtime.models = OfflineDrillModels(settings)
         workspace = client.post(
             "/api/v1/workspaces",
             json={"name": "Drill workspace", "description": "Backup/restore drill tenant"},

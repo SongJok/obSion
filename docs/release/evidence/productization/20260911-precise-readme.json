@@ -1,0 +1,185 @@
+{
+  "run_id": "01a0905d-0c23-7aa9-b474-10df966e9666",
+  "status": "COMPLETED",
+  "input_tokens": 8829,
+  "output_tokens": 2791,
+  "answer": {
+    "markdown": "README 将 Obsion 定义为“an open-source Enterprise Agent Runtime and Intelligence Workspace”（开源的企业级智能体运行时与智能工作区）。文档还把名称解释为 OBServability + Intelligence + OrchestratiON，并说明它不是聊天封装、无限制工具运行器或 Text-to-SQL 提示。其设计定位是围绕 Workspace and Harness、Capability Fabric、Evidence Fabric、Semantic Layer 和 Enterprise Control Plane 五类 durable assets，通过一个受治理能力层覆盖企业知识、数据、代码、可观测性与运行时系统，并保留证据、策略决策、审批和可回放执行历史。以上是文档中的定义与设计定位，不应据此理解成这些能力已经完成生产验收。\n\n### 引用\n- [1] **Obsion README**（版本 1）\n- [2] **Obsion README**（版本 1）",
+    "verification": {
+      "verified": true,
+      "confidence": 0.9,
+      "coverage": 1.0,
+      "missing_evidence": [],
+      "conflicts": [],
+      "checks": {
+        "required_evidence": true,
+        "claim_links": true,
+        "source_diversity": true,
+        "duplicate_evidence": true
+      }
+    },
+    "claim_ids": [
+      "01a09060-7e38-78f0-b8e6-df1e17a56675",
+      "01a09060-7e50-786e-8249-7dcd142bc6b2",
+      "01a09060-7e57-7be1-95a5-bc5722aff872",
+      "01a09060-7e58-751a-b842-06e7f89d2032",
+      "01a09060-7e59-7301-a2e6-14ad74ddb47d"
+    ],
+    "citations": [
+      {
+        "label": "[1]",
+        "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+        "source": "repository",
+        "resource": "authorized-document-index",
+        "title": "Obsion README",
+        "version": 1,
+        "chunk_id": "01a032a7-f8ce-7af5-aef1-97fafa6b42ba",
+        "external_id": "obsion-readme",
+        "revision_id": null,
+        "connector_name": null,
+        "operation": null,
+        "body_index": 0
+      },
+      {
+        "label": "[2]",
+        "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+        "source": "repository",
+        "resource": "authorized-document-index",
+        "title": "Obsion README",
+        "version": 1,
+        "chunk_id": "01a032a7-f8cd-7684-ad4d-4a2a960ff36a",
+        "external_id": "obsion-readme",
+        "revision_id": null,
+        "connector_name": null,
+        "operation": null,
+        "body_index": 2
+      }
+    ],
+    "verification_assessment_id": "01a09060-7e6b-71e6-8959-6f3ef6a03039",
+    "grounding": {
+      "version": "knowledge-grounding.v1",
+      "method": "model_review_with_exact_quotes",
+      "accepted": true,
+      "reason_code": "grounding_supported",
+      "candidate_fingerprint": "31a6b9b6f35cedf24039d9aca6b2724af436cff17fdd6b2a7076b981268bd29a",
+      "input_fingerprint": "f4b67fcc404fafdc5c7b6dc20714901b09bed319e953c8091e8985f0964850de",
+      "response_fingerprint": "eef608e1c2e4fc795d0b2a29e87fb8853117bdbb3e02786f598a5c47c0ce619b",
+      "claims": [
+        {
+          "claim_index": 1,
+          "verdict": "SUPPORTED",
+          "quotes": [
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 10,
+              "length": 81,
+              "sha256": "b3cad504bc94840697b87575658a6408415a8df1e63a117a58b76f5763081d3a"
+            }
+          ]
+        },
+        {
+          "claim_index": 2,
+          "verdict": "SUPPORTED",
+          "quotes": [
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 313,
+              "length": 67,
+              "sha256": "6eba78d1744c6135bce85be8c3d34dc24150cc689ff021700b6349c0f6ec01c4"
+            }
+          ]
+        },
+        {
+          "claim_index": 3,
+          "verdict": "SUPPORTED",
+          "quotes": [
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 382,
+              "length": 83,
+              "sha256": "1736e1b94f2dbdcb09101059e17a2f8c1357e4adf8481401fa82b739ab3a9bf8"
+            }
+          ]
+        },
+        {
+          "claim_index": 4,
+          "verdict": "SUPPORTED",
+          "quotes": [
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 92,
+              "length": 219,
+              "sha256": "e92dcc67d6b5553e74d9d73e947b3091b26124de56d7da2ff6399a86d6932ba0"
+            }
+          ]
+        },
+        {
+          "claim_index": 5,
+          "verdict": "SUPPORTED",
+          "quotes": [
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 466,
+              "length": 39,
+              "sha256": "81adc82970b957b7e091ccfd9a54ca04b9de721c5c4ec87d0fed1fa4f336f190"
+            },
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 509,
+              "length": 86,
+              "sha256": "8f92585e296b50e2ea303172f3d2c1b2af4b1d04d8eb814459592185c66ceb76"
+            },
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 598,
+              "length": 101,
+              "sha256": "73cef62fc7b1ff0ba4f188e4b11695d0845b298ee0136044248ece7c8d8b4bd5"
+            },
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 702,
+              "length": 93,
+              "sha256": "cae151f2dd68d0b2dbc5eaddcc50ea0f8ae32aa2e7690837057ee41b17c01b53"
+            },
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 2,
+              "start": 798,
+              "length": 98,
+              "sha256": "35a8b9d41da2c263baaaefc7051fda94767222ca78a686c90918a2d7cc8e55b6"
+            },
+            {
+              "evidence_id": "01a0905d-0f10-78d0-828a-e9921a9be749",
+              "body_index": 0,
+              "start": 40,
+              "length": 102,
+              "sha256": "35a2fc503ada676c93bc7bcbd8e8309ab81545c6e69ba6ed1d6ea999b37edd3a"
+            }
+          ]
+        }
+      ],
+      "duration_ms": 102680
+    }
+  },
+  "scope": "Local development deployed API; real Kimi author and review; not production acceptance",
+  "models": [
+    {
+      "model": "kimi-k3-kimi",
+      "status": "SUCCESS",
+      "latency_ms": 122270
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "status": "SUCCESS",
+      "latency_ms": 102654
+    }
+  ]
+}

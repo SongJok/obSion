@@ -42,8 +42,9 @@ def test_contract_cli_is_registered_and_contracts_are_valid() -> None:
     args = parser.parse_args(["validate-contracts"])
     assert args.command == "validate-contracts"
     events = validate_event_contracts()
-    assert events.event_count == events.version_count == 98
-    assert validate_error_catalog() == 343
+    assert events.event_count == 98
+    assert events.version_count == 102
+    assert validate_error_catalog() == 344
 
 
 def test_event_payload_error_code_enums_are_registered() -> None:
@@ -72,7 +73,7 @@ def test_production_event_registry_exactly_covers_reviewed_producers() -> None:
     assert analysis.helper_caller_pairs == REVIEWED_EVENT_HELPER_CALLS
     assert analysis.enum_dependencies == REVIEWED_EVENT_ENUMS
     assert analysis.all_event_versions == set(registered_event_versions())
-    assert len(analysis.sink_pairs) == 50
+    assert len(analysis.sink_pairs) == 54
     assert len(analysis.helper_caller_pairs) == 67
 
 
@@ -89,7 +90,7 @@ def test_production_error_catalog_exactly_covers_reviewed_producers() -> None:
     assert analysis.helper_caller_codes == REVIEWED_ERROR_HELPER_CALLS
     assert analysis.active_origin_codes.isdisjoint(RESERVED_COMPATIBILITY_ERROR_CODES)
     assert analysis.active_origin_codes | RESERVED_COMPATIBILITY_ERROR_CODES == catalog_codes
-    assert len(analysis.active_origin_codes) == 341
-    assert len(catalog_codes) == 343
+    assert len(analysis.active_origin_codes) == 342
+    assert len(catalog_codes) == 344
     for code in analysis.active_origin_codes:
         assert get_error_code(code).code == code

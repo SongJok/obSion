@@ -1,0 +1,254 @@
+{
+  "scope": "Operator diagnostic; no ingestion; bodies omitted",
+  "documents": [
+    {
+      "node_id": "P0MALyR8kNlvEblofDopxmgvJ3bzYmDO",
+      "workspace_id": "9r09jSMrX1KEG18A",
+      "title": "身份信息.adoc",
+      "full_success": true,
+      "full_body_characters": 646,
+      "revision": "5",
+      "application_blocks_success": true,
+      "block_count": 9,
+      "missing_block_properties": [
+        {
+          "position": 6,
+          "type": "blockquote"
+        },
+        {
+          "position": 8,
+          "type": "blockquote"
+        }
+      ],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "🎉 欢迎开启「知识库」.adoc",
+      "full_success": true,
+      "full_body_characters": 794,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 16,
+      "missing_block_properties": [],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dme4Qn8MwvDqPk",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "✏️ 第一步：开始你的创作.adoc",
+      "full_success": true,
+      "full_body_characters": 2545,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 148,
+      "missing_block_properties": [
+        {
+          "position": 13,
+          "type": "blockquote"
+        },
+        {
+          "position": 14,
+          "type": "blockquote"
+        },
+        {
+          "position": 27,
+          "type": "blockquote"
+        },
+        {
+          "position": 111,
+          "type": "blockquote"
+        },
+        {
+          "position": 112,
+          "type": "blockquote"
+        }
+      ],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0NeMdnAWdqbropQ",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "💬 第二步：分享你的知识.adoc",
+      "full_success": true,
+      "full_body_characters": 488,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 16,
+      "missing_block_properties": [],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "P0MALyR8kNlvEblofDjGR5bdJ3bzYmDO",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "🔍 第三步：快速搜索知识.adoc",
+      "full_success": true,
+      "full_body_characters": 207,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 14,
+      "missing_block_properties": [],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "X6GRezwJl2A9EyAos0Nej79BWdqbropQ",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "新人手册.adoc",
+      "full_success": true,
+      "full_body_characters": 832,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 43,
+      "missing_block_properties": [
+        {
+          "position": 3,
+          "type": "blockquote"
+        },
+        {
+          "position": 6,
+          "type": "blockquote"
+        },
+        {
+          "position": 9,
+          "type": "blockquote"
+        },
+        {
+          "position": 19,
+          "type": "blockquote"
+        },
+        {
+          "position": 22,
+          "type": "blockquote"
+        },
+        {
+          "position": 33,
+          "type": "blockquote"
+        },
+        {
+          "position": 36,
+          "type": "blockquote"
+        }
+      ],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "7QG4Yx2JpnLjE3LoTq2Ll6lGW9dEq3XD",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "常用工具指南.adoc",
+      "full_success": true,
+      "full_body_characters": 243,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 11,
+      "missing_block_properties": [],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "vNG4YZ7JnlPrEbP1iA7pQjZyW2LD0oRE",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "合同管理制度.adoc",
+      "full_success": true,
+      "full_body_characters": 448,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 27,
+      "missing_block_properties": [],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "dxXB52LJqNnkAenofZzN20ll8qjMp697",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "财务报销制度.adoc",
+      "full_success": true,
+      "full_body_characters": 612,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 24,
+      "missing_block_properties": [],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    },
+    {
+      "node_id": "gpG2NdyVXz3eka30c7Dm5xE68MwvDqPk",
+      "workspace_id": "MJ0pDS2n4mOPqx0E",
+      "title": "薪酬福利制度.adoc",
+      "full_success": true,
+      "full_body_characters": 421,
+      "revision": "0",
+      "application_blocks_success": true,
+      "block_count": 30,
+      "missing_block_properties": [],
+      "permission_member_count": 1,
+      "permission_has_more": false,
+      "permission_roles": [
+        "OWNER"
+      ],
+      "permission_member_types": [
+        "USER"
+      ]
+    }
+  ]
+}

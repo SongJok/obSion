@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     password_scrypt_parallelism: int = Field(default=1, ge=1, le=16)
     run_max_steps: int = Field(default=30, ge=1, le=200)
     run_max_critic_replans: int = Field(default=1, ge=0, le=3)
+    run_max_knowledge_investigation_rounds: int = Field(default=3, ge=0, le=6)
     run_timeout_seconds: int = Field(default=300, ge=10, le=3600)
     run_clarification_ttl_seconds: int = Field(
         default=24 * 60 * 60,
@@ -127,6 +128,8 @@ class Settings(BaseSettings):
     sql_timeout_seconds: int = Field(default=30, ge=1, le=300)
     model_request_timeout_seconds: int = Field(default=120, ge=5, le=600)
     model_allowed_hosts: list[str] = []
+    # None preserves existing deployments; an explicit empty list denies all models.
+    model_allowed_ids: list[str] | None = None
     model_force_private_for_sensitive: bool = True
     model_private_profile_name: str = Field(
         default="private", min_length=1, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]*$"

@@ -722,6 +722,8 @@ class WorkspaceService:
             )
             if artifact is None:
                 raise NotFoundError("Artifact", artifact_id)
+            if artifact.run_id is not None:
+                await require_run_access(session, principal, artifact.run_id, source_content=True)
             normalized.append(
                 {
                     "type": "artifact",
@@ -830,7 +832,9 @@ class WorkspaceService:
         return run
 
     async def replay_run(self, session: AsyncSession, principal: Principal, run_id: UUID) -> Run:
-        source = await require_run_access(session, principal, run_id, write=True)
+        source = await require_run_access(
+            session, principal, run_id, write=True, source_content=True
+        )
         if not is_terminal(source.status):
             raise ConflictError(
                 "run_not_replayable",

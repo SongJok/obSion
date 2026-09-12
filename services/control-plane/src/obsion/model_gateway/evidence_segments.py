@@ -5,14 +5,32 @@ from collections.abc import Sequence
 from typing import Any
 
 from obsion.domain.enums import EvidenceType
+from obsion.knowledge.evidence import document_bodies
 from obsion.model_gateway.context import ContextSegment, TrustLevel
 
 
-def evidence_context_segments(evidence: Sequence[Any]) -> list[ContextSegment]:
+def evidence_context_segments(
+    evidence: Sequence[Any], *, document_bodies_only: bool = False
+) -> list[ContextSegment]:
     tools: list[dict[str, Any]] = []
     observed: list[dict[str, Any]] = []
     for item in evidence:
         payload = _payload(item)
+        if document_bodies_only and _evidence_type(item) == EvidenceType.DOCUMENT:
+            payload = {
+                "id": str(item.id),
+                "type": "DOCUMENT",
+                "content": {
+                    "bodies": [
+                        {
+                            "body_index": body.body_index,
+                            "title": str(body.metadata.get("title", "授权文档")),
+                            "text": body.text,
+                        }
+                        for body in document_bodies(item)
+                    ]
+                },
+            }
         if _evidence_type(item) == EvidenceType.TOOL:
             tools.append(payload)
         else:

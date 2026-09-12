@@ -14,6 +14,14 @@ from obsion.capabilities.codeup_contract import (
 )
 from obsion.capabilities.codeup_contract import input_schema as codeup_input_schema
 from obsion.capabilities.codeup_contract import output_schema as codeup_output_schema
+from obsion.capabilities.dingtalk_managed import (
+    DISCOVER_INPUT_SCHEMA as MANAGED_DISCOVER_INPUT_SCHEMA,
+)
+from obsion.capabilities.dingtalk_managed import (
+    MANAGED_DISCOVER_OPERATION,
+    MANAGED_READ_OPERATION,
+)
+from obsion.capabilities.dingtalk_managed import READ_INPUT_SCHEMA as MANAGED_READ_INPUT_SCHEMA
 from obsion.capabilities.plugin_governance import development_plugin_configuration
 from obsion.capabilities.vendor_knowledge import (
     CONTAINERS_INPUT_SCHEMA,
@@ -46,6 +54,8 @@ from obsion.domain.enums import (
     RiskLevel,
     SideEffect,
 )
+from obsion.knowledge.document_read import INPUT_SCHEMA as DOCUMENT_READ_INPUT_SCHEMA
+from obsion.knowledge.document_read import OUTPUT_SCHEMA as DOCUMENT_READ_OUTPUT_SCHEMA
 from obsion.registry.agent_spec import ALLOWED_SANDBOX_MOUNTS, AgentSpec
 from obsion.registry.capability_descriptor import CapabilityDescriptor
 from obsion.registry.manifests import load_registry_specs
@@ -80,6 +90,8 @@ class CapabilitySeed:
     input_schema: dict[str, Any] | None = None
     output_schema: dict[str, Any] | None = None
     side_effect: SideEffect = SideEffect.NONE
+    timeout_seconds: int = 30
+    data_classification: Classification | None = None
 
 
 def _action_input_schema(
@@ -821,7 +833,7 @@ _CAPABILITIES = [
     ),
     CapabilitySeed(
         "knowledge.search",
-        "Search ACL-filtered enterprise knowledge",
+        "Search authorized enterprise knowledge",
         "knowledge.read",
         "DOCUMENT",
         RiskLevel.L1,
@@ -844,6 +856,7 @@ _CAPABILITIES = [
                 "count": {"type": "integer"},
             },
         },
+        data_classification=Classification.INTERNAL,
     ),
     CapabilitySeed(
         KNOWLEDGE_SOURCE_CONTAINERS,
@@ -854,6 +867,30 @@ _CAPABILITIES = [
         CapabilityTransport.HTTP,
         CONTAINERS_INPUT_SCHEMA,
         CONTAINERS_OUTPUT_SCHEMA,
+    ),
+    # Descriptors are available for explicit administrator binding. Bootstrap
+    # creates no host connection, user binding, policy or source for these reads.
+    CapabilitySeed(
+        MANAGED_DISCOVER_OPERATION,
+        "Discover authorized DingTalk source nodes through the development host worker",
+        "knowledge.write",
+        "DOCUMENT",
+        RiskLevel.L2,
+        CapabilityTransport.SDK,
+        MANAGED_DISCOVER_INPUT_SCHEMA,
+        timeout_seconds=120,
+        data_classification=Classification.RESTRICTED,
+    ),
+    CapabilitySeed(
+        MANAGED_READ_OPERATION,
+        "Read authorized DingTalk source content through the development host worker",
+        "knowledge.write",
+        "DOCUMENT",
+        RiskLevel.L2,
+        CapabilityTransport.SDK,
+        MANAGED_READ_INPUT_SCHEMA,
+        timeout_seconds=120,
+        data_classification=Classification.RESTRICTED,
     ),
     CapabilitySeed(
         KNOWLEDGE_SOURCE_ITEMS,
@@ -971,7 +1008,15 @@ _CAPABILITIES = [
         side_effect=SideEffect.IDEMPOTENT_WRITE,
     ),
     CapabilitySeed(
-        "document.read", "Read an authorized document version", "knowledge.read", "DOCUMENT"
+        "document.read",
+        "Read an authorized document version",
+        "knowledge.read",
+        "DOCUMENT",
+        RiskLevel.L1,
+        CapabilityTransport.INTERNAL,
+        DOCUMENT_READ_INPUT_SCHEMA,
+        DOCUMENT_READ_OUTPUT_SCHEMA,
+        data_classification=Classification.INTERNAL,
     ),
     CapabilitySeed(
         "policy.search", "Search policies available to a principal", "policy.read", "DOCUMENT"
@@ -2171,7 +2216,7 @@ async def bootstrap_builtin_registry(
             await session.flush()
         input_schema = seed.input_schema or {"type": "object"}
         output_schema = seed.output_schema or {"type": "object"}
-        descriptor = {
+        descriptor: dict[str, Any] = {
             "name": seed.name,
             "transport": seed.transport,
             "risk": seed.risk,
@@ -2180,6 +2225,11 @@ async def bootstrap_builtin_registry(
             "output": output_schema,
             "side_effect": seed.side_effect,
         }
+        # Preserve existing version fingerprints when their defaults are unchanged.
+        if seed.timeout_seconds != 30:
+            descriptor["timeout_seconds"] = seed.timeout_seconds
+        if seed.data_classification is not None:
+            descriptor["data_classification"] = seed.data_classification
         checksum = _checksum(descriptor)
         versions = list(
             await session.scalars(
@@ -2204,11 +2254,14 @@ async def bootstrap_builtin_registry(
                 input_schema=input_schema,
                 output_schema=output_schema,
                 evidence_mapping={"type": seed.evidence_type, "confidence": 1.0},
-                timeout_seconds=30,
+                timeout_seconds=seed.timeout_seconds,
                 data_classification=(
-                    Classification.RESTRICTED
-                    if seed.name in CODEUP_ALL_OPERATIONS
-                    else Classification.INTERNAL
+                    seed.data_classification
+                    or (
+                        Classification.RESTRICTED
+                        if seed.name in CODEUP_ALL_OPERATIONS
+                        else Classification.INTERNAL
+                    )
                 ),
                 checksum_sha256=checksum,
                 created_at=now,
@@ -2216,7 +2269,7 @@ async def bootstrap_builtin_registry(
             session.add(version)
             await session.flush()
         CapabilityDescriptor.from_models(definition, version)
-        if seed.name in {"knowledge.search", "ticket.search"}:
+        if seed.name in {"knowledge.search", "ticket.search", "document.read"}:
             binding = await session.scalar(
                 select(CapabilityBinding).where(
                     CapabilityBinding.capability_version_id == version.id,

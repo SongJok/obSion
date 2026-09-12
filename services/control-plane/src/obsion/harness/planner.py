@@ -55,12 +55,14 @@ class Planner:
         def can_select(capability: str) -> bool:
             return available is None or capability in available
 
-        if route == "CONVERSATION":
+        if route in {"CONVERSATION", "GENERAL"}:
             return ExecutionPlan(
                 route=route,
                 steps=(),
                 required_evidence=(),
-                verification=("non_factual_response",),
+                verification=(
+                    "general_response_scope" if route == "GENERAL" else "non_factual_response",
+                ),
             )
         if route == "RESOURCE_ACCESS":
             resource_steps: tuple[PlannedStep, ...] = (

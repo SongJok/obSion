@@ -2,7 +2,8 @@ import asyncio
 import hashlib
 import json
 import math
-from dataclasses import asdict
+import re
+from dataclasses import asdict, replace
 from datetime import datetime
 from decimal import Decimal
 from time import perf_counter
@@ -76,19 +77,32 @@ from obsion.domain.run_intent import RunIntent, parse_run_intent
 from obsion.domain.run_state import is_terminal, validate_run_transition
 from obsion.domains.evidence.fabric import EvidenceFabric, EvidenceInput
 from obsion.harness.agent_router import AgentRouter, RouteSelection
+from obsion.harness.answerability import GenerationStatus, generation_reply, record_generation
 from obsion.harness.critic import Critic
 from obsion.harness.evidence_gaps import gap_step_contract, gap_step_name, select_gap_capabilities
+from obsion.harness.general import (
+    GENERAL_OUTPUT_CONTRACT,
+    everyday_request,
+    general_unavailable_answer,
+    live_information_answer,
+)
+from obsion.harness.grounding import GROUNDING_VERSION, GroundingAssessment, review_knowledge_answer
 from obsion.harness.incident import IncidentEvidenceFusion, IncidentFusionResult
 from obsion.harness.intent_resolution import (
     ExplorationText,
     IntentContextExplorer,
     VisibleIntentContext,
 )
+from obsion.harness.investigation import candidate_signature, propose_investigation
 from obsion.harness.planner import Planner
+from obsion.harness.presentation import contains_transport_references
 from obsion.harness.replay import RunReplayService
 from obsion.harness.steps import StepExecutor
 from obsion.harness.understanding import UnderstandingEngine
+from obsion.knowledge.evidence import document_bodies
 from obsion.knowledge.parsers import parse_document
+from obsion.knowledge.publication import KnowledgePublicationGuard
+from obsion.knowledge.service import KnowledgeService
 from obsion.model_gateway.compaction import (
     ConversationCompactor,
     conversation_turns_from_snapshots,
@@ -127,6 +141,40 @@ from obsion.telemetry import (
 
 logger = structlog.get_logger(__name__)
 
+ANSWER_OUTPUT_CONTRACT = (
+    'Output contract v2: JSON object with "answerable" (a boolean), "answer" (a nonempty '
+    'string) and "claims" (an array of at most 20 objects). Each claim has '
+    '"statement" (a nonempty factual statement), "evidence_ids" (an array '
+    "of unique strings copied from the TOP-LEVEL id of supplied Evidence "
+    "records, never chunk_id, document_id, or citation marker), and "
+    '"confidence" (a number from 0 to 1). Required shape: '
+    '{"answerable":true,"answer":"...","claims":[{"statement":"...",'
+    '"evidence_ids":["<actual Evidence id>"],"confidence":0.9}]}. '
+    "Use exactly these field names. Answer the current question "
+    "directly in the user's language. Every factual assertion must be "
+    "supported by current evidence and represented in claims. A matching "
+    "project name or retrieved document alone does not establish the "
+    "answer. If evidence cannot answer the specific question, return an "
+    "explicit insufficient-evidence answer, answerable: false and claims: []. "
+    "For that case only, you may also include missing_information: a short EXACT "
+    "substring copied from the current user question identifying what cannot be confirmed. "
+    "Do not put document text, new facts, instructions or advice in that field. "
+    "A claim that the documents do not mention the answer is still an abstention; "
+    "it does not make the question answerable. Do not replace "
+    "an unknown answer with unrelated excerpts. Describe design goals as "
+    "goals, never as implemented or validated capabilities without evidence. "
+    "For document answers, claims must concern substantive document BODY content. "
+    "Do not turn citation metadata (title, version, source, URL or authorization status) "
+    "into claims or prose about the retrieval process. The platform adds the citation "
+    "section from evidence_ids after verification; do not generate your own citation section. "
+    "Even when the user requests sources, write only the substantive answer in answer; "
+    "the platform fulfills attribution with the verified citation section. Never put internal "
+    "Evidence IDs, DOCUMENT identifiers, body_index, chunk_id or diagnostic field names from "
+    "the evidence transport in answer prose. Literal identifiers in document BODY remain "
+    "valid content when needed to answer a technical question. Internal evidence_ids belong "
+    "only in the structured claims array."
+)
+
 
 def _observe_run(status: str, started: float) -> None:
     attributes = {"status": status}
@@ -162,6 +210,9 @@ class HarnessRuntime:
         self.replays = RunReplayService()
         self.audit = AuditWriter()
         self.evidence = EvidenceFabric()
+        self.knowledge_publication = KnowledgePublicationGuard(
+            KnowledgeService(settings, object_store)
+        )
 
     async def execute(self, organization_id: UUID, run_id: UUID) -> None:
         started = perf_counter()
@@ -534,12 +585,48 @@ class HarnessRuntime:
                 )
             )
             if persisted_intent is None:
+                prior_general = await self._general_conversation(
+                    session, run, conversation_snapshots
+                )
+                previous_route = (
+                    "GENERAL"
+                    if conversation_snapshots
+                    and prior_general
+                    and prior_general[-1].id == conversation_snapshots[-1].id
+                    else None
+                )
+                # Registered business metrics keep their governed route even when
+                # phrased conversationally (for example, "why did GMV decline?").
                 data_result = await self.data.understand(session, principal, turn.sanitized_input)
                 data_understanding = asdict(data_result)
-                understanding = self.understanding.route(
-                    turn.sanitized_input,
-                    data_understanding,
-                )
+                if (
+                    not data_understanding.get("metrics")
+                    and not turn.attachment_refs
+                    and everyday_request(
+                        turn.sanitized_input,
+                        context_refs=turn.context_refs,
+                        previous_route=previous_route,
+                    )
+                ):
+                    data_understanding = {
+                        "metrics": [],
+                        "dimensions": [],
+                        "time_range": {},
+                        "intent": "GENERAL",
+                    }
+                    understanding: dict[str, Any] = {
+                        **data_understanding,
+                        "route": "GENERAL",
+                        "domain": "GENERAL",
+                        "question": turn.sanitized_input,
+                        "need_data": False,
+                        "need_root_cause": False,
+                        "risk": "L1",
+                    }
+                else:
+                    understanding = self.understanding.route(
+                        turn.sanitized_input, data_understanding
+                    )
                 admission_intent = next(
                     (
                         str(item.get("intent"))
@@ -607,12 +694,23 @@ class HarnessRuntime:
                 agent_version,
                 agent_definition.name,
             )
+            if intent.route == "GENERAL":
+                conversation_snapshots = await self._general_conversation(
+                    session, run, conversation_snapshots
+                )
+            current_conversation = []
+            for snapshot in conversation_snapshots:
+                if snapshot.source_run_id and not await self.knowledge_publication.check(
+                    session, principal, [], run_id=snapshot.source_run_id, stage="intent_context"
+                ):
+                    continue
+                current_conversation.append(snapshot)
             visible_context = await self._visible_intent_context(
                 session,
                 principal,
                 run,
                 turn,
-                conversation_snapshots,
+                current_conversation,
                 memory_snapshots,
             )
             now = utc_now()
@@ -894,6 +992,14 @@ class HarnessRuntime:
             )
             if artifact is None:
                 raise NotFoundError("Artifact", artifact_id)
+            if artifact.run_id is not None:
+                principal = await load_principal_by_id(
+                    session, run.organization_id, turn.created_by
+                )
+                if not await self.knowledge_publication.check(
+                    session, principal, [], run_id=artifact.run_id, stage="attachment_read"
+                ):
+                    raise NotFoundError("Artifact", artifact_id)
             if artifact.inline_content is not None:
                 text = json.dumps(artifact.inline_content, ensure_ascii=False, default=str)
             elif artifact.storage_key is not None:
@@ -1232,19 +1338,6 @@ class HarnessRuntime:
         )
         if not selected:
             return False
-        verify_step = next((step for step in reversed(steps) if step.kind == StepKind.VERIFY), None)
-        reflect_step = next(
-            (step for step in reversed(steps) if step.kind == StepKind.REFLECT), None
-        )
-        respond_step = next(
-            (step for step in reversed(steps) if step.kind == StepKind.RESPOND), None
-        )
-        if verify_step is None or respond_step is None:
-            return False
-        added = len(selected)
-        if len(steps) + added > run.max_steps:
-            return False
-        question = turn.sanitized_input
         template = next(
             (
                 dict(step.input_payload)
@@ -1253,6 +1346,55 @@ class HarnessRuntime:
             ),
             {},
         )
+        contracts = [
+            (
+                gap_step_name(capability, missing_type),
+                gap_step_contract(
+                    capability,
+                    missing_type,
+                    question=turn.sanitized_input,
+                    template=template,
+                ),
+            )
+            for missing_type, capability in selected
+        ]
+        return await self._append_capability_replan(
+            session,
+            run,
+            steps,
+            contracts=contracts,
+            missing=missing,
+            reason=reason,
+        )
+
+    async def _append_capability_replan(
+        self,
+        session: AsyncSession,
+        run: Run,
+        steps: list[RunStep],
+        *,
+        contracts: list[tuple[str, dict[str, Any]]],
+        missing: tuple[str, ...],
+        reason: str,
+    ) -> bool:
+        plan = dict(run.plan)
+        history = list(plan.get("replans", []))
+        capability_steps = [step for step in steps if step.kind == StepKind.CAPABILITY]
+        verify_step = next((step for step in reversed(steps) if step.kind == StepKind.VERIFY), None)
+        reflect_step = next(
+            (step for step in reversed(steps) if step.kind == StepKind.REFLECT), None
+        )
+        respond_step = next(
+            (step for step in reversed(steps) if step.kind == StepKind.RESPOND), None
+        )
+        added = len(contracts)
+        if (
+            not added
+            or verify_step is None
+            or respond_step is None
+            or len(steps) + added > run.max_steps
+        ):
+            return False
         original_verify = verify_step.ordinal
         original_reflect = reflect_step.ordinal if reflect_step is not None else None
         original_respond = respond_step.ordinal
@@ -1272,21 +1414,15 @@ class HarnessRuntime:
         ]
         last_capability = max(completed_caps, default=3)
         plan_steps = list(plan.get("steps", []))
-        for offset, (missing_type, capability) in enumerate(selected):
+        for offset, (name, contract) in enumerate(contracts):
             ordinal = original_verify + offset
             new_ordinals.append(ordinal)
-            contract = gap_step_contract(
-                capability,
-                missing_type,
-                question=question,
-                template=template,
-            )
             session.add(
                 RunStep(
                     organization_id=run.organization_id,
                     run_id=run.id,
                     ordinal=ordinal,
-                    name=gap_step_name(capability, missing_type),
+                    name=name,
                     kind=StepKind.CAPABILITY,
                     status=StepStatus.PENDING,
                     depends_on=[last_capability],
@@ -1297,8 +1433,8 @@ class HarnessRuntime:
             plan_steps.append(
                 {
                     "ordinal": len(plan_steps) + 1,
-                    "name": gap_step_name(capability, missing_type),
-                    "capability": capability,
+                    "name": name,
+                    "capability": contract["capability"],
                     "payload": contract["payload"],
                     "resource": contract["resource"],
                     "environment": contract["environment"],
@@ -1333,7 +1469,7 @@ class HarnessRuntime:
                 "attempt": len(history) + 1,
                 "reason": reason,
                 "missing_evidence": list(missing),
-                "capabilities": [capability for _, capability in selected],
+                "capabilities": [contract["capability"] for _, contract in contracts],
                 "step_ordinals": new_ordinals,
             }
         )
@@ -1531,9 +1667,14 @@ class HarnessRuntime:
 
     async def _respond(self, organization_id: UUID, run_id: UUID) -> bool:
         async with self.database.sessions() as session, session.begin():
-            run, turn, thread, _, agent_version, agent_definition = await self._load_context(
-                session, organization_id, run_id, for_update=True
-            )
+            (
+                run,
+                turn,
+                thread,
+                principal,
+                agent_version,
+                agent_definition,
+            ) = await self._load_context(session, organization_id, run_id, for_update=True)
             if is_terminal(run.status):
                 return False
             if run.cancellation_requested_at:
@@ -1589,7 +1730,13 @@ class HarnessRuntime:
                     .order_by(RunConversationSnapshot.ordinal)
                 )
             )
-            evidence_free_response = self._evidence_free_response_allowed(run)
+            evidence_free_response = self._evidence_free_response_allowed(run) and not evidence
+            general_response = evidence_free_response and run.plan.get("route") == "GENERAL"
+            if general_response:
+                memory_snapshots = []
+                conversation_snapshots = await self._general_conversation(
+                    session, run, conversation_snapshots
+                )
             if not evidence and not evidence_free_response:
                 failed_steps = list(
                     await session.scalars(
@@ -1606,15 +1753,32 @@ class HarnessRuntime:
                     status_code=503,
                     details={"step_errors": codes},
                 )
-            answer, claims = await self._synthesize(
-                session,
-                run,
-                turn,
-                agent_version,
-                agent_definition,
-                evidence,
-                memory_snapshots,
-                conversation_snapshots,
+            # Persist the conversation dependencies actually supplied to the
+            # author. GENERAL deliberately excludes enterprise-answer history.
+            run.plan = {
+                **run.plan,
+                "conversation_source_run_ids": [
+                    str(item.source_run_id) for item in conversation_snapshots if item.source_run_id
+                ],
+            }
+            sources_current = await self.knowledge_publication.check(
+                session, principal, evidence, run_id=run.id, stage="before_author"
+            )
+            if sources_current:
+                answer, claims = await self._synthesize(
+                    session,
+                    run,
+                    turn,
+                    agent_version,
+                    agent_definition,
+                    evidence,
+                    memory_snapshots,
+                    conversation_snapshots,
+                )
+            else:
+                answer, claims = self._knowledge_unknown_answer(), []
+            sources_current = sources_current and await self.knowledge_publication.check(
+                session, principal, evidence, run_id=run.id, stage="before_review"
             )
             incident_fusion: IncidentFusionResult | None = None
             if run.plan.get("route") == "INCIDENT":
@@ -1622,18 +1786,14 @@ class HarnessRuntime:
             citations: list[dict[str, Any]] = []
             if run.plan.get("route") in {"KNOWLEDGE", "SUPPORT"}:
                 citations = self._knowledge_citations(claims, evidence)
-                if citations:
-                    answer = self._append_knowledge_citations(answer, citations)
-                else:
+                if not citations:
                     # A knowledge answer without a substantive, citeable source must
                     # be an explicit unknown rather than an unverified model response.
                     answer = self._knowledge_unknown_answer()
                     claims = []
             elif run.plan.get("route") == "ENGINEERING":
                 citations = self._code_citations(claims, evidence)
-                if citations:
-                    answer = self._append_code_citations(answer, citations)
-                else:
+                if not citations:
                     answer = self._code_unknown_answer()
                     claims = []
             await session.refresh(
@@ -1648,6 +1808,7 @@ class HarnessRuntime:
                 return False
             required_types = tuple(run.plan.get("required_evidence", []))
             self._start_core_step(run, verify_step)
+            grounding: GroundingAssessment | None = None
             critic = self.critic.verify(
                 evidence,
                 required_types=required_types,
@@ -1665,10 +1826,210 @@ class HarnessRuntime:
                     incident_fusion.conflicts if incident_fusion is not None else ()
                 ),
             )
-            self._complete_core_step(verify_step, output_ref="critic.completed")
-            decision = self._reflect_decision(
-                critic=critic, evidence_free_response=evidence_free_response
+            signature = (
+                candidate_signature(answer, claims, evidence)
+                if run.plan.get("route") == "KNOWLEDGE" and critic.verified
+                else {"candidate": "", "bodies": []}
             )
+            rejected = list(run.plan.get("knowledge_rejected_candidates", []))
+            if (
+                run.plan.get("route") == "KNOWLEDGE"
+                and critic.verified
+                and any(
+                    previous.get("candidate") == signature["candidate"]
+                    and set(signature["bodies"]).issubset(previous.get("bodies", []))
+                    for previous in rejected
+                )
+            ):
+                critic = replace(
+                    critic,
+                    verified=False,
+                    confidence=min(critic.confidence, 0.49),
+                    conflicts=(
+                        *critic.conflicts,
+                        {
+                            "kind": "VALUE",
+                            "severity": "HIGH",
+                            "reason": (
+                                "An unchanged rejected answer has no new supporting body evidence"
+                            ),
+                            "reason_codes": ["unchanged_rejected_candidate"],
+                        },
+                    ),
+                )
+            if (
+                run.plan.get("route") == "KNOWLEDGE"
+                and sources_current
+                and critic.verified
+                and (answer, claims) != self._evidence_only_answer(run, evidence)
+            ):
+                grounding = await review_knowledge_answer(
+                    self.models,
+                    session,
+                    run=run,
+                    step_id=verify_step.id if verify_step is not None else None,
+                    question=turn.sanitized_input,
+                    answer=answer,
+                    claims=claims,
+                    evidence=evidence,
+                    classification=self._highest_classification(
+                        evidence,
+                        memory_snapshots,
+                        conversation_snapshots,
+                        workspace_context=run.workspace_context,
+                    ),
+                )
+                if verify_step is not None:
+                    verify_step.input_payload = {
+                        **dict(verify_step.input_payload or {}),
+                        "grounding": grounding.summary(),
+                    }
+                if grounding.accepted:
+                    citations = self._knowledge_citations(claims, evidence, grounding=grounding)
+                else:
+                    if grounding.reason_code == "grounding_not_supported":
+                        run.plan = {
+                            **run.plan,
+                            "knowledge_rejected_candidates": [*rejected, signature],
+                        }
+                    critic = replace(
+                        critic,
+                        verified=False,
+                        confidence=min(critic.confidence, 0.49),
+                        conflicts=(
+                            *critic.conflicts,
+                            {
+                                "kind": "VALUE",
+                                "severity": "HIGH",
+                                "reason": "Independent document review did not support publication",
+                                "reason_codes": [grounding.reason_code],
+                            },
+                        ),
+                    )
+            sources_current = sources_current and await self.knowledge_publication.check(
+                session, principal, evidence, run_id=run.id, stage="before_publication"
+            )
+            if not sources_current:
+                critic = replace(
+                    critic,
+                    verified=False,
+                    confidence=0.0,
+                    conflicts=(
+                        *critic.conflicts,
+                        {
+                            "kind": "VALUE",
+                            "severity": "HIGH",
+                            "reason": "Managed source access or version changed before publication",
+                            "reason_codes": ["managed_source_access_changed"],
+                        },
+                    ),
+                )
+            self._complete_core_step(verify_step, output_ref="critic.completed")
+            decision = (
+                self._reflect_decision(critic=critic, evidence_free_response=evidence_free_response)
+                if sources_current
+                else "WITHHOLD"
+            )
+            generation = run.plan.get("answer_generation", {})
+            investigation_reason = (
+                "insufficient_evidence"
+                if generation.get("status") == GenerationStatus.INSUFFICIENT_EVIDENCE
+                else (
+                    (
+                        "question_not_answered"
+                        if grounding.question_answered is False
+                        else "answer_not_supported"
+                    )
+                    if grounding is not None and grounding.reason_code == "grounding_not_supported"
+                    else None
+                )
+            )
+            investigation_history = list(run.plan.get("knowledge_investigation", []))
+            if (
+                run.plan.get("route") == "KNOWLEDGE"
+                and sources_current
+                and not critic.verified
+                and investigation_reason is not None
+                and len(investigation_history)
+                < self.settings.run_max_knowledge_investigation_rounds
+                and len(steps) < run.max_steps
+                and run.step_count + 5 <= run.max_steps
+                and run.model_profile_id is not None
+                and (run.deadline_at is None or ensure_utc(run.deadline_at) > utc_now())
+            ):
+                self._start_core_step(run, reflect_step)
+                contract, diagnostic = await propose_investigation(
+                    self.models,
+                    session,
+                    run=run,
+                    step_id=reflect_step.id if reflect_step is not None else None,
+                    question=turn.sanitized_input,
+                    evidence=evidence,
+                    steps=steps,
+                    reason=investigation_reason,
+                    classification=self._highest_classification(
+                        evidence,
+                        memory_snapshots,
+                        conversation_snapshots,
+                        workspace_context=run.workspace_context,
+                    ),
+                    rejected_candidate=answer if grounding is not None else None,
+                    review=grounding.summary() if grounding is not None else None,
+                )
+                diagnostic["round"] = len(investigation_history) + 1
+                if grounding is not None:
+                    diagnostic["review"] = grounding.summary()
+                investigation_history.append(diagnostic)
+                run.plan = {**run.plan, "knowledge_investigation": investigation_history}
+                if contract is not None:
+                    current = await self.knowledge_publication.check(
+                        session,
+                        principal,
+                        evidence,
+                        run_id=run.id,
+                        stage="before_author",
+                    )
+                    if not current:
+                        diagnostic["status"] = "access_changed"
+                        run.plan = {**run.plan, "knowledge_investigation": investigation_history}
+                        decision = "WITHHOLD"
+                        critic = replace(
+                            critic,
+                            verified=False,
+                            confidence=0.0,
+                            conflicts=(
+                                *critic.conflicts,
+                                {
+                                    "kind": "VALUE",
+                                    "severity": "HIGH",
+                                    "reason": "Source access changed during investigation planning",
+                                    "reason_codes": ["managed_source_access_changed"],
+                                },
+                            ),
+                        )
+                    if current and await self._append_capability_replan(
+                        session,
+                        run,
+                        steps,
+                        contracts=[
+                            (
+                                "Investigate unanswered question via " + contract["capability"],
+                                contract,
+                            )
+                        ],
+                        missing=("DOCUMENT",),
+                        reason="knowledge_investigation",
+                    ):
+                        self._complete_reflect_step(
+                            run,
+                            reflect_step,
+                            critic=critic,
+                            evidence_free_response=False,
+                            decision="REPLAN",
+                        )
+                        self._reopen_core_step(run, verify_step)
+                        self._reopen_core_step(run, reflect_step)
+                        return True
             if decision == "REPLAN":
                 applied = await self._apply_gap_replan(
                     session,
@@ -1682,6 +2043,17 @@ class HarnessRuntime:
                     self._reopen_core_step(run, verify_step)
                     return True
                 decision = "WITHHOLD"
+            if decision == "WITHHOLD":
+                # Preserve rejected claims/assessment for audit, but never publish
+                # their prose through artifacts, reports, events, or IM delivery.
+                answer = self._withheld_answer(critic, generation=run.plan.get("answer_generation"))
+                citations = []
+            elif citations:
+                answer = (
+                    self._append_code_citations(answer, citations)
+                    if run.plan.get("route") == "ENGINEERING"
+                    else self._append_knowledge_citations(answer, citations)
+                )
             self._complete_reflect_step(
                 run,
                 reflect_step,
@@ -1715,6 +2087,7 @@ class HarnessRuntime:
                     verification_status=verification_status,
                     critic_notes={
                         "checks": critic.checks,
+                        **({"grounding": grounding.summary()} if grounding is not None else {}),
                         **(
                             {
                                 "incident_candidate_rank": candidate.rank,
@@ -1758,10 +2131,12 @@ class HarnessRuntime:
                 claims=claims,
                 claim_models=claim_models,
                 evidence=evidence,
+                grounding=grounding,
                 classification=self._highest_classification(
                     evidence,
                     memory_snapshots,
                     conversation_snapshots,
+                    workspace_context=run.workspace_context,
                 ),
             )
             session.add_all(result_artifacts)
@@ -1776,9 +2151,16 @@ class HarnessRuntime:
                 "verification": jsonable_encoder(asdict(critic)),
                 "claim_ids": [str(item.id) for item in claim_models],
                 "citations": citations,
+                **(
+                    {"response_kind": "GENERAL", "verification_scope": "not_applicable"}
+                    if general_response
+                    else {}
+                ),
             }
             if verification_assessment_id is not None:
                 answer_content["verification_assessment_id"] = str(verification_assessment_id)
+            if grounding is not None:
+                answer_content["grounding"] = grounding.summary()
             answer_lineage: dict[str, Any] = {
                 "run_id": str(run.id),
                 "result_artifact_ids": [str(item.id) for item in result_artifacts],
@@ -1800,6 +2182,7 @@ class HarnessRuntime:
                     evidence,
                     memory_snapshots,
                     conversation_snapshots,
+                    workspace_context=run.workspace_context,
                 ),
                 acl={"users": [str(turn.created_by)]},
                 lineage=answer_lineage,
@@ -1911,6 +2294,7 @@ class HarnessRuntime:
                         evidence,
                         memory_snapshots,
                         conversation_snapshots,
+                        workspace_context=run.workspace_context,
                     ),
                 ),
             )
@@ -1927,6 +2311,7 @@ class HarnessRuntime:
         claim_models: list[Claim],
         evidence: list[Evidence],
         classification: Classification,
+        grounding: GroundingAssessment | None = None,
     ) -> UUID | None:
         """Persist the immutable verification graph for replay and audit.
 
@@ -1934,10 +2319,17 @@ class HarnessRuntime:
         exists for the same run.  A conversation or a run without that decision
         is recorded as WITHHOLD/PARTIAL instead of bypassing the database
         admission constraints.  The method intentionally has no model or
-        executor dependencies: the persisted graph is a projection of Critic's
-        deterministic result.
+        executor dependencies: the persisted graph projects the completed Critic
+        and optional model review. Model review is never labeled deterministic.
         """
-        if verify_step is None:
+        if verify_step is None or (
+            run.plan.get("route") == "GENERAL"
+            and self._evidence_free_response_allowed(run)
+            and not evidence
+            and not claims
+        ):
+            # GENERAL has no enterprise fact assessment. VERIFY/REFLECT events and
+            # answer scope remain durable; do not manufacture a PolicyDecision.
             return None
 
         now = utc_now()
@@ -1973,11 +2365,14 @@ class HarnessRuntime:
             "hallucination_guard",
         ]
         ruleset_snapshot = {
-            "version": "phase20.critic.v2",
+            "version": "phase20.critic.v4" if grounding is not None else "phase20.critic.v3",
             "route": str(run.plan.get("route", "UNKNOWN")),
             "required_evidence": list(run.plan.get("required_evidence", [])),
             "rules": rules,
         }
+        if grounding is not None:
+            rules.append(GROUNDING_VERSION)
+            ruleset_snapshot["grounding_version"] = GROUNDING_VERSION
         ruleset_fingerprint = hashlib.sha256(
             json.dumps(ruleset_snapshot, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
@@ -2001,6 +2396,10 @@ class HarnessRuntime:
         input_fingerprint = hashlib.sha256(
             json.dumps(input_snapshot, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
+        if grounding is not None:
+            input_fingerprint = hashlib.sha256(
+                (input_fingerprint + grounding.input_fingerprint).encode()
+            ).hexdigest()
         policy_snapshot = (
             jsonable_encoder(
                 {
@@ -2023,7 +2422,7 @@ class HarnessRuntime:
             outcome=outcome,
             publication_decision=publication,
             evaluator="independent-evidence-critic",
-            evaluator_version="2.0.0",
+            evaluator_version="4.0.0" if grounding is not None else "3.0.0",
             route=str(run.plan.get("route", "UNKNOWN")),
             rules=rules,
             ruleset_snapshot=ruleset_snapshot,
@@ -2040,8 +2439,12 @@ class HarnessRuntime:
             high_conflict_count=0,
             classification=classification,
             error_code=None,
-            duration_ms=0,
-            replay_lineage={"source": "harness_runtime", "deterministic": True},
+            duration_ms=grounding.duration_ms if grounding is not None else 0,
+            replay_lineage={
+                "source": "harness_runtime",
+                "deterministic": grounding is None,
+                **({"grounding": grounding.summary()} if grounding is not None else {}),
+            },
             completed_at=now,
             created_at=now,
         )
@@ -2202,7 +2605,7 @@ class HarnessRuntime:
     def _evidence_free_response_allowed(run: Run) -> bool:
         plan_steps = run.plan.get("steps", [])
         return (
-            run.plan.get("route") == "CONVERSATION"
+            run.plan.get("route") in {"CONVERSATION", "GENERAL"}
             and not run.plan.get("required_evidence")
             and isinstance(plan_steps, list)
             and not plan_steps
@@ -2659,6 +3062,30 @@ class HarnessRuntime:
             return None
         return number if math.isfinite(number) else None
 
+    @staticmethod
+    async def _general_conversation(
+        session: AsyncSession,
+        run: Run,
+        snapshots: list[RunConversationSnapshot],
+    ) -> list[RunConversationSnapshot]:
+        if not snapshots:
+            return []
+        allowed = set(
+            await session.scalars(
+                select(Run.id).where(
+                    Run.organization_id == run.organization_id,
+                    Run.id.in_([item.source_run_id for item in snapshots if item.source_run_id]),
+                    Run.plan["route"].as_string() == "GENERAL",
+                )
+            )
+        )
+        suffix: list[RunConversationSnapshot] = []
+        for item in reversed(snapshots):
+            if item.source_run_id not in allowed:
+                break
+            suffix.append(item)
+        return list(reversed(suffix))
+
     async def _prompt_segments(self, session: AsyncSession, run: Run) -> list[ContextSegment]:
         loaded = await load_pinned_templates(session, run.organization_id, run.prompt_pins or [])
         available = governed_prompt_values(run.plan if isinstance(run.plan, dict) else {})
@@ -2676,10 +3103,15 @@ class HarnessRuntime:
             rendered = render_prompt_template(template, schema, declared)
             name = str(pin.get("name") or SYSTEM_POLICY_PROMPT_NAME)
             system = name == SYSTEM_POLICY_PROMPT_NAME
+            output_contract = (
+                GENERAL_OUTPUT_CONTRACT
+                if run.plan.get("route") == "GENERAL"
+                else ANSWER_OUTPUT_CONTRACT
+            )
             segments.append(
                 ContextSegment(
                     TrustLevel.SYSTEM if system else TrustLevel.AGENT,
-                    rendered,
+                    f"{rendered}\n\n{output_contract}" if system else rendered,
                     name if not system else "platform-policy",
                     1000 if system else 890,
                     100 + index,
@@ -2697,14 +3129,27 @@ class HarnessRuntime:
         evidence: list[Evidence],
         memory_snapshots: list[RunMemorySnapshot],
         conversation_snapshots: list[RunConversationSnapshot],
+        *,
+        _presentation_retry: bool = False,
     ) -> tuple[str, list[dict[str, Any]]]:
-        if self._evidence_free_response_allowed(run):
+        record_generation(run, GenerationStatus.UNASSESSED)
+        general_response = (
+            run.plan.get("route") == "GENERAL"
+            and self._evidence_free_response_allowed(run)
+            and not evidence
+        )
+        if run.plan.get("route") == "CONVERSATION" and self._evidence_free_response_allowed(run):
             return "你好，我在。你可以继续描述要处理的问题，我会按受控流程推进。", []
         if run.plan.get("route") == "INCIDENT":
             # IncidentAgent must remain useful when no model is configured.  The
             # deterministic fusion path also prevents a model from turning one
             # provider signal into a causal conclusion or an unlinked Claim.
             return self._incident_evidence_answer(evidence)
+        if general_response:
+            memory_snapshots = []
+            boundary = live_information_answer(turn.sanitized_input)
+            if boundary:
+                return boundary, []
         memory_payload = [
             {
                 "id": str(item.id),
@@ -2755,9 +3200,33 @@ class HarnessRuntime:
                     850,
                     700,
                 ),
-                *evidence_context_segments(evidence),
+                *evidence_context_segments(
+                    evidence, document_bodies_only=run.plan.get("route") == "KNOWLEDGE"
+                ),
             ]
+            if general_response:
+                # Do not describe registered connectors or workspace metadata as
+                # capabilities available to this text-only response.
+                segments = [
+                    *await self._prompt_segments(session, run),
+                    ContextSegment(TrustLevel.USER, turn.sanitized_input, "current-user", 850, 700),
+                ]
             segments.extend(self._conversation_segments(run, turn, conversation_snapshots))
+            if _presentation_retry:
+                segments.append(
+                    ContextSegment(
+                        TrustLevel.SYSTEM,
+                        "Regenerate the answer to the current question using the same evidence. "
+                        "The previous candidate exposed internal evidence transport identifiers. "
+                        "Keep evidence_ids only in the structured claims array, and omit internal "
+                        "source pointers from answer prose. The platform appends verified source "
+                        "citations. This is a presentation correction, not permission to change "
+                        "facts, invent an answer, or bypass any evidence requirement.",
+                        "platform-presentation-repair",
+                        1000,
+                        101,
+                    )
+                )
             if memory_payload:
                 segments.append(
                     ContextSegment(
@@ -2785,6 +3254,7 @@ class HarnessRuntime:
                         evidence,
                         memory_snapshots,
                         conversation_snapshots,
+                        workspace_context=run.workspace_context,
                     ),
                     json_mode=True,
                     max_input_tokens=remaining_input_tokens,
@@ -2795,14 +3265,133 @@ class HarnessRuntime:
                 run.output_tokens += result.output_tokens
                 run.cost_amount = Decimal(run.cost_amount) + result.cost_amount
                 parsed = json.loads(result.content)
-                answer = parsed.get("answer")
-                claims = parsed.get("claims")
-                if isinstance(answer, str) and isinstance(claims, list):
+                answer = parsed.get("answer") if isinstance(parsed, dict) else None
+                claims = parsed.get("claims") if isinstance(parsed, dict) else None
+                if general_response:
+                    if (
+                        isinstance(parsed, dict)
+                        and parsed.get("response_kind") == "GENERAL"
+                        and isinstance(answer, str)
+                        and answer.strip()
+                        and claims == []
+                    ):
+                        return answer.strip(), []
+                    return general_unavailable_answer(), []
+                # Legacy answer/claims producers remain compatible. Explicit
+                # answerability is strict and cannot be rescued by claim links.
+                record_generation(run, GenerationStatus.INVALID_OUTPUT)
+                if isinstance(parsed, dict) and parsed.get("answerable", True) is not True:
+                    # A well-formed explicit abstention differs from contradictory
+                    # claims or malformed output. Neither can publish model prose.
+                    if (
+                        parsed.get("answerable") is False
+                        and isinstance(answer, str)
+                        and answer.strip()
+                        and claims == []
+                    ):
+                        record_generation(
+                            run,
+                            GenerationStatus.INSUFFICIENT_EVIDENCE,
+                            question=turn.sanitized_input,
+                            excerpt=parsed.get("missing_information"),
+                        )
+                    return self._knowledge_unknown_answer(), []
+                if isinstance(answer, str) and answer.strip() and isinstance(claims, list):
+                    if not claims:
+                        if "answerable" not in parsed:
+                            record_generation(
+                                run,
+                                GenerationStatus.INSUFFICIENT_EVIDENCE,
+                                question=turn.sanitized_input,
+                                excerpt=parsed.get("missing_information"),
+                            )
+                        # An explicit abstention must survive synthesis. Falling back
+                        # here used to turn an unknown answer into a verified hit count.
+                        # Do not publish arbitrary unclaimed model text either.
+                        return self._knowledge_unknown_answer(), []
                     normalized = self._normalize_claims(claims, evidence)
                     if normalized:
+                        if run.plan.get("route") == "KNOWLEDGE" and contains_transport_references(
+                            answer, evidence
+                        ):
+                            record_generation(run, GenerationStatus.INVALID_OUTPUT)
+                            if _presentation_retry:
+                                return self._knowledge_unknown_answer(), []
+                            principal = await load_principal_by_id(
+                                session, run.organization_id, turn.created_by
+                            )
+                            if not await self.knowledge_publication.check(
+                                session,
+                                principal,
+                                evidence,
+                                run_id=run.id,
+                                stage="before_author",
+                            ):
+                                return self._knowledge_unknown_answer(), []
+                            run.plan = {
+                                **run.plan,
+                                "answer_presentation": {
+                                    "regenerations": 1,
+                                    "reason": "internal_evidence_reference",
+                                },
+                            }
+                            return await self._synthesize(
+                                session,
+                                run,
+                                turn,
+                                agent_version,
+                                agent_definition,
+                                evidence,
+                                memory_snapshots,
+                                conversation_snapshots,
+                                _presentation_retry=True,
+                            )
+                        record_generation(run, GenerationStatus.CANDIDATE)
                         return answer, normalized
-            except (ModelUnavailableError, json.JSONDecodeError, TypeError, ValueError):
-                pass
+                    allowed = {str(item.id) for item in Critic.substantive_records(evidence)}
+                    # Operational diagnostics contain only local booleans/counts,
+                    # never the candidate, evidence text, reference IDs or credentials.
+                    logger.info(
+                        "run.answer_claims_rejected",
+                        run_id=str(run.id),
+                        claim_count=len(claims),
+                        statements_present=all(
+                            isinstance(c, dict) and bool(c.get("statement")) for c in claims
+                        ),
+                        legacy_text_fields=[
+                            field
+                            for field in ("claim", "text", "content")
+                            if any(isinstance(c, dict) and field in c for c in claims)
+                        ],
+                        references_known=all(
+                            isinstance(c, dict)
+                            and isinstance(c.get("evidence_ids"), list)
+                            and bool(c["evidence_ids"])
+                            and all(isinstance(i, str) and i in allowed for i in c["evidence_ids"])
+                            for c in claims
+                        ),
+                    )
+                # Malformed or unsupported output is not permission to substitute
+                # a retrieval summary and label the specific question answered.
+                return self._knowledge_unknown_answer(), []
+            except (json.JSONDecodeError, TypeError, ValueError):
+                record_generation(run, GenerationStatus.INVALID_OUTPUT)
+                return (
+                    general_unavailable_answer()
+                    if general_response
+                    else self._knowledge_unknown_answer()
+                ), []
+            except ModelUnavailableError:
+                if general_response:
+                    return general_unavailable_answer(), []
+                if run.plan.get("route") in {"KNOWLEDGE", "SUPPORT"}:
+                    record_generation(run, GenerationStatus.MODEL_UNAVAILABLE)
+                    return self._knowledge_unknown_answer(), []
+        if general_response:
+            return general_unavailable_answer(), []
+        if run.plan.get("route") in {"KNOWLEDGE", "SUPPORT"}:
+            record_generation(run, GenerationStatus.MODEL_UNAVAILABLE)
+            return self._knowledge_unknown_answer(), []
         return self._evidence_only_answer(run, evidence)
 
     def _incident_evidence_answer(
@@ -2857,6 +3446,8 @@ class HarnessRuntime:
         evidence: list[Evidence],
         memory_snapshots: list[RunMemorySnapshot] | None = None,
         conversation_snapshots: list[RunConversationSnapshot] | None = None,
+        *,
+        workspace_context: dict[str, Any] | None = None,
     ) -> Classification:
         order = {
             Classification.PUBLIC: 0,
@@ -2867,43 +3458,82 @@ class HarnessRuntime:
         classifications = [item.classification for item in evidence]
         classifications.extend(item.sensitivity for item in memory_snapshots or [])
         classifications.extend(item.classification for item in conversation_snapshots or [])
+        if workspace_context and workspace_context.get("classification"):
+            classifications.append(Classification(workspace_context["classification"]))
         if not classifications:
             return Classification.INTERNAL
         return max(classifications, key=order.__getitem__)
 
     @staticmethod
     def _normalize_claims(claims: list[Any], evidence: list[Evidence]) -> list[dict[str, Any]]:
-        allowed = {
-            str(item.id)
-            for item in evidence
-            if not (
-                isinstance(item.content.get("hits"), list)
-                and not item.content["hits"]
-                and item.content.get("count") == 0
-            )
-        }
+        # Invalid model output is rejected as a whole. Discarding only bad claims
+        # or foreign references would leave their assertions in the answer body.
+        if not claims or len(claims) > 20:
+            return []
+        allowed = {str(item.id) for item in Critic.substantive_records(evidence)}
         normalized: list[dict[str, Any]] = []
-        for claim in claims[:20]:
+        for claim in claims:
             if not isinstance(claim, dict) or not isinstance(claim.get("statement"), str):
-                continue
-            linked = [
-                str(value) for value in claim.get("evidence_ids", []) if str(value) in allowed
-            ]
-            if not linked:
-                continue
+                return []
+            linked = claim.get("evidence_ids")
+            confidence = claim.get("confidence", 0.8)
+            if (
+                not claim["statement"].strip()
+                or not isinstance(linked, list)
+                or not linked
+                or len(linked) > len(allowed)
+                or any(not isinstance(value, str) or value not in allowed for value in linked)
+                or len(set(linked)) != len(linked)
+                or isinstance(confidence, bool)
+                or not isinstance(confidence, (int, float))
+                or not 0 <= confidence <= 1
+            ):
+                return []
             normalized.append(
                 {
                     "statement": claim["statement"],
                     "evidence_ids": linked,
-                    "confidence": float(claim.get("confidence", 0.8)),
+                    "confidence": float(confidence),
                 }
             )
         return normalized
 
     @staticmethod
+    def _withheld_answer(critic: Any, *, generation: Any = None) -> str:
+        if any(
+            "managed_source_access_changed" in item.get("reason_codes", [])
+            for item in critic.conflicts
+        ):
+            return (
+                "不知道：作答期间资料权限或版本发生了变化，当前结论暂不发布。"
+                "请在资料重新核验后重试。"
+            )
+        if response := generation_reply(generation):
+            return response
+        if critic.missing_evidence:
+            return (
+                "不知道：当前授权资料不足以回答这个问题。请补充相关资料或明确要查询的项目和范围。"
+            )
+        return (
+            "不知道：本次回答未通过证据核验，暂时不能确认结论。"
+            "请核对资料的版本、时间和适用范围，或补充更直接的依据后重试。"
+        )
+
+    @staticmethod
     def _knowledge_citations(
-        claims: list[dict[str, Any]], evidence: list[Evidence]
+        claims: list[dict[str, Any]],
+        evidence: list[Evidence],
+        *,
+        grounding: GroundingAssessment | None = None,
     ) -> list[dict[str, Any]]:
+        quoted_bodies: dict[str, set[int]] | None = None
+        if grounding is not None:
+            if not grounding.accepted:
+                return []
+            quoted_bodies = {}
+            for claim in grounding.claims:
+                for quote in claim["quotes"]:
+                    quoted_bodies.setdefault(quote["evidence_id"], set()).add(quote["body_index"])
         evidence_by_id = {str(item.id): item for item in evidence}
         referenced_ids = [
             evidence_id
@@ -2926,13 +3556,25 @@ class HarnessRuntime:
         for evidence_id in referenced_ids:
             item = evidence_by_id[evidence_id]
             hits = item.content.get("hits")
-            if isinstance(hits, list) and hits:
-                candidates = [hit for hit in hits if isinstance(hit, dict)]
+            candidates: list[tuple[dict[str, Any], int | None]]
+            if quoted_bodies is not None:
+                candidates = [
+                    (dict(body.metadata), body.body_index)
+                    for body in document_bodies(item)
+                    if body.body_index in quoted_bodies.get(evidence_id, set())
+                ]
+            elif isinstance(hits, list) and hits:
+                candidates = [(hit, None) for hit in hits if isinstance(hit, dict)]
             else:
-                candidates = [item.content]
-            for candidate in candidates:
-                chunk_id = str(candidate.get("chunk_id", ""))
-                key = (evidence_id, chunk_id)
+                candidates = [(item.content, None)]
+            for candidate, body_index in candidates:
+                chunk_id = str(candidate.get("chunk_id") or "")
+                source_key = (
+                    f"chunk:{chunk_id}"
+                    if chunk_id
+                    else (f"body:{body_index}" if body_index is not None else "")
+                )
+                key = (evidence_id, source_key)
                 if key in seen:
                     continue
                 seen.add(key)
@@ -2949,6 +3591,8 @@ class HarnessRuntime:
                     "connector_name": candidate.get("connector_name"),
                     "operation": candidate.get("operation"),
                 }
+                if body_index is not None:
+                    citation["body_index"] = body_index
                 citations.append(citation)
                 if len(citations) >= 8:
                     return citations
@@ -2956,17 +3600,16 @@ class HarnessRuntime:
 
     @staticmethod
     def _append_knowledge_citations(answer: str, citations: list[dict[str, Any]]) -> str:
+        def label(value: Any) -> str:
+            # Source titles are untrusted labels, never Markdown instructions or links.
+            text = " ".join(str(value).split())
+            return re.sub(r"([\\`*_{}\[\]()#+\-.!<>|])", r"\\\1", text)
+
         lines = [answer.rstrip(), "", "### 引用"]
         for citation in citations:
             version = citation.get("version")
-            version_label = f" · v{version}" if version is not None else ""
-            chunk_id = citation.get("chunk_id")
-            chunk_label = f" · chunk {chunk_id}" if chunk_id else ""
-            lines.append(
-                f"- {citation['label']} **{citation['title']}** · "
-                f"{citation['source']}{version_label}{chunk_label} "
-                f"（Evidence `{citation['evidence_id']}`）"
-            )
+            version_label = f"（版本 {label(version)}）" if version is not None else ""
+            lines.append(f"- {citation['label']} **{label(citation['title'])}**{version_label}")
         return "\n".join(lines)
 
     @staticmethod
@@ -3045,6 +3688,10 @@ class HarnessRuntime:
     def _evidence_only_answer(
         run: Run, evidence: list[Evidence]
     ) -> tuple[str, list[dict[str, Any]]]:
+        # Empty retrieval attempts remain auditable, but do not support the
+        # extracted statements. Linking them made useful partial searches fail
+        # the same substantive-evidence rule enforced on model claims.
+        evidence = Critic.substantive_records(evidence)
         route = run.plan.get("route")
         claims: list[dict[str, Any]] = []
         lines = ["已完成受控检索，以下内容严格来自当前可访问证据。"]
@@ -3099,7 +3746,7 @@ class HarnessRuntime:
                 )
             else:
                 lines = [HarnessRuntime._code_unknown_answer()]
-        elif route in {"DATA", "ANALYTICS"}:
+        elif route in {"DATA", "ANALYTICS"} and evidence:
             result = evidence[0].content
             semantic = evidence[0].lineage.get("request_resource", {})
             metric = semantic.get("metric", {}) if isinstance(semantic, dict) else {}
@@ -3260,6 +3907,66 @@ class HarnessRuntime:
 
     @staticmethod
     def _event(run: Run, name: str, payload: dict[str, Any]) -> EventDraft:
+        # Literal, versioned producers preserve the frozen v1 contracts and the
+        # exact static Event producer inventory.
+        if name == "plan.updated" and payload.get("replan", {}).get("reason") in {
+            "knowledge_investigation",
+            "critic_verification_failed",
+        }:
+            return EventDraft(
+                name="plan.updated",
+                schema_version=2,
+                aggregate_type="run",
+                aggregate_id=run.id,
+                organization_id=run.organization_id,
+                correlation_id=run.id,
+                actor_type=ActorType.SYSTEM,
+                actor_id=None,
+                run_id=run.id,
+                payload=jsonable_encoder(payload),
+            )
+        if name == "intent.detected" and payload.get("route") == "GENERAL":
+            return EventDraft(
+                name="intent.detected",
+                schema_version=2,
+                aggregate_type="run",
+                aggregate_id=run.id,
+                organization_id=run.organization_id,
+                correlation_id=run.id,
+                actor_type=ActorType.SYSTEM,
+                actor_id=None,
+                run_id=run.id,
+                payload=jsonable_encoder(payload),
+            )
+        if name == "plan.created" and payload.get("route") == "GENERAL":
+            return EventDraft(
+                name="plan.created",
+                schema_version=2,
+                aggregate_type="run",
+                aggregate_id=run.id,
+                organization_id=run.organization_id,
+                correlation_id=run.id,
+                actor_type=ActorType.SYSTEM,
+                actor_id=None,
+                run_id=run.id,
+                payload=jsonable_encoder(payload),
+            )
+        if (
+            name == "critic.completed"
+            and payload.get("checks", {}).get("general_response_scope") is True
+        ):
+            return EventDraft(
+                name="critic.completed",
+                schema_version=2,
+                aggregate_type="run",
+                aggregate_id=run.id,
+                organization_id=run.organization_id,
+                correlation_id=run.id,
+                actor_type=ActorType.SYSTEM,
+                actor_id=None,
+                run_id=run.id,
+                payload=jsonable_encoder(payload),
+            )
         return EventDraft(
             name=name,
             aggregate_type="run",

@@ -1,0 +1,19 @@
+# ADR 0124 — Distinguish insufficient evidence from invalid generation
+
+- Status: accepted for development.
+- Date: 2026-09-12
+- Builds on: ADR 0106, 0110, 0118–0123.
+
+A real Kimi question about the storage capacity limit of an authorized DingTalk knowledge space correctly produced no numeric claim, but the final answer only reported a generic verification failure. Synthesis had discarded the distinction between an explicit abstention, malformed output and an unavailable model. This made a safe answer unnecessarily unhelpful.
+
+Knowledge and Support synthesis now record a bounded outcome in the existing durable `Run.plan.answer_generation`: UNASSESSED, CANDIDATE, INSUFFICIENT_EVIDENCE, INVALID_OUTPUT or MODEL_UNAVAILABLE. Each synthesis attempt resets the previous outcome. A valid explicit abstention requires boolean `answerable: false`, a nonempty answer string and an empty claims list. Contradictory claims and malformed output remain invalid. Legacy answer/claims producers remain supported; no change is made to ordinary General responses or the existing no-model-route fallback.
+
+The optional `missing_information` field can only select an exact, trimmed, 2–160-character substring of the sanitized current user question. Invalid selections are discarded. It cannot contribute new text from the model or source documents. The reply is composed locally, with the selected user words escaped as text. It says that the authorized material obtained for this request is insufficient to confirm this topic and asks for direct material or another authorized source. This is not an assertion that the entire enterprise corpus lacks the answer. Without a valid selection, the controlled reply refers to the question generally. Invalid output and service unavailability have separate controlled retry messages.
+
+Neither the candidate's raw prose nor an unverified fact is published. Verification remains false, claims and citations remain empty, and the existing WITHHOLD decision remains in force. A source-access/version change takes priority over every generation outcome. Historical access, derived content and delivery retain their existing Policy and source guards. The outcome metadata follows the protected Run plan projection. No second model call is needed to generate the controlled abstention; this must not be reported as independent factual review.
+
+This is an additive JSON plan field and optional model output field; there is no new table, migration, public event schema or error code. The schema head remains `a3b5c7d9e1f2`. Static error-producer locations were updated only for the two existing forwarding sites shifted by this implementation.
+
+Validation: 151 final local tests cover publication, managed access, final DingTalk authorization, ordinary questions and contracts; six isolated PostgreSQL Harness cases cover valid/legacy abstention, an injected foreign topic, contradictory claims, malformed output and model failure. One real Kimi K3 call with the real zziv managed source produced the capacity-topic abstention in approximately 24 seconds. After source pause, both the abstention artifact and its plan became inaccessible/redacted while unrelated General history remained readable. The live runtime and worktree files were compared byte for byte. No real IM message was sent and the ordinary runtime was not deployed.
+
+The preceding ADR 0122/0123 complete Python regression passed 2532 tests with 252 skips and 7 deselections in 678.51 seconds. It predates this increment; the new local and PostgreSQL suites are separate evidence, not another full regression. See the [validation ledger](../release/evidence/productization/20260912-controlled-abstention.json). Normal-runtime integration, Pointbot document-answer receipts, incomplete document formats and broader enterprise autonomy remain open.

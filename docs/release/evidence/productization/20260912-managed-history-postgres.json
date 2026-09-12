@@ -1,0 +1,73 @@
+{
+  "recorded_at": "2026-09-12T13:13:31+08:00",
+  "scope": "isolated PostgreSQL current-access boundary validation",
+  "migration_head": "e1f3a6b8c5d7",
+  "test_source": "services/control-plane/tests/test_managed_answer_access.py",
+  "method": "Fresh database per scenario cloned from a database migrated to head; real Harness/TestClient/Policy/audit and PostgreSQL constraints; synthetic model outputs; non-sending Gateway for delivery denial.",
+  "checks": [
+    {
+      "case": "after_publish",
+      "passed": true
+    },
+    {
+      "case": "replay_copy",
+      "passed": true
+    },
+    {
+      "case": "queued_reply",
+      "passed": true
+    },
+    {
+      "case": "wrong_reply_corp",
+      "passed": true
+    },
+    {
+      "case": "unused_conversation",
+      "passed": true
+    }
+  ],
+  "regression_found_and_fixed": "Replay composite foreign keys required explicit flushes of cloned parent groups before dependent inserts.",
+  "isolated_databases_removed": true,
+  "earlier_failed_validation_databases_removed": true,
+  "real_model_calls": 0,
+  "real_im_sends": 0,
+  "normal_runtime_deployed": false,
+  "concurrent_revocation_verified": false,
+  "limitations": [
+    "Sequential access boundaries only; no atomic check-to-commit/network barrier.",
+    "No live DingTalk document-answer acceptance in this validation."
+  ],
+  "last_verified_at": "2026-09-12T05:37:31.675490+00:00",
+  "idempotent_retry_checks": {
+    "revoked_response_redacted": true,
+    "original_request_count": 1,
+    "original_ledger_response_unchanged": true,
+    "mutation_reexecuted": false
+  },
+  "diagnostic_databases_removed": true,
+  "python_validation": {
+    "full_suite": {
+      "passed": 2502,
+      "skipped": 240,
+      "deselected": 7,
+      "failed": 1,
+      "seconds": 820.64,
+      "failure": "Old incident golden test bypassed constructor and lacked the new real publication guard; fixture corrected without changing assertions."
+    },
+    "final_targeted_suite": {
+      "passed": 68,
+      "failed": 0,
+      "seconds": 87.55
+    },
+    "final_targeted_is_not_full_rerun": true
+  },
+  "source_sha256": {
+    "services/control-plane/src/obsion/knowledge/lineage.py": "3845c5e22c443f8e6b8efb48210b7a2700ac69b7fa4898a3685df24eeb1a1505",
+    "services/control-plane/src/obsion/knowledge/publication.py": "0130bb37fa560c2dd398584e2430fb7ba5b38c428ed9de3e7ea44c844de60d1d",
+    "services/control-plane/src/obsion/harness/replay.py": "12941ff62ee4a85a0aeddcb37f785e8f2860c49592a10b161eadda2749153ad4",
+    "services/control-plane/src/obsion/api/run_projection.py": "06fd0235f3aebc5a38bd1078de3b2273c083ad728763d9f6c08625ec92c7baec",
+    "services/control-plane/src/obsion/application/app_server.py": "eacf836f843c82f460ce1f49c13eb585d5ef313ce21b1d08e550ee4d3afb1207",
+    "services/control-plane/tests/test_managed_answer_access.py": "d0bb3c4b1c38d876a12da3427e0d3a7ab49c2ebe07c3dc29eddc8ffbd2898459",
+    "services/control-plane/tests/test_phase20_production.py": "cd3ba6f74bd8e4b07f28e8cb2d19d52b7c6c4bf5ac34703b37334745a5fa7265"
+  }
+}

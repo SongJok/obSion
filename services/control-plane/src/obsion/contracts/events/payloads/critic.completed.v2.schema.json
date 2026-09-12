@@ -1,0 +1,55 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/critic.completed.v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "checks": {
+      "additionalProperties": false,
+      "properties": {
+        "enterprise_verification": {
+          "const": false
+        },
+        "general_response_scope": {
+          "const": true
+        }
+      },
+      "required": [
+        "general_response_scope",
+        "enterprise_verification"
+      ],
+      "type": "object"
+    },
+    "confidence": {
+      "const": 0
+    },
+    "conflicts": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "coverage": {
+      "const": 0
+    },
+    "missing_evidence": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "verified": {
+      "const": false
+    }
+  },
+  "required": [
+    "verified",
+    "confidence",
+    "coverage",
+    "missing_evidence",
+    "conflicts",
+    "checks"
+  ],
+  "title": "critic.completed GENERAL scope payload v2",
+  "type": "object"
+}

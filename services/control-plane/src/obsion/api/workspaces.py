@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.dependencies import get_workspace_service
+from obsion.api.run_projection import public_run_view
 from obsion.api.schemas import (
     CreateThreadRequest,
     CreateTurnRequest,
@@ -21,7 +22,7 @@ from obsion.api.schemas import (
 )
 from obsion.application.workspaces import WorkspaceService
 from obsion.db.models import User, WorkspaceMember
-from obsion.security.auth import get_principal, get_session
+from obsion.security.auth import get_principal, get_read_session, get_session
 from obsion.security.identity import Principal
 
 router = APIRouter(tags=["workspace"])
@@ -244,22 +245,24 @@ async def list_turns(
 @router.get("/threads/{thread_id}/runs", response_model=list[RunView])
 async def list_thread_runs(
     thread_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: WorkspaceService = Depends(get_workspace_service),
 ) -> list[RunView]:
     runs = await service.list_thread_runs(session, principal, thread_id)
-    return [RunView.model_validate(item) for item in runs]
+    return [await public_run_view(session, principal, item) for item in runs]
 
 
 @router.get("/runs/{run_id}", response_model=RunView)
 async def get_run(
     run_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_read_session),
     principal: Principal = Depends(get_principal),
     service: WorkspaceService = Depends(get_workspace_service),
 ) -> RunView:
-    return RunView.model_validate(await service.get_run(session, principal, run_id))
+    return await public_run_view(
+        session, principal, await service.get_run(session, principal, run_id)
+    )
 
 
 @router.post("/runs/{run_id}/cancel", response_model=RunView)
@@ -271,7 +274,8 @@ async def cancel_run(
 ) -> RunView:
     async with session.begin():
         run = await service.cancel_run(session, principal, run_id)
-    return RunView.model_validate(run)
+        view = await public_run_view(session, principal, run)
+    return view
 
 
 @router.post("/runs/{run_id}/replay", response_model=RunView, status_code=status.HTTP_202_ACCEPTED)
@@ -283,4 +287,5 @@ async def replay_run(
 ) -> RunView:
     async with session.begin():
         run = await service.replay_run(session, principal, run_id)
-    return RunView.model_validate(run)
+        view = await public_run_view(session, principal, run)
+    return view

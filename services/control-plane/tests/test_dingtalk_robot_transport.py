@@ -227,7 +227,14 @@ async def test_native_group_request_uses_open_conversation_id():
 
 
 @pytest.mark.asyncio
-async def test_reconciliation_queries_status_without_posting_a_message():
+@pytest.mark.parametrize(
+    ("vendor_timestamp", "expected_millis"),
+    [(1730000000000, 1730000000000), (1730000000, 1730000000000), (None, None), (0, 0)],
+)
+async def test_reconciliation_queries_status_without_posting_a_message(
+    vendor_timestamp,
+    expected_millis,
+):
     calls = []
 
     def responder(request):
@@ -247,7 +254,7 @@ async def test_reconciliation_queries_status_without_posting_a_message():
             json={
                 "sendStatus": "SUCCESS",
                 "messageReadInfoList": [
-                    {"userId": USER, "readStatus": "READ", "readTimestamp": 1730000000000}
+                    {"userId": USER, "readStatus": "READ", "readTimestamp": vendor_timestamp}
                 ],
             },
         )
@@ -261,7 +268,7 @@ async def test_reconciliation_queries_status_without_posting_a_message():
     assert result.state == RobotQueryState.SUCCESS
     assert result.send_status == "SUCCESS"
     assert result.read_status == "READ"
-    assert result.read_timestamp_ms == 1730000000000
+    assert result.read_timestamp_ms == expected_millis
     assert [request.url.path for request in calls] == [TOKEN_PATH, QUERY_PATH]
 
 
@@ -529,3 +536,90 @@ async def test_invalid_recipient_is_rejected_before_authentication(identity):
         await transport.send_text(
             CREDENTIALS, robot_code="example-robot", user_id=identity, text="ok"
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("group", [False, True])
+@pytest.mark.parametrize("slow_phase", ["token", "message"])
+async def test_send_has_total_deadline_and_preserves_unknown_boundary(
+    monkeypatch, group, slow_phase
+):
+    monkeypatch.setattr("obsion.capabilities.dingtalk_robot.SEND_DEADLINE_SECONDS", 0.03)
+    paths = []
+
+    async def responder(request):
+        paths.append(request.url.path)
+        if request.url.path == TOKEN_PATH:
+            if slow_phase == "token":
+                await asyncio.sleep(1)
+            return token_response()
+        await asyncio.sleep(1)
+        raise AssertionError("The total send deadline should cancel this transport")
+
+    robot = DingTalkRobotTransport(transport=httpx.MockTransport(responder))
+    if group:
+        call = robot.send_group_text(
+            CREDENTIALS, robot_code="example-robot", open_conversation_id=GROUP, text="状态"
+        )
+    else:
+        call = robot.send_text(CREDENTIALS, robot_code="example-robot", user_id=USER, text="状态")
+    result = await asyncio.wait_for(call, 0.5)
+    if slow_phase == "token":
+        assert result.state == RobotSendState.NOT_ATTEMPTED
+        assert paths == [TOKEN_PATH]
+    else:
+        assert result.state == RobotSendState.UNKNOWN
+        assert paths == [TOKEN_PATH, GROUP_SEND_PATH if group else SEND_PATH]
+        assert result.process_query_key is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("group", [False, True])
+@pytest.mark.parametrize("approval", [True, False, None, 1, "timeout"])
+async def test_final_authorization_runs_after_token_and_before_post(monkeypatch, group, approval):
+    calls = []
+    send_path = GROUP_SEND_PATH if group else SEND_PATH
+
+    def responder(request):
+        calls.append(request.url.path)
+        if request.url.path == TOKEN_PATH:
+            return token_response()
+        assert calls == [TOKEN_PATH, "authorize", send_path]
+        return httpx.Response(200, json={"processQueryKey": "final-authorized-receipt"})
+
+    async def authorize():
+        assert calls == [TOKEN_PATH]
+        calls.append("authorize")
+        if approval == "timeout":
+            await asyncio.sleep(1)
+        return approval
+
+    if approval == "timeout":
+        monkeypatch.setattr("obsion.capabilities.dingtalk_robot.SEND_DEADLINE_SECONDS", 0.03)
+    robot = DingTalkRobotTransport(transport=httpx.MockTransport(responder))
+    if group:
+        call = robot.send_group_text(
+            CREDENTIALS,
+            robot_code="example-robot",
+            open_conversation_id=GROUP,
+            text="状态",
+            authorize_send=authorize,
+        )
+    else:
+        call = robot.send_text(
+            CREDENTIALS,
+            robot_code="example-robot",
+            user_id=USER,
+            text="状态",
+            authorize_send=authorize,
+        )
+    result = await asyncio.wait_for(call, 0.5)
+    if approval is True:
+        assert calls == [TOKEN_PATH, "authorize", send_path]
+        assert result.state == RobotSendState.ACCEPTED
+    else:
+        assert calls == [TOKEN_PATH, "authorize"]
+        assert result.state == RobotSendState.NOT_ATTEMPTED
+        assert result.process_query_key is None
+        if approval != "timeout":
+            assert result.reason == "delivery_not_authorized"

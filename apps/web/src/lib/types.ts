@@ -244,6 +244,7 @@ export interface Run {
   id: string;
   turn_id: string;
   status: RunStatus;
+  source_content_available?: boolean;
   agent_version_id: string | null;
   model_profile_id: string | null;
   prompt_pins?: Array<{
@@ -370,6 +371,7 @@ export interface Artifact {
 export interface ArtifactContent {
   markdown?: string;
   verification?: Verification;
+  grounding?: { version: string; method: string; accepted: boolean; reason_code: string };
   sql?: string;
   columns?: string[];
   rows?: Record<string, unknown>[];

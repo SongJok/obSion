@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obsion.api.run_projection import public_run_view
 from obsion.api.schemas import (
     ApprovalView,
     ArtifactView,
@@ -28,6 +29,7 @@ from obsion.domain.enums import ApprovalStatus, RunStatus
 from obsion.domain.run_intent import ClarificationAnswerSubmission
 from obsion.persistence.app_server_requests import AppServerRequestStore, params_fingerprint
 from obsion.persistence.events import EventStore
+from obsion.persistence.reads import audited_read_session
 from obsion.security.auth import authenticate_principal, authenticate_session_principal
 from obsion.security.identity import Principal
 from obsion.security.workspace_access import require_run_access
@@ -202,9 +204,12 @@ class AppServerApplication:
         return [TurnView.model_validate(item).model_dump(mode="json") for item in turns]
 
     async def list_thread_runs(self, principal: Principal, thread_id: UUID) -> JsonResult:
-        async with self.database.sessions() as session:
+        async with audited_read_session(self.database) as session:
             runs = await self.workspaces.list_thread_runs(session, principal, thread_id)
-        return [RunView.model_validate(item).model_dump(mode="json") for item in runs]
+            return [
+                (await public_run_view(session, principal, item)).model_dump(mode="json")
+                for item in runs
+            ]
 
     async def list_thread_events(
         self,
@@ -251,9 +256,9 @@ class AppServerApplication:
         )
 
     async def get_run(self, principal: Principal, run_id: UUID) -> JsonResult:
-        async with self.database.sessions() as session:
+        async with audited_read_session(self.database) as session:
             run = await self.workspaces.get_run(session, principal, run_id)
-        return RunView.model_validate(run).model_dump(mode="json")
+            return (await public_run_view(session, principal, run)).model_dump(mode="json")
 
     async def cancel_run(
         self,
@@ -266,7 +271,7 @@ class AppServerApplication:
     ) -> JsonResult:
         async def operation(session: AsyncSession) -> JsonResult:
             run = await self.workspaces.cancel_run(session, principal, run_id)
-            return RunView.model_validate(run).model_dump(mode="json")
+            return (await public_run_view(session, principal, run)).model_dump(mode="json")
 
         return await self._mutate(
             "run.cancel",
@@ -358,8 +363,8 @@ class AppServerApplication:
         after_sequence: int,
         limit: int,
     ) -> RunEventBatch:
-        async with self.database.sessions() as session:
-            run = await require_run_access(session, principal, run_id)
+        async with audited_read_session(self.database) as session:
+            run = await require_run_access(session, principal, run_id, source_content=True)
             events = await self.events.list_run(
                 session,
                 principal.organization_id,
@@ -410,12 +415,12 @@ class AppServerApplication:
         )
 
     async def list_artifacts(self, principal: Principal, workspace_id: UUID) -> JsonResult:
-        async with self.database.sessions() as session:
+        async with audited_read_session(self.database) as session:
             artifacts = await self.artifacts.list_workspace(session, principal, workspace_id)
         return [ArtifactView.model_validate(item).model_dump(mode="json") for item in artifacts]
 
     async def get_artifact(self, principal: Principal, artifact_id: UUID) -> JsonResult:
-        async with self.database.sessions() as session:
+        async with audited_read_session(self.database) as session:
             artifact = await self.artifacts.get_metadata(session, principal, artifact_id)
         return ArtifactView.model_validate(artifact).model_dump(mode="json")
 
@@ -452,7 +457,25 @@ class AppServerApplication:
             raise RecordedAppServerError(error)
         stored_result = outcome.get("result")
         assert isinstance(stored_result, (dict, list))
-        return stored_result
+        return await self._project_mutation_content(method, principal, stored_result)
+
+    async def _project_mutation_content(
+        self, method: str, principal: Principal, result: JsonResult
+    ) -> JsonResult:
+        # The request ledger is immutable. Recheck its response projection on
+        # every delivery without repeating the mutation or rewriting the ledger.
+        if method not in {"turn.create", "run.cancel", "run.replay", "run.clarification.answer"}:
+            return result
+        assert isinstance(result, dict)
+        nested = method == "turn.create"
+        snapshot = RunView.model_validate(result["run"] if nested else result)
+        async with audited_read_session(self.database) as session:
+            run = await require_run_access(session, principal, snapshot.id)
+            view = await public_run_view(session, principal, run, snapshot=snapshot)
+        if view.source_content_available:
+            return result
+        projected = view.model_dump(mode="json")
+        return {**result, "run": projected} if nested else projected
 
     @staticmethod
     def _domain_error(exc: ObsionError, correlation_id: UUID) -> dict[str, Any]:

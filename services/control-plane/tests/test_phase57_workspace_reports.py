@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from synthetic_knowledge_model import install_grounded_answer
 
 from obsion.security.auth import get_principal
 from obsion.security.identity import Principal
@@ -50,7 +51,10 @@ def test_conversation_runs_do_not_invent_workspace_reports(client: TestClient) -
     assert reports.json() == []
 
 
-def test_knowledge_citations_publish_a_workspace_report(client: TestClient) -> None:
+def test_knowledge_citations_publish_a_workspace_report(client: TestClient, monkeypatch) -> None:
+    install_grounded_answer(
+        monkeypatch, "Every production release requires an owner and rollback plan."
+    )
     document = client.post(
         "/api/v1/knowledge/documents",
         files={

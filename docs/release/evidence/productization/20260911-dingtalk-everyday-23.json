@@ -1,0 +1,66 @@
+{
+  "organization": "zziv",
+  "date": "2026-09-11",
+  "timezone": "Asia/Shanghai",
+  "marker": "OW-QA-20260911-23",
+  "sender_profile": "ding1309fda8c58033082e2feadba6d9041e:013526256671757557",
+  "open_conversation_id": "cidCZH8BJk4sr7kEI+JkY+7/f0f85i3GToSAVxBZkSHBY4=",
+  "vendor_message_id": "msgzl4Qd009+5NFkDW9bz9MJg==",
+  "send_status": "SUCCESS",
+  "inbox": {
+    "id": "01a09058-34a8-7676-b383-0fd693cea273",
+    "installation_id": "01a08b98-84c8-7663-b254-cac904638437",
+    "vendor_event_id": "msgzl4Qd009+5NFkDW9bz9MJg==",
+    "status": "PROCESSED",
+    "turn_id": "01a09058-384d-7f25-8219-20d2e9d1fa27",
+    "run_id": "01a09058-3854-7491-8579-c3c7c1eb7537",
+    "created_at": "2026-09-11T12:01:34.690083Z",
+    "processed_at": "2026-09-11T12:01:36.068323Z"
+  },
+  "run_id": "01a09058-3854-7491-8579-c3c7c1eb7537",
+  "route": "GENERAL",
+  "status": "COMPLETED",
+  "answer": {
+    "markdown": "机器学习是让计算机从数据中发现规律、并用这些规律对新情况做预测或决策，而不是逐条写明所有规则。比如手机相册根据大量照片自动识别人脸，并把你和家人的照片分到对应人物相册。",
+    "verification": {
+      "verified": false,
+      "confidence": 0.0,
+      "coverage": 0.0,
+      "missing_evidence": [],
+      "conflicts": [],
+      "checks": {
+        "general_response_scope": true,
+        "enterprise_verification": false
+      }
+    },
+    "claim_ids": [],
+    "citations": [],
+    "response_kind": "GENERAL",
+    "verification_scope": "not_applicable"
+  },
+  "model_calls": [
+    {
+      "model": "kimi-k3-kimi",
+      "outcome": "SUCCESS",
+      "input_tokens": 2504,
+      "output_tokens": 214,
+      "latency_ms": 9113
+    }
+  ],
+  "outbox": {
+    "id": "01a09058-63e4-7e4f-84fe-b0574dde01a3",
+    "inbox_message_id": "01a09058-34a8-7676-b383-0fd693cea273",
+    "run_id": "01a09058-3854-7491-8579-c3c7c1eb7537",
+    "status": "ACCEPTED",
+    "attempt_count": 1,
+    "vendor_send_status": "SUCCESS",
+    "vendor_read_status": "READ",
+    "vendor_read_at": "2026-09-11T12:01:59Z",
+    "last_reconciled_at": "2026-09-11T12:03:54.069921Z",
+    "created_at": "2026-09-11T12:01:46.974223Z"
+  },
+  "limitations": [
+    "One direct message, not group UAT or a latency percentile measurement.",
+    "Cases 20/21 still have no correlated Inbox; case 22 manual resend is unnecessary after this fresh successful end-to-end sample."
+  ]
+}

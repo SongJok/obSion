@@ -1,0 +1,455 @@
+{
+  "scope": "Live development REST/Harness with real zziv DWS/Gateway reads, PostgreSQL, Redis, MinIO and only allowed Kimi models; isolated from ordinary runtime",
+  "migration_head": "a3b5c7d9e1f2",
+  "cases": {
+    "knowledge": {
+      "case": "knowledge",
+      "workspace_id": "01a09455-9e96-704c-a8d0-d915e3881511",
+      "thread_id": "01a09455-9f43-72df-adcd-70a30a47fac1",
+      "run_id": "01a09455-9f75-7373-857d-c319b1b87261",
+      "question": "请根据已授权的《🎉 欢迎开启「知识库」》说明知识库支持创建哪几类内容；只列文档明确提到的四类，并注明出处。",
+      "status": "FAILED",
+      "seconds": 1.14,
+      "route": "KNOWLEDGE",
+      "answer": null,
+      "verification": null,
+      "grounding": null,
+      "citations": [],
+      "error_code": "capabilities_unavailable",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "run_seconds": 0.365971,
+      "model_calls": []
+    },
+    "knowledge-redis-configured": {
+      "case": "knowledge",
+      "workspace_id": "01a09457-63c7-7a69-99d6-b979ccb959a5",
+      "thread_id": "01a09457-6465-7abc-b072-ffea5bb776a1",
+      "run_id": "01a09457-6496-71c4-a0c3-870cf5c21c0a",
+      "question": "请根据已授权的《🎉 欢迎开启「知识库」》说明知识库支持创建哪几类内容；只列文档明确提到的四类，并注明出处。",
+      "status": "COMPLETED",
+      "error_code": null,
+      "run_seconds": 14.305318,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 13677,
+          "input_tokens": 4170,
+          "output_tokens": 619
+        }
+      ]
+    },
+    "everyday": {
+      "case": "everyday",
+      "workspace_id": "01a09457-67ef-7328-913d-5285694e018f",
+      "thread_id": "01a09457-6801-73e6-aedb-c7dd7e23789d",
+      "run_id": "01a09457-6818-76e9-a784-2a95821ae86d",
+      "question": "请把这句话翻译成自然的英文，只给译文：我们今天下午三点开会，请提前准备好项目进度报告。",
+      "status": "COMPLETED",
+      "seconds": 13.57,
+      "route": "GENERAL",
+      "answer": "We have a meeting at 3 p.m. today; please have the project progress report ready in advance.",
+      "verification": {
+        "verified": false,
+        "confidence": 0.0,
+        "coverage": 0.0,
+        "missing_evidence": [],
+        "conflicts": [],
+        "checks": {
+          "general_response_scope": true,
+          "enterprise_verification": false
+        }
+      },
+      "grounding": null,
+      "citations": [],
+      "error_code": null,
+      "input_tokens": 2504,
+      "output_tokens": 197,
+      "run_seconds": 12.212882,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 11835,
+          "input_tokens": 2504,
+          "output_tokens": 197
+        }
+      ]
+    },
+    "unknown": {
+      "case": "unknown",
+      "workspace_id": "01a09460-7339-7757-8530-7ad4195e1a81",
+      "thread_id": "01a09460-734e-72ed-9203-3d484c530659",
+      "run_id": "01a09460-73a5-7e10-abb7-f509fb18853e",
+      "question": "请根据已授权的《🎉 欢迎开启「知识库」》回答：知识库单个空间的存储容量上限是多少 GB？资料没有给出数字就明确说明，不要推测。",
+      "status": "COMPLETED",
+      "seconds": 13.23,
+      "route": "KNOWLEDGE",
+      "answer": "不知道：本次回答未通过证据核验，暂时不能确认结论。请核对资料的版本、时间和适用范围，或补充更直接的依据后重试。",
+      "verification": {
+        "verified": false,
+        "confidence": 0.7,
+        "coverage": 1.0,
+        "missing_evidence": [],
+        "conflicts": [
+          {
+            "kind": "VALUE",
+            "severity": "HIGH",
+            "reason": "Answer does not contain a deterministic signal that the question was addressed",
+            "reason_codes": [
+              "question_not_covered"
+            ]
+          }
+        ],
+        "checks": {
+          "required_evidence": true,
+          "claim_links": false,
+          "source_diversity": true,
+          "duplicate_evidence": true
+        }
+      },
+      "grounding": null,
+      "citations": [],
+      "error_code": null,
+      "input_tokens": 3967,
+      "output_tokens": 114,
+      "run_seconds": 11.855101,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 11381,
+          "input_tokens": 3967,
+          "output_tokens": 114
+        }
+      ]
+    },
+    "knowledge-refresh-fixed": {
+      "case": "knowledge",
+      "workspace_id": "01a09460-6ef0-7b01-825f-eb45b4afcbd6",
+      "thread_id": "01a09460-6f9f-7c46-94d4-8f5933166f91",
+      "run_id": "01a09460-6fcc-72e1-b0cd-9717de95c074",
+      "question": "请根据已授权的《🎉 欢迎开启「知识库」》说明知识库支持创建哪几类内容；只列文档明确提到的四类，并注明出处。",
+      "status": "COMPLETED",
+      "answer": "文档明确提到的四类可创建内容是：文件夹、文档、表格、脑图。出处为《🎉 欢迎开启「知识库」》中“丰富的创作形式”说明。\n\n### 引用\n- [1] **🎉 欢迎开启「知识库」**（版本 1）",
+      "verification": {
+        "verified": true,
+        "confidence": 0.9,
+        "coverage": 1.0,
+        "missing_evidence": [],
+        "conflicts": [],
+        "checks": {
+          "required_evidence": true,
+          "claim_links": true,
+          "source_diversity": true,
+          "duplicate_evidence": true
+        }
+      },
+      "grounding": {
+        "version": "knowledge-grounding.v1",
+        "method": "model_review_with_exact_quotes",
+        "accepted": true,
+        "reason_code": "grounding_supported",
+        "candidate_fingerprint": "833de0cb20d0d791cb1d32401819647bfa1d3387ed43ecfaaef6b7fed639941c",
+        "input_fingerprint": "831f5e9e8e7a5ecd568f9a3f13cd95c2da292a7db7db2824c40e9d3a5ab1bd83",
+        "response_fingerprint": "0d713e017c9abfee4e7979756e1483d675d51388e98789ac2163c983d07c44c9",
+        "claims": [
+          {
+            "claim_index": 1,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a09460-72b9-7fc8-8993-a3b304b3b307",
+                "body_index": 0,
+                "start": 443,
+                "length": 41,
+                "sha256": "a87a7674b646e99ae415a9ef61f9cdcf286b81f299d1b1a56eeefc582fd7bf1f"
+              }
+            ]
+          }
+        ],
+        "duration_ms": 9126
+      },
+      "citations": [
+        {
+          "label": "[1]",
+          "evidence_id": "01a09460-72b9-7fc8-8993-a3b304b3b307",
+          "source": "dingtalk-managed",
+          "resource": "authorized-document-index",
+          "title": "🎉 欢迎开启「知识库」",
+          "version": 1,
+          "chunk_id": "01a093b3-cca7-7573-abdd-42557c807fa6",
+          "external_id": "01a093b3-983c-77f8-9630-946fa4f54cbc:4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+          "revision_id": "0",
+          "connector_name": "managed_sync_worker_20260912d",
+          "operation": "knowledge.dingtalk.read",
+          "body_index": 0
+        }
+      ],
+      "input_tokens": 7843,
+      "output_tokens": 998,
+      "poll_observation_timeout": true,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 33460,
+          "input_tokens": 4172,
+          "output_tokens": 848
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 9104,
+          "input_tokens": 3671,
+          "output_tokens": 150
+        }
+      ],
+      "run_seconds": 43.275163,
+      "error_code": null
+    },
+    "knowledge-status-fixed": {
+      "case": "knowledge",
+      "workspace_id": "01a09467-079a-7292-889e-192c4e7692b8",
+      "thread_id": "01a09467-08ba-7f4d-9645-b7d0da64dcd6",
+      "run_id": "01a09467-08df-7715-8c91-2882ba79b17f",
+      "question": "请根据已授权的《🎉 欢迎开启「知识库」》说明知识库支持创建哪几类内容；只列文档明确提到的四类，并注明出处。",
+      "status": "COMPLETED",
+      "seconds": 44.63,
+      "route": "KNOWLEDGE",
+      "answer": "文档明确提到的四类为：文件夹、文档、表格、脑图。出处：《🎉 欢迎开启「知识库」》“丰富的创作形式”部分原文：“知识库中支持创建文件夹、文档、表格、脑图，也支持从模板新建。”\n\n### 引用\n- [1] **🎉 欢迎开启「知识库」**（版本 1）",
+      "verification": {
+        "verified": true,
+        "confidence": 0.9,
+        "coverage": 1.0,
+        "missing_evidence": [],
+        "conflicts": [],
+        "checks": {
+          "required_evidence": true,
+          "claim_links": true,
+          "source_diversity": true,
+          "duplicate_evidence": true
+        }
+      },
+      "grounding": {
+        "version": "knowledge-grounding.v1",
+        "method": "model_review_with_exact_quotes",
+        "accepted": true,
+        "reason_code": "grounding_supported",
+        "candidate_fingerprint": "e3ebf2b3da58da952e19d463754a7b4400da4f7cf15853cf03bb02530301ffd1",
+        "input_fingerprint": "965761ae11ac85b0b9ac0505c68f478f3b303f95210fa6a563590842e351973c",
+        "response_fingerprint": "69926dfb5531704534daadcd88ecbc0b21b615f16dab5b14db7961f82d852d06",
+        "claims": [
+          {
+            "claim_index": 1,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a09467-0b77-7545-b213-ed1086046aef",
+                "body_index": 0,
+                "start": 454,
+                "length": 30,
+                "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+              }
+            ]
+          },
+          {
+            "claim_index": 2,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a09467-0b77-7545-b213-ed1086046aef",
+                "body_index": 0,
+                "start": 454,
+                "length": 30,
+                "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+              }
+            ]
+          },
+          {
+            "claim_index": 3,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a09467-0b77-7545-b213-ed1086046aef",
+                "body_index": 0,
+                "start": 454,
+                "length": 30,
+                "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+              }
+            ]
+          },
+          {
+            "claim_index": 4,
+            "verdict": "SUPPORTED",
+            "quotes": [
+              {
+                "evidence_id": "01a09467-0b77-7545-b213-ed1086046aef",
+                "body_index": 0,
+                "start": 454,
+                "length": 30,
+                "sha256": "17d7d23d04f9c61b58d4cbd20ab203b4141b1d7d574424529aa33952cdb6d814"
+              }
+            ]
+          }
+        ],
+        "duration_ms": 19990
+      },
+      "citations": [
+        {
+          "label": "[1]",
+          "evidence_id": "01a09467-0b77-7545-b213-ed1086046aef",
+          "source": "dingtalk-managed",
+          "resource": "authorized-document-index",
+          "title": "🎉 欢迎开启「知识库」",
+          "version": 1,
+          "chunk_id": "01a093b3-cca7-7573-abdd-42557c807fa6",
+          "external_id": "01a093b3-983c-77f8-9630-946fa4f54cbc:4lgGw3P8vzRdELRocZPlzzYn85daZ90D",
+          "revision_id": "0",
+          "connector_name": "managed_sync_worker_20260912d",
+          "operation": "knowledge.dingtalk.read",
+          "body_index": 0
+        }
+      ],
+      "error_code": null,
+      "input_tokens": 8007,
+      "output_tokens": 1129,
+      "run_seconds": 43.724423,
+      "model_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 23110,
+          "input_tokens": 4167,
+          "output_tokens": 734
+        },
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 19964,
+          "input_tokens": 3840,
+          "output_tokens": 395
+        }
+      ]
+    }
+  },
+  "source_before_pause": {
+    "active": true,
+    "generation": 13,
+    "last_success_at": "2026-09-12 06:58:11.056142+00:00",
+    "counts": {
+      "files": 12,
+      "available": 3,
+      "pending": 0,
+      "partial": 8,
+      "failed": 1,
+      "removed": 0,
+      "containers": 3,
+      "awaiting_access_check": 0
+    }
+  },
+  "final_source_paused": true,
+  "after_pause_known_artifacts_http": 404,
+  "after_pause_general_artifacts_http": 200,
+  "after_pause_metadata_redacted": true,
+  "after_pause_metadata_seconds": 0.051,
+  "model_call_count": 7,
+  "real_im_sends": 0,
+  "ordinary_runtime_deployed": false,
+  "lock_diagnostic_before": {
+    "run_id": "01a09460-6fcc-72e1-b0cd-9717de95c074",
+    "metadata_request_completed_while_run_locked": false,
+    "observed_blocking_statements": [
+      {
+        "wait_event_type": "Lock",
+        "wait_event": "transactionid",
+        "query": "INSERT INTO policy_decisions (run_id, principal_id, agent_version_id, capability_version_id, action, resource, context, risk_level, effect, "
+      }
+    ],
+    "status_after_lock_release": 200
+  },
+  "lock_diagnostic_after": {
+    "run_id": "01a09460-6fcc-72e1-b0cd-9717de95c074",
+    "metadata_request_completed_while_run_locked": true,
+    "observed_blocking_statements": [],
+    "status_after_lock_release": 200
+  },
+  "unknown_response_quality_accepted": false,
+  "recorded_at": "2026-09-12T07:00:31.214003+00:00",
+  "adrs": [
+    "0122",
+    "0123"
+  ],
+  "local_suites": [
+    {
+      "scope": "refresh worker and source access",
+      "passed": 33,
+      "skipped": 17,
+      "seconds": 35.19
+    },
+    {
+      "scope": "refresh, source management, Harness, Outbox and contracts",
+      "passed": 97,
+      "skipped": 17,
+      "seconds": 124.41
+    },
+    {
+      "scope": "final refresh, managed Harness, Outbox, AppServer and contracts after status fix",
+      "passed": 79,
+      "failed": 0,
+      "seconds": 105.44
+    }
+  ],
+  "suites_overlap": true,
+  "postgresql": {
+    "refresh_cases_passed": 6,
+    "fence_and_metadata_cases_passed": 12,
+    "fence_and_metadata_seconds": 14.43,
+    "empty_and_populated_migration_round_trip": true,
+    "access_facts_unchanged_by_migration": true,
+    "negative_generation_rejected": true,
+    "schema_drift": false
+  },
+  "static_checks": {
+    "mypy_source_files": 270,
+    "ruff": true,
+    "ruff_format_files": 1029,
+    "phase_declarations": true,
+    "secret_findings": 0,
+    "diff_whitespace": true
+  },
+  "full_python_regression": {
+    "prior_run_stopped_for_status_fix": true,
+    "prior_run_not_counted_as_pass": true,
+    "current_state": "PASSED",
+    "local_log": "/tmp/openwork-managed-qa-final-full-python.log",
+    "passed": 2532,
+    "skipped": 252,
+    "deselected": 7,
+    "seconds": 678.51,
+    "scope": "Final ADR0122/0123 source snapshot before ADR0124",
+    "runtime_sha256": "23d6d118e54ff5fd7cf9120ed1a8bac025dca109a8a924f76b70af1e05890195"
+  },
+  "isolated_services_stopped": true,
+  "owned_redis_removed": true,
+  "diagnostic_databases_removed": true,
+  "live_database_retained": "obsion_managed_qa_20260912",
+  "remaining": [
+    "Pointbot live document-answer receipt and normal-runtime integration",
+    "More precise insufficient-evidence response",
+    "Observed knowledge latency around 43–44 seconds exceeds the 30-second target",
+    "8 incomplete/unsupported documents and 1 empty-body failure",
+    "Large-corpus refresh capacity and full enterprise autonomy acceptance"
+  ],
+  "source_sha256": {
+    "services/control-plane/src/obsion/db/models.py": "882ba62144add627e6678248a64ff3d8a4915171607c96e113c206c3c098ef31",
+    "services/control-plane/src/obsion/knowledge/sync.py": "bc899b3d86b97e8d3675ee9121374d793935e6c3a38251f89f12231cec72eb0e",
+    "services/control-plane/src/obsion/knowledge/sync_worker.py": "7db4eb09cde449c458dc1dea213168284b481f1b4ca2cc113f4faed21b991db4",
+    "services/control-plane/src/obsion/knowledge/publication.py": "8f01d76b7343c38838283b861701d32e831df786fe4b61853f4c9d57ae6235fb",
+    "services/control-plane/src/obsion/api/run_projection.py": "e334a4ee354605a2ed21843c82d8887052e53efd22c4cc4dc7431b63af3d8005",
+    "services/control-plane/alembic/versions/a3b5c7d9e1f2_separate_source_read_generation.py": "5e146cf02a1c318e20ebdfc0514164f754ca0e8a5473300753982fd9dff21a32",
+    "services/control-plane/tests/test_knowledge_sync_refresh.py": "ea45700645b371254d6f93a6fb47519cb69b481daa5fec3514d6d67e60b0e8ca",
+    "services/control-plane/tests/integration/test_postgres_source_fence.py": "4c9bab4ba62ecbc563110b5a7887c4a7ea23f8e2856bc35de5861040e9d2279b"
+  }
+}

@@ -7,6 +7,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from obsion.common.errors import AuthorizationError, NotFoundError
 from obsion.db.models import Run, Thread, Turn, Workspace, WorkspaceMember
 from obsion.domain.enums import Visibility
+from obsion.knowledge.publication import KnowledgePublicationGuard
 from obsion.security.identity import Principal
 
 
@@ -94,6 +95,8 @@ async def require_run_access(
     *,
     write: bool = False,
     for_update: bool = False,
+    source_content: bool = False,
+    source_corp_id: str | None = None,
 ) -> Run:
     statement = (
         select(Run)
@@ -112,4 +115,16 @@ async def require_run_access(
     run = await session.scalar(statement)
     if run is None:
         raise NotFoundError("Run", run_id)
+    if source_content and not await KnowledgePublicationGuard().check(
+        session,
+        principal,
+        [],
+        run_id=run_id,
+        stage="historical_content",
+        expected_corp_id=source_corp_id,
+        # Content reads retain the Policy resource and audit correlation, without
+        # an FK insertion that waits for a model-owned Run row. Mutations keep it.
+        link_policy_run=write or for_update,
+    ):
+        raise NotFoundError("Run content", run_id)
     return run

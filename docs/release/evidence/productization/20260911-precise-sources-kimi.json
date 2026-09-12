@@ -1,0 +1,78 @@
+{
+  "run_id": "01a09052-93af-7519-abb0-2770c657c428",
+  "status": "COMPLETED",
+  "passed": true,
+  "answer": "已授权资料可确认的交通报销提交前条件是：先完成审批，再提交报销。\n\n### 引用\n- [1] **交通报销提交制度**（版本 1）",
+  "citations": [
+    {
+      "label": "[1]",
+      "evidence_id": "01a09052-953e-7d51-b0cd-c9b15bebe253",
+      "source": "source-precision-test",
+      "resource": "authorized-document-index",
+      "title": "交通报销提交制度",
+      "version": 1,
+      "chunk_id": "01a09052-92af-7730-a05a-c8171982c506",
+      "external_id": "PROJECTION_ONLY_SOURCE_METADATA_20260911",
+      "revision_id": null,
+      "connector_name": null,
+      "operation": null,
+      "body_index": 0
+    }
+  ],
+  "grounding": {
+    "version": "knowledge-grounding.v1",
+    "method": "model_review_with_exact_quotes",
+    "accepted": true,
+    "reason_code": "grounding_supported",
+    "candidate_fingerprint": "0790ee0fb15eedf4b2a4f30e7193e05f8f0f2cc80cea8ce53f696c0708e2cd52",
+    "input_fingerprint": "87c07eed6865a07ca4661886ad637d749c5b9627e390daf7d1bfa29664dafd98",
+    "response_fingerprint": "397784adcb426977f3e9d644ecb8dc09e1352b2f9ee908366f20fabda0bd5ee3",
+    "claims": [
+      {
+        "claim_index": 1,
+        "verdict": "SUPPORTED",
+        "quotes": [
+          {
+            "evidence_id": "01a09052-953e-7d51-b0cd-c9b15bebe253",
+            "body_index": 0,
+            "start": 0,
+            "length": 13,
+            "sha256": "51aa9d3fa0a8c184976db043103d6574716ac5d5bcc5a0a119fa5627d44506d1"
+          }
+        ]
+      }
+    ],
+    "duration_ms": 25950
+  },
+  "model_calls": [
+    {
+      "model": "kimi-k3-kimi",
+      "outcome": "SUCCESS",
+      "input": 3057,
+      "output": 896,
+      "latency_ms": 30765,
+      "step_id": null
+    },
+    {
+      "model": "kimi-k3-kimi",
+      "outcome": "SUCCESS",
+      "input": 2591,
+      "output": 719,
+      "latency_ms": 25928,
+      "step_id": "01a09052-94a8-7144-95b3-e84c43bdcbda"
+    }
+  ],
+  "request_sizes": [
+    {
+      "operation": "author",
+      "characters": 4164
+    },
+    {
+      "operation": "review",
+      "characters": 1973
+    }
+  ],
+  "input_tokens": 5648,
+  "output_tokens": 1615,
+  "scope": "Synthetic isolated PostgreSQL fixture; real author and reviewer through ModelGateway; no business documents changed."
+}

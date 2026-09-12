@@ -55,6 +55,8 @@ _PERSISTED_FIELD_LENGTHS: dict[tuple[str, str], int] = {
     ("verification_assessments", "error_code"): 120,
     ("workflow_schedules", "last_error_code"): 100,
     ("dingtalk_robot_outbox", "last_error_code"): 100,
+    ("knowledge_sync_sources", "last_error_code"): 100,
+    ("knowledge_sync_items", "last_error_code"): 100,
 }
 
 

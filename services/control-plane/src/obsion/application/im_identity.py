@@ -24,6 +24,7 @@ from obsion.db.models import (
     WorkspaceMember,
 )
 from obsion.domain.enums import ActorType, ImInboxStatus, ImIntent, ThreadStatus, Visibility
+from obsion.harness.general import everyday_request
 from obsion.persistence.audit import AuditDraft, AuditWriter
 from obsion.security.auth import load_principal_by_id
 from obsion.security.identity import Principal
@@ -874,6 +875,8 @@ def _event_fingerprint(*values: object) -> str:
 def _classify_intent(text: str) -> tuple[ImIntent, str]:
     """Conservatively classify intent without turning labels into authorization."""
     normalized = " ".join(text.casefold().split())
+    if everyday_request(text, context_refs=[]):
+        return ImIntent.QUERY, "text_only:general"
     markers = (
         (ImIntent.CREATE, ("创建", "新建", "新增", "写一份", "create ", "add ")),
         (ImIntent.SUMMARY, ("总结", "摘要", "概括", "summarize", "summary")),

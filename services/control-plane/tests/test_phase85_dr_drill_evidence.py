@@ -359,6 +359,23 @@ def test_seeder_creates_threshold_rows(tmp_path: Path) -> None:
         await database.dispose()
         return observed
 
+    async def fixture_marking():
+        from sqlalchemy import func, select
+
+        from obsion.db.models import ModelCall, Run
+
+        settings = Settings(environment=Environment.TEST, database_url=url)
+        database = Database(settings)
+        async with database.sessions() as session:
+            run = await session.scalar(select(Run))
+            assert run.plan["model_fixture"] == {
+                "kind": "offline_restore_dataset",
+                "real_model_calls": False,
+            }
+            assert await session.scalar(select(func.count()).select_from(ModelCall)) == 0
+        await database.dispose()
+
+    asyncio.run(fixture_marking())
     observed = asyncio.run(counts())
     contract = load_drill_contract(CONTRACT, ROOT)
     for table, minimum in contract.minimum_rows.items():
@@ -450,3 +467,15 @@ def test_release_notes_and_project_status_track_phase85() -> None:
 def test_env_example_documents_drill_opt_in() -> None:
     example = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert "OBSION_DR_DRILL=" in example
+
+
+@pytest.mark.parametrize("environment", [Environment.DEVELOPMENT, Environment.PRODUCTION])
+def test_offline_drill_model_cannot_be_installed_in_ordinary_runtime(environment):
+    from obsion.release.drill_model import OfflineDrillModels
+
+    with pytest.raises(ValueError, match="isolated test runtime"):
+        OfflineDrillModels(
+            Settings(_env_file=None, environment=Environment.TEST).model_copy(
+                update={"environment": environment}
+            )
+        )

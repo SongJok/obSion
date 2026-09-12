@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
@@ -301,3 +302,72 @@ def _redact_vendor_message(message: str, *, secrets: tuple[str, ...]) -> str:
         if secret:
             safe = safe.replace(secret, "[redacted]")
     return safe[:240]
+
+
+_stream_logger = logging.getLogger("obsion_im.stream")
+_STREAM_CONNECTION_URL = "https://api.dingtalk.com/v1.0/gateway/connections/open"
+_STREAM_CONNECTION_TIMEOUT = httpx.Timeout(connect=5, read=10, write=10, pool=5)
+
+
+def configure_stream_connection(
+    client: Any, *, transport: httpx.BaseTransport | None = None
+) -> None:
+    """Install on this SDK instance only; never patch global requests/socket APIs."""
+
+    def open_connection() -> dict[str, Any] | None:
+        _stream_logger.info("dingtalk.stream.connection_start")
+        try:
+            # Do not silently send an installed application's credential to a
+            # different origin supplied through the SDK's environment override.
+            if client.OPEN_CONNECTION_API != _STREAM_CONNECTION_URL:
+                _stream_logger.warning("dingtalk.stream.connection_rejected reason=origin")
+                return None
+            topics = [{"type": "CALLBACK", "topic": topic} for topic in client.callback_handler_map]
+            if client._is_event_required:
+                topics.insert(0, {"type": "EVENT", "topic": "*"})
+            body = {
+                "clientId": client.credential.client_id,
+                "clientSecret": client.credential.client_secret,
+                "subscriptions": topics,
+                "ua": "obsion-im/dingtalk-stream-0.24",
+                "localIp": client.get_host_ip(),
+            }
+            with httpx.Client(timeout=_STREAM_CONNECTION_TIMEOUT, transport=transport) as http:
+                response = http.post(_STREAM_CONNECTION_URL, json=body)
+                response.raise_for_status()
+                if len(response.content) > 65_536:
+                    raise ValueError("Connection response too large")
+                value = response.json()
+            if not isinstance(value, dict):
+                raise ValueError("Connection response must be an object")
+            endpoint = value.get("endpoint")
+            ticket = value.get("ticket")
+            if not isinstance(endpoint, str) or not isinstance(ticket, str) or not ticket:
+                raise ValueError("Connection response is incomplete")
+            url = httpx.URL(endpoint)
+            if url.scheme != "wss" or not url.host or url.userinfo or url.query or url.fragment:
+                raise ValueError("Connection endpoint is invalid")
+            _stream_logger.info("dingtalk.stream.connection_ticket_ready")
+            return value
+        except httpx.TimeoutException:
+            _stream_logger.warning("dingtalk.stream.connection_failed reason=timeout")
+        except Exception:
+            # Neither exception text, response bodies, ticket, endpoint URL nor
+            # credential fields enter diagnostic logs. The SDK retries None.
+            _stream_logger.warning("dingtalk.stream.connection_failed reason=unavailable")
+        return None
+
+    client.open_connection = open_connection
+    keepalive = getattr(client, "keepalive", None)
+    if callable(keepalive):
+
+        async def observed_keepalive(*args: Any, **kwargs: Any) -> None:
+            # The SDK starts keepalive only inside an established WebSocket.
+            # Observe lifecycle without enabling its payload/ticket logger.
+            _stream_logger.info("dingtalk.stream.websocket_connected")
+            try:
+                await keepalive(*args, **kwargs)
+            finally:
+                _stream_logger.info("dingtalk.stream.websocket_keepalive_stopped")
+
+        client.keepalive = observed_keepalive

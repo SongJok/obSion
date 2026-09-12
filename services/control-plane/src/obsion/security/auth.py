@@ -16,6 +16,7 @@ from obsion.common.errors import AuthorizationError, ObsionError
 from obsion.config import AuthMode, Environment, Settings
 from obsion.db.models import Department, Role, User, UserRole
 from obsion.persistence.auth_sessions import AuthSessionStore, IssuedAuthSession
+from obsion.persistence.reads import audited_read_session
 from obsion.persistence.user_credentials import CredentialOutcome, UserCredentialStore
 from obsion.security.identity import Principal
 from obsion.security.passwords import PasswordPolicy, ScryptParameters
@@ -28,6 +29,11 @@ _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     async with request.app.state.database.sessions() as session:
+        yield session
+
+
+async def get_read_session(request: Request) -> AsyncIterator[AsyncSession]:
+    async with audited_read_session(request.app.state.database) as session:
         yield session
 
 

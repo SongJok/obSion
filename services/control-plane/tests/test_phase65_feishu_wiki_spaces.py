@@ -9,6 +9,7 @@ from uuid import uuid4
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from synthetic_knowledge_model import install_grounded_answer
 
 from obsion.capabilities.connectors import ConnectorContext, HttpJsonExecutor
 from obsion.capabilities.feishu_docs import (
@@ -269,6 +270,7 @@ def test_feishu_space_sync_enters_knowledge_pipeline_and_harness_citations(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    install_grounded_answer(monkeypatch, "Every wiki SOP requires an owner and rollback plan.")
     monkeypatch.setenv("OBSION_FEISHU_APP_ID", "cli_test")
     monkeypatch.setenv("OBSION_FEISHU_APP_SECRET", "secret_test")
 
