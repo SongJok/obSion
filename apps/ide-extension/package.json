@@ -59,7 +59,7 @@
     "@obsion/sdk": "0.1.0"
   },
   "devDependencies": {
-    "@types/node": "24.10.1",
+    "@types/node": "26.4.0",
     "@types/vscode": "1.100.0",
     "typescript": "5.9.2"
   },
