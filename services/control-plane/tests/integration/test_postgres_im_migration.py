@@ -10,6 +10,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import select, text, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -32,6 +33,8 @@ from obsion.domain.enums import ConnectorStatus, DecisionEffect, RiskLevel
 _ROOT = Path(__file__).resolve().parents[4]
 _BASE_REVISION = "f3d4e5a6b7c8"
 _INBOX_REVISION = "a81b92c03d14"
+_PRE_OUTBOX_REVISION = "c9d1e4f6a2b3"
+_PRE_REPAIR_REVISION = "a3b5c7d9e1f2"
 
 
 def _engine(database_url: str) -> AsyncEngine:
@@ -66,16 +69,38 @@ def test_postgres_im_migration_round_trip_and_safe_ledger_preservation(
     organization_id, user_id, connector_id, deliveries = asyncio.run(
         _insert_legacy_deliveries(settings.database_url)
     )
+    command.upgrade(config, _PRE_REPAIR_REVISION)
+    assert asyncio.run(_unknowns_require_reconciliation(settings.database_url)) == 0
+    before_repair = asyncio.run(_delivery_metadata(settings.database_url))
     command.upgrade(config, "head")
     command.check(config)
+    after_repair = asyncio.run(_delivery_metadata(settings.database_url))
+    assert after_repair[deliveries[2]] == before_repair[deliveries[2]]
+    for delivery_id in deliveries[:2]:
+        assert after_repair[delivery_id][0] is not None
+        assert after_repair[delivery_id][1:] == before_repair[delivery_id][1:]
+    command.downgrade(config, _PRE_REPAIR_REVISION)
+    command.upgrade(config, "head")
+    assert asyncio.run(_delivery_metadata(settings.database_url)) == after_repair
     snapshot = asyncio.run(_delivery_snapshot(settings.database_url))
     assert snapshot == {
         deliveries[0]: ("UNKNOWN", None),
         deliveries[1]: ("UNKNOWN", None),
         deliveries[2]: ("SENT", "vendor-migration-receipt"),
     }
+    assert asyncio.run(_unknowns_require_reconciliation(settings.database_url)) == 2
+    with pytest.raises(IntegrityError, match="reconciliation evidence is required"):
+        asyncio.run(_change_status_only(settings.database_url, deliveries[:2], "PENDING"))
     for unsafe_state in ("UNKNOWN", "PENDING", "FAILED"):
+        # Seed each historical state on the schema that allowed it. The current
+        # outbox correctly forbids manufacturing PENDING from UNKNOWN; do not
+        # disable its guards merely to exercise the older downgrade barrier.
+        command.downgrade(config, _PRE_OUTBOX_REVISION)
         asyncio.run(_set_unresolved_state(settings.database_url, deliveries[:2], unsafe_state))
+        command.upgrade(config, "head")
+        assert (
+            asyncio.run(_delivery_snapshot(settings.database_url))[deliveries[0]][0] == unsafe_state
+        )
         with pytest.raises(RuntimeError, match="Reconcile all non-SENT"):
             command.downgrade(config, _INBOX_REVISION)
         assert asyncio.run(_revision(settings.database_url)) == head_revision
@@ -85,7 +110,9 @@ def test_postgres_im_migration_round_trip_and_safe_ledger_preservation(
         )
 
     # 此处是测试 fixture 的人工对账，不代表真实厂商回执验证。
+    command.downgrade(config, _PRE_OUTBOX_REVISION)
     asyncio.run(_set_unresolved_state(settings.database_url, deliveries[:2], "SENT"))
+    command.upgrade(config, "head")
     command.downgrade(config, _INBOX_REVISION)
     command.upgrade(config, "head")
     command.check(config)
@@ -188,10 +215,10 @@ async def _insert_legacy_deliveries(database_url: str) -> tuple[UUID, UUID, UUID
                         "INSERT INTO im_deliveries "
                         "(id, organization_id, run_id, channel, conversation_id, "
                         "content_fingerprint, status, policy_decision_id, requested_by, "
-                        "attempt_count, vendor_message_id) "
+                        "attempt_count, vendor_message_id, delivered_at) "
                         "VALUES (:id, :organization_id, :run_id, 'dingtalk', "
                         "'migration-conversation', :content_fingerprint, :status, "
-                        ":policy_decision_id, :requested_by, 1, :vendor_message_id)"
+                        ":policy_decision_id, :requested_by, 1, :vendor_message_id, :delivered_at)"
                     ),
                     {
                         "id": delivery_id,
@@ -204,6 +231,7 @@ async def _insert_legacy_deliveries(database_url: str) -> tuple[UUID, UUID, UUID
                         "vendor_message_id": (
                             "vendor-migration-receipt" if state == "SENT" else None
                         ),
+                        "delivered_at": utc_now() if state == "SENT" else None,
                     },
                 )
                 ids.append(delivery_id)
@@ -229,8 +257,63 @@ async def _set_unresolved_state(database_url: str, ids: list[UUID], state: str) 
     try:
         async with engine.begin() as connection:
             await connection.execute(
+                update(ImDelivery)
+                .where(ImDelivery.id.in_(ids))
+                .values(
+                    status=state,
+                    vendor_message_id="synthetic-manual-reconciliation"
+                    if state == "SENT"
+                    else None,
+                    delivered_at=utc_now() if state == "SENT" else None,
+                    reconciliation_required_at=None,
+                    next_attempt_at=None,
+                    failure_code=None,
+                )
+            )
+    finally:
+        await engine.dispose()
+
+
+async def _change_status_only(database_url: str, ids: list[UUID], state: str) -> None:
+    engine = _engine(database_url)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(
                 update(ImDelivery).where(ImDelivery.id.in_(ids)).values(status=state)
             )
+    finally:
+        await engine.dispose()
+
+
+async def _unknowns_require_reconciliation(database_url: str) -> int:
+    engine = _engine(database_url)
+    try:
+        async with engine.connect() as connection:
+            return await connection.scalar(
+                text(
+                    "SELECT count(*) FROM im_deliveries WHERE status = 'UNKNOWN' "
+                    "AND reconciliation_required_at IS NOT NULL"
+                )
+            )
+    finally:
+        await engine.dispose()
+
+
+async def _delivery_metadata(database_url: str) -> dict[UUID, tuple]:
+    engine = _engine(database_url)
+    try:
+        async with engine.connect() as connection:
+            rows = await connection.execute(
+                select(
+                    ImDelivery.id,
+                    ImDelivery.reconciliation_required_at,
+                    ImDelivery.vendor_message_id,
+                    ImDelivery.delivered_at,
+                    ImDelivery.send_attempt_count,
+                    ImDelivery.status,
+                )
+            )
+            return {row[0]: tuple(row[1:]) for row in rows}
     finally:
         await engine.dispose()
 

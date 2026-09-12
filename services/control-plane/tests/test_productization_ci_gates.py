@@ -22,6 +22,23 @@ def test_ci_blocks_all_high_and_critical_findings() -> None:
             assert str(scan["exit-code"]) == "1"
 
 
+def test_ci_scans_python_workspace_sbom_despite_uv_lock_parser_limit() -> None:
+    workflow = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text())
+    steps = workflow["jobs"]["quality"]["steps"]
+    generation = next(
+        index for index, step in enumerate(steps) if "obsion sbom" in step.get("run", "")
+    )
+    scan = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("uses", "").startswith("aquasecurity/trivy-action@")
+        and step.get("with", {}).get("scan-type") == "sbom"
+    )
+    assert generation < scan
+    assert steps[scan]["with"]["scan-ref"] == "${{ runner.temp }}/obsion.cdx.json"
+    assert "$RUNNER_TEMP/obsion.cdx.json" in steps[generation]["run"]
+
+
 def test_memory_revoke_migration_has_an_isolated_opt_in_ci_database() -> None:
     workflow = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text())
     entries = workflow["jobs"]["migration-round-trips"]["strategy"]["matrix"]["include"]

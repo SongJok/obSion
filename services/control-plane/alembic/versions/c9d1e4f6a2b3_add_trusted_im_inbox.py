@@ -459,7 +459,9 @@ def downgrade() -> None:
     op.create_check_constraint(
         op.f("ck_im_deliveries_valid_status"),
         "im_deliveries",
-        "status IN ('PENDING', 'SENT', 'FAILED')",
+        # The predecessor already supports UNKNOWN (a82c03d14e25). Preserve it
+        # until that revision's explicit reconciliation barrier is reached.
+        "status IN ('PENDING', 'SENT', 'FAILED', 'UNKNOWN')",
     )
     op.drop_index(op.f("ix_im_deliveries_reconciliation_required_at"), table_name="im_deliveries")
     op.drop_index(op.f("ix_im_deliveries_next_attempt_at"), table_name="im_deliveries")

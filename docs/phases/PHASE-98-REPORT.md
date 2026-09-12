@@ -266,3 +266,7 @@ Stream 建连稳定性增量见 [验证记录](../phases/productization-stream-s
 
 
 2026-09-12 ADR0128：受控搜索/逐页读取、自主重规划及完整复核已部署到日常开发环境，修复资料路由、模型不可用伪验证和密级丢失。最终Python2650通过/262跳过/7排除（751.92秒），13项真实PostgreSQL及1项真实备份演练入库通过；278源码Mypy、Ruff/1057格式和秘密扫描通过。真实K3完成虚构资料READ后复核、企业差旅表原文复核，以及企业容量问题三轮查阅后明确资料不足。两个Kimi端点按用户许可经Policy/API扩大密级范围，真实企业资料保持RESTRICTED；日常API253源码匹配、宿主版本固定、6篇资料恢复且标识保留。点仔32已完成三轮查阅，7次K3调用；34日常翻译1次K3，两条实际聊天与产物一致、单次发送并获SUCCESS；33未观察到入站，不计通过。完整M1/M2/M3、全部文档格式及自主项目仍未完成。 详见[ADR0128](../adr/0128-governed-knowledge-investigation.md)与[验证报告](../phases/productization-investigation-validation.md)。
+
+2026-09-12 ADR0129：修复历史UNKNOWN投递缺失对账要求时间，以及旧c9d1回退约束遗漏UNKNOWN。新增数据迁移b4c6d8e0f2a4；真实PostgreSQL往返1项通过（7.53秒），覆盖原数据保留、幂等、非法状态变更拒绝、三种非SENT状态回退阻断和事务回滚。临时库已删除；日常迁移已升级，远端CI待完成；依赖扫描缺口及发现的漏洞已修复。 详见[ADR0129](../adr/0129-legacy-im-reconciliation-migration.md)。
+
+2026-09-12 ADR0130：修复Next.js、sharp、pypdf和js-yaml已知漏洞；新增完整Python锁定依赖SBOM扫描，补足Trivy无法解析多根uv工作区的缺口。修复后文件系统及Python SBOM高危/严重发现均为0，原扫描门槛不变；前端277项及构建通过，最终Python2651通过/262跳过/7排除（839.67秒）、真实PostgreSQL集成405通过/10跳过，另有独立IM迁移往返通过。普通API/Web修复镜像及新迁移已部署，6篇文档可用且标识保留；远端CI待重验。 详见[ADR0130](../adr/0130-complete-dependency-security-scan.md)。

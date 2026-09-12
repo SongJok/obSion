@@ -52,6 +52,17 @@ jobs:
           ignore-unfixed: false
           severity: HIGH,CRITICAL
           skip-dirs: .venv,node_modules,.git
+      # Trivy cannot parse a uv workspace lock with multiple root packages.
+      # Scan the complete locked Python dependency SBOM instead of silently
+      # treating the filesystem scan's parser warning as Python coverage.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: sbom
+          scan-ref: ${{ runner.temp }}/obsion.cdx.json
+          format: table
+          exit-code: "1"
+          ignore-unfixed: false
+          severity: HIGH,CRITICAL
       - run: >-
           uv run pytest
           services/control-plane/tests/test_contract_distribution.py

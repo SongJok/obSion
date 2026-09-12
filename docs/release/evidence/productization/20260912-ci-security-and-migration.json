@@ -1,0 +1,167 @@
+{
+  "date": "2026-09-12",
+  "adrs": [
+    "0129",
+    "0130"
+  ],
+  "head_migration": "b4c6d8e0f2a4",
+  "upstream_ci_run": 34695599574,
+  "full_python": {
+    "status": "passed",
+    "passed": 2651,
+    "skipped": 262,
+    "deselected": 7,
+    "seconds": 839.67
+  },
+  "postgres_integration": {
+    "passed": 405,
+    "skipped": 10,
+    "seconds": 161.11,
+    "drift_passed": true,
+    "owned_database_removed": true
+  },
+  "postgres_im_roundtrip": {
+    "passed": 1,
+    "seconds": 7.53,
+    "owned_database_removed": true,
+    "guards_preserved": true,
+    "historical_fixture_explicit": true
+  },
+  "ci_contracts": {
+    "passed": 4,
+    "seconds": 0.08
+  },
+  "frontend": {
+    "web_passed": 222,
+    "other_javascript_passed": 55,
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "npm_audit_vulnerabilities": 0
+  },
+  "mypy_source_files": 278,
+  "project_secret_findings": 0,
+  "dependencies": {
+    "next": [
+      "16.3.2",
+      "16.3.3"
+    ],
+    "eslint-config-next": [
+      "16.3.2",
+      "16.3.3"
+    ],
+    "sharp": [
+      "0.35.3",
+      "0.35.4"
+    ],
+    "pypdf": [
+      "5.9.0",
+      "6.14.2"
+    ],
+    "js-yaml": [
+      "4.3.1",
+      "4.3.2"
+    ]
+  },
+  "trivy": {
+    "version": "0.70.0",
+    "official_binary_sha256": "68e543c51dcc96e1c344053a4fde9660cf602c25565d9f09dc17dd41e13b838a",
+    "official_db_layer": "sha256:827840441a2d1d960f93714c70cfa35f5e0020e9bb8737556fa752203a591c51",
+    "filesystem_high_critical": 0,
+    "python_sbom_high_critical": 0,
+    "uv_workspace_parser_unsupported": true,
+    "explicit_python_sbom_ci_gate_added": true,
+    "ignore_unfixed": false
+  },
+  "source_hashes": {
+    "package-lock.json": "b4cd0faf929bc352377271330253abd79db285ec327bd66cbb5bb671c2a027cd",
+    "uv.lock": "8a3db509fdba51bfcb104e9eacd4a0456e4a6e7ac91905eb03f04aeb7ef9084f"
+  },
+  "backup_upgrade": {
+    "backup": ".data/backups/before-security-20260912.dump",
+    "backup_sha256": "867164afd7de4d5d631acf270d8c35367c84891edfda1415ed07a1199723b8cc",
+    "new_head": "b4c6d8e0f2a4",
+    "counts_preserved": {
+      "runs": 94,
+      "documents": 8,
+      "document_versions": 11,
+      "im_deliveries": 0,
+      "dingtalk_robot_outbox": 23,
+      "im_installation_bindings": 1,
+      "im_principal_bindings": 2,
+      "knowledge_sync_sources": 1,
+      "knowledge_sync_items": 15
+    },
+    "delivery_state_receipts_counters_preserved": true,
+    "missing_unknown_markers_before": 0,
+    "missing_unknown_markers_after": 0,
+    "real_backup_restored": true,
+    "upgrade_and_schema_check": true,
+    "owned_clone_removed": true
+  },
+  "images": {
+    "api": {
+      "pypdf": "6.14.2",
+      "head": "b4c6d8e0f2a4",
+      "api_files": 253,
+      "api_files_match": true
+    },
+    "web": {
+      "next": "16.3.3",
+      "sharp": "0.35.4"
+    }
+  },
+  "ordinary_deployment": {
+    "status": "deployed",
+    "api_image": "obsion-api:security-20260912",
+    "web_image": "obsion-web:security-20260912",
+    "head": "b4c6d8e0f2a4",
+    "previous_head": "a3b5c7d9e1f2",
+    "source_document_ids_preserved": true,
+    "api_and_web_ready": true,
+    "source_resumed": true,
+    "worker_restarted": true,
+    "effective": {
+      "private_only": false,
+      "allowed_ids": [
+        "kimi-k3-kimi",
+        "kimi-k2.7-kimi"
+      ],
+      "rounds": 3,
+      "pypdf": "6.14.2"
+    },
+    "full_python": {
+      "passed": 2651,
+      "skipped": 262,
+      "deselected": 7,
+      "seconds": 839.67
+    },
+    "backup_upgrade": {
+      "backup": ".data/backups/before-security-20260912.dump",
+      "backup_sha256": "867164afd7de4d5d631acf270d8c35367c84891edfda1415ed07a1199723b8cc",
+      "new_head": "b4c6d8e0f2a4",
+      "counts_preserved": {
+        "runs": 94,
+        "documents": 8,
+        "document_versions": 11,
+        "im_deliveries": 0,
+        "dingtalk_robot_outbox": 23,
+        "im_installation_bindings": 1,
+        "im_principal_bindings": 2,
+        "knowledge_sync_sources": 1,
+        "knowledge_sync_items": 15
+      },
+      "delivery_state_receipts_counters_preserved": true,
+      "missing_unknown_markers_before": 0,
+      "missing_unknown_markers_after": 0,
+      "real_backup_restored": true,
+      "upgrade_and_schema_check": true,
+      "owned_clone_removed": true
+    },
+    "available_documents": 6,
+    "existing_document_ids_preserved": true
+  },
+  "remote_ci_revalidation": "pending",
+  "production_ready": false,
+  "full_productization_complete": false
+}
