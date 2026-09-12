@@ -902,7 +902,8 @@
     "acceptance": "not_accepted_inbound_not_observed",
     "message_sent_in_correct_organization": true,
     "resubmitted": false,
-    "cause_not_established": true
+    "cause_not_established": true,
+    "observation_deadline_seconds": 480
   },
   "normal_im_case_34_reconciliation": {
     "first_query_unavailable": true,
@@ -935,6 +936,21 @@
       "executed": 11,
       "skipped": 27,
       "failed": 0
+    }
+  },
+  "main_publication": {
+    "commit": "f5aedf67927fe61d93f0f9753f07e365d439c355",
+    "title": "钉钉机器人完善",
+    "remote_main_verified": true,
+    "ci_run": 34695451216,
+    "first_ci_setup_failure": "Unable to resolve aquasecurity/trivy-action@0.33.1; quality tests did not start",
+    "correction": {
+      "action": "aquasecurity/trivy-action",
+      "upstream_release": "v0.36.0",
+      "pinned_commit": "ed142fd0673e97e23eac54620cfb913e5ce36c25",
+      "upstream_commit_signature_verified": true,
+      "existing_scan_inputs_preserved": true,
+      "remote_ci_revalidation": "pending"
     }
   }
 }

@@ -43,7 +43,7 @@ jobs:
       - run: uv run obsion evaluate-datasets
       - run: uv run obsion scan-secrets
       - run: uv run obsion sbom --output "$RUNNER_TEMP/obsion.cdx.json"
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -300,14 +300,14 @@ jobs:
         run: >-
           echo "version=$(sed -n 's/^version: *//p' docs/project-status.yaml)"
           >> "$GITHUB_OUTPUT"
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: obsion-control-plane:${{ steps.release.outputs.version }}
           format: table
           exit-code: "1"
           ignore-unfixed: false
           severity: HIGH,CRITICAL
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: obsion-web:${{ steps.release.outputs.version }}
           format: table
