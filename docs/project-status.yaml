@@ -110,6 +110,7 @@ tests:
   e2e: passed
 
 known_issues:
+  - 2026-09-14 ADR0133：受管钉钉企业问答默认等待本轮提问后的外部扫描，新取得的完整正文才进入检索；无法取得来源不回退旧索引，不请求模型编造事实。迁移c5d7e9f1a3b5保存实际扫描开始及完成世代，不回填旧时间。一次性PostgreSQL重新采集/正常Run等待/迁移往返3项与来源发布并发28项通过；全量2894通过、2失败、271跳过、7排除（892.62秒），源码摘要一致。错误转发行号和离线演练配置两项回归修复后74项相关复验通过（74.94秒）；修正后未重复全量，待CI覆盖率复验。283源码类型、Ruff/1091格式与秘密扫描零发现；临时数据库容器已清理，真实厂商UAT和日常部署未执行。上轮main基线0371712的GitHub质量任务25分钟超时取消，时限调整45分钟且全部检查保留；不能记作CI通过。P1和正式Phase99不晋级，云效仍严格只读。
   - 2026-09-14 ADR0132：P1增加已知任务断点续查、创建前检查点、原始截止时间和失败取消UNKNOWN记录；恢复重新检查任务关系、来源、配置与实际答案，不复用旧分数或重新提交结果不明的任务。报告升级v2，无数据库迁移；最终完整Python2879通过、268跳过、7排除（841.93秒），源码摘要一致；验收专项48项、客户端297项、静态/构建/契约检查通过，秘密扫描零发现。真实PostgreSQL及厂商UAT本轮未重跑。公开仓库提交排除5份真实企业原文和租户资料，原文件保留本地。每轮索引查询不等于每轮外部读取，强制实时外部查证和独立语义评分仍未完成；GitHub main普通提交已获用户授权，云效只读与生产发布门禁不变。
   - 2026-09-13 ADR0131：P1继续实施。已接入选定资料、输出形式和约束的持久继承、覆盖/清除及Web选择；资料撤权、删除、版本变化会阻断发布/历史和旧任务追问，调查不能越出选定资料。完整隔离Python回归2846通过、268跳过、7排除（786.37秒）；随后仅修正格式否定/引文边界，183项相关及38项日常回归通过，全量未重复。前端客户端297通过，类型/格式/契约及秘密扫描通过；一次性PostgreSQL真实升级及256通过、11跳过，容器已清理。独立语义评分、真实跨入口验收及Worker版本证明未完成；24项原文保留集冻结但未评分。用户明确云效只读、可以不执行云效代码，构建保留NOT_RUN且不作为当前交付前置。目录能力本机激活仍待明确Policy登记许可。GitHub main与HEAD均为de3dd18、0/0分叉；云效无写入或代码执行，P1及Phase99不晋级。
   - 2026-09-12 ADR0130：修复Next.js、sharp、pypdf和js-yaml已知漏洞；新增完整Python锁定依赖SBOM扫描，补足Trivy无法解析多根uv工作区的缺口。修复后文件系统及Python SBOM高危/严重发现均为0，原扫描门槛不变；前端277项及构建通过，最终Python2651通过/262跳过/7排除（839.67秒）、真实PostgreSQL集成405通过/10跳过，另有独立IM迁移往返通过。普通API/Web修复镜像及新迁移已部署，6篇文档可用且标识保留；远端CI待重验。
@@ -291,7 +292,7 @@ productization_program:
   scope_decisions: docs/product/productization-scope-decisions.md
   cloud_code_execution: not_required_by_user_read_only_analysis_continues
   macos_xcode_validation: user_authorized_optional_not_a_current_delivery_prerequisite
-  github_main_conflict_check: pre_publication_fetch_verified_same_base_de3dd181253c95c385112037f925b7784affb18a
+  github_main_conflict_check: pre_publication_fetch_verified_same_base_03717128f66585dda90a8c6f4d1a587f540898e8
   github_main_publication: user_authorized_normal_fast_forward_after_local_validation
   acceptance_driver: normal_task_entry_frozen_inputs_and_known_run_reconciliation_implemented_semantic_scorer_pending
   phase_99_promotion_eligible: false

@@ -15,7 +15,9 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # The full coverage suite exceeded the former 25-minute job budget (run 34846309073).
+    # Preserve every test and scan; allow coverage and client builds to finish.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0

@@ -3328,6 +3328,14 @@ class KnowledgeSyncSource(Base, IdMixin, OrganizationMixin, TimestampMixin):
         CheckConstraint("generation >= 0", name="nonnegative_generation"),
         CheckConstraint("length(trim(corp_id)) > 0", name="nonempty_corp_id"),
         CheckConstraint("(lease_token IS NULL) = (lease_expires_at IS NULL)", name="paired_lease"),
+        CheckConstraint(
+            "(completed_generation IS NULL AND completed_scan_started_at IS NULL) OR "
+            "(completed_generation IS NOT NULL AND completed_generation > 0 AND "
+            "completed_generation <= generation AND "
+            "completed_scan_started_at IS NOT NULL AND last_success_at IS NOT NULL AND "
+            "completed_scan_started_at <= last_success_at)",
+            name="ordered_completed_scan",
+        ),
     )
 
     connector_version_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
@@ -3345,6 +3353,11 @@ class KnowledgeSyncSource(Base, IdMixin, OrganizationMixin, TimestampMixin):
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error_code: Mapped[str | None] = mapped_column(ErrorCodeType(100))
+
+    # Trusted worker timing, separate from index access and provider text.
+    scan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_scan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_generation: Mapped[int | None] = mapped_column(Integer)
 
 
 class KnowledgeSyncItem(Base, IdMixin, OrganizationMixin, TimestampMixin):

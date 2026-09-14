@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from obsion.common.errors import NotFoundError
 from obsion.db.models import Document, DocumentChunk, DocumentVersion
 from obsion.knowledge.connector_contract import provenance_fields_from_version
+from obsion.knowledge.live import LiveKnowledgeProof
 from obsion.knowledge.service import KnowledgeService, _authorization_clause
 from obsion.knowledge.source_access import external_access_clause
 from obsion.security.classification import maximum_classification
@@ -41,12 +42,24 @@ OUTPUT_SCHEMA = {
 
 
 async def read_document_page(
-    session: AsyncSession, principal: Principal, payload: dict[str, Any]
+    session: AsyncSession,
+    principal: Principal,
+    payload: dict[str, Any],
+    *,
+    live_proof: LiveKnowledgeProof | None = None,
 ) -> dict[str, Any]:
     document_id = UUID(payload["document_id"])
     document, version = await KnowledgeService.get_document(session, principal, document_id)
     if version.version != payload["version"]:
         raise NotFoundError("Document version", document_id)
+    if live_proof is not None and not await session.scalar(
+        select(Document.id).where(
+            Document.id == document_id,
+            Document.organization_id == principal.organization_id,
+            live_proof.clause(principal),
+        )
+    ):
+        raise NotFoundError("Current external document", document_id)
     offset = int(payload.get("offset", 0))
     limit = max(1, min(int(payload.get("limit", 4)), 8))
     chunks = list(
@@ -63,6 +76,7 @@ async def read_document_page(
                 Document.deleted_at.is_(None),
                 _authorization_clause(principal),
                 external_access_clause(principal),
+                *([live_proof.clause(principal)] if live_proof is not None else []),
             )
             .order_by(DocumentChunk.ordinal, DocumentChunk.id)
             .offset(offset)

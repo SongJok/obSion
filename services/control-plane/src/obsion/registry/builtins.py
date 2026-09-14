@@ -857,6 +857,7 @@ _CAPABILITIES = [
             },
         },
         data_classification=Classification.INTERNAL,
+        timeout_seconds=120,
     ),
     CapabilitySeed(
         KNOWLEDGE_SOURCE_CONTAINERS,
@@ -1017,6 +1018,7 @@ _CAPABILITIES = [
         DOCUMENT_READ_INPUT_SCHEMA,
         DOCUMENT_READ_OUTPUT_SCHEMA,
         data_classification=Classification.INTERNAL,
+        timeout_seconds=120,
     ),
     CapabilitySeed(
         "policy.search", "Search policies available to a principal", "policy.read", "DOCUMENT"

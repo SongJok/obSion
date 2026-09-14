@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import case, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.common.errors import ValidationError
@@ -46,6 +46,7 @@ async def claim_source(session: AsyncSession) -> KnowledgeSyncSource | None:
             lease_token=uuid4(),
             lease_expires_at=now + timedelta(seconds=WORK_LEASE_SECONDS),
             generation=source.generation + (0 if source.scan_state else 1),
+            scan_started_at=source.scan_started_at if source.scan_state else now,
         )
         .returning(KnowledgeSyncSource)
         .execution_options(populate_existing=True, synchronize_session=False)
@@ -85,6 +86,10 @@ async def checkpoint_source(
     }
     if complete:
         values["last_success_at"] = now
+        values["completed_scan_started_at"] = KnowledgeSyncSource.scan_started_at
+        values["completed_generation"] = case(
+            (KnowledgeSyncSource.scan_started_at.is_not(None), generation), else_=None
+        )
     source = await session.scalar(
         update(KnowledgeSyncSource)
         .where(

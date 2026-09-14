@@ -17,6 +17,7 @@ from obsion.config import Settings
 from obsion.db.models import Document, DocumentChunk, DocumentChunkGrant, DocumentVersion
 from obsion.domain.enums import Classification
 from obsion.knowledge.connector_contract import provenance_fields_from_version
+from obsion.knowledge.live import LiveKnowledgeProof
 from obsion.knowledge.parsers import chunk_document, parse_document
 from obsion.knowledge.source_access import MANAGED_KNOWLEDGE_SOURCE, external_access_clause
 from obsion.model_gateway.gateway import ModelGateway
@@ -423,6 +424,7 @@ class KnowledgeService:
         limit: int = 8,
         sources: tuple[str, ...] | None = None,
         exclude_sources: tuple[str, ...] | None = None,
+        live_proof: LiveKnowledgeProof | None = None,
     ) -> list[SearchHit]:
         terms = lexical_terms(query)
         if not terms:
@@ -435,6 +437,8 @@ class KnowledgeService:
             source_filters.append(Document.source.in_(sources))
         if exclude_sources:
             source_filters.append(Document.source.notin_(exclude_sources))
+        if live_proof is not None:
+            source_filters.append(live_proof.clause(principal))
         base_filters = (
             DocumentChunk.organization_id == principal.organization_id,
             Document.organization_id == principal.organization_id,

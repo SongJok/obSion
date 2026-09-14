@@ -3217,6 +3217,12 @@ class HarnessRuntime:
         _presentation_retry: bool = False,
     ) -> tuple[str, list[dict[str, Any]]]:
         record_generation(run, GenerationStatus.UNASSESSED)
+        if (
+            run.plan.get("route") == "KNOWLEDGE"
+            and run.plan.get("knowledge_live", {}).get("status") == "BLOCKED"
+        ):
+            record_generation(run, GenerationStatus.SOURCE_UNAVAILABLE)
+            return self._knowledge_unknown_answer(), []
         general_response = (
             run.plan.get("route") == "GENERAL"
             and self._evidence_free_response_allowed(run)

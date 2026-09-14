@@ -14,6 +14,7 @@ class GenerationStatus(StrEnum):
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
     INVALID_OUTPUT = "INVALID_OUTPUT"
     MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
+    SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
 
 
 def record_generation(
@@ -42,6 +43,12 @@ def generation_reply(metadata: Any) -> str | None:
     if not isinstance(metadata, dict):
         return None
     status = metadata.get("status")
+    if status == GenerationStatus.SOURCE_UNAVAILABLE:
+        return (
+            "本次未能完成企业来源的实时查证，暂时无法核验答案。"
+            "请在知识来源管理中确认钉钉连接、登录授权及同步服务状态，"
+            "待来源可用后重试；也可以明确选择你已上传的资料进行阅读。"
+        )
     if status == GenerationStatus.INSUFFICIENT_EVIDENCE:
         requested = metadata.get("requested_information")
         topic = "这个问题"

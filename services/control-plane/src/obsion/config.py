@@ -154,6 +154,8 @@ class Settings(BaseSettings):
     memory_max_context_chars: int = Field(default=24_000, ge=1_000, le=500_000)
     knowledge_max_candidates: int = Field(default=2000, ge=100, le=20_000)
     knowledge_max_results: int = Field(default=50, ge=1, le=200)
+    enterprise_knowledge_mode: Literal["live", "indexed-development"] = "live"
+    knowledge_live_wait_seconds: int = Field(default=100, ge=1, le=110)
     knowledge_embedding_profile: str | None = None
     knowledge_embedding_batch_size: int = Field(default=64, ge=1, le=256)
     secret_encryption_key: SecretStr | None = None
@@ -207,6 +209,11 @@ class Settings(BaseSettings):
             raise ValueError("IM Inbox lease must exceed the polling interval")
         if self.im_delivery_base_backoff_seconds > self.im_delivery_max_backoff_seconds:
             raise ValueError("IM delivery base backoff cannot exceed its maximum")
+        if self.enterprise_knowledge_mode == "indexed-development" and self.environment not in {
+            Environment.TEST,
+            Environment.DEVELOPMENT,
+        }:
+            raise ValueError("Indexed development knowledge is not permitted in staging/production")
         if self.memory_default_ttl_days > self.memory_max_ttl_days:
             raise ValueError("memory_default_ttl_days cannot exceed memory_max_ttl_days")
         if self.conversation_context_max_chars_per_message > self.conversation_context_max_chars:

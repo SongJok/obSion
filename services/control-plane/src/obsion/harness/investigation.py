@@ -165,6 +165,12 @@ async def propose_investigation(
     rejected_candidate: str | None = None,
     review: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    if run.plan.get("knowledge_live", {}).get("status") == "BLOCKED":
+        return None, {
+            "version": "knowledge-investigation-v1",
+            "status": "unavailable",
+            "reason": "external_source_unavailable",
+        }
     targets, bodies = investigation_catalog(run, evidence, steps)
     available = set(run.plan.get("available_capabilities", [])) & {
         "knowledge.search",

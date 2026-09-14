@@ -634,6 +634,8 @@ def _seed_drill_dataset(database_url: str) -> None:
 
     settings = Settings(
         environment=Environment.TEST,
+        # This opt-in restore dataset deliberately uses synthetic indexed sources.
+        enterprise_knowledge_mode="indexed-development",
         database_url=database_url,
         allowed_origins=["http://testserver"],
         dev_bearer_token=secrets.token_urlsafe(24),

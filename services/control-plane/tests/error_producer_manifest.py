@@ -41,6 +41,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"resource_not_found"}),
         ),
         (
+            "knowledge/document_read.py::read_document_page#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "security/source_fence.py::acquire_source_publication_fence#ObsionError[1]",
             frozenset({"authorization_fence_unavailable"}),
         ),
@@ -4346,7 +4350,7 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:3890:exc.code",
+            "forward:harness/runtime.py:3896:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",

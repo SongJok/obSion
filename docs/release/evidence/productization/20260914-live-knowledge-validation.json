@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-14T13:46:36.856252+00:00",
+  "scope": "repository-local managed enterprise knowledge acquisition; no real vendor UAT",
+  "base_commit": "03717128f66585dda90a8c6f4d1a587f540898e8",
+  "source_snapshot": {
+    "files": 605,
+    "sha256": "9117f04f9e8912c356865ffc51a9cf474574d06512a0cd0a54d74d9fa77d7d59",
+    "unchanged_during_final_focused_regression": true,
+    "changed_after_full_regression": [
+      "services/control-plane/src/obsion/release/drill.py",
+      "services/control-plane/tests/error_producer_manifest.py"
+    ]
+  },
+  "full_python_before_corrections": {
+    "status": "FAILED",
+    "passed": 2894,
+    "failed": 2,
+    "skipped": 271,
+    "deselected": 7,
+    "seconds": 892.62,
+    "source_unchanged_during_run": true,
+    "log_sha256": "4202433b2aed6e646ebba31ef6d0b7f19e4dae7ac0d971bcee151ee12cb9f5f0"
+  },
+  "corrections": [
+    {
+      "failure": "reviewed error forwarding line",
+      "fix": "reviewed current runtime error assignment; exact manifest updated"
+    },
+    {
+      "failure": "offline restore dataset stopped producing synthetic claims",
+      "fix": "explicit indexed-development in the Environment.TEST-only synthetic restore seeder; original assertions retained"
+    }
+  ],
+  "focused_final": {
+    "status": "PASSED",
+    "passed": 74,
+    "seconds": 74.94,
+    "log_sha256": "17291fbd2dfdbcfca76094969245c5b10140f42db5daaf0f10e7016c7276ae15"
+  },
+  "full_python_after_corrections": {
+    "status": "NOT_RUN",
+    "reason": "Two changed files verified by 74 related checks; GitHub full coverage rerun remains pending"
+  },
+  "postgres": {
+    "fresh_acquisition_run_worker_concurrency_migration": {
+      "status": "PASSED",
+      "passed": 3,
+      "seconds": 18.8,
+      "log_sha256": "060cb8f0bcb0a2454acf803be0a961ec398cb876f07e6275331bd9f08b4244ba"
+    },
+    "source_publication_and_history": {
+      "status": "PASSED",
+      "passed": 28,
+      "seconds": 60.17,
+      "log_sha256": "e3d49f0b027abd5d4ec42df5c24408cc95b373143dc953b769692698cc4e7f4d"
+    },
+    "provider": "explicit synthetic adapter through real Gateway/Policy",
+    "migration": {
+      "head": "c5d7e9f1a3b5",
+      "previous": "b4c6d8e0f2a4",
+      "upgrade_downgrade_reupgrade": "PASSED",
+      "source_retention": "PASSED",
+      "no_historical_freshness_backfill": "PASSED",
+      "schema_drift_check": "PASSED"
+    },
+    "disposable_container_removed": true
+  },
+  "static": {
+    "ruff": "PASSED",
+    "formatted_files": 1091,
+    "mypy_source_files": 283,
+    "mypy": "PASSED",
+    "secret_findings": 0,
+    "contracts": "PASSED"
+  },
+  "github_baseline_ci": {
+    "run_id": 34846309073,
+    "status": "CANCELLED",
+    "cause": "quality job exceeded 25 minutes",
+    "updated_job_budget_minutes": 45,
+    "checks_removed": false
+  },
+  "client_retest": "NOT_RUN; no client sources changed in this increment",
+  "daily_deployment": "NOT_RUN",
+  "real_vendor_uat": "NOT_RUN",
+  "independent_semantic_scoring": "NOT_RUN",
+  "phase_p1": "IN_PROGRESS",
+  "phase_99_promoted": false,
+  "yunxiao_writes": false,
+  "yunxiao_code_execution": false
+}

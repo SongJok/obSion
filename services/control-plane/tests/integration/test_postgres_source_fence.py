@@ -280,6 +280,8 @@ def fence_client(monkeypatch):
     settings = Settings(
         _env_file=None,
         environment=Environment.TEST,
+        # These publication fixtures intentionally exercise pre-acquired source ACLs.
+        enterprise_knowledge_mode="indexed-development",
         database_url=os.environ["OBSION_DATABASE_URL"],
         dev_organization_id=uuid4(),
         dev_user_id=uuid4(),
