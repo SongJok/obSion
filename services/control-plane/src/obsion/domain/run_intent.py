@@ -848,11 +848,19 @@ def public_intent_projection(raw: Any) -> dict[str, Any]:
         except (TypeError, ValueError):
             return {}
         dumped = intent.model_dump(mode="json")
-        return {
+        projected = {
             key: dumped[key]
             for key in _PUBLIC_INTENT_KEYS
             if key in dumped and dumped[key] is not None
         }
+        context = {
+            item.slot: item.value
+            for item in intent.resolved_slots
+            if item.slot in {"selected_documents", "output_format", "task_constraints"}
+        }
+        if context:
+            projected["task_context"] = context
+        return projected
     if not isinstance(raw, dict):
         return {}
     safe = {

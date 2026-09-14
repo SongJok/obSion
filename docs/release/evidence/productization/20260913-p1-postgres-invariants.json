@@ -1,0 +1,19 @@
+{
+  "scope": "disposable_postgresql_invariants_not_live_source_acceptance",
+  "status": "PASS",
+  "container": "obsion-p1-validation-06d1d5cce1fc",
+  "production_database_accessed": false,
+  "migration_exit_code": 0,
+  "tests_exit_code": 0,
+  "container_cleanup_exit_code": 0,
+  "duration_seconds": 164.04,
+  "date": "2026-09-13",
+  "tests": {
+    "passed": 250,
+    "skipped": 11,
+    "deselected": 198,
+    "seconds": 153.95
+  },
+  "test_isolation": "global_sync_queue_uses_individually_migrated_disposable_databases",
+  "cloud_code_executed": false
+}

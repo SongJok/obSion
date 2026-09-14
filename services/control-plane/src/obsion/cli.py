@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import uvicorn
 
@@ -13,6 +14,7 @@ from obsion.config import get_settings
 from obsion.contracts.validation import validate_contracts
 from obsion.db.session import Database
 from obsion.domain.enums import SystemRole
+from obsion.evaluations.acceptance import AcceptanceError, AcceptanceProfile, AcceptanceRunner
 from obsion.evaluations.manifests import EvaluationManifestError, validate_evaluation_root
 from obsion.evaluations.offline import OfflineEvaluationError, execute_offline_evaluations
 from obsion.main import create_app
@@ -114,6 +116,104 @@ def _evaluate_datasets(args: argparse.Namespace) -> None:
     except (EvaluationManifestError, OfflineEvaluationError) as exc:
         raise SystemExit(str(exc)) from exc
     print(json.dumps(result, sort_keys=True))  # noqa: T201
+    if args.require_complete and result["acceptance_status"] != "PASS":
+        raise SystemExit(2)
+
+
+def _acceptance_run(args: argparse.Namespace) -> None:
+    import httpx
+
+    root = Path(args.root).resolve()
+    profile_path = Path(args.profile)
+    if not profile_path.is_file():
+        profile_path = root / "evaluations" / "profiles" / f"{args.profile}.json"
+    try:
+        profile = AcceptanceProfile.model_validate_json(profile_path.read_bytes())
+        if profile.phase != args.phase:
+            raise AcceptanceError("acceptance_profile_phase_mismatch")
+    except (OSError, ValueError) as exc:
+        raise SystemExit("acceptance_profile_invalid_or_missing") from exc
+    token = os.environ.get("OBSION_ACCEPTANCE_TOKEN")
+    if not token:
+        raise SystemExit("OBSION_ACCEPTANCE_TOKEN is required; do not pass secrets as arguments")
+    output = Path(args.output).resolve()
+
+    async def run() -> dict[str, Any]:
+        async with httpx.AsyncClient(
+            base_url=profile.api_base_url,
+            headers={"Authorization": f"Bearer {token}"},
+            follow_redirects=False,
+            trust_env=False,
+            timeout=httpx.Timeout(15),
+        ) as client:
+            return await AcceptanceRunner(client, profile, candidate=args.candidate).run(
+                root, output, resume_from=Path(args.resume_from) if args.resume_from else None
+            )
+
+    try:
+        result = asyncio.run(run())
+    except (OSError, ValueError) as exc:
+        raise SystemExit("acceptance_inputs_invalid_or_output_unavailable") from exc
+    print(  # noqa: T201
+        json.dumps(
+            {
+                key: result[key]
+                for key in ("status", "phase_status", "promotion_eligible", "counts", "candidate")
+            },
+            sort_keys=True,
+        )
+    )
+    if result["phase_status"] != "PASS":
+        raise SystemExit(2)
+
+
+def _acceptance_freeze(args: argparse.Namespace) -> None:
+    import httpx
+
+    token = os.environ.get("OBSION_ACCEPTANCE_TOKEN")
+    if not token:
+        raise SystemExit("OBSION_ACCEPTANCE_TOKEN is required; do not pass secrets as arguments")
+    root = Path(args.root).resolve()
+    destination = Path(args.profile).resolve()
+    try:
+        origin = AcceptanceProfile.validate_origin(args.api_url)
+        workspace_id = UUID(args.workspace_id)
+    except ValueError as exc:
+        raise SystemExit("acceptance_origin_or_workspace_invalid") from exc
+
+    async def freeze() -> AcceptanceProfile:
+        async with httpx.AsyncClient(
+            base_url=origin,
+            headers={"Authorization": f"Bearer {token}"},
+            follow_redirects=False,
+            trust_env=False,
+            timeout=httpx.Timeout(15),
+        ) as client:
+            return await AcceptanceRunner.freeze(
+                client,
+                root,
+                name=destination.stem,
+                candidate=args.candidate,
+                image_digest=args.image_digest,
+                workspace_id=workspace_id,
+                model_profile=args.model_profile,
+                dataset=args.dataset,
+                dataset_sha256=args.dataset_sha256,
+            )
+
+    try:
+        profile = asyncio.run(freeze())
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(profile.model_dump_json(indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except (OSError, ValueError, httpx.HTTPError, KeyError, TypeError) as exc:
+        raise SystemExit(
+            "acceptance_freeze_failed_check_candidate_sources_and_new_profile_path"
+        ) from exc
+    print(str(destination))  # noqa: T201
 
 
 def _scan_secrets(args: argparse.Namespace) -> None:
@@ -338,6 +438,34 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="obsion", description="Operate the Obsion control plane")
     commands = parser.add_subparsers(dest="command", required=True)
 
+    acceptance = commands.add_parser("acceptance", help="Execute frozen product acceptance")
+    acceptance_commands = acceptance.add_subparsers(dest="acceptance_command", required=True)
+    acceptance_run = acceptance_commands.add_parser(
+        "run", help="Run normal tasks and collect answers"
+    )
+    acceptance_run.add_argument("--phase", required=True, choices=["P1"])
+    acceptance_run.add_argument("--profile", required=True)
+    acceptance_run.add_argument("--candidate", required=True)
+    acceptance_run.add_argument("--root", default=".")
+    acceptance_run.add_argument("--output", required=True)
+    acceptance_run.add_argument(
+        "--resume-from", help="Reconcile recorded tasks into a new report without resubmission"
+    )
+    acceptance_run.set_defaults(handler=_acceptance_run)
+    acceptance_freeze = acceptance_commands.add_parser(
+        "freeze", help="Freeze observed acceptance inputs"
+    )
+    acceptance_freeze.add_argument("--profile", required=True)
+    acceptance_freeze.add_argument("--candidate", required=True)
+    acceptance_freeze.add_argument("--api-url", required=True)
+    acceptance_freeze.add_argument("--image-digest", required=True)
+    acceptance_freeze.add_argument("--workspace-id", required=True)
+    acceptance_freeze.add_argument("--model-profile", required=True)
+    acceptance_freeze.add_argument("--dataset", required=True)
+    acceptance_freeze.add_argument("--dataset-sha256", required=True)
+    acceptance_freeze.add_argument("--root", default=".")
+    acceptance_freeze.set_defaults(handler=_acceptance_freeze)
+
     serve = commands.add_parser("serve", help="Start the control-plane API and run workers")
     serve.add_argument("--host", default=None)
     serve.add_argument("--port", default=None, type=int)
@@ -379,6 +507,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Execute Golden Dataset ROUTING and SQL_POLICY cases against production code",
     )
     evaluate_datasets.add_argument("--datasets", default="evaluations/datasets")
+    evaluate_datasets.add_argument(
+        "--require-complete",
+        action="store_true",
+        help="Exit 2 when any required Run-output case was not executed",
+    )
     evaluate_datasets.set_defaults(handler=_evaluate_datasets)
 
     secrets = commands.add_parser(

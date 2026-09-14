@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from contextlib import nullcontext
 from dataclasses import replace
 from datetime import timedelta
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from postgres_isolation import isolated_postgres_database
 from sqlalchemy import select
 from test_dingtalk_managed_reader import install_fixture
 
@@ -29,13 +31,20 @@ from obsion.main import create_app
 @pytest.fixture(params=["sqlite", "postgresql"])
 def sync_client(app_settings: Settings, request: pytest.FixtureRequest) -> Iterator[TestClient]:
     settings = app_settings
+    database = nullcontext(settings.database_url)
     if request.param == "postgresql":
         if os.getenv("OBSION_RUN_POSTGRES_TESTS") != "1":
             pytest.skip("Explicit disposable PostgreSQL validation required")
         url = os.environ["OBSION_DATABASE_URL"]
         assert url.startswith("postgresql+asyncpg://")
-        settings = settings.model_copy(update={"database_url": url})
-    with TestClient(create_app(settings)) as client:
+        # claim_source is deliberately global: filtering it to this test's
+        # organization would weaken the scheduler contract. Isolate its database
+        # instead, retaining real migrations/triggers and every original assertion.
+        database = isolated_postgres_database(url)
+    with (
+        database as url,
+        TestClient(create_app(settings.model_copy(update={"database_url": url}))) as client,
+    ):
         yield client
 
 

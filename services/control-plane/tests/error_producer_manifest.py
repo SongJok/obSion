@@ -5,6 +5,18 @@ from static_error_analysis import ErrorCodeDomain
 REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
     [
         (
+            "harness/runtime.py::HarnessRuntime._prepare#NotFoundError[2]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "harness/runtime.py::HarnessRuntime._prepare#NotFoundError[3]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
+            "harness/task_context.py::resolve_task_context#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "release/drill_model.py::OfflineDrillModels.complete#ModelUnavailableError[1]",
             frozenset({"model_unavailable"}),
         ),
@@ -4016,6 +4028,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"codeup_operation_invalid"}),
         ),
         (
+            "capabilities/codeup.py::_request#ValidationError[5]",
+            frozenset({"codeup_operation_invalid"}),
+        ),
+        (
             "capabilities/codeup.py::read_codeup#AuthorizationError[1]",
             frozenset({"codeup_upstream_denied"}),
         ),
@@ -4330,17 +4346,17 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:3806:exc.code",
+            "forward:harness/runtime.py:3890:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",
-            "forward:harness/runtime.py:1593:exc.code | "
-            "forward:harness/runtime.py:1623:result.error_code",
+            "forward:harness/runtime.py:1677:exc.code | "
+            "forward:harness/runtime.py:1707:result.error_code",
         ),
         ("main.py::_error_response#ErrorBody[1]", "forward:main.py:423:exc.code"),
         (
             "api/codeup.py::_raise_gateway_failure#ObsionError[1]",
-            "forward:api/codeup.py:213:result.error_code",
+            "forward:api/codeup.py:219:result.error_code",
         ),
         (
             "capabilities/gateway.py::CapabilityGateway._prepare_operator#GatewayResult[5]",

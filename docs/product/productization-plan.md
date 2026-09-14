@@ -1,5 +1,10 @@
 # Obsion 首版产品化实施与验收映射
 
+2026-09-13：本轮按新增 [P1—P5要求](productization-p1-p5-requirements.md) 顺序执行，
+保留本文件的历史M0—M6映射和正式Phase99门禁。当前P1报告见
+[PHASE-P1-REPORT](../phases/PHASE-P1-REPORT.md)，真实试点见
+本地私有运行档案（`docs/product/p1-pilot-runtime-profiles.md`）。云效代码写入禁止。
+
 日期：2026-09-11
 
 ## 需求依据与优先级

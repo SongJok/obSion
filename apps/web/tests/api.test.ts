@@ -14,6 +14,17 @@ afterEach(() => {
 });
 
 describe("api request normalization", () => {
+  it("sends selected context separately from attachments through the normal Turn API", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(202, {}));
+    vi.stubGlobal("fetch", fetchMock);
+    const refs = [{ type: "repository", value: "selected-api" }];
+    await api.createTurn("thread-1", "查询代码调用链", [], refs);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      input: "查询代码调用链", context_refs: refs, attachment_refs: [],
+    });
+    await api.createTurn("thread-1", "请再详细解释一下");
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body)).context_refs).toEqual([]);
+  });
   it("sends only the typed Codeup request to a local repository route", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse(200, {}));
     vi.stubGlobal("fetch", fetchMock);

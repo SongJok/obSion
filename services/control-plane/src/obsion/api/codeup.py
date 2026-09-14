@@ -61,6 +61,12 @@ class CodeupFileRead(CodeupRequest):
     path: str = Field(min_length=1, max_length=1024)
 
 
+class CodeupTreeRead(CodeupRequest):
+    operation: Literal["codeup.tree.list"]
+    commit_id: str = Field(pattern="^[a-f0-9]{40}$", min_length=40, max_length=40)
+    path: str = Field(default="", max_length=1024)
+
+
 class CodeupReadView(APIModel):
     operation: str
     repository: str
@@ -408,7 +414,11 @@ async def map_codeup_repository(
 async def read_codeup_repository(
     repository_id: UUID,
     body: Annotated[
-        CodeupRepositoryRead | CodeupCommitRead | CodeupCommitsRead | CodeupFileRead,
+        CodeupRepositoryRead
+        | CodeupCommitRead
+        | CodeupCommitsRead
+        | CodeupFileRead
+        | CodeupTreeRead,
         Field(discriminator="operation"),
     ],
     request: Request,

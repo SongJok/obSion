@@ -110,6 +110,8 @@ tests:
   e2e: passed
 
 known_issues:
+  - 2026-09-14 ADR0132：P1增加已知任务断点续查、创建前检查点、原始截止时间和失败取消UNKNOWN记录；恢复重新检查任务关系、来源、配置与实际答案，不复用旧分数或重新提交结果不明的任务。报告升级v2，无数据库迁移；最终完整Python2879通过、268跳过、7排除（841.93秒），源码摘要一致；验收专项48项、客户端297项、静态/构建/契约检查通过，秘密扫描零发现。真实PostgreSQL及厂商UAT本轮未重跑。公开仓库提交排除5份真实企业原文和租户资料，原文件保留本地。每轮索引查询不等于每轮外部读取，强制实时外部查证和独立语义评分仍未完成；GitHub main普通提交已获用户授权，云效只读与生产发布门禁不变。
+  - 2026-09-13 ADR0131：P1继续实施。已接入选定资料、输出形式和约束的持久继承、覆盖/清除及Web选择；资料撤权、删除、版本变化会阻断发布/历史和旧任务追问，调查不能越出选定资料。完整隔离Python回归2846通过、268跳过、7排除（786.37秒）；随后仅修正格式否定/引文边界，183项相关及38项日常回归通过，全量未重复。前端客户端297通过，类型/格式/契约及秘密扫描通过；一次性PostgreSQL真实升级及256通过、11跳过，容器已清理。独立语义评分、真实跨入口验收及Worker版本证明未完成；24项原文保留集冻结但未评分。用户明确云效只读、可以不执行云效代码，构建保留NOT_RUN且不作为当前交付前置。目录能力本机激活仍待明确Policy登记许可。GitHub main与HEAD均为de3dd18、0/0分叉；云效无写入或代码执行，P1及Phase99不晋级。
   - 2026-09-12 ADR0130：修复Next.js、sharp、pypdf和js-yaml已知漏洞；新增完整Python锁定依赖SBOM扫描，补足Trivy无法解析多根uv工作区的缺口。修复后文件系统及Python SBOM高危/严重发现均为0，原扫描门槛不变；前端277项及构建通过，最终Python2651通过/262跳过/7排除（839.67秒）、真实PostgreSQL集成405通过/10跳过，另有独立IM迁移往返通过。普通API/Web修复镜像及新迁移已部署，6篇文档可用且标识保留；远端CI待重验。
   - 2026-09-12 ADR0129：修复历史UNKNOWN投递缺失对账要求时间，以及旧c9d1回退约束遗漏UNKNOWN。新增数据迁移b4c6d8e0f2a4；真实PostgreSQL往返1项通过（7.53秒），覆盖原数据保留、幂等、非法状态变更拒绝、三种非SENT状态回退阻断和事务回滚。临时库已删除；日常迁移已升级，远端CI待完成；依赖扫描缺口及发现的漏洞已修复。
   - 发布与历史来源再校验目前覆盖受管钉钉资料；原生上传及其他导入来源在读取时检查ACL/版本，但尚需将后续发布与历史检查扩展到这些来源并验证并发撤权。ADR0128不宣称所有来源均具备受管钉钉相同保证。
@@ -264,7 +266,7 @@ active_milestone:
     postgres_restart_replay_and_immutable_terminal: passed
     isolated_migration_round_trip_and_drift: passed
     historical_binding_preservation: passed
-    backend_full_suite: ADR0127 integrated final source, 2596 passed, 262 skipped, 7 deselected, 704.80 seconds (2026-09-12); real known-answer cases pass, broad quality and autonomous tool loops remain incomplete
+    backend_full_suite: ADR0132 final repository-local source, 2879 passed, 268 skipped, 7 deselected, 841.93 seconds (2026-09-14); fresh external reads and independent semantic quality remain incomplete
     frontend_workspaces: passed
     strict_python_and_typescript_checks: passed
     secrets_scan: 0 findings
@@ -277,3 +279,19 @@ active_milestone:
   follow_on:
     - Full M1 four-intent and group-audience live UAT, including operator timing evidence.
     - Source-to-Harness and sandbox delivery validation within the applicable phase contract.
+
+productization_program:
+  requirements: docs/product/productization-p1-p5-requirements.md
+  current_phase: P1
+  status: in_progress
+  order: [P1, P2, P3, P4, P5]
+  report: docs/phases/PHASE-P1-REPORT.md
+  architecture_gate: docs/architecture/phase-p1-context-quality-gate.md
+  cloud_code_writes: prohibited
+  scope_decisions: docs/product/productization-scope-decisions.md
+  cloud_code_execution: not_required_by_user_read_only_analysis_continues
+  macos_xcode_validation: user_authorized_optional_not_a_current_delivery_prerequisite
+  github_main_conflict_check: pre_publication_fetch_verified_same_base_de3dd181253c95c385112037f925b7784affb18a
+  github_main_publication: user_authorized_normal_fast_forward_after_local_validation
+  acceptance_driver: normal_task_entry_frozen_inputs_and_known_run_reconciliation_implemented_semantic_scorer_pending
+  phase_99_promotion_eligible: false

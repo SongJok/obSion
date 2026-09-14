@@ -208,10 +208,10 @@ export const api = {
     ),
   listTurns: (threadId: string) => request<Turn[]>(`/threads/${threadId}/turns`),
   listThreadRuns: (threadId: string) => request<Run[]>(`/threads/${threadId}/runs`),
-  createTurn: (threadId: string, input: string, attachmentRefs: Array<Record<string, unknown>> = []) =>
+  createTurn: (threadId: string, input: string, attachmentRefs: Array<Record<string, unknown>> = [], contextRefs: Array<Record<string, unknown>> = []) =>
     request<{ turn: Turn; run: Run }>(`/threads/${threadId}/turns`, {
       method: "POST",
-      body: JSON.stringify({ input, context_refs: [], attachment_refs: attachmentRefs }),
+      body: JSON.stringify({ input, context_refs: contextRefs, attachment_refs: attachmentRefs }),
     }),
   getRun: (runId: string) => request<Run>(`/runs/${runId}`),
   answerClarification: (
@@ -291,7 +291,7 @@ export const api = {
       { method: "POST", body: form },
       { timeoutMs: LONG_RUNNING_TIMEOUT_MS },
     ),
-  knowledgeSearch: (query: string) =>
+  knowledgeSearch: (query: string, signal?: AbortSignal) =>
     request<
       Array<{
         chunk_id: string;
@@ -311,6 +311,7 @@ export const api = {
     >("/knowledge/search", {
       method: "POST",
       body: JSON.stringify({ query, limit: 12 }),
+      signal,
     }),
   ingestFeishuDocument: (input: {
     document_id: string;
@@ -434,7 +435,7 @@ export const api = {
         ...input,
       }),
     }, { timeoutMs: LONG_RUNNING_TIMEOUT_MS }),
-  listCodeRepositories: () => request<CodeRepository[]>("/code/repositories"),
+  listCodeRepositories: (signal?: AbortSignal) => request<CodeRepository[]>("/code/repositories", { signal }),
   readCodeupRepository: (repositoryId: string, input: CodeupReadRequest, signal?: AbortSignal) =>
     request<CodeupReadResult>(`/code/repositories/${encodeURIComponent(repositoryId)}/remote-read`, {
       method: "POST",

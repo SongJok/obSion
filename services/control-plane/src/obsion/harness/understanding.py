@@ -1,4 +1,34 @@
+import re
 from typing import Any
+
+from obsion.domain.task_context import requested_format
+
+# Match a complete referential request, not a polite prefix on a new question.
+_FOLLOWUP = re.compile(
+    r"^(?:(?:请|麻烦|能否|可以|帮我|再|继续|把它|把上面的内容|对此|那)[，,\s]*)*"
+    r"(?:详细(?:地)?(?:解释|说明|讲解|展开)?(?:一下|一点|一些)?|"
+    r"(?:解释|说明|讲解)(?:得)?详细(?:一点|一些)?|"
+    r"展开(?:说说|讲讲|一下)?|解释一下|补充(?:一下)?|继续|"
+    r"(?:举|给)(?:个|一个|几个)?(?:例子|示例)|(?:再)?短一点|简短一点|"
+    r"总结(?:一下)?|(?:用|换成|改成|以)(?:表格|列表|报告|段落|中文|英文)(?:形式)?(?:说明|解释|回答|总结|展示|呈现|输出)?|"
+    r"为什么|有哪些例外|有什么限制|这个(?:结果|回答|结论)(?:是什么意思|怎么得出的))"
+    r"[。？！!?,，\s]*$|"
+    r"^(?:please\s+)?(?:explain (?:more|in detail)|tell me more|continue|"
+    r"give (?:me )?an example|make it shorter|summarize (?:it|that))[.!?\s]*$",
+    re.I,
+)
+
+
+def is_contextual_followup(question: str) -> bool:
+    return bool(_FOLLOWUP.fullmatch(question.strip())) or requested_format(question) is not None
+
+
+def task_question(question: str, previous_question: str | None) -> str:
+    """Carry only a currently authorized task goal into a referential follow-up."""
+    if not previous_question or not is_contextual_followup(question):
+        return question
+    goal = re.split(r"\n\n本轮追问[:：]", previous_question, maxsplit=1)[0]
+    return f"{goal[:40000]}\n\n本轮追问: {question}"
 
 
 class UnderstandingEngine:
@@ -42,7 +72,33 @@ class UnderstandingEngine:
         "p99",
         "root cause",
     }
-    _ENGINEERING_TERMS = {"代码", "commit", "diff", "调用链", "code", "repository", "git"}
+    _ENGINEERING_TERMS = {
+        "代码",
+        "源码",
+        "调用关系",
+        "commit",
+        "diff",
+        "调用链",
+        "code",
+        "repository",
+        "git",
+    }
+    _DOCUMENT_REQUEST = re.compile(
+        r"(?:规范|制度|手册|指南|流程|准则|约定|标准|文档).{0,20}"
+        r"(?:是什么|有哪些|要求|规定|解释|说明|介绍|怎么|如何|查询|查找|在哪)|"
+        r"(?:查阅|查找|查询|解释|介绍|根据|依据|参照).{0,60}"
+        r"(?:规范|制度|手册|指南|准则|标准)|"
+        r"(?:代码评审|代码审查|编码|代码|发布|日志|故障处理)(?:规范|制度|流程|标准|指南)[？?。\s]*$|"
+        r"\b(?:code review|coding|release|incident response) (?:policy|guidelines|standards)\b",
+        re.I,
+    )
+    _SOURCE_INVESTIGATION = re.compile(
+        r"(?:读取|搜索|修改|修复|定位|调试|分析|评审|审查).{0,20}"
+        r"(?:源码|源代码|源文件|实现|提交|补丁|diff|commit)|"
+        r"(?:调用链|调用关系|跨文件|堆栈|报错|根因)|"
+        r"(?:[\w/-]+\.(?:py|go|php|tsx?|java|rs))\b",
+        re.I,
+    )
     _ANALYTICS_TERMS = {
         "漏斗",
         "funnel",
@@ -109,8 +165,14 @@ class UnderstandingEngine:
             # the governed DataAgent path. Root-cause analysis is then limited to
             # semantic dimensions; logs/traces require an explicit incident route.
             route = "DATA"
+        elif self._DOCUMENT_REQUEST.search(question) and not self._SOURCE_INVESTIGATION.search(
+            question
+        ):
+            route = "KNOWLEDGE"
         elif has_incident and (
-            has_engineering or has_explicit_incident_signal or has_release_anomaly
+            has_explicit_incident_signal
+            or has_release_anomaly
+            or (has_engineering and any(term in normalized for term in ("异常", "报错", "超时")))
         ):
             route = "INCIDENT"
         elif has_engineering:

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from obsion.common.errors import BudgetExceededError
 from obsion.db.models import Evidence, Run, RunStep
 from obsion.domain.enums import Classification
+from obsion.domain.task_context import selected_document_scope
 from obsion.knowledge.evidence import document_bodies
 from obsion.model_gateway.gateway import ModelGateway, ModelUnavailableError
 
@@ -76,6 +77,9 @@ def investigation_catalog(
     pages: dict[tuple[str, int], int | None] = {}
     documents: dict[tuple[str, int], dict[str, Any]] = {}
     texts: list[dict[str, Any]] = []
+    selected = {
+        (item["document_id"], item["version"]) for item in selected_document_scope(run.intent)
+    }
     for item in sorted(evidence, key=lambda e: ordinals.get(e.step_id, -1) if e.step_id else -1):
         if item.organization_id != run.organization_id or item.run_id != run.id:
             continue
@@ -94,6 +98,8 @@ def investigation_catalog(
             if type(version) is not int or version < 1:
                 continue
             key = (document_id, version)
+            if selected and key not in selected:
+                continue
             documents[key] = {"document_id": document_id, "version": version}
             texts.append({"key": key, "text": body.text})
         if capability == "document.read" and type(item.content.get("version")) is int:
@@ -164,6 +170,8 @@ async def propose_investigation(
         "knowledge.search",
         "document.read",
     }
+    if selected_document_scope(run.intent):
+        available.discard("knowledge.search")
     previous = [
         s.input_payload
         for s in steps

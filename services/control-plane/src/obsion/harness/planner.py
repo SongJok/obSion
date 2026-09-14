@@ -89,6 +89,32 @@ class Planner:
                 verification=("capability_required", "no_direct_resource_access"),
             )
         if route == "KNOWLEDGE":
+            selected = understanding.get("selected_documents", [])
+            if selected:
+                return ExecutionPlan(
+                    route=route,
+                    steps=tuple(
+                        PlannedStep(
+                            name="Read selected authorized document",
+                            capability="document.read",
+                            payload={
+                                "operation": "document.read",
+                                **document,
+                                "offset": 0,
+                                "limit": 4,
+                            },
+                            resource={
+                                "index": "organization",
+                                "document_id": document["document_id"],
+                            },
+                            environment="development",
+                        )
+                        for document in selected
+                        if can_select("document.read")
+                    ),
+                    required_evidence=("DOCUMENT",),
+                    verification=("citation_coverage", "acl_retained", "question_coverage"),
+                )
             knowledge_steps: tuple[PlannedStep, ...] = (
                 (
                     PlannedStep(

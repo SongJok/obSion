@@ -7,12 +7,19 @@ CODEUP_PROTOCOL = "codeup.read.v1"
 CODEUP_CATALOG_PROTOCOL = "codeup.catalog.v1"
 CODEUP_DISCOVERY_OPERATION = "codeup.repositories.discover"
 CODEUP_OPERATIONS = frozenset(
-    {"codeup.repository.get", "codeup.commit.get", "codeup.commits.list", "codeup.file.read"}
+    {
+        "codeup.repository.get",
+        "codeup.commit.get",
+        "codeup.commits.list",
+        "codeup.file.read",
+        "codeup.tree.list",
+    }
 )
 CODEUP_ALL_OPERATIONS = CODEUP_OPERATIONS | {CODEUP_DISCOVERY_OPERATION}
 MAX_FILE_BYTES = 262_144
 MAX_RESPONSE_BYTES = 2_097_152
 MAX_PAGE_SIZE = 50
+MAX_TREE_ENTRIES = 2000
 
 
 def input_schema(operation: str) -> dict[str, Any]:
@@ -33,7 +40,7 @@ def input_schema(operation: str) -> dict[str, Any]:
         "repository": {"type": "string", "minLength": 1, "maxLength": 240},
     }
     required = ["operation", "repository"]
-    if operation in {"codeup.commit.get", "codeup.file.read"}:
+    if operation in {"codeup.commit.get", "codeup.file.read", "codeup.tree.list"}:
         properties["commit_id"] = {
             "type": "string",
             "pattern": "^[a-f0-9]{40}$",
@@ -43,6 +50,10 @@ def input_schema(operation: str) -> dict[str, Any]:
         required.append("commit_id")
     if operation == "codeup.file.read":
         properties["path"] = {"type": "string", "minLength": 1, "maxLength": 1024}
+        required.append("path")
+    if operation == "codeup.tree.list":
+        # An empty path means the root; recursion and mutable refs are not exposed.
+        properties["path"] = {"type": "string", "maxLength": 1024}
         required.append("path")
     if operation == "codeup.commits.list":
         properties.update(
@@ -117,6 +128,18 @@ def output_schema(operation: str) -> dict[str, Any]:
             "redacted": {"type": "boolean"},
             "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$", "maxLength": 64},
         }
+    elif operation == "codeup.tree.list":
+        fields = {
+            "commit_id": sha,
+            "parent_path": {"type": "string", "maxLength": 1024},
+            "object_id": sha,
+            "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+            "name": {"type": "string", "minLength": 1, "maxLength": 1024},
+            "type": {"enum": ["tree", "blob", "commit"]},
+            "mode": {"enum": ["040000", "100644", "100755", "120000", "160000"]},
+            "is_lfs": {"type": "boolean"},
+            "can_read_content": {"type": "boolean"},
+        }
     else:
         fields = {
             "commit_id": sha,
@@ -125,6 +148,8 @@ def output_schema(operation: str) -> dict[str, Any]:
             "title": {"type": "string", "maxLength": 4000},
             "message": {"type": "string", "maxLength": 4000},
         }
+    many = operation in {"codeup.commits.list", "codeup.tree.list"}
+    max_items = MAX_TREE_ENTRIES if operation == "codeup.tree.list" else MAX_PAGE_SIZE
     return {
         "type": "object",
         "additionalProperties": False,
@@ -143,8 +168,8 @@ def output_schema(operation: str) -> dict[str, Any]:
             "repository_id": {"type": "string", "format": "uuid"},
             "items": {
                 "type": "array",
-                "minItems": 0 if operation == "codeup.commits.list" else 1,
-                "maxItems": MAX_PAGE_SIZE if operation == "codeup.commits.list" else 1,
+                "minItems": 0 if many else 1,
+                "maxItems": max_items if many else 1,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -152,7 +177,7 @@ def output_schema(operation: str) -> dict[str, Any]:
                     "properties": fields,
                 },
             },
-            "count": {"type": "integer", "minimum": 0, "maximum": MAX_PAGE_SIZE},
+            "count": {"type": "integer", "minimum": 0, "maximum": max_items},
             "next_page": {"type": ["integer", "null"], "minimum": 2, "maximum": 100},
             "complete": {"type": "boolean"},
         },

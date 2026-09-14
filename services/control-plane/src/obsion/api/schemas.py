@@ -134,6 +134,25 @@ class CreateTurnRequest(APIModel):
     attachment_refs: list[dict[str, Any]] = Field(default_factory=list, max_length=50)
     model_profile: str | None = Field(default=None, max_length=120)
 
+    @field_validator("context_refs")
+    @classmethod
+    def validate_task_context(cls, references: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        from obsion.domain.task_context import task_context_reference
+
+        reference = task_context_reference(references)
+        if (
+            reference
+            and reference.document_ids
+            and any(item.get("type") == "repository" for item in references)
+        ):
+            raise ValueError("Choose either selected documents or a code repository for this turn")
+        return [
+            reference.model_dump(exclude_unset=True)
+            if item.get("type") == "task_context" and reference
+            else item
+            for item in references
+        ]
+
 
 class TurnView(APIModel):
     id: UUID

@@ -598,6 +598,7 @@ export type CodeupReadRequest =
   | { operation: "codeup.repository.get" }
   | { operation: "codeup.commits.list"; ref: string; page?: number; limit?: number }
   | { operation: "codeup.commit.get"; commit_id: string }
+  | { operation: "codeup.tree.list"; commit_id: string; path: string }
   | { operation: "codeup.file.read"; commit_id: string; path: string };
 
 interface CodeupResult<Operation extends string, Item> {
@@ -619,11 +620,24 @@ export interface CodeupCommit {
   message: string;
 }
 
+export interface CodeupTreeEntry {
+  commit_id: string;
+  parent_path: string;
+  object_id: string;
+  path: string;
+  name: string;
+  type: "tree" | "blob" | "commit";
+  mode: "040000" | "100644" | "100755" | "120000" | "160000";
+  is_lfs: boolean;
+  can_read_content: boolean;
+}
+
 export type CodeupReadResult =
   | CodeupResult<"codeup.repository.get", {
       id: string; name: string; default_branch: string; visibility: string;
     }>
   | CodeupResult<"codeup.commit.get" | "codeup.commits.list", CodeupCommit>
+  | CodeupResult<"codeup.tree.list", CodeupTreeEntry>
   | CodeupResult<"codeup.file.read", {
       path: string; commit_id: string; blob_id: string; content: string;
       source_size_bytes: number; redacted: boolean; content_sha256: string;

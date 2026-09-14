@@ -2657,6 +2657,35 @@
         "title": "CodeupRepositoryRead",
         "type": "object"
       },
+      "CodeupTreeRead": {
+        "additionalProperties": false,
+        "properties": {
+          "commit_id": {
+            "maxLength": 40,
+            "minLength": 40,
+            "pattern": "^[a-f0-9]{40}$",
+            "title": "Commit Id",
+            "type": "string"
+          },
+          "operation": {
+            "const": "codeup.tree.list",
+            "title": "Operation",
+            "type": "string"
+          },
+          "path": {
+            "default": "",
+            "maxLength": 1024,
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "commit_id"
+        ],
+        "title": "CodeupTreeRead",
+        "type": "object"
+      },
       "CompileSqlRequest": {
         "properties": {
           "plan": {
@@ -22887,6 +22916,116 @@
         ]
       }
     },
+    "/api/v1/admin/runtime-identity": {
+      "get": {
+        "description": "Deployment declarations for acceptance drift detection, not signature proof.",
+        "operationId": "runtime_identity_api_v1_admin_runtime_identity_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Runtime Identity Api V1 Admin Runtime Identity Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Runtime Identity",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
     "/api/v1/admin/secrets": {
       "get": {
         "operationId": "list_secret_metadata_api_v1_admin_secrets_get",
@@ -25959,7 +26098,8 @@
                     "codeup.commit.get": "#/components/schemas/CodeupCommitRead",
                     "codeup.commits.list": "#/components/schemas/CodeupCommitsRead",
                     "codeup.file.read": "#/components/schemas/CodeupFileRead",
-                    "codeup.repository.get": "#/components/schemas/CodeupRepositoryRead"
+                    "codeup.repository.get": "#/components/schemas/CodeupRepositoryRead",
+                    "codeup.tree.list": "#/components/schemas/CodeupTreeRead"
                   },
                   "propertyName": "operation"
                 },
@@ -25975,6 +26115,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/CodeupFileRead"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CodeupTreeRead"
                   }
                 ],
                 "title": "Body"

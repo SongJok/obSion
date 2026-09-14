@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-14",
+  "scope": "repository_local_p1_context_and_recoverable_acceptance",
+  "phase_status": "IN_PROGRESS",
+  "promotion_eligible": false,
+  "base_commit": "de3dd181253c95c385112037f925b7784affb18a",
+  "source_snapshot": {
+    "scope": "services_apps_packages_scripts_source_tests_and_manifests",
+    "files": 827,
+    "sha256": "8ca8cb9a406a78561a3117ed647be8f63e1743039fa631ef28762bc21871ba5a"
+  },
+  "source_unchanged_during_final_full_run": true,
+  "python": {
+    "passed": 2879,
+    "skipped": 268,
+    "deselected": 7,
+    "seconds": 841.93,
+    "exit_code": 0
+  },
+  "targeted_acceptance": {
+    "passed": 48,
+    "seconds": 8.17
+  },
+  "preceding_contract_combination": {
+    "passed": 84,
+    "seconds": 46.44,
+    "scope": "before_final_repeated_reconciliation_fix"
+  },
+  "clients": {
+    "web": 242,
+    "desktop": 17,
+    "ide": 12,
+    "typescript_sdk": 26,
+    "total": 297
+  },
+  "static": {
+    "ruff": "PASS",
+    "format_files": 1085,
+    "mypy_source_files": 282,
+    "typescript": "PASS",
+    "frontend_lint": "PASS",
+    "build": "PASS",
+    "secret_findings": 0
+  },
+  "migrations": "NO_DATABASE_SCHEMA_CHANGE",
+  "postgres_rerun": "NOT_RUN_THIS_INCREMENT_PRIOR_EVIDENCE_SEPARATE",
+  "real_vendor_uat": "NOT_RUN_THIS_INCREMENT",
+  "independent_semantic_scoring": "NOT_RUN",
+  "per_turn_live_enterprise_queries": "NOT_IMPLEMENTED",
+  "offline_complete_gate_exit_code": 2,
+  "private_enterprise_files_kept_local_not_staged": 5,
+  "cloud_code_written": false,
+  "cloud_code_executed": false,
+  "production_deployed": false,
+  "initial_full_run": "INTERRUPTED_FOR_DISCOVERED_RECONCILIATION_FIX_NOT_COUNTED_AS_PASS",
+  "log_sha256": {
+    "python": "ce188806150288a0bfe486faad9bc0bcdfa8917fea53800ea6ffd43d27837170",
+    "clients": "827841b2beef923137b59bd4413ec12f0f1f59b4d047d2df74a0ea78f1c9894f",
+    "typescript": "3c29929e656a2c11f8698dba334d2733f918d21646ad8187fcf2637876ce6e41",
+    "lint": "1b7f22bcee020e4fdd1f67ca5fa2f02aeac94c8442751af8c680d86e7af60abf",
+    "build": "27c29df8dd55b1f545daa2b7f135e5828fb39ddfdb0d06a3200458ba4b670587",
+    "offline": "4794245eba38d504c4950fee673f5289eadf6c755578b49a16710983c20441de"
+  }
+}

@@ -340,6 +340,13 @@ a { color: inherit; }
 /* 输入操作使用文字标签，快捷键提示随内容宽度收起。 */
 .composer-tools .composer-tool { width: auto; min-height: 38px; gap: 6px; padding: 0 9px; font-size: 12px; }
 .composer-tools .composer-submit-tools { gap: 12px; flex-shrink: 0; }
+.repository-picker { display: flex; align-items: center; min-width: 0; }
+.repository-picker .composer-tool span { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repository-picker-panel { position: absolute; z-index: 17; bottom: calc(100% + 10px); right: 0; left: 0; margin-inline: auto; width: min(320px, calc(100% - 24px)); padding: 14px; border: 1px solid var(--border-strong); border-radius: 12px; background: #fff; box-shadow: 0 18px 50px rgb(27 31 39 / 16%); }
+.repository-picker-panel label { display: grid; gap: 8px; font-size: 13px; }
+.repository-picker-panel select { width: 100%; min-height: 40px; padding: 7px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+.repository-picker-panel p { margin: 9px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.repository-picker-panel [role="alert"] { color: var(--red); }
 .composer-shortcut { color: var(--muted); font-size: 10px; white-space: nowrap; }
 .composer .send-button { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; }
 .composer .model-pill { font-size: 11px; }
@@ -845,3 +852,10 @@ a { color: inherit; }
 .knowledge-source-items span { margin-left: 12px; color: var(--muted); }
 .knowledge-source-note { margin-bottom: 0; }
 @media (max-width: 520px) { .knowledge-sources { padding: 14px; } .knowledge-source-heading > button { width: 100%; } .knowledge-source-connect label { flex-basis: 100%; } }
+.task-context-panel { width: min(400px, calc(100% - 24px)); max-height: min(65vh, 620px); overflow-y: auto; }
+.task-context-panel input:not([type="checkbox"]), .task-context-panel textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+.task-context-panel textarea { min-height: 64px; resize: vertical; }
+.task-context-panel > label { margin-block: 10px; }
+.task-context-panel .task-document-option { display: flex; align-items: center; gap: 8px; }
+.task-context-panel button { min-height: 32px; margin: 4px 6px 4px 0; }
+.task-context-summary { margin: 6px 24px; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }

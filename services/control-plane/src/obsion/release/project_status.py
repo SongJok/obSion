@@ -58,8 +58,9 @@ def validate_project_status(root: Path) -> dict[str, Any]:
     completed_phases, completed_numbers = _completed_phases(status, current_number)
     next_phase = _next_phase(status, current_number, set(completed_numbers))
 
-    reports = _formal_reports(repository_root)
-    gates = _architecture_gates(repository_root)
+    productization = _productization_documents(repository_root, status)
+    reports = _formal_reports(repository_root, productization)
+    gates = _architecture_gates(repository_root, productization)
     completed_number_set = set(completed_numbers)
 
     for phase, number in zip(completed_phases, completed_numbers, strict=True):
@@ -125,6 +126,9 @@ def validate_project_status(root: Path) -> dict[str, Any]:
         "orphan_non_completed_gates": orphan_non_completed_gates,
         "registered_historical_reports": historical_reports,
         "production_promotion_evaluated": False,
+        "productization_documents": sorted(
+            _relative(path, repository_root) for path in productization
+        ),
     }
 
 
@@ -234,7 +238,47 @@ def _phase_number(value: str, label: str) -> int:
     return number
 
 
-def _formal_reports(root: Path) -> dict[int, Path]:
+def _productization_documents(root: Path, status: dict[str, Any]) -> frozenset[Path]:
+    """Validate the explicitly registered P1-P5 namespace separately from Phase 99."""
+    program = status.get("productization_program")
+    if program is None:
+        return frozenset()
+    if not isinstance(program, dict) or program.get("current_phase") not in {
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+    }:
+        raise ProjectStatusConsistencyError("productization_program requires a P1-P5 current_phase")
+    phase = str(program["current_phase"])
+    if program.get("status") != "in_progress":
+        raise ProjectStatusConsistencyError(
+            "productization program has no accepted completion ledger"
+        )
+    report = f"docs/phases/PHASE-{phase}-REPORT.md"
+    gate = program.get("architecture_gate")
+    if (
+        program.get("report") != report
+        or not isinstance(gate, str)
+        or re.fullmatch(rf"docs/architecture/phase-{phase.lower()}-[a-z0-9-]+\.md", gate) is None
+    ):
+        raise ProjectStatusConsistencyError("productization report/gate must use their P namespace")
+    paths = frozenset({root / report, root / gate})
+    for path in paths:
+        if not path.is_file():
+            raise ProjectStatusConsistencyError(
+                f"missing productization document: {_relative(path, root)}"
+            )
+        marker = _required_non_final_status(path, phase, root, "productization document")
+        if marker != "IN_PROGRESS":
+            raise ProjectStatusConsistencyError(
+                "active productization documents must be IN_PROGRESS"
+            )
+    return paths
+
+
+def _formal_reports(root: Path, excluded: frozenset[Path] = frozenset()) -> dict[int, Path]:
     directory = root / "docs" / "phases"
     if not directory.is_dir():
         raise ProjectStatusConsistencyError(
@@ -242,6 +286,8 @@ def _formal_reports(root: Path) -> dict[int, Path]:
         )
     reports: dict[int, Path] = {}
     for path in sorted(directory.glob("PHASE-*-REPORT.md")):
+        if path in excluded:
+            continue
         match = _REPORT_NAME_PATTERN.fullmatch(path.name)
         if match is None:
             raise ProjectStatusConsistencyError(
@@ -258,12 +304,14 @@ def _formal_reports(root: Path) -> dict[int, Path]:
     return reports
 
 
-def _architecture_gates(root: Path) -> dict[int, Path]:
+def _architecture_gates(root: Path, excluded: frozenset[Path] = frozenset()) -> dict[int, Path]:
     directory = root / "docs" / "architecture"
     if not directory.is_dir():
         raise ProjectStatusConsistencyError(f"architecture directory does not exist: {directory}")
     gates: dict[int, Path] = {}
     for path in sorted(directory.glob("phase-*.md")):
+        if path in excluded:
+            continue
         match = _GATE_NAME_PATTERN.fullmatch(path.name)
         if match is None:
             continue

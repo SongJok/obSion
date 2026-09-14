@@ -75,6 +75,7 @@ from obsion.domain.enums import (
 )
 from obsion.domain.run_intent import RunIntent, parse_run_intent
 from obsion.domain.run_state import is_terminal, validate_run_transition
+from obsion.domain.task_context import task_context_reference, task_prompt
 from obsion.domains.evidence.fabric import EvidenceFabric, EvidenceInput
 from obsion.harness.agent_router import AgentRouter, RouteSelection
 from obsion.harness.answerability import GenerationStatus, generation_reply, record_generation
@@ -98,7 +99,12 @@ from obsion.harness.planner import Planner
 from obsion.harness.presentation import contains_transport_references
 from obsion.harness.replay import RunReplayService
 from obsion.harness.steps import StepExecutor
-from obsion.harness.understanding import UnderstandingEngine
+from obsion.harness.task_context import resolve_task_context
+from obsion.harness.understanding import (
+    UnderstandingEngine,
+    is_contextual_followup,
+    task_question,
+)
 from obsion.knowledge.evidence import document_bodies
 from obsion.knowledge.parsers import parse_document
 from obsion.knowledge.publication import KnowledgePublicationGuard
@@ -370,6 +376,7 @@ class HarnessRuntime:
         turn: Turn,
         conversation_snapshots: list[RunConversationSnapshot],
         memory_snapshots: list[RunMemorySnapshot],
+        previous_task: tuple[RunIntent, str] | None = None,
     ) -> VisibleIntentContext:
         repositories = sorted(
             await self.code.list_repositories(session, principal),
@@ -439,6 +446,9 @@ class HarnessRuntime:
                 }
                 for metric in latest_metrics.values()
             ),
+            previous_slots=tuple(previous_task[0].resolved_slots) if previous_task else (),
+            previous_source_ref=previous_task[1] if previous_task else "",
+            current_question=turn.sanitized_input,
         )
 
     @staticmethod
@@ -584,26 +594,77 @@ class HarnessRuntime:
                     .order_by(RunConversationSnapshot.ordinal)
                 )
             )
+            previous_task: tuple[RunIntent, str] | None = None
             if persisted_intent is None:
-                prior_general = await self._general_conversation(
-                    session, run, conversation_snapshots
+                previous_route = None
+                previous_question = None
+                preceding_turn = await session.scalar(
+                    select(Turn.id)
+                    .where(
+                        Turn.organization_id == organization_id,
+                        Turn.thread_id == turn.thread_id,
+                        Turn.ordinal < turn.ordinal,
+                    )
+                    .order_by(Turn.ordinal.desc())
+                    .limit(1)
                 )
-                previous_route = (
-                    "GENERAL"
-                    if conversation_snapshots
-                    and prior_general
-                    and prior_general[-1].id == conversation_snapshots[-1].id
-                    else None
+                if (
+                    is_contextual_followup(turn.sanitized_input)
+                    and preceding_turn is not None
+                    and (
+                        not conversation_snapshots
+                        or conversation_snapshots[-1].source_turn_id != preceding_turn
+                    )
+                ):
+                    raise NotFoundError("可继续使用的上一轮任务上下文", preceding_turn)
+                if conversation_snapshots:
+                    latest = conversation_snapshots[-1]
+                    previous_available = (
+                        latest.source_run_id
+                        and latest.source_principal_id == turn.created_by
+                        and await self.knowledge_publication.check(
+                            session,
+                            principal,
+                            [],
+                            run_id=latest.source_run_id,
+                            stage="intent_context",
+                        )
+                    )
+                    if is_contextual_followup(turn.sanitized_input) and not previous_available:
+                        raise NotFoundError("可继续使用的上一轮任务上下文", latest.source_turn_id)
+                    if previous_available:
+                        previous = await session.scalar(
+                            select(Run).where(
+                                Run.id == latest.source_run_id,
+                                Run.organization_id == organization_id,
+                            )
+                        )
+                        if previous is not None and isinstance(previous.intent, dict):
+                            previous_route = previous.intent.get("route")
+                            previous_question = previous.intent.get("question")
+                            if (
+                                previous_route not in {None, "CONVERSATION"}
+                                and is_contextual_followup(turn.sanitized_input)
+                                and (prior := parse_run_intent(previous.intent, previous.status))
+                                is not None
+                            ):
+                                previous_task = (prior, f"conversation-snapshot:{latest.id}")
+                question = task_question(
+                    turn.sanitized_input,
+                    previous_question
+                    if previous_route not in {None, "GENERAL", "CONVERSATION"}
+                    and isinstance(previous_question, str)
+                    else None,
                 )
                 # Registered business metrics keep their governed route even when
                 # phrased conversationally (for example, "why did GMV decline?").
-                data_result = await self.data.understand(session, principal, turn.sanitized_input)
+                data_result = await self.data.understand(session, principal, question)
                 data_understanding = asdict(data_result)
                 if (
                     not data_understanding.get("metrics")
                     and not turn.attachment_refs
                     and everyday_request(
-                        turn.sanitized_input,
+                        question,
                         context_refs=turn.context_refs,
                         previous_route=previous_route,
                     )
@@ -618,15 +679,13 @@ class HarnessRuntime:
                         **data_understanding,
                         "route": "GENERAL",
                         "domain": "GENERAL",
-                        "question": turn.sanitized_input,
+                        "question": question,
                         "need_data": False,
                         "need_root_cause": False,
                         "risk": "L1",
                     }
                 else:
-                    understanding = self.understanding.route(
-                        turn.sanitized_input, data_understanding
-                    )
+                    understanding = self.understanding.route(question, data_understanding)
                 admission_intent = next(
                     (
                         str(item.get("intent"))
@@ -651,6 +710,29 @@ class HarnessRuntime:
                     understanding["route"] = "DATA"
                     understanding["domain"] = "DATA"
                     understanding["intent"] = data_understanding["intent"]
+                context_reference = task_context_reference(turn.context_refs)
+                selected_before = (
+                    previous_task[0].resolved_slot("selected_documents") if previous_task else None
+                )
+                selected_documents = (
+                    context_reference.document_ids
+                    if context_reference and "document_ids" in context_reference.model_fields_set
+                    else selected_before.value
+                    if selected_before
+                    else []
+                )
+                if any(item.get("type") == "repository" for item in turn.context_refs):
+                    selected_documents = []
+                if selected_documents:
+                    understanding.update(
+                        route="KNOWLEDGE",
+                        domain="KNOWLEDGE",
+                        metrics=[],
+                        dimensions=[],
+                        need_data=False,
+                        need_root_cause=False,
+                        risk="L1",
+                    )
                 selection = await self.agent_router.resolve(
                     session,
                     organization_id,
@@ -679,6 +761,7 @@ class HarnessRuntime:
                         }
                     )
                 intent = RunIntent.model_validate(intent_payload)
+                intent = await resolve_task_context(session, principal, turn, intent, previous_task)
             else:
                 intent = persisted_intent
                 skill_snapshot = await self._pinned_skill_snapshot(
@@ -712,6 +795,7 @@ class HarnessRuntime:
                 turn,
                 current_conversation,
                 memory_snapshots,
+                previous_task,
             )
             now = utc_now()
             remaining_execution_seconds = run.timeout_seconds
@@ -1352,7 +1436,7 @@ class HarnessRuntime:
                 gap_step_contract(
                     capability,
                     missing_type,
-                    question=turn.sanitized_input,
+                    question=task_prompt(run.intent, turn.sanitized_input),
                     template=template,
                 ),
             )
@@ -1815,7 +1899,7 @@ class HarnessRuntime:
                 claims=claims,
                 claims_required=not evidence_free_response,
                 route=run.plan.get("route"),
-                question=turn.sanitized_input,
+                question=task_prompt(run.intent, turn.sanitized_input),
                 answer=answer,
                 time_range=(
                     run.intent.get("time_range")
@@ -1868,7 +1952,7 @@ class HarnessRuntime:
                     session,
                     run=run,
                     step_id=verify_step.id if verify_step is not None else None,
-                    question=turn.sanitized_input,
+                    question=task_prompt(run.intent, turn.sanitized_input),
                     answer=answer,
                     claims=claims,
                     evidence=evidence,
@@ -1963,7 +2047,7 @@ class HarnessRuntime:
                     session,
                     run=run,
                     step_id=reflect_step.id if reflect_step is not None else None,
-                    question=turn.sanitized_input,
+                    question=task_prompt(run.intent, turn.sanitized_input),
                     evidence=evidence,
                     steps=steps,
                     reason=investigation_reason,
@@ -3195,7 +3279,7 @@ class HarnessRuntime:
                 ),
                 ContextSegment(
                     TrustLevel.USER,
-                    turn.sanitized_input,
+                    task_prompt(run.intent, turn.sanitized_input),
                     "current-user",
                     850,
                     700,
@@ -3292,7 +3376,7 @@ class HarnessRuntime:
                         record_generation(
                             run,
                             GenerationStatus.INSUFFICIENT_EVIDENCE,
-                            question=turn.sanitized_input,
+                            question=task_prompt(run.intent, turn.sanitized_input),
                             excerpt=parsed.get("missing_information"),
                         )
                     return self._knowledge_unknown_answer(), []
@@ -3302,7 +3386,7 @@ class HarnessRuntime:
                             record_generation(
                                 run,
                                 GenerationStatus.INSUFFICIENT_EVIDENCE,
-                                question=turn.sanitized_input,
+                                question=task_prompt(run.intent, turn.sanitized_input),
                                 excerpt=parsed.get("missing_information"),
                             )
                         # An explicit abstention must survive synthesis. Falling back

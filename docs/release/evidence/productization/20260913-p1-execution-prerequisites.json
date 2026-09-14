@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-13",
+  "scope": "local_read_only_tool_inventory_not_sandbox_validation",
+  "status": "BLOCKED",
+  "remote_code_writes": false,
+  "commands_executed_in_pilot_repositories": false,
+  "host_architecture": "arm64",
+  "docker_server_version": "29.2.1",
+  "kubernetes": {
+    "kubectl_available": true,
+    "current_context": null,
+    "observed_result": "current-context is not set",
+    "gvisor_runtime_validated": false,
+    "cluster_resources_changed": false
+  },
+  "macos": {
+    "user_authorized_controlled_validation": true,
+    "active_developer_directory": "/Library/Developer/CommandLineTools",
+    "xcode_application": "/Applications/Xcode.app",
+    "explicit_developer_directory": "/Applications/Xcode.app/Contents/Developer",
+    "xcode_version": "26.2",
+    "xcode_build_version": "17C52",
+    "global_developer_directory_changed": false,
+    "tart_on_path": false,
+    "limactl_on_path": false,
+    "cocoapods_on_path": false,
+    "isolated_guest_validated": false,
+    "notes": [
+      "Tool presence on the host does not establish an isolated macOS guest.",
+      "Xcode version was read using a command-scoped DEVELOPER_DIR; host selection was not modified.",
+      "PATH probes do not prove that a tool is absent from all filesystem locations.",
+      "No DDBusiness source or build/dependency script was executed on the host."
+    ]
+  }
+}

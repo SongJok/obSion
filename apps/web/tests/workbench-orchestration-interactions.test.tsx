@@ -38,6 +38,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
       listThreadRuns: vi.fn(),
       createThread: vi.fn(),
       createTurn: vi.fn(),
+      listCodeRepositories: vi.fn(),
       getRun: vi.fn(),
       answerClarification: vi.fn(),
       cancelRun: vi.fn(),
@@ -431,6 +432,58 @@ afterEach(() => {
 });
 
 describe("Workbench root orchestration ownership", () => {
+  it("carries output preferences through the normal Turn and clears them on workspace change", async () => {
+    configureDefaults([workspace("ws-1"), workspace("ws-2")]);
+    mockedApi.createThread.mockResolvedValueOnce(thread("ws-1", "first"))
+      .mockResolvedValueOnce(thread("ws-2", "second"));
+    mockedApi.createTurn.mockRejectedValue(new Error("测试任务创建被拒绝"));
+    renderWorkbench();
+    await assertSelectedWorkspace("ws-1");
+    fireEvent.click(screen.getByLabelText("设置任务资料与输出"));
+    fireEvent.change(screen.getByLabelText("输出形式"), { target: { value: "TABLE" } });
+    fireEvent.change(screen.getByLabelText("补充要求"), { target: { value: "只列条件" } });
+    fireEvent.click(screen.getByText("完成设置"));
+    fireEvent.change(screen.getByLabelText("向 Obsion 提问"), { target: { value: "解释采购制度" } });
+    fireEvent.click(screen.getByLabelText("发送"));
+    await screen.findByText("测试任务创建被拒绝");
+    expect(mockedApi.createTurn.mock.calls[0][3]).toEqual([
+      { type: "task_context", output_format: "TABLE", constraints: ["只列条件"] },
+    ]);
+    expect(screen.getByText("已设要求")).toBeDefined();
+    await selectWorkspace("ws-2");
+    await assertSelectedWorkspace("ws-2");
+    expect(screen.queryByText("已设要求")).toBeNull();
+    fireEvent.change(screen.getByLabelText("向 Obsion 提问"), { target: { value: "解释新资料" } });
+    fireEvent.click(screen.getByLabelText("发送"));
+    await waitFor(() => expect(mockedApi.createTurn).toHaveBeenCalledTimes(2));
+    expect(mockedApi.createTurn.mock.calls[1][3]).toEqual([]);
+  });
+  it("submits the selected repository through the ordinary Turn and clears it on workspace change", async () => {
+    configureDefaults([workspace("ws-1"), workspace("ws-2")]);
+    mockedApi.listCodeRepositories.mockResolvedValue([{
+      id: "repo-one", name: "selected-api", default_branch: "main", classification: "INTERNAL",
+      current_snapshot_id: null, created_at: NOW, updated_at: NOW,
+    }]);
+    mockedApi.createThread.mockResolvedValueOnce(thread("ws-1", "first"))
+      .mockResolvedValueOnce(thread("ws-2", "second"));
+    mockedApi.createTurn.mockRejectedValue(new Error("测试任务创建被拒绝"));
+    renderWorkbench();
+    await assertSelectedWorkspace("ws-1");
+    fireEvent.click(screen.getByLabelText("选择代码仓库"));
+    await screen.findByRole("option", { name: "selected-api" });
+    fireEvent.change(screen.getByLabelText("本轮仓库"), { target: { value: "selected-api" } });
+    fireEvent.change(screen.getByLabelText("向 Obsion 提问"), { target: { value: "查询代码调用链" } });
+    fireEvent.click(screen.getByLabelText("发送"));
+    await screen.findByText("测试任务创建被拒绝");
+    expect(mockedApi.createTurn.mock.calls[0][3]).toEqual([{ type: "repository", value: "selected-api" }]);
+    await selectWorkspace("ws-2");
+    await assertSelectedWorkspace("ws-2");
+    expect(screen.queryByLabelText("清除本轮仓库指定")).toBeNull();
+    fireEvent.change(screen.getByLabelText("向 Obsion 提问"), { target: { value: "查询另一个项目的代码" } });
+    fireEvent.click(screen.getByLabelText("发送"));
+    await waitFor(() => expect(mockedApi.createTurn).toHaveBeenCalledTimes(2));
+    expect(mockedApi.createTurn.mock.calls[1][3]).toEqual([]);
+  });
   it("选择示例后聚焦输入框，重复选择仍可编辑且不会自动运行", async () => {
     configureDefaults([workspace("ws-1")]);
     renderWorkbench();

@@ -39,6 +39,9 @@ class VisibleIntentContext:
     workspace: ExplorationText | None = None
     repositories: tuple[str, ...] = ()
     metrics: tuple[dict[str, JsonValue], ...] = ()
+    previous_slots: tuple[ResolvedSlot, ...] = ()
+    previous_source_ref: str = ""
+    current_question: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +95,7 @@ class IntentContextExplorer:
         self._context_ref_candidates(context.context_refs, context.repositories, candidates)
         self._visible_text_candidates(context, candidates)
         self._catalog_candidates(context, candidates)
+        unavailable = self._previous_candidates(context, candidates)
 
         resolved = {item.slot: item for item in intent.resolved_slots}
         fields: list[ClarificationField] = []
@@ -102,7 +106,10 @@ class IntentContextExplorer:
             if len(ranked) == 1:
                 resolved[slot] = ranked[0].resolved()
                 continue
-            fields.append(self._clarification_field(slot, ranked))
+            field = self._clarification_field(slot, ranked)
+            if slot in unavailable:
+                field = field.model_copy(update={"reason_code": f"previous_{slot}_unavailable"})
+            fields.append(field)
 
         explored.append("catalog")
         updated = intent.model_copy(
@@ -126,6 +133,45 @@ class IntentContextExplorer:
             intent=RunIntent.model_validate(updated.model_dump(mode="python")),
             explored_sources=tuple(explored),
         )
+
+    @staticmethod
+    def _previous_candidates(
+        context: VisibleIntentContext,
+        candidates: dict[str, list[_Candidate]],
+    ) -> set[str]:
+        """Carry selections, never old authority or execution/approval state."""
+        unavailable: set[str] = set()
+        if not context.previous_source_ref:
+            return unavailable
+        authorized = {item.casefold(): item for item in context.repositories}
+        for item in context.previous_slots:
+            if item.slot not in _STRUCTURED_SLOTS or not isinstance(item.value, str):
+                continue
+            value = item.value
+            if item.slot == "repository":
+                current = authorized.get(value.casefold())
+                if current is None:
+                    unavailable.add(item.slot)
+                    # A revoked previous selection must not fall back to another
+                    # repository merely because only one is left in the catalog.
+                    candidates[item.slot] = [
+                        candidate
+                        for candidate in candidates[item.slot]
+                        if candidate.source in {"INPUT", "CONTEXT_REF"}
+                    ]
+                    continue
+                value = current
+            candidates[item.slot].append(
+                _Candidate(
+                    item.slot,
+                    value,
+                    value,
+                    "CONVERSATION",
+                    context.previous_source_ref,
+                    89,
+                )
+            )
+        return unavailable
 
     @staticmethod
     def planning_input(intent: RunIntent) -> dict[str, Any]:
@@ -170,7 +216,10 @@ class IntentContextExplorer:
         context: VisibleIntentContext,
         candidates: dict[str, list[_Candidate]],
     ) -> None:
-        question = intent.question.casefold()
+        current_question = (
+            context.current_question if context.current_question is not None else intent.question
+        )
+        question = current_question.casefold()
         for metric in intent.metrics:
             label = str(metric.get("display_name") or metric.get("name") or "").strip()
             if label:
@@ -189,7 +238,7 @@ class IntentContextExplorer:
                         90,
                     )
                 )
-        for service in self._service_tokens(intent.question):
+        for service in self._service_tokens(current_question):
             candidates["service"].append(
                 _Candidate("service", service, service, "INPUT", "turn.input", 90)
             )

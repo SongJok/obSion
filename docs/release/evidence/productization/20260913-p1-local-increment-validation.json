@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-13",
+  "scope": "local_productization_p1_increment",
+  "phase_status": "IN_PROGRESS",
+  "promotion_eligible": false,
+  "base_commit": "de3dd181253c95c385112037f925b7784affb18a",
+  "github_main": "de3dd181253c95c385112037f925b7784affb18a",
+  "clean_candidate": false,
+  "source_snapshot_scope": "repository_source_tests_and_build_configuration",
+  "source_snapshot_sha256": "b3384fc2b6154cbe924bcd311f22f98d970a989fb89498f154f3f4a9cf23ad72",
+  "source_file_count": 858,
+  "python_source_unchanged_during_full_run": true,
+  "web_changes_during_python_run_verified_separately": true,
+  "python": {
+    "passed": 2828,
+    "skipped": 262,
+    "deselected": 7,
+    "seconds": 761.43,
+    "exit_code": 0,
+    "log_sha256": "6ee30639afea69c9110508f24e6d2526076579fc7f4df49682f44315c55c4e40"
+  },
+  "frontend": {
+    "web_passed": 237,
+    "desktop_passed": 17,
+    "ide_passed": 12,
+    "typescript_sdk_passed": 26,
+    "total_passed": 292,
+    "web_lint": "PASS",
+    "web_typecheck": "PASS",
+    "web_build": "PASS",
+    "final_picker_regression_passed": 35,
+    "desktop_initial_loopback_eperm_retested": true
+  },
+  "static": {
+    "ruff": "PASS",
+    "format_files": 1077,
+    "mypy_source_files": 279,
+    "secrets": 0,
+    "git_diff_check": "PASS"
+  },
+  "postgres_evidence": "20260913-p1-postgres-invariants.json",
+  "independent_answer_scoring": "NOT_RUN",
+  "cloud_code_executed": false,
+  "cloud_code_written": false,
+  "local_tree_activation": "NOT_ACTIVATED_REQUIRES_EXPLICIT_POLICY_ALLOW",
+  "not_release_evidence": [
+    "independent_semantic_scoring",
+    "complete_task_context_contract",
+    "signed_candidate_and_worker_identity",
+    "full_phase_safety_and_business_gates"
+  ]
+}

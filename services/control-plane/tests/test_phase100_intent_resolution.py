@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from obsion.domain.run_intent import RunIntent
+from obsion.domain.run_intent import RunIntent, make_resolved_slot
 from obsion.harness.intent_resolution import (
     ExplorationText,
     IntentContextExplorer,
@@ -8,6 +8,95 @@ from obsion.harness.intent_resolution import (
 )
 
 NOW = datetime(2026, 9, 4, 10, tzinfo=UTC)
+
+
+def _previous_repository(value: str):
+    return make_resolved_slot(
+        slot="repository",
+        value=value,
+        source="CLARIFICATION_OPTION",
+        source_ref="previous-clarification",
+        confidence_rank=100,
+    )
+
+
+def test_followup_preserves_structured_repository_selection_without_copying_authority():
+    explored = _explore(
+        _intent("ENGINEERING"),
+        VisibleIntentContext(
+            repositories=("selected-api", "other-api"),
+            previous_slots=(_previous_repository("selected-api"),),
+            previous_source_ref="conversation-snapshot:previous",
+        ),
+    )
+    selected = explored.resolved_slot("repository")
+    assert selected is not None
+    assert selected.value == "selected-api"
+    assert selected.source == "CONVERSATION"
+    assert selected.source_ref == "conversation-snapshot:previous"
+    assert selected.confidence_rank == 89
+
+
+def test_revoked_selection_cannot_switch_silently_to_remaining_repository():
+    explored = _explore(
+        _intent("ENGINEERING"),
+        VisibleIntentContext(
+            repositories=("other-api",),
+            conversation=(ExplorationText("CONVERSATION", "turn:older", "other-api", 85),),
+            previous_slots=(_previous_repository("revoked-api"),),
+            previous_source_ref="conversation-snapshot:previous",
+        ),
+    )
+    assert explored.resolved_slot("repository") is None
+    request = explored.clarification.active_request()
+    assert request is not None
+    assert request.fields[0].reason_code == "previous_repository_unavailable"
+    assert request.fields[0].options == []
+    assert "revoked-api" not in request.model_dump_json()
+
+
+def test_current_explicit_selection_overrides_previous_selection():
+    explored = _explore(
+        _intent("ENGINEERING"),
+        VisibleIntentContext(
+            repositories=("selected-api", "other-api"),
+            context_refs=({"type": "repository", "value": "other-api"},),
+            previous_slots=(_previous_repository("selected-api"),),
+            previous_source_ref="conversation-snapshot:previous",
+        ),
+    )
+    selected = explored.resolved_slot("repository")
+    assert selected is not None
+    assert selected.value == "other-api"
+    assert selected.source == "CONTEXT_REF"
+
+
+def test_prior_metadata_without_authorized_snapshot_is_not_inherited():
+    explored = _explore(
+        _intent("ENGINEERING"),
+        VisibleIntentContext(
+            repositories=("selected-api", "other-api"),
+            previous_slots=(_previous_repository("selected-api"),),
+        ),
+    )
+    assert explored.resolved_slot("repository") is None
+    assert explored.preparation_stage == "WAITING_USER"
+
+
+def test_restored_old_question_is_not_a_new_explicit_repository_selection():
+    explored = _explore(
+        _intent("ENGINEERING", question="查询 selected-api 或 other-api 的代码，先查看所选仓库"),
+        VisibleIntentContext(
+            current_question="请再详细解释一下",
+            repositories=("selected-api", "other-api"),
+            previous_slots=(_previous_repository("selected-api"),),
+            previous_source_ref="conversation-snapshot:previous",
+        ),
+    )
+    selected = explored.resolved_slot("repository")
+    assert selected is not None
+    assert selected.value == "selected-api"
+    assert selected.source == "CONVERSATION"
 
 
 def _intent(route: str, **updates: object) -> RunIntent:

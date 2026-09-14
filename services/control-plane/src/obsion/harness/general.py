@@ -3,9 +3,12 @@
 import re
 from typing import Any
 
+from obsion.harness.understanding import is_contextual_followup
+
 # Explicit enterprise sources/actions win even if the user adds a general-chat prefix.
 _GOVERNED = re.compile(
     r"Obsion|报销|审批|制度|故障|日志|调用链|发布异常|trace|latency|p99|工单|退款申请|"
+    r"(?:代码评审|代码审查|编码|代码|发布|日志|故障处理)(?:规范|制度|流程|标准|指南)|"
     r"\b(?:policy|unrecorded|retention|revenue|sales|orders|conversion|incident|rollout)\b|"
     r"README|AGENTS\.md|https?://|附件|已授权|知识库|文档中|(?:根据|依据|参照|查阅|基于).{0,100}(?:文档|资料|报告|手册|说明书|规范|指南|原文|《)|"
     r"本(?:项目|仓库|公司)|我们(?:公司|团队|项目|的)|我司|当前(?:项目|仓库)|"
@@ -70,9 +73,15 @@ GENERAL_OUTPUT_CONTRACT = (
 def everyday_request(
     question: str, *, context_refs: list[dict[str, Any]], previous_route: str | None = None
 ) -> bool:
-    if any(ref.get("type") not in {"im_delivery", "im_inbox"} for ref in context_refs):
+    if any(
+        ref.get("type") not in {"im_delivery", "im_inbox"}
+        and not (ref.get("type") == "task_context" and not ref.get("document_ids"))
+        for ref in context_refs
+    ):
         return False
     if _GOVERNED.search(question):
+        return False
+    if previous_route != "GENERAL" and is_contextual_followup(question):
         return False
     if previous_route != "GENERAL" and re.search(
         r"上面|上述|刚才|上一|这个结果|这个回答|\b(?:above|previous|that answer)\b", question, re.I
@@ -87,7 +96,10 @@ def everyday_request(
             and re.search(r"\d", question)
             and re.search(r"[+*/×÷%^\-]", question)
         )
-        or (previous_route == "GENERAL" and _CONTINUATION.search(question.strip()))
+        or (
+            previous_route == "GENERAL"
+            and (is_contextual_followup(question) or _CONTINUATION.search(question.strip()))
+        )
     )
 
 

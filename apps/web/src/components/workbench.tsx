@@ -36,6 +36,8 @@ import { SqlView } from "./sql-view";
 import { EvidenceView } from "./evidence-view";
 import { TimelineView } from "./timeline-view";
 import { Composer } from "./composer";
+import { RepositoryPicker } from "./repository-picker";
+import { TaskContextPicker, TaskContextSummary, taskContextReferences, type TaskContextDraft } from "./task-context-picker";
 import { ClarificationForm } from "./clarification-form";
 import { Conversation } from "./conversation";
 import { CollaborationView } from "./collaboration-view";
@@ -102,6 +104,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [value, setValue] = useState("");
+  const [selectedRepository, setSelectedRepository] = useState<string>();
+  const [taskContext, setTaskContext] = useState<TaskContextDraft>({});
   const [view, setView] = useState<ViewName>("assistant");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -170,6 +174,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
     ++feedbackGeneration.current;
     ++threadLifecycleGeneration.current;
     setThread(undefined);
+    setSelectedRepository(undefined);
+    setTaskContext({});
     setMessages([]);
     setAttachments([]);
     setUploading(false);
@@ -276,6 +282,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       return;
     }
     const generation = ++selectionGeneration.current;
+    setSelectedRepository(undefined);
+    setTaskContext({});
     const keepsVerifiedProjection = thread?.id === selected.id;
     ++uploadGeneration.current;
     ++feedbackGeneration.current;
@@ -784,6 +792,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
           media_type: artifact.media_type,
           title: artifact.title,
         })),
+        [...(selectedRepository ? [{ type: "repository", value: selectedRepository }] : []), ...taskContextReferences(taskContext)],
       );
       if (generation !== selectionGeneration.current) return;
       assertTurnRunOwnership(activeThread.id, created.turn, created.run);
@@ -809,6 +818,8 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
       setClaims([]);
       setArtifacts([]);
       setAttachments([]);
+      setSelectedRepository(undefined);
+    setTaskContext({});
       setClarificationSubmitting(false);
       setClarificationError("");
       closeContextPicker();
@@ -825,7 +836,7 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
         setSubmitting(false);
       }
     }
-  }, [attachments, closeContextPicker, pollRun, run, thread, value, workspace]);
+  }, [attachments, closeContextPicker, pollRun, run, selectedRepository, taskContext, thread, value, workspace]);
 
   const attachFiles = useCallback(async (files: File[]) => {
     if (!workspace) {
@@ -1192,7 +1203,19 @@ export function Workbench({ principal, onSignOut }: WorkbenchProps) {
                     onCancel={() => void cancel()}
                   />
                 )}
+                <TaskContextSummary context={run?.intent.task_context} />
                 <Composer
+                  repositoryPicker={<><RepositoryPicker
+                    key={`${workspace?.id ?? "none"}:${thread?.id ?? "new"}`}
+                    value={selectedRepository}
+                    onChange={(selected) => { setSelectedRepository(selected); if (selected && taskContext.documents?.length) setTaskContext((previous) => ({ ...previous, documents: [] })); }}
+                    disabled={loading || uploading || running || submitting || thread?.status === "ARCHIVED" || Boolean(pendingClarification)}
+                  /><TaskContextPicker
+                    key={`context:${workspace?.id ?? "none"}:${thread?.id ?? "new"}`}
+                    value={taskContext}
+                    onChange={(next) => { setTaskContext(next); if (next.documents?.length) setSelectedRepository(undefined); }}
+                    disabled={loading || uploading || running || submitting || thread?.status === "ARCHIVED" || Boolean(pendingClarification)}
+                  /></>}
                   inputRef={composerInput}
                   value={value}
                   onChange={setValue}

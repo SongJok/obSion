@@ -1,11 +1,12 @@
 "use client";
 
 import { ArrowUp, AtSign, FileText, LoaderCircle, Paperclip, Search, Square, X } from "lucide-react";
-import { ChangeEvent, KeyboardEvent, RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, KeyboardEvent, ReactNode, RefObject, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Artifact } from "@/lib/types";
 
 interface ComposerProps {
+  repositoryPicker?: ReactNode;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (value: string) => void;
@@ -29,6 +30,7 @@ interface ComposerProps {
 }
 
 export function Composer({
+  repositoryPicker,
   inputRef,
   value,
   onChange,
@@ -199,6 +201,7 @@ export function Composer({
             >
               <AtSign size={18} /><span>上下文</span>
             </button>
+            {repositoryPicker}
             <span className="model-pill">自动路由</span>
           </div>
           <div className="composer-submit-tools">

@@ -26,3 +26,10 @@ npm-debug.log*
 dist/
 build/
 target/
+
+# Operator-owned enterprise evidence; never publish real tenant/source bodies.
+/evaluations/productization/p1-heldout-v1.json
+/evaluations/productization/p1-heldout-v1.sha256
+/docs/product/p1-pilot-runtime-profiles.md
+/docs/release/evidence/productization/20260913-p1-knowledge-inventory.json
+/docs/release/evidence/productization/20260913-p1-pilot-repositories.json

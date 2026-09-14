@@ -1,0 +1,21 @@
+{
+  "scope": "disposable_postgresql_invariants_not_live_source_acceptance",
+  "status": "PASS",
+  "container": "obsion-p1-validation-2efe452bbe65",
+  "production_database_accessed": false,
+  "migration_exit_code": 0,
+  "tests_exit_code": 0,
+  "container_cleanup_exit_code": 0,
+  "duration_seconds": 197.8,
+  "date": "2026-09-13",
+  "tests": {
+    "passed": 256,
+    "skipped": 11,
+    "deselected": 198,
+    "seconds": 188.35
+  },
+  "native_index_regressions": 6,
+  "cloud_code_executed": false,
+  "cloud_code_written": false,
+  "log_sha256": "d02281b8b094af4519d5d7de32703c949da1869c257361de847feea9c9278a09"
+}

@@ -15,6 +15,7 @@ from obsion.common.errors import NotFoundError
 from obsion.db.models import Document, Evidence, KnowledgeSyncItem, KnowledgeSyncSource
 from obsion.domain.enums import ActorType, DecisionEffect, RiskLevel
 from obsion.knowledge.evidence import document_bodies
+from obsion.knowledge.indexed_publication import check_indexed_documents
 from obsion.knowledge.lineage import run_evidence_lineage
 from obsion.knowledge.service import KnowledgeService
 from obsion.knowledge.source_access import MANAGED_KNOWLEDGE_SOURCE
@@ -78,6 +79,14 @@ class KnowledgePublicationGuard:
         invalid = inherited is None
         provided = {item.id for item in evidence}
         evidence = [*evidence, *(item for item in (inherited or []) if item.id not in provided)]
+        indexed_current = await check_indexed_documents(
+            session,
+            principal,
+            evidence,
+            run_id=run_id,
+            stage=stage,
+            link_policy_run=link_policy_run,
+        )
         for item in evidence:
             for body in document_bodies(item):
                 metadata = body.metadata
@@ -105,7 +114,7 @@ class KnowledgePublicationGuard:
         )
         selected = [item for item in references if item[2] or item[0] in managed_ids]
         if not selected and not invalid:
-            return True
+            return indexed_current
         current = await load_principal_by_id(session, principal.organization_id, principal.id)
         decision = await self.policy.evaluate_resource(
             session,
@@ -125,6 +134,7 @@ class KnowledgePublicationGuard:
         )
         allowed = (
             not invalid
+            and indexed_current
             and allow_managed
             and current.can("knowledge.read")
             and decision.effect == DecisionEffect.ALLOW

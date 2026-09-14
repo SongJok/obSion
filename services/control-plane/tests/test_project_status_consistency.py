@@ -274,3 +274,36 @@ def _gate(root: Path, number: int, *, status: str | None = None) -> Path:
 
 def _phase_id(number: int) -> str:
     return f"phase-{number:02d}" if number < 10 else f"phase-{number}"
+
+
+def test_productization_namespace_keeps_formal_phase_numbers_separate(tmp_path: Path) -> None:
+    root = _repository(tmp_path, current=1, completed=[1], next_phase=2)
+    _report(root, 1)
+    _gate(root, 1)
+    status_path = root / "docs/project-status.yaml"
+    status = yaml.safe_load(status_path.read_text())
+    report = "docs/phases/PHASE-P1-REPORT.md"
+    gate = "docs/architecture/phase-p1-quality-gate.md"
+    (root / report).write_text("# Productization P1\n\n状态：IN_PROGRESS\n")
+    (root / gate).write_text("# P1 gate\n\n状态：IN_PROGRESS\n")
+    with pytest.raises(ProjectStatusConsistencyError, match="invalid filename"):
+        validate_project_status(root)
+    status["productization_program"] = {
+        "current_phase": "P1",
+        "status": "in_progress",
+        "report": report,
+        "architecture_gate": gate,
+    }
+    status_path.write_text(yaml.safe_dump(status))
+    result = validate_project_status(root)
+    assert result["completed_phases"] == ["phase-01"]
+    assert result["formal_report_count"] == 1
+    assert result["productization_documents"] == sorted([report, gate])
+    (root / gate).write_text("# P1 gate\n\n状态：COMPLETE\n")
+    with pytest.raises(ProjectStatusConsistencyError, match="non-final|must declare"):
+        validate_project_status(root)
+    (root / gate).write_text("# P1 gate\n\n状态：IN_PROGRESS\n")
+    status["productization_program"]["status"] = "complete"
+    status_path.write_text(yaml.safe_dump(status))
+    with pytest.raises(ProjectStatusConsistencyError, match="completion ledger"):
+        validate_project_status(root)

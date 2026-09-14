@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -33,7 +34,6 @@ _TRUST_ORDER = {
 
 _INSTRUCTION = frozenset({TrustLevel.SYSTEM, TrustLevel.AGENT, TrustLevel.SKILL})
 _CURRENT_USER_SOURCES = frozenset({"current-user"})
-_SUMMARY_KEYS = ("id", "type", "source", "resource", "scope")
 SUMMARIZE_FLOOR = 24
 
 
@@ -90,28 +90,10 @@ def compress_segment(content: str, budget: int) -> str:
     return compacted[:budget]
 
 
-def summarize_segment(content: str, budget: int) -> str:
+def summarize_segment(content: str, budget: int, *, question: str = "") -> str:
     parsed = _try_json(content)
-    if isinstance(parsed, list):
-        items: list[Any] = [_extract_summary_item(item) for item in parsed]
-        payload: dict[str, Any] = {
-            "summarized": True,
-            "method": "extractive",
-            "count": len(parsed),
-            "items": items,
-        }
-        text = _dump(payload)
-        while len(text) > budget and items:
-            items.pop()
-            payload["items"] = items
-            payload["dropped_items"] = True
-            text = _dump(payload)
-        return text[:budget]
-    if isinstance(parsed, dict):
-        compact = {key: parsed[key] for key in _SUMMARY_KEYS if key in parsed}
-        compact["summarized"] = True
-        compact["method"] = "extractive"
-        return _dump(compact)[:budget]
+    if isinstance(parsed, list | dict):
+        return _structured_excerpt(parsed, budget, question)
     if budget < 8:
         return content[:budget]
     marker = "..."
@@ -142,6 +124,9 @@ class ContextBuilder:
         remaining = self.character_budget
         chosen: list[tuple[int, ContextSegment, str]] = []
         decisions: list[BudgetDecision] = []
+        question = "\n".join(
+            item.content for item in segments if item.source in _CURRENT_USER_SOURCES
+        )
         for index, segment in ranked:
             original = len(segment.content)
             reserved = segment.trust in _INSTRUCTION or segment.source in _CURRENT_USER_SOURCES
@@ -171,8 +156,10 @@ class ContextBuilder:
                     )
                 )
                 continue
-            if segment.trust == TrustLevel.UNTRUSTED_DATA and remaining >= SUMMARIZE_FLOOR:
-                content = summarize_segment(segment.content, remaining)
+            if segment.trust == TrustLevel.UNTRUSTED_DATA and (
+                remaining >= SUMMARIZE_FLOOR or _try_json(segment.content) is not None
+            ):
+                content = summarize_segment(segment.content, remaining, question=question)
                 remaining -= len(content)
                 chosen.append((index, segment, content))
                 decisions.append(
@@ -242,10 +229,99 @@ def _compact(content: str) -> str:
     return " ".join(content.split())
 
 
-def _extract_summary_item(item: Any) -> Any:
-    if isinstance(item, dict):
-        return {key: item[key] for key in _SUMMARY_KEYS if key in item}
-    return {"value": item}
+def _body_blocks(text: str) -> list[str]:
+    """Keep paragraphs, fenced code and complete Markdown tables atomic."""
+    blocks: list[str] = []
+    lines: list[str] = []
+    fence: str | None = None
+    for line in text.splitlines(keepends=True):
+        stripped = line.lstrip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            fence = None if fence == marker else marker if fence is None else fence
+        if not line.strip() and fence is None:
+            if lines:
+                blocks.append("".join(lines))
+                lines = []
+        else:
+            lines.append(line)
+    if lines:
+        blocks.append("".join(lines))
+    return blocks
+
+
+def _evidence_units(item: Any) -> list[Any]:
+    if not isinstance(item, dict) or "content" not in item:
+        return [item]
+    body = item["content"]
+    metadata = {key: value for key, value in item.items() if key != "content"}
+    if isinstance(body, str):
+        return [{**metadata, "content": block} for block in _body_blocks(body)]
+    if isinstance(body, dict):
+        for collection, text_key in (("bodies", "text"), ("hits", "content")):
+            entries = body.get(collection)
+            if not isinstance(entries, list):
+                continue
+            units = []
+            for entry in entries:
+                if not isinstance(entry, dict) or not isinstance(entry.get(text_key), str):
+                    continue
+                for block in _body_blocks(entry[text_key]):
+                    units.append(
+                        {
+                            **metadata,
+                            "content": {collection: [{**entry, text_key: block}]},
+                        }
+                    )
+            return units
+    return [item]
+
+
+def _structured_excerpt(parsed: Any, budget: int, question: str) -> str:
+    original = parsed if isinstance(parsed, list) else [parsed]
+    units = [unit for item in original for unit in _evidence_units(item)]
+    # Deterministic lexical selection; no generated facts or LLM summary.
+    tokens = set(re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]{2}", question.casefold()))
+    encoded = [_dump(unit) for unit in units]
+    ranked = sorted(
+        enumerate(encoded),
+        key=lambda pair: (
+            -sum(token in pair[1].casefold() for token in tokens),
+            pair[0],
+        ),
+    )
+    selected: dict[int, Any] = {}
+
+    def payload() -> dict[str, Any]:
+        return {
+            "summarized": True,
+            "incomplete": True,
+            "omitted_blocks": len(units) - len(selected),
+            "items": [selected[index] for index in sorted(selected)],
+        }
+
+    # Count encoded bytes-as-characters without serializing the growing answer
+    # for each block. This keeps large-document selection O(n log n).
+    size = len(_dump(payload()))
+    for index, text in ranked:
+        omitted_before = len(units) - len(selected)
+        delta = len(text) + bool(selected) + len(str(omitted_before - 1)) - len(str(omitted_before))
+        if size + delta <= budget:
+            selected[index] = units[index]
+            size += delta
+    result = _dump(payload())
+    if len(result) <= budget:
+        return result
+    # Never output sliced JSON or metadata that pretends the body was read.
+    for fallback in (
+        {"summarized": True, "incomplete": True, "items": []},
+        {"incomplete": True},
+        {},
+    ):
+        result = _dump(fallback)
+        if len(result) <= budget:
+            return result
+    return ""
 
 
 def _try_json(content: str) -> Any:

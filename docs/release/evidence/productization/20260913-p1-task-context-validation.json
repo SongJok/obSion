@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-13",
+  "scope": "local_productization_p1_task_context_increment",
+  "phase_status": "IN_PROGRESS",
+  "promotion_eligible": false,
+  "clean_candidate": false,
+  "base_commit": "de3dd181253c95c385112037f925b7784affb18a",
+  "github_main": "de3dd181253c95c385112037f925b7784affb18a",
+  "source_snapshot_scope": "tracked_and_untracked_source_tests_build_and_evaluations",
+  "source_file_count": 878,
+  "full_regression_snapshot_sha256": "e2264a92054e76d638f4f60d41dccb3cd320f85cca1d3562fde4d88ebf8be1f3",
+  "source_unchanged_during_full_regression": true,
+  "final_source_snapshot_sha256": "00afbd16397982581246952f0347112290de8d445754d8de8403da950e482667",
+  "python_full": {
+    "passed": 2846,
+    "skipped": 268,
+    "deselected": 7,
+    "seconds": 786.37,
+    "exit_code": 0,
+    "log_sha256": "e857b7df35e56d23508c2959e2bbb438e7298076e24c85ac4d0d80355193a351"
+  },
+  "corrective_change_after_full_run": {
+    "reason": "Only complete formatting requests may alter persistent preferences; negative requests reset the preference and quotations do not select a format",
+    "files": [
+      "services/control-plane/src/obsion/domain/task_context.py",
+      "services/control-plane/src/obsion/harness/understanding.py",
+      "services/control-plane/tests/test_task_context.py"
+    ],
+    "regressions": [
+      {
+        "scope": "task_context_routing_native_source_investigation_and_contract_gates",
+        "passed": 183,
+        "seconds": 84.76,
+        "exit_code": 0,
+        "log_sha256": "5b28a456f23162c9724cbf1e16bc93238c0f73e05804efbc2c18291c02708958"
+      },
+      {
+        "scope": "everyday_questions",
+        "passed": 38,
+        "seconds": 6.92,
+        "exit_code": 0,
+        "log_sha256": "2ebfaf0063b68f0767b322351cefcb0ab5b5b2cfad39c8b9a92b04e54300ba07"
+      }
+    ],
+    "full_suite_repeated_after_correction": false
+  },
+  "frontend": {
+    "web_passed": 242,
+    "desktop_passed": 17,
+    "ide_passed": 12,
+    "typescript_sdk_passed": 26,
+    "total_passed": 297,
+    "web_lint": "PASS",
+    "web_typecheck": "PASS",
+    "web_build": "PASS",
+    "desktop_initial_loopback_eperm_retested": true
+  },
+  "static": {
+    "ruff": "PASS",
+    "format_files": 1083,
+    "mypy_source_files": 282,
+    "secrets": 0,
+    "git_diff_check": "PASS"
+  },
+  "postgres_evidence": "20260913-p1-context-postgres-invariants.json",
+  "migrations": "No schema change; existing Document/DocumentVersion publication fences retained; disposable PostgreSQL upgrade succeeded",
+  "independent_answer_scoring": "NOT_RUN",
+  "cloud_code_executed": false,
+  "cloud_code_written": false,
+  "local_tree_activation": "NOT_ACTIVATED_REQUIRES_EXPLICIT_POLICY_ALLOW",
+  "not_release_evidence": [
+    "independent_semantic_scoring",
+    "live_cross_entrypoint_acceptance",
+    "signed_candidate_and_worker_identity",
+    "full_phase_safety_and_business_gates"
+  ]
+}

@@ -524,3 +524,16 @@ async def test_connector_serialization_change_is_fenced_like_source_access_compa
             if not pending.done():
                 pending.cancel()
             await asyncio.gather(pending, return_exceptions=True)
+
+
+@pytest.mark.parametrize(
+    "change", ["none", "before_author", "review", "after_publish", "deleted", "version"]
+)
+def test_postgres_native_index_publication_and_history(fence_client, monkeypatch, change):
+    from test_indexed_answer_access import (
+        test_indexed_document_is_rechecked_before_publication_and_historical_reads,
+    )
+
+    test_indexed_document_is_rechecked_before_publication_and_historical_reads(
+        fence_client, monkeypatch, change
+    )

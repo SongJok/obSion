@@ -1911,6 +1911,22 @@ async def list_audit(
     ]
 
 
+@router.get("/runtime-identity")
+async def runtime_identity(
+    principal: Principal = Depends(get_principal),
+    settings: Settings = Depends(get_app_settings),
+) -> dict[str, Any]:
+    """Deployment declarations for acceptance drift detection, not signature proof."""
+    _require_admin(principal)
+    return {
+        "revision": settings.release_revision,
+        "image_digest": settings.release_image_digest,
+        "environment": settings.environment.value,
+        "provenance": "deployment_configuration",
+        "signature_verified": False,
+    }
+
+
 @router.get("/operator-invocations")
 async def list_operator_invocations(
     invocation_status: OperatorInvocationStatus | None = Query(default=None, alias="status"),

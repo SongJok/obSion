@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     )
 
     environment: Environment = Environment.DEVELOPMENT
+    # Deployment-supplied immutable identities; absence is not a development
+    # stand-in for a release candidate. Signing remains a separate release gate.
+    release_revision: str | None = Field(default=None, pattern=r"^[0-9a-f]{40}$")
+    release_image_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
     log_level: str = "INFO"
     api_host: str = "0.0.0.0"
     api_port: int = Field(default=8080, ge=1, le=65535)
@@ -160,6 +164,8 @@ class Settings(BaseSettings):
     otel_trace_sample_ratio: float = Field(default=1.0, ge=0.0, le=1.0)
 
     @field_validator(
+        "release_revision",
+        "release_image_digest",
         "oidc_issuer",
         "oidc_audience",
         "oidc_jwks_url",

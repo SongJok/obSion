@@ -33,6 +33,7 @@ from obsion.capabilities.codeup_contract import (
     CODEUP_PROTOCOL,
     MAX_FILE_BYTES,
     MAX_RESPONSE_BYTES,
+    MAX_TREE_ENTRIES,
     input_schema,
 )
 from obsion.capabilities.yunxiao import assert_yunxiao_egress, is_yunxiao_connector
@@ -324,23 +325,14 @@ def _request(repository: CodeupRepository, payload: dict[str, Any]) -> tuple[str
         return prefix, {}
     if operation == "codeup.commit.get":
         return f"{prefix}/commits/{payload['commit_id']}", {}
+    if operation == "codeup.tree.list":
+        path = payload["path"]
+        if path and not _readable_file_path(path):
+            raise ValidationError("codeup_operation_invalid", "该目录路径不允许由机器人读取。")
+        return f"{prefix}/files/tree", {"ref": payload["commit_id"], "path": path, "type": "DIRECT"}
     if operation == "codeup.file.read":
         path = payload["path"]
-        parsed = PurePosixPath(path)
-        if (
-            parsed.is_absolute()
-            or str(parsed) != path
-            or ".." in parsed.parts
-            or not parsed.parts
-            or any(ord(char) < 32 for char in path)
-            or "\\" in path
-            or "%" in path
-            or "?" in path
-            or "#" in path
-            or any(part.casefold() in {".git", ".ssh", ".env"} for part in parsed.parts)
-            or parsed.name.casefold().startswith(".env.")
-            or parsed.suffix.casefold() in {".pem", ".key", ".p12", ".pfx"}
-        ):
+        if not _readable_file_path(path):
             raise ValidationError("codeup_operation_invalid", "该文件路径不允许由机器人读取。")
         return f"{prefix}/files/{quote(path, safe='')}", {"ref": payload["commit_id"]}
     ref = payload["ref"]
@@ -351,6 +343,29 @@ def _request(repository: CodeupRepository, payload: dict[str, Any]) -> tuple[str
         "page": payload.get("page", 1),
         "perPage": payload.get("limit", 20),
     }
+
+
+def _canonical_file_path(path: str) -> bool:
+    parsed = PurePosixPath(path)
+    return bool(
+        parsed.parts
+        and not parsed.is_absolute()
+        and str(parsed) == path
+        and ".." not in parsed.parts
+        and len(path) <= 1024
+        and not any(ord(char) < 32 for char in path)
+        and not any(char in path for char in ("\\", "%", "?", "#"))
+    )
+
+
+def _readable_file_path(path: str) -> bool:
+    parsed = PurePosixPath(path)
+    return (
+        _canonical_file_path(path)
+        and not any(part.casefold() in {".git", ".ssh", ".env"} for part in parsed.parts)
+        and not parsed.name.casefold().startswith(".env.")
+        and parsed.suffix.casefold() not in {".pem", ".key", ".p12", ".pfx"}
+    )
 
 
 def _catalog_request(catalog: CodeupCatalog, payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -458,6 +473,64 @@ def _file(value: Any, payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _tree(data: Any, payload: dict[str, Any]) -> list[dict[str, Any]]:
+    # The provider's ListFiles API supplies directory entries, not file content.
+    # Require DIRECT children and retain unsupported/LFS/secret-file metadata;
+    # silently dropping them would falsely attest a complete repository inventory.
+    if not isinstance(data, list) or len(data) > MAX_TREE_ENTRIES:
+        raise ValueError("invalid or oversized directory listing")
+    items: list[dict[str, Any]] = []
+    expected_modes = {
+        "tree": {"040000"},
+        "blob": {"100644", "100755", "120000"},
+        "commit": {"160000"},
+    }
+    parent = payload["path"]
+    for entry in data:
+        if not isinstance(entry, dict):
+            raise ValueError("invalid directory entry")
+        path, name, kind, mode, object_id = (
+            entry.get(key) for key in ("path", "name", "type", "mode", "id")
+        )
+        if mode == "40000":
+            mode = "040000"
+        if (
+            not isinstance(path, str)
+            or not _canonical_file_path(path)
+            or not isinstance(name, str)
+            or PurePosixPath(path).name != name
+            or path != (f"{parent}/{name}" if parent else name)
+            or not isinstance(kind, str)
+            or kind not in expected_modes
+            or not isinstance(mode, str)
+            or mode not in expected_modes[kind]
+            or not isinstance(object_id, str)
+            or not _SHA.fullmatch(object_id)
+            or type(entry.get("isLFS")) is not bool
+            or (entry["isLFS"] and kind != "blob")
+        ):
+            raise ValueError("directory identity or object metadata mismatch")
+        items.append(
+            {
+                "commit_id": payload["commit_id"],
+                "parent_path": parent,
+                "object_id": object_id,
+                "path": path,
+                "name": name,
+                "type": kind,
+                "mode": mode,
+                "is_lfs": entry["isLFS"],
+                "can_read_content": kind == "blob"
+                and mode != "120000"
+                and not entry["isLFS"]
+                and _readable_file_path(path),
+            }
+        )
+    if len({item["path"] for item in items}) != len(items):
+        raise ValueError("duplicate directory entries")
+    return items
+
+
 def _normalize(repository: CodeupRepository, payload: dict[str, Any], data: Any) -> dict[str, Any]:
     operation = payload["operation"]
     next_page = None
@@ -482,6 +555,11 @@ def _normalize(repository: CodeupRepository, payload: dict[str, Any], data: Any)
         items = [_commit(data, payload["commit_id"])]
     elif operation == "codeup.file.read":
         items = [_file(data, payload)]
+    elif operation == "codeup.tree.list":
+        items = _tree(data, payload)
+        # At the local cap exhaustion cannot be claimed. No undocumented upstream
+        # pagination or automatic recursive traversal is invented.
+        complete = len(items) < MAX_TREE_ENTRIES
     else:
         limit = payload.get("limit", 20)
         if not isinstance(data, list) or len(data) > limit:

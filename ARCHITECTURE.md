@@ -87,11 +87,11 @@ Event 是唯一运行时协议。REST、WebSocket、JSON-RPC、SDK 和 UI 只能
 - Codex/Claude Code 只能实现当前 Phase 的交付物；超出范围最多建立空接口。
 - 人负责连接器凭证、指标口径、ACL 来源和安全签字；AI 不得代签。
 
-当前受治理开发范围是 **Phase 16 — DataAgent 问数与图表闭环**。Phase 9 的
-Policy/Gateway、Phase 10 的 Audit/Replay、Phase 11 的 Evidence/Claim、Phase 12 的
-Knowledge ACL RAG 与 Phase 13 的 KnowledgeAgent 已作为本阶段底座；当前增量只允许
-收敛受控语义目录写入、版本化定义、Synonym/TimeDefinition 及稳定 Logical Query →
-SQL 编译。不得让 LLM 直接生成 SQL；未注册指标不得进入查询。
+当前阶段以 `docs/project-status.yaml` 为准：正式 Phase 01—98 已记账，Phase 99
+生产晋级仍阻断；当前持续开发按 **P1—P5 产品化合同**推进，P1 为 IN_PROGRESS。
+本轮修复统一任务上下文、正文证据与真实验收闭环；不把后续阶段的接口占位视作交付。
+详见 `docs/product/productization-p1-p5-requirements.md` 和后续用户范围决策。
+原 Phase 16 的语义与 SQL 约束继续有效：不得让 LLM 直接生成 SQL；未注册指标不得进入查询。
 
 ## Phase 1 冻结合同
 
