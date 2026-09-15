@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-15T06:24:39.117228+00:00",
+  "base_commit": "d348d874624f4b0eab1db4bde0f063142d92d10c",
+  "scope": "development deployment and real source acquisition; answer acceptance remains failed",
+  "implementation": "ADR0135",
+  "runtime": {
+    "environment": "development",
+    "image": "sha256:9391dd1a60676c910d0196bf4555b148f054a6816b4db0246e4ed6b3adb475c1",
+    "source_fingerprint": "a6e9d394c938f92f1eedea956eac6c0d66bb3d4c2d78cefdaea2c522312eba59",
+    "matched_python_files": 258,
+    "head": "c5d7e9f1a3b5",
+    "preserved_source_items": 15,
+    "knowledge_mode": "live",
+    "knowledge_wait_seconds": 100,
+    "search_and_read_capability_version": 4,
+    "previous_versions_retained": true,
+    "new_capability_timeout_seconds": 120,
+    "source_and_model_authorization_preserved": true
+  },
+  "backups": {
+    "before_migration": {
+      "head": "b4c6d8e0f2a4",
+      "database_sha256": "46c8c8d0b127e07f0f70b3885299c2e444095679078d7e85450b767d6b865687",
+      "objects": 11,
+      "bytes": 28145,
+      "sources_paused": 1
+    },
+    "before_body_guard": {
+      "head": "c5d7e9f1a3b5",
+      "database_sha256": "d5c9e1c8b45e00fbba44ab1c29191053d869f1f043a129f0d8147986930cee1b",
+      "objects": 11,
+      "bytes": 28145,
+      "sources_paused": 1
+    },
+    "storage": "protected local .data only; no bodies, credentials or tenant IDs in this ledger"
+  },
+  "validation": {
+    "live_specialized": {
+      "passed": 26,
+      "seconds": 25.26
+    },
+    "knowledge_answer_and_source_regression": {
+      "passed": 56,
+      "skipped_postgresql": 17,
+      "seconds": 59.9
+    },
+    "disposable_postgresql": {
+      "passed": 4,
+      "seconds": 21.45,
+      "includes": "Run/worker concurrency, all bodies denied with no model calls, fresh reads and migration roundtrip/drift; explicit synthetic upstream"
+    },
+    "ruff": "PASSED",
+    "format_files": 1093,
+    "mypy_files": 283,
+    "contracts": "PASSED",
+    "secrets_found": 0,
+    "full_suite_for_this_increment": "NOT_RUN"
+  },
+  "before_guard_real_check": {
+    "status": "COMPLETED",
+    "source_status": "READY",
+    "incomplete_documents": 12,
+    "model_calls": 7,
+    "seconds": 174.84,
+    "published_citations": 0,
+    "answer_generation": "INSUFFICIENT_EVIDENCE",
+    "diagnosis": "completed scan incorrectly treated as usable acquisition when all bodies unavailable"
+  },
+  "after_user_login_and_guard": {
+    "host_profile_active": true,
+    "real_task_status": "COMPLETED",
+    "source_status": "READY",
+    "seconds": 173.88,
+    "answer_generation": "CANDIDATE",
+    "published_citations": 0,
+    "verification_passed": false,
+    "grounding_reason": "grounding_review_invalid",
+    "answer_sha256": "e09b089b04388f6b4c373cc54775e717552fb987142f20c71b4bda3a9e544937",
+    "evidence_rows": 1,
+    "hits": 7,
+    "hit_sources": [
+      "dingtalk-managed"
+    ],
+    "source_audits": [
+      {
+        "operation": "knowledge.dingtalk.discover",
+        "outcome": "SUCCESS",
+        "count": 6,
+        "policy_count": 6
+      },
+      {
+        "operation": "knowledge.dingtalk.read",
+        "outcome": "FAILED",
+        "count": 1,
+        "policy_count": 1
+      },
+      {
+        "operation": "knowledge.dingtalk.read",
+        "outcome": "SUCCESS",
+        "count": 10,
+        "policy_count": 10
+      }
+    ],
+    "model_calls": [
+      {
+        "operation": "CHAT",
+        "outcome": "SUCCESS",
+        "count": 2
+      }
+    ],
+    "proof_times_after_request": true,
+    "proof_sources": 1,
+    "incomplete_documents": 6,
+    "audit_scope": "same organization within the single receipt scan interval; one active managed source",
+    "answer_acceptance": "FAILED",
+    "note": "The publication guard withheld the answer; source acquisition alone does not pass semantic acceptance. No logout or revoked permission was used to manufacture another live negative test."
+  },
+  "ci_baseline": {
+    "run_id": 34934594128,
+    "quality": "failure",
+    "failed_step": "full parallel coverage tests",
+    "migrations": "success",
+    "containers": "skipped",
+    "failure_detail": "Remote complete-test step failed; clean tracked-source reproduction passed on macOS. Remote failure summary requested; root cause unresolved.",
+    "clean_mac_reproduction": {
+      "commit": "d348d874624f4b0eab1db4bde0f063142d92d10c",
+      "passed": 2896,
+      "skipped": 278,
+      "seconds": 438.57,
+      "coverage_percent": 79.67,
+      "private_untracked_files_present": false,
+      "scope": "isolated uv environment from git archive; macOS, not the Ubuntu CI runner",
+      "log_sha256": "dd8c7ef368feb8ee3c99f2b5103d10d28421868d69bef9c53de5837facb7f5fd",
+      "junit_sha256": "8c6bd1787c5357c20519a312b6741434a76f49b400514869a71b6e24a727a2ed"
+    }
+  },
+  "remaining": [
+    "independent semantic evaluation and review-invalid diagnosis",
+    "CI failure diagnosis",
+    "fresh successful complete enterprise answer acceptance",
+    "Yunxiao/log/skill multidimensional live checks and full productization"
+  ]
+}

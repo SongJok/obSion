@@ -20,6 +20,7 @@ from test_dingtalk_managed_reader import Runner, envelope
 from test_knowledge_sync_worker import Directory, setup
 from test_phase13_knowledge_agent import _create_thread, _wait_terminal
 
+from obsion.capabilities.dingtalk_docs import DingTalkDocsDeniedError
 from obsion.capabilities.dingtalk_managed import DingTalkManagedSdkExecutor
 from obsion.capabilities.gateway import CapabilityGateway
 from obsion.common.errors import NotFoundError
@@ -296,7 +297,86 @@ def test_each_question_requires_new_governed_reads_even_when_content_unchanged(
     client.portal.call(run)
 
 
-def assert_live_harness_can_wait_while_external_worker_commits(client, monkeypatch):
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "DENIED",
+        "PARTIAL",
+        "FAILED",
+        "PENDING",
+        "old_body",
+        "old_generation",
+        "expired",
+        "mixed",
+        "empty",
+    ],
+)
+def test_completed_scan_requires_usable_body_when_documents_are_incomplete(client, mode):
+    async def run():
+        principal, source, service = await setup(client)
+        database = client.app.state.database
+        now = utc_now()
+        requested = now - timedelta(seconds=10)
+        async with database.sessions() as session, session.begin():
+            current = await session.get(KnowledgeSyncSource, source.id)
+            current.generation = current.completed_generation = 3
+            current.completed_scan_started_at = requested + timedelta(seconds=1)
+            current.last_success_at = now
+            item = await session.scalar(
+                select(KnowledgeSyncItem).where(KnowledgeSyncItem.source_id == source.id)
+            )
+            item.status = mode if mode in {"DENIED", "PARTIAL", "FAILED", "PENDING"} else "PARTIAL"
+            if mode == "empty":
+                await session.delete(item)
+            elif mode in {"old_body", "old_generation", "expired", "mixed"}:
+                document, _, _ = await service.knowledge.ingest(
+                    session,
+                    principal,
+                    source="synthetic-test",
+                    external_id="fresh-body",
+                    title="Synthetic body",
+                    media_type="text/plain",
+                    filename="body.txt",
+                    content=b"Synthetic source body",
+                    classification=Classification.INTERNAL,
+                    acl={"organization": True},
+                )
+                checked = now - timedelta(seconds=2)
+                if mode == "old_body":
+                    checked = requested - timedelta(seconds=1)
+                session.add(
+                    KnowledgeSyncItem(
+                        organization_id=principal.organization_id,
+                        source_id=source.id,
+                        node_id="ready-test",
+                        workspace_id="wiki_test",
+                        kind="adoc",
+                        title="Body",
+                        document_id=document.id,
+                        status="READY",
+                        seen_generation=3,
+                        read_generation=2 if mode == "old_generation" else 3,
+                        checked_at=checked,
+                        access_expires_at=now + timedelta(seconds=-1 if mode == "expired" else 60),
+                    )
+                )
+        if mode in {"mixed", "empty"}:
+            proof = await await_live_sources(
+                database, principal, requested_at=requested, wait_seconds=0
+            )
+            assert proof.incomplete_documents == (1 if mode == "mixed" else 0)
+        else:
+            with pytest.raises(LiveKnowledgeUnavailable, match="source_content_unavailable"):
+                await await_live_sources(
+                    database, principal, requested_at=requested, wait_seconds=0
+                )
+
+    client.portal.call(run)
+
+
+def assert_live_harness_can_wait_while_external_worker_commits(
+    client, monkeypatch, *, content_available=True
+):
     # Executed by the opt-in PostgreSQL suite: SQLite serializes all writers and
     # cannot represent the repository's concurrent control-plane/worker contract.
     assert client.app.state.database.engine.dialect.name == "postgresql"
@@ -304,6 +384,12 @@ def assert_live_harness_can_wait_while_external_worker_commits(client, monkeypat
     client.app.state.settings.knowledge_live_wait_seconds = 5
     monkeypatch.setenv("OBSION_READER_TEST_SECRET", "test-secret")
     runner, directory = Runner(), Directory("normal")
+    if not content_available:
+
+        async def denied(**kwargs):
+            raise DingTalkDocsDeniedError()
+
+        runner.read = denied
 
     async def start():
         _, source, service = await setup(client)
@@ -330,6 +416,7 @@ def assert_live_harness_can_wait_while_external_worker_commits(client, monkeypat
     observed = []
 
     async def model(self, session, **kwargs):
+        assert content_available, "No usable source body must bypass answer/investigation models"
         evidence = list(
             await session.scalars(select(Evidence).where(Evidence.run_id == kwargs["run_id"]))
         )
@@ -366,8 +453,16 @@ def assert_live_harness_can_wait_while_external_worker_commits(client, monkeypat
         assert created.status_code == 202, created.text
         run = _wait_terminal(client, created.json()["run"]["id"])
         assert run["status"] == "COMPLETED", run
-        assert run["plan"]["knowledge_live"]["status"] == "READY", run["plan"]
-        assert runner.calls >= 1 and observed
+        if content_available:
+            assert run["plan"]["knowledge_live"]["status"] == "READY", run["plan"]
+            assert runner.calls >= 1 and observed
+        else:
+            assert run["plan"]["knowledge_live"] == {
+                "status": "BLOCKED",
+                "reason": "source_content_unavailable",
+            }
+            assert run["plan"]["answer_generation"]["status"] == "SOURCE_UNAVAILABLE"
+            assert not observed
     finally:
 
         async def stop():

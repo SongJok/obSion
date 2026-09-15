@@ -53,6 +53,16 @@ tag. See the [deployment and real-message evidence](../release/evidence/producti
 
 ## Validated development source snapshots
 
+The 2026-09-15 development update uses `obsion-api:live-body-guard-20260915`
+and the matching immutable host snapshot, both checked against the same source
+fingerprint. PostgreSQL is at `c5d7e9f1a3b5`; the existing source/document links
+and model processing scopes were preserved. Sources without usable current bodies
+now stop answer generation. The real post-login acquisition succeeded, but final
+answer review failed; this is not a successful answer acceptance or a production
+deployment. See [live evidence operations](live-enterprise-knowledge.md).
+
+Historical 2026-09-12 deployment:
+
 The current local source worker loads its control-plane package from the immutable
 path in `.data/host-services/runtime-manifest.json`, inserted by its launch wrapper.
 Editing the checkout or restarting the supervisor does not promote unvalidated

@@ -50,6 +50,14 @@ def test_run_transaction_does_not_block_source_worker(live_client, monkeypatch):
     assert_live_harness_can_wait_while_external_worker_commits(live_client, monkeypatch)
 
 
+def test_completed_scan_with_denied_bodies_bypasses_models(live_client, monkeypatch):
+    from test_live_knowledge import assert_live_harness_can_wait_while_external_worker_commits
+
+    assert_live_harness_can_wait_while_external_worker_commits(
+        live_client, monkeypatch, content_available=False
+    )
+
+
 def test_receipt_migration_preserves_sources_and_never_backfills_freshness(live_client):
     from test_live_knowledge import (
         test_resume_preserves_actual_scan_start_and_legacy_scan_has_no_receipt,

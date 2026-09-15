@@ -144,6 +144,33 @@ async def await_live_sources(
                         KnowledgeSyncItem.status.notin_({"READY", "MISSING"}),
                     )
                 )
+                if incomplete:
+                    # A directory scan can finish even when every body read was
+                    # denied or partial. Only a current, leased body can make
+                    # partial acquisition usable; old READY rows cannot do so.
+                    readable = await session.scalar(
+                        select(KnowledgeSyncItem.id)
+                        .where(
+                            KnowledgeSyncItem.organization_id == current.organization_id,
+                            KnowledgeSyncItem.status == "READY",
+                            KnowledgeSyncItem.document_id.is_not(None),
+                            KnowledgeSyncItem.kind.notin_({"folder", "directory"}),
+                            KnowledgeSyncItem.checked_at >= requested_at,
+                            KnowledgeSyncItem.access_expires_at > utc_now(),
+                            or_(
+                                *[
+                                    and_(
+                                        KnowledgeSyncItem.source_id == receipt.source_id,
+                                        KnowledgeSyncItem.read_generation >= receipt.generation,
+                                    )
+                                    for receipt in receipts
+                                ]
+                            ),
+                        )
+                        .limit(1)
+                    )
+                    if readable is None:
+                        raise LiveKnowledgeUnavailable("source_content_unavailable")
                 return LiveKnowledgeProof(requested_at, receipts, incomplete or 0)
             last_failure = any(source.last_error_code is not None for source in sources)
             if monotonic() >= deadline:
