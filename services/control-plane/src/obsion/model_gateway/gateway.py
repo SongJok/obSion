@@ -1,7 +1,8 @@
+import asyncio
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from time import perf_counter
 from typing import Any
@@ -45,6 +46,8 @@ class ModelResult:
     cost_amount: Decimal
     finish_reason: str | None
     tool_calls: tuple[ModelToolCall, ...] = ()
+    call_id: UUID | None = None
+    call_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,9 +65,13 @@ class ModelUnavailableError(ObsionError):
         message: str = "No eligible model endpoint is configured",
         *,
         no_model_route: bool = False,
+        timed_out: bool = False,
+        call_ids: tuple[UUID, ...] = (),
     ) -> None:
         super().__init__("model_unavailable", message, status_code=503)
         self.no_model_route = no_model_route
+        self.timed_out = timed_out
+        self.call_ids = call_ids
 
 
 class ModelGateway:
@@ -87,7 +94,7 @@ class ModelGateway:
         session: AsyncSession,
         *,
         organization_id: UUID,
-        run_id: UUID,
+        run_id: UUID | None,
         step_id: UUID | None,
         profile_id: UUID,
         messages: list[dict[str, Any]],
@@ -99,9 +106,12 @@ class ModelGateway:
         max_cost_amount: Decimal | None = None,
         tools: tuple[ModelTool, ...] = (),
         tool_choice: str | None = None,
+        timeout_seconds: float | None = None,
     ) -> ModelResult:
         if not messages:
             raise ValueError("messages must not be empty")
+        if timeout_seconds is not None and timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
         if not 0 <= temperature <= 2:
             raise ValueError("temperature must be between 0 and 2")
         if max_input_tokens is not None and max_input_tokens <= 0:
@@ -114,7 +124,8 @@ class ModelGateway:
         validate_tool_history(messages)
         with tracer.start_as_current_span("obsion.model.complete") as span:
             span.set_attribute("obsion.model.profile_id", str(profile_id))
-            span.set_attribute("obsion.run.id", str(run_id))
+            if run_id is not None:
+                span.set_attribute("obsion.run.id", str(run_id))
             try:
                 result = await self._complete(
                     session,
@@ -131,6 +142,7 @@ class ModelGateway:
                     max_cost_amount=max_cost_amount,
                     tools=tools,
                     tool_choice=tool_choice,
+                    timeout_seconds=timeout_seconds,
                 )
             except Exception as exc:
                 span.record_exception(exc)
@@ -153,7 +165,7 @@ class ModelGateway:
         session: AsyncSession,
         *,
         organization_id: UUID,
-        run_id: UUID,
+        run_id: UUID | None,
         step_id: UUID | None,
         profile_id: UUID,
         messages: list[dict[str, Any]],
@@ -165,6 +177,7 @@ class ModelGateway:
         max_cost_amount: Decimal | None = None,
         tools: tuple[ModelTool, ...] = (),
         tool_choice: str | None = None,
+        timeout_seconds: float | None = None,
     ) -> ModelResult:
         required_capabilities = {"chat"}
         if json_mode:
@@ -220,9 +233,14 @@ class ModelGateway:
         allow_fallback = bool(profile.routing_policy.get("fallback", False))
         candidates = endpoints if allow_fallback else endpoints[:1]
         last_error: Exception | None = None
+        attempted_calls: list[UUID] = []
+        deadline = perf_counter() + timeout_seconds if timeout_seconds is not None else None
         for endpoint in candidates:
+            remaining = deadline - perf_counter() if deadline is not None else None
+            if remaining is not None and remaining <= 0:
+                raise ModelUnavailableError(timed_out=True, call_ids=tuple(attempted_calls))
             try:
-                return await self._complete_with_endpoint(
+                result = await self._complete_with_endpoint(
                     session,
                     organization_id=organization_id,
                     run_id=run_id,
@@ -238,13 +256,18 @@ class ModelGateway:
                     request_fingerprint=request_fingerprint,
                     tools=safe_tools,
                     tool_choice=tool_choice,
+                    timeout_seconds=remaining,
                 )
+                return replace(result, call_ids=(*attempted_calls, *result.call_ids))
             except ModelUnavailableError as exc:
+                attempted_calls.extend(exc.call_ids)
                 last_error = exc
                 if not allow_fallback:
                     raise
         raise ModelUnavailableError(
-            "All eligible model endpoints failed for the selected profile"
+            "All eligible model endpoints failed for the selected profile",
+            timed_out=isinstance(last_error, ModelUnavailableError) and last_error.timed_out,
+            call_ids=tuple(attempted_calls),
         ) from last_error
 
     async def _complete_with_endpoint(
@@ -252,7 +275,7 @@ class ModelGateway:
         session: AsyncSession,
         *,
         organization_id: UUID,
-        run_id: UUID,
+        run_id: UUID | None,
         step_id: UUID | None,
         profile: ModelProfile,
         endpoint: ModelEndpoint,
@@ -263,6 +286,7 @@ class ModelGateway:
         max_output_tokens: int | None,
         max_cost_amount: Decimal | None,
         request_fingerprint: str,
+        timeout_seconds: float | None,
         tools: tuple[ModelTool, ...],
         tool_choice: str | None,
     ) -> ModelResult:
@@ -308,13 +332,17 @@ class ModelGateway:
         input_tokens = 0
         output_tokens = 0
         cost = Decimal("0")
+        call_id = new_id()
         try:
             url = f"{endpoint.base_url.rstrip('/')}/{provider_request.path.lstrip('/')}"
-            async with httpx.AsyncClient(
-                timeout=self.settings.model_request_timeout_seconds,
-                follow_redirects=False,
-                transport=self.transport,
-            ) as client:
+            async with (
+                asyncio.timeout(timeout_seconds),
+                httpx.AsyncClient(
+                    timeout=self.settings.model_request_timeout_seconds,
+                    follow_redirects=False,
+                    transport=self.transport,
+                ) as client,
+            ):
                 response = await client.post(
                     url,
                     headers=provider_request.headers,
@@ -333,17 +361,23 @@ class ModelGateway:
                 parsed = json.loads(completion.content)
                 if not isinstance(parsed, dict):
                     raise ProviderProtocolError("JSON mode must return a JSON object")
+        except asyncio.CancelledError:
+            outcome = "CANCELLED"
+            raise
+        except (TimeoutError, httpx.TimeoutException) as exc:
+            outcome = "TIMEOUT"
+            raise ModelUnavailableError(timed_out=True, call_ids=(call_id,)) from exc
         except (httpx.HTTPError, ProviderProtocolError, json.JSONDecodeError) as exc:
             outcome = "FAILED"
             raise ModelUnavailableError(
-                "The selected model endpoint could not complete the request"
+                "The selected model endpoint could not complete the request", call_ids=(call_id,)
             ) from exc
         finally:
             credential = None
             latency_ms = int((perf_counter() - started) * 1000)
             session.add(
                 ModelCall(
-                    id=new_id(),
+                    id=call_id,
                     organization_id=organization_id,
                     run_id=run_id,
                     step_id=step_id,
@@ -370,6 +404,8 @@ class ModelGateway:
             cost_amount=cost,
             finish_reason=completion.finish_reason,
             tool_calls=completion.tool_calls,
+            call_id=call_id,
+            call_ids=(call_id,),
         )
 
     async def embed(

@@ -146,7 +146,13 @@ def _acceptance_run(args: argparse.Namespace) -> None:
             trust_env=False,
             timeout=httpx.Timeout(15),
         ) as client:
-            return await AcceptanceRunner(client, profile, candidate=args.candidate).run(
+            runner = AcceptanceRunner(
+                client,
+                profile,
+                candidate=args.candidate,
+                scorer_model_profile=getattr(args, "scorer_model_profile", None),
+            )
+            return await runner.run(
                 root, output, resume_from=Path(args.resume_from) if args.resume_from else None
             )
 
@@ -448,6 +454,10 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance_run.add_argument("--candidate", required=True)
     acceptance_run.add_argument("--root", default=".")
     acceptance_run.add_argument("--output", required=True)
+    acceptance_run.add_argument(
+        "--scorer-model-profile",
+        help="Registered independent evaluator in the frozen model configuration",
+    )
     acceptance_run.add_argument(
         "--resume-from", help="Reconcile recorded tasks into a new report without resubmission"
     )

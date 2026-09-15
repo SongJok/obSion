@@ -1,5 +1,9 @@
 # Requirements traceability
 
+2026-09-15：[完整产品需求总纲](blueprint-product-contract.md)按蓝图第四、第五部分明确
+职责、持久模型和P1—P5交付边界。[独立答案验收](independent-answer-acceptance.md)补齐
+真实发布文本与冻结原文的独立评分，阶段完成仍取决于真实任务集和全部硬门。
+
 > 2026-09-05 产品化补充：以下保留既有功能契约与验证索引，不表示整套产品已通过生产验收。`goal.txt` 与 `second_goal.txt` 的首版范围、M0—M6 依赖、验收目标及现存受控动作接口的兼容边界见 [首版产品化实施与验收映射](productization-plan.md)。正式阶段与生产晋级阻塞仍以 `../project-status.yaml` 为准。
 
 This document turns the source blueprint into verifiable product and engineering

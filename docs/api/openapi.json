@@ -6992,6 +6992,75 @@
         "title": "ForkThreadRequest",
         "type": "object"
       },
+      "FrozenCase": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_kind": {
+            "enum": [
+              "ANSWER",
+              "INSUFFICIENT"
+            ],
+            "title": "Expected Kind",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "required": {
+            "const": true,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "reviewed_source_quotes": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Reviewed Source Quotes",
+            "type": "array"
+          },
+          "scoring_rules": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Scoring Rules",
+            "type": "array"
+          },
+          "source_document_id": {
+            "format": "uuid",
+            "title": "Source Document Id",
+            "type": "string"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "required",
+          "question",
+          "source_document_id",
+          "source_sha256",
+          "expected_kind",
+          "reviewed_source_quotes",
+          "scoring_rules"
+        ],
+        "title": "FrozenCase",
+        "type": "object"
+      },
       "ImBindingView": {
         "properties": {
           "active": {
@@ -10179,6 +10248,89 @@
         ],
         "title": "ScheduleMisfirePolicy",
         "type": "string"
+      },
+      "Score": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Answer Sha256",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scorer_id": {
+            "minLength": 1,
+            "title": "Scorer Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "BLOCKED",
+              "NOT_RUN"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "scorer_id",
+          "answer_sha256"
+        ],
+        "title": "Score",
+        "type": "object"
+      },
+      "SemanticScoreRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Answer Sha256",
+            "type": "string"
+          },
+          "case": {
+            "$ref": "#/components/schemas/FrozenCase"
+          },
+          "model_profile_id": {
+            "format": "uuid",
+            "title": "Model Profile Id",
+            "type": "string"
+          },
+          "policy_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Policy Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "case",
+          "answer_sha256",
+          "model_profile_id",
+          "policy_sha256"
+        ],
+        "title": "SemanticScoreRequest",
+        "type": "object"
       },
       "SetWorkspaceMemberRequest": {
         "properties": {
@@ -17343,6 +17495,124 @@
         "summary": "Create Department",
         "tags": [
           "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/evaluations/answer-score": {
+      "post": {
+        "operationId": "score_published_answer_api_v1_admin_evaluations_answer_score_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SemanticScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Score"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Score Published Answer",
+        "tags": [
+          "administration",
+          "evaluations"
         ]
       }
     },

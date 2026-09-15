@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.api.schemas import (
@@ -12,12 +12,39 @@ from obsion.api.schemas import (
     EvaluationRunView,
     StartEvaluationRunRequest,
 )
+from obsion.application.answer_scoring import AnswerScoringService
 from obsion.application.evaluations import EvaluationService
 from obsion.config import Settings
+from obsion.evaluations.acceptance import Score
+from obsion.evaluations.semantic import SemanticScoreRequest
+from obsion.knowledge.service import KnowledgeService
+from obsion.model_gateway.gateway import ModelGateway
 from obsion.security.auth import get_app_settings, get_principal, get_session
 from obsion.security.identity import Principal
 
 router = APIRouter(prefix="/admin/evaluations", tags=["administration", "evaluations"])
+
+
+def get_answer_scoring_service(
+    request: Request,
+    settings: Settings = Depends(get_app_settings),
+) -> AnswerScoringService:
+    return AnswerScoringService(
+        KnowledgeService(settings, request.app.state.object_store), ModelGateway(settings)
+    )
+
+
+@router.post("/answer-score", response_model=Score)
+async def score_published_answer(
+    request: SemanticScoreRequest,
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    service: AnswerScoringService = Depends(get_answer_scoring_service),
+) -> Score:
+    # Failed and denied scores commit their policy/audit trail as BLOCKED results.
+    async with session.begin():
+        result = await service.score(session, principal, request)
+    return result
 
 
 def get_evaluation_service(

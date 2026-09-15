@@ -110,6 +110,7 @@ tests:
   e2e: passed
 
 known_issues:
+  - 2026-09-15 用户重新启动完整产品目标；ADR0138补齐基于实际发布答案、冻结原文和规则的独立评分API/CLI，Policy前后授权、全部调用审计与独立预算保留，候选Run不变。最终完整2968通过/280条件跳过、79.68%覆盖率，611源码/测试/配置摘要稳定；独立安装包1项、一次性PG账本2项通过，287源码类型/Ruff/1108格式及秘密扫描通过。真实冻结案例本轮钉钉采集后70.98秒回答并引用，30.51秒独立模型评分PASS；262部署源码匹配，15来源关联保留，无数据库结构迁移。初轮两项失败已修正且原断言保留。真实保留集与评分校准、执行版本证明、性能分布及P1/Phase99仍未完成；新main CI待验证，云效只读。
   - 2026-09-15 ADR0137：仅将原有一次引文修正改为选择服务器原文片段，保持原候选、当前Evidence、语义复核及发布屏障；脱敏正文切分前排除，未知和跨来源标识拒绝。129项相关验证通过（59.31秒），284源码类型、Ruff/1101格式、契约和秘密扫描通过。运行镜像构建通过且259源码文件匹配；本增量全量与真实部署复验未执行。CI34939722344安全注释定位Java SDK Maven测试失败，综合任务补齐SDK要求的JDK21，原测试保留；本地Java与注释4项通过，远端修复尚待验证。依用户最新要求，本次提交同步GitHub main后停止修改并结束本次目标；P1和Phase99保持未完成，不声明产品就绪。
   - 2026-09-15 ADR0136：诊断版日常开发部署后，真实重新采集任务明确复核失败为quote_not_exact；补齐仅全正面判断时的一次有界引文修正，原候选与来源不变，保留逐次预算/已知取消截止/原发布屏障，不重试语义否定，不回灌原响应。121项相关验证通过，源码测试配置摘要稳定；19dd769完整2922通过/279跳过、覆盖率79.65%，独立安装包1通过；开发部署真实复测两次引文仍不匹配、234.81秒且零引用，7段正文脱敏前后一致，未解决真实样例。e1d0285的main CI完整测试失败、迁移通过，新增安全失败测试注释以便自动定位；P1及Phase99仍未完成。
   - 2026-09-15 ADR0135：日常开发环境完成c5d7e9f1a3b5迁移、备份与固定源码/API匹配升级，保留15条来源文档关联；补齐扫描完成但无可用正文时的BLOCKED处理，跳过无效生成。86项专项/相关/PostgreSQL验证通过。原账号重新登录后恢复6份完整正文，真实任务取得7条新受管证据，但最终grounding_review_invalid阻止发布，问答验收仍失败。d348d87的main CI迁移通过、完整测试失败；同提交独立干净macOS源码复验2896通过、278条件跳过、79.67%覆盖率，未复现Ubuntu失败，等待失败摘要定位。P1独立评分、真实完整问答与Phase99仍未完成。
@@ -296,7 +297,7 @@ productization_program:
   scope_decisions: docs/product/productization-scope-decisions.md
   cloud_code_execution: not_required_by_user_read_only_analysis_continues
   macos_xcode_validation: user_authorized_optional_not_a_current_delivery_prerequisite
-  github_main_conflict_check: pre_publication_fetch_verified_same_base_e1d02858bd3a72368154058044542efc0ffe0cad
+  github_main_conflict_check: pre_publication_fetch_verified_same_base_3dd9deec1e705692ce2666ccecf498b07a9c48a4
   github_main_publication: user_authorized_normal_fast_forward_after_local_validation
-  acceptance_driver: normal_task_entry_frozen_inputs_and_known_run_reconciliation_implemented_semantic_scorer_pending
+  acceptance_driver: normal_task_entry_frozen_inputs_reconciliation_and_independent_model_scoring_implemented_calibration_pending
   phase_99_promotion_eligible: false

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-15",
+  "scope": "P1 independent published answer scoring increment; not phase acceptance",
+  "phase_status": "IN_PROGRESS",
+  "promotion_eligible": false,
+  "database_schema_change": false,
+  "python_full": {
+    "exit_code": 0,
+    "duration_seconds": 471.94,
+    "source_unchanged": true,
+    "source_file_count": 611,
+    "passed": 2968,
+    "skipped": 280,
+    "pytest_seconds": 461.5,
+    "coverage_percent": 79.68,
+    "coverage_required_percent": 70,
+    "junit_sha256": "6e02edd082c8a07406092e6e8ac37d5f2a78729602cd6f0e4c394d6e3a3b830f",
+    "snapshot_sha256": "a5408e53d2a2d1264452112dad9f52724e16ede478ee388e5e4f8542bd3f89e7"
+  },
+  "initial_full": {
+    "passed": 2965,
+    "failed": 2,
+    "skipped": 280,
+    "status": "FAIL",
+    "causes": [
+      "deadline test depended on sub-20ms database admission",
+      "two new model_unavailable origins required exact manifest registration"
+    ]
+  },
+  "targeted": {
+    "related_tests_passed": 136,
+    "source_and_contract_fix_tests_passed": 32,
+    "deterministic_clock_tests_passed": 6,
+    "installed_contract_test_passed": 1
+  },
+  "postgres": {
+    "upgrade": "PASS",
+    "ledger_tests_passed": 2,
+    "temporary_container_cleaned": true,
+    "production_database_accessed": false
+  },
+  "static": {
+    "mypy_source_files": 287,
+    "ruff": "PASS",
+    "formatted_files": 1108,
+    "secret_findings": 0
+  },
+  "development_image": {
+    "python_source_files": 262,
+    "source_match": true,
+    "image": "sha256:2cdb36b07c0d1e25873ab8a92562a5c07baf884fab209f53ad4abc17c8aee621",
+    "frontend": "bundled_docker_frontend",
+    "recipe_instruction_changes": false
+  },
+  "development_deployment": {
+    "preserved_source_items": 15,
+    "backed_up_objects": 11,
+    "python_source_files_matched": 262,
+    "production_deployment": false
+  },
+  "real_frozen_case": {
+    "scope": "single_frozen_case_diagnostic_not_phase_acceptance",
+    "run_status": "COMPLETED",
+    "elapsed_seconds": 70.98,
+    "within_120_seconds": true,
+    "knowledge_live_status": "READY",
+    "phase_status": "BLOCKED",
+    "promotion_eligible": false,
+    "answer_sha256": "3df03d65fe72c5473023c29fad540507dc7a16b05f86dd544cbd0426b8995309",
+    "citation_count": 1,
+    "score_status": "PASS",
+    "score_reason": "independent_rules_satisfied",
+    "score_elapsed_seconds": 30.51,
+    "score_model_calls": 1
+  },
+  "prior_real_passage_repair": {
+    "verified": true,
+    "citations": 1,
+    "elapsed_seconds": 139.02,
+    "within_120_seconds": false
+  },
+  "remaining": [
+    "independent scorer calibration and complete held-out set",
+    "worker execution identity and complete hard gates",
+    "real concurrency revocation and latency distribution",
+    "P2-P5 within user-approved read-only cloud code scope",
+    "new main CI confirmation"
+  ],
+  "private_enterprise_content_exported": false,
+  "dingtalk_messages_sent": false,
+  "cloud_code_writes": false
+}

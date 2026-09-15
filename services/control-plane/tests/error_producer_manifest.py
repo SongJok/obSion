@@ -3700,6 +3700,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
             frozenset({"model_unavailable"}),
         ),
         (
+            "model_gateway/gateway.py::ModelGateway._complete#ModelUnavailableError[2]",
+            frozenset({"model_unavailable"}),
+        ),
+        (
             "model_gateway/gateway.py::ModelGateway._complete_with_endpoint#BudgetExceededError[1]",
             frozenset({"budget_exceeded"}),
         ),
@@ -3709,6 +3713,10 @@ REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
         ),
         (
             "model_gateway/gateway.py::ModelGateway._complete_with_endpoint#ModelUnavailableError[2]",
+            frozenset({"model_unavailable"}),
+        ),
+        (
+            "model_gateway/gateway.py::ModelGateway._complete_with_endpoint#ModelUnavailableError[3]",
             frozenset({"model_unavailable"}),
         ),
         (

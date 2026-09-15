@@ -27,7 +27,10 @@ from obsion.model_gateway.gateway import ModelGateway
 
 
 @pytest.mark.asyncio
-async def test_postgres_model_fallback_persists_each_attempt_without_prompt() -> None:
+@pytest.mark.parametrize("standalone", [False, True])
+async def test_postgres_model_fallback_persists_each_attempt_without_prompt(
+    standalone: bool,
+) -> None:
     if os.getenv("OBSION_RUN_POSTGRES_TESTS") != "1":
         pytest.skip("PostgreSQL invariant tests are opt-in")
 
@@ -193,7 +196,7 @@ async def test_postgres_model_fallback_persists_each_attempt_without_prompt() ->
         ).complete(
             session,
             organization_id=organization_id,
-            run_id=run_id,
+            run_id=None if standalone else run_id,
             step_id=None,
             profile_id=profile.id,
             messages=[{"role": "user", "content": raw_prompt}],
@@ -218,6 +221,9 @@ async def test_postgres_model_fallback_persists_each_attempt_without_prompt() ->
         assert calls[1].cost_amount == Decimal("0.00001900")
         assert all(len(call.request_fingerprint) == 64 for call in calls)
         assert all(raw_prompt not in call.request_fingerprint for call in calls)
+        assert result.call_ids == tuple(call.id for call in calls)
+        assert result.call_id == calls[-1].id
+        assert all(call.run_id == (None if standalone else run_id) for call in calls)
     finally:
         await session.close()
         await transaction.rollback()

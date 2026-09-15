@@ -279,6 +279,7 @@ class AcceptanceRunner:
         *,
         candidate: str,
         scorer: IndependentScorer | None = None,
+        scorer_model_profile: str | None = None,
     ) -> None:
         if not re.fullmatch(r"[0-9a-f]{40}", candidate):
             raise AcceptanceError("candidate_requires_full_commit_sha")
@@ -288,6 +289,22 @@ class AcceptanceRunner:
         self.profile = profile
         self.candidate = candidate
         self.scorer = scorer or PendingScorer()
+        self.scorer_model_profile = scorer_model_profile
+
+    async def _resolve_scorer(self) -> None:
+        if self.scorer_model_profile is None:
+            return
+        from obsion.evaluations.remote_scorer import APIModelScorer
+
+        profiles = await self._json("GET", "/api/v1/admin/models/profiles")
+        matches = [
+            item
+            for item in profiles
+            if item.get("name") == self.scorer_model_profile and item.get("enabled") is True
+        ]
+        if len(matches) != 1:
+            raise AcceptanceError("independent_model_profile_unavailable")
+        self.scorer = APIModelScorer(self._json, profile_id=UUID(matches[0]["id"]))
 
     async def _read(self, method: str, path: str, **kwargs: Any) -> bytes:
         # Never follow redirects with an acceptance principal's bearer token,
@@ -560,6 +577,7 @@ class AcceptanceRunner:
             "scope": "FROZEN_KNOWLEDGE_ANSWER_SUBSET",
             "phase_status": "BLOCKED",
             "promotion_eligible": False,
+            "scorer": getattr(self.scorer, "manifest", {"kind": "unconfigured_or_injected"}),
             "reconciles_report_sha256": previous_digest,
             "phase_blockers": [
                 "complete_phase_cases_and_hard_gates_required",
@@ -600,6 +618,10 @@ class AcceptanceRunner:
         await checkpoint()
         try:
             report["deployment_identity"] = await self._identity()
+            await self._resolve_scorer()
+            report["scorer"] = getattr(
+                self.scorer, "manifest", {"kind": "unconfigured_or_injected"}
+            )
         except AcceptanceError as exc:
             report["blocker"] = str(exc)
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
