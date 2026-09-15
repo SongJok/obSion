@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-15T05:51:10.987670+00:00",
+  "base_commit": "84973ecdbb50e31968abdbbaeb106e079bada6c1",
+  "scope": "repository-local full Python coverage and CI completion infrastructure; no runtime feature or production promotion claim",
+  "source_snapshot_sha256": "218ab81ddd18369ed04987545949c08a69aeef0f43ef9d36df9c1720eb761b8b",
+  "source_snapshot_file_count": 613,
+  "failed_remote_baselines": [
+    {
+      "run_id": 34846309073,
+      "budget_minutes": 25,
+      "conclusion": "cancelled"
+    },
+    {
+      "run_id": 34851557547,
+      "budget_minutes": 45,
+      "conclusion": "cancelled"
+    }
+  ],
+  "full_parallel_python": {
+    "status": "PASSED",
+    "passed": 2896,
+    "skipped": 278,
+    "collected": 3174,
+    "seconds": 513.6,
+    "workers": 4,
+    "distribution": "loadfile",
+    "automatic_worker_restarts": 0,
+    "global_coverage_minimum_percent": 70,
+    "coverage_percent": 79.67,
+    "covered_lines": 25240,
+    "valid_lines": 31682,
+    "pytest_plugins": "xdist, asyncio, cov, anyio, hypothesis; full locked CI plugin set",
+    "log_sha256": "f225fff2d585c9219c4031ff7322fc2197b7aa1f34fe13166618143b17b4ab68",
+    "junit_sha256": "bc9cdc98b77b81f487e7b7082939fbacfecc0e58200d452daeb0cacf333e594b",
+    "coverage_xml_sha256": "0b1c2df8ee12ee24b0342ac1cb7357c97593410119ae646b170525b43daa0a57"
+  },
+  "separate_wheel_contract": {
+    "status": "PASSED",
+    "passed": 1,
+    "seconds": 0.5,
+    "coverage_enabled": false
+  },
+  "serial_diagnosis": {
+    "status": "INTERRUPTED_BY_OPERATOR_AFTER_COMPLETE_PARALLEL_SUCCESS",
+    "counts_as_full_validation": false,
+    "reason": "Auxiliary diagnosis kept progressing slowly; it is not a passing serial baseline or a controlled speedup measurement"
+  },
+  "dependency_change": {
+    "scope": "dev optional extra only",
+    "added": {
+      "pytest-xdist": "3.8.0",
+      "execnet": "2.1.2"
+    },
+    "existing_locked_versions_changed": false
+  },
+  "security_scan": {
+    "status": "PASSED",
+    "high_critical_findings": 0,
+    "database": {
+      "Version": 2,
+      "NextUpdate": "2026-09-16T01:12:16.267828776Z",
+      "UpdatedAt": "2026-09-15T01:12:16.26782938Z",
+      "DownloadedAt": "0001-01-01T00:00:00Z"
+    },
+    "official_db_layer": {
+      "registry": "ghcr.io/aquasecurity/trivy-db",
+      "digest": "sha256:9eec858dbbf360198877f16b9e02d04a61e24cfa6539c93f8b6cbe7541dde41b"
+    },
+    "scan_sha256": "93f0b83091563d8c49d07985e36fac240da88637b43f847e3cf72ca03f288edc",
+    "initial_mirror_failure": "mirror.gcr.io connection timed out; downloaded official GHCR artifact with digest validation"
+  },
+  "static": {
+    "ruff": "PASSED",
+    "mypy_source_files": 283,
+    "mypy": "PASSED",
+    "secret_findings": 0
+  },
+  "database_migration": "NONE",
+  "runtime_source_changes": false,
+  "new_main_ci": "PENDING",
+  "daily_deployment": "NOT_RUN",
+  "real_vendor_uat": "NOT_RUN",
+  "independent_semantic_scoring": "NOT_RUN",
+  "phase_p1": "IN_PROGRESS",
+  "phase_99_promoted": false
+}

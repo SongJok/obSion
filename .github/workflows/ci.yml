@@ -15,8 +15,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-24.04
-    # The full coverage suite exceeded the former 25-minute job budget (run 34846309073).
-    # Preserve every test and scan; allow coverage and client builds to finish.
+    # Bound the whole job while independent test processes share the full suite.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -72,9 +71,13 @@ jobs:
       - run: >-
           uv run pytest
           --ignore=services/control-plane/tests/test_contract_distribution.py
+          -n 4 --dist=loadfile --max-worker-restart=0
           --cov=obsion
+          --cov-config=pyproject.toml
           --cov-report=term-missing
           --cov-report=xml
+          --junitxml=test-results.xml
+          --durations=30 -v -o faulthandler_timeout=120
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -83,7 +86,9 @@ jobs:
         if: always()
         with:
           name: coverage
-          path: coverage.xml
+          path: |
+            coverage.xml
+            test-results.xml
           if-no-files-found: ignore
           retention-days: 7
 

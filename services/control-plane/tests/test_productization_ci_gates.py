@@ -1,10 +1,50 @@
 """首版发布门禁不能漏掉 HIGH 漏洞或静默跳过撤销迁移。"""
 
+import shlex
+import tomllib
 from pathlib import Path
 
 import yaml
 
 _ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_parallel_coverage_keeps_full_collection_global_threshold_and_failures() -> None:
+    workflow = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text())
+    job = workflow["jobs"]["quality"]
+    commands = [shlex.split(step["run"]) for step in job["steps"] if "run" in step]
+    covered = next(command for command in commands if "--cov=obsion" in command)
+    assert covered[covered.index("-n") + 1] == "4"
+    assert "--dist=loadfile" in covered
+    assert "--max-worker-restart=0" in covered
+    assert "--cov-config=pyproject.toml" in covered
+    assert "--cov-report=xml" in covered and "--cov-report=term-missing" in covered
+    assert "--junitxml=test-results.xml" in covered
+    assert "--durations=30" in covered and "faulthandler_timeout=120" in covered
+    assert not any(
+        option.startswith(("--cov-fail-under", "--deselect", "--ignore-glob")) for option in covered
+    )
+    excluded = [option for option in covered if option.startswith("--ignore=")]
+    assert excluded == ["--ignore=services/control-plane/tests/test_contract_distribution.py"]
+    assert any(
+        "services/control-plane/tests/test_contract_distribution.py" in command
+        and "--no-cov" in command
+        for command in commands
+    )
+    assert not any(step.get("continue-on-error", False) for step in job["steps"])
+    configuration = tomllib.loads((_ROOT / "pyproject.toml").read_text())
+    assert configuration["tool"]["coverage"]["report"]["fail_under"] == 70
+    assert configuration["tool"]["pytest"]["ini_options"]["testpaths"] == [
+        "services/control-plane/tests",
+        "packages/sdk-python/tests",
+        "apps/cli/tests",
+        "apps/im-adapter/tests",
+    ]
+    artifact = next(
+        step for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact@")
+    )
+    assert artifact["if"] == "always()"
+    assert set(artifact["with"]["path"].split()) == {"coverage.xml", "test-results.xml"}
 
 
 def test_ci_blocks_all_high_and_critical_findings() -> None:
