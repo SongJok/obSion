@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-15",
+  "scope": "P1 score publication ordering and bounded diagnostics, not phase acceptance",
+  "phase_status": "IN_PROGRESS",
+  "promotion_eligible": false,
+  "full_python": {
+    "passed": 2974,
+    "skipped": 285,
+    "seconds": 529.46,
+    "coverage_percent": 79.72,
+    "required_coverage_percent": 70,
+    "exit_code": 0,
+    "duration_seconds": 540.89,
+    "source_unchanged": true,
+    "source_file_count": 612,
+    "junit_sha256": "f7693c88fadcdf5a83d6b37ce9fb136846efc01b4f9fcf96f859da68408b142a"
+  },
+  "postgres_race": {
+    "before_passed": 4,
+    "before_failed": 1,
+    "after_passed": 5,
+    "after_seconds": 13.33,
+    "migration_success": true,
+    "container_cleaned": true,
+    "production_accessed": false
+  },
+  "related_regressions": {
+    "fence_passed": 93,
+    "fence_seconds": 58.5,
+    "diagnostics_passed": 99,
+    "diagnostics_seconds": 59.21
+  },
+  "static": {
+    "changed_source_mypy_files": 2,
+    "ruff": "PASS",
+    "format_files": 1112,
+    "secrets": 0
+  },
+  "real_diagnostics": [
+    {
+      "diagnostic": "quote_not_substantive",
+      "elapsed_seconds": 31.02,
+      "model_calls": 1,
+      "original_answer_sha256": "d7db30d2dd7c214cfdd7de9b92ec0f334d90ed5a8920cf155fab27ef2f41ac31",
+      "original_case_index": 3,
+      "original_report_unchanged_by_diagnostic": true,
+      "original_status": "BLOCKED",
+      "promotion_eligible": false,
+      "reason": "independent_judgment_invalid",
+      "scope": "single_bounded_operator_diagnostic_not_acceptance_retry",
+      "status": "BLOCKED"
+    },
+    {
+      "diagnostic": null,
+      "elapsed_seconds": 0.68,
+      "model_calls": 1,
+      "original_answer_sha256": "3d9243ae49253504329d75ac43998d89d1d71bc7eef78775c219707a0eb0731c",
+      "original_case_index": 9,
+      "original_report_unchanged_by_diagnostic": true,
+      "original_status": "BLOCKED",
+      "promotion_eligible": false,
+      "provider_http_statuses": [
+        503
+      ],
+      "reason": "independent_model_unavailable",
+      "scope": "single_bounded_operator_diagnostic_not_acceptance_retry",
+      "status": "BLOCKED"
+    }
+  ],
+  "schema_change": false,
+  "original_frozen_results_rewritten": false,
+  "frozen_batch_candidate": "b23431b29b5fb2edd4be02703d13a26d5b42633f"
+}

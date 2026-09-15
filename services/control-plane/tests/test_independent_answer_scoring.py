@@ -27,7 +27,13 @@ from obsion.db.models import (
 )
 from obsion.domain.enums import Classification, DecisionEffect
 from obsion.evaluations.acceptance import AcceptanceRunner, FrozenCase
-from obsion.evaluations.semantic import POLICY, POLICY_SHA256, SemanticScoreRequest, semantic_score
+from obsion.evaluations.semantic import (
+    POLICY,
+    POLICY_SHA256,
+    SemanticScoreRequest,
+    judgment_diagnostic,
+    semantic_score,
+)
 from obsion.knowledge.service import KnowledgeService
 from obsion.model_gateway.gateway import ModelGateway, ModelResult
 
@@ -100,7 +106,7 @@ def test_invalid_judge_output_cannot_pass(mutation):
         rule["source_quotes"] = []
     else:
         result["task_completed"] = "false"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as failure:
         semantic_score(
             json.dumps(result),
             case=frozen_case(),
@@ -108,6 +114,31 @@ def test_invalid_judge_output_cannot_pass(mutation):
             source=SOURCE,
             scorer_id="synthetic",
         )
+    assert judgment_diagnostic(failure.value) == {
+        "duplicate": "rule_coverage_invalid",
+        "fake_source": "source_quote_invalid",
+        "fake_answer": "answer_quote_invalid",
+        "short_quote": "quote_not_substantive",
+        "no_quote": "rule_support_missing",
+    }.get(mutation, "schema_invalid")
+
+
+@pytest.mark.parametrize("field", ["factual_correctness", "passed"])
+def test_duplicate_json_cannot_overwrite_negative_verdict(field):
+    output = json.dumps(judgment()).replace(
+        f'"{field}": true', f'"{field}": false, "{field}": true'
+    )
+    with pytest.raises(ValueError) as failure:
+        semantic_score(
+            output, case=frozen_case(), answer=ANSWER, source=SOURCE, scorer_id="synthetic"
+        )
+    assert judgment_diagnostic(failure.value) == "json_duplicate_key"
+
+
+def test_diagnostic_does_not_return_exception_content():
+    assert judgment_diagnostic(ValueError(SOURCE)) == "protocol_invalid"
+    assert judgment_diagnostic(json.JSONDecodeError(SOURCE, SOURCE, 0)) == "json_invalid"
+    assert judgment_diagnostic(RecursionError(SOURCE)) == "json_depth_invalid"
 
 
 @pytest.mark.parametrize(
@@ -245,6 +276,9 @@ def published(client, monkeypatch):
         "semantic_failure",
         "truncated",
         "invalid",
+        "bad_source_quote",
+        "bad_answer_quote",
+        "duplicate_key",
         "unavailable",
         "timeout",
         "wrong_answer",
@@ -309,7 +343,14 @@ def test_normal_task_is_scored_through_api_gateway_policy_and_immutable_audit(
             output["task_completed"] = False
         if mode == "invalid":
             output["rules"] = []
-        response = _completion(json.dumps(output), input_tokens=20, output_tokens=30)
+        if mode == "bad_source_quote":
+            output["rules"][0]["source_quotes"] = ["not in reviewed source"]
+        if mode == "bad_answer_quote":
+            output["rules"][0]["answer_quotes"] = ["not in published answer"]
+        serialized = json.dumps(output)
+        if mode == "duplicate_key":
+            serialized = serialized.replace('"passed": true', '"passed": false, "passed": true')
+        response = _completion(serialized, input_tokens=20, output_tokens=30)
         if mode == "truncated":
             response["choices"][0]["finish_reason"] = "length"
         return httpx.Response(200, json=response)
@@ -405,6 +446,13 @@ def test_normal_task_is_scored_through_api_gateway_policy_and_immutable_audit(
         "workspace_denied",
     }
     assert len(observed) == int(should_call)
+    expected_diagnostic = {
+        "invalid": "schema_invalid",
+        "bad_source_quote": "source_quote_invalid",
+        "bad_answer_quote": "answer_quote_invalid",
+        "duplicate_key": "json_duplicate_key",
+    }.get(mode)
+    assert score["evidence"][-1]["judgment_diagnostic"] == expected_diagnostic
 
     async def records():
         async with client.app.state.database.sessions() as session:
@@ -423,6 +471,7 @@ def test_normal_task_is_scored_through_api_gateway_policy_and_immutable_audit(
 
     audit, calls, after = client.portal.call(records)
     assert audit.outcome == score["status"] and audit.policy_decision_id
+    assert audit.redacted_metadata["judgment_diagnostic"] == expected_diagnostic
     assert len(calls) == int(should_call)
     assert all(call.run_id is None for call in calls)
     assert score["evidence"][-1]["model_call_ids"] == [str(call.id) for call in calls]

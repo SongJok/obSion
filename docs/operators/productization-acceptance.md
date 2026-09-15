@@ -76,6 +76,12 @@ Thread、创建 Run 和每项完成后检查点保存；保留失败与未执行
 版本证明尚未完成，因此即使知识子集PASS，完整阶段仍BLOCKED，退出码仍为2。
 参见[ADR0138](../adr/0138-independent-published-answer-scoring.md)。
 
+根据[ADR0139](../adr/0139-independent-score-publication-fence.md)，模型完成后到最终评分
+审计提交之间复用既有数据库权限锁；模型执行期间不持锁。历史评分不能授予当前访问权限。
+无效判断的最后一条证据和审计新增`judgment_diagnostic`固定分类，见
+[ADR0140](../adr/0140-bounded-independent-judgment-diagnostics.md)。没有原始输出或异常全文，
+保留原BLOCKED/reason；重复JSON键也拒绝。诊断分类不是恢复通过条件，不自动重复评分。
+
 ## 中断后的任务续查
 
 新报告采用 schema_version=2，提交请求前写入 admission_state，观察到标识后保存

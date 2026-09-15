@@ -26,6 +26,7 @@ from obsion.evaluations.semantic import (
     POLICY,
     POLICY_SHA256,
     SemanticScoreRequest,
+    judgment_diagnostic,
     score_input,
     semantic_score,
 )
@@ -128,6 +129,7 @@ class AnswerScoringService:
         call_id: UUID | None = None
         call_ids: tuple[UUID, ...] = ()
         classification: Classification | None = None
+        diagnostic: str | None = None
 
         async def authorize(current: Principal, stage: str) -> bool:
             decision = await self.policy.evaluate_resource(
@@ -201,7 +203,8 @@ class AnswerScoringService:
                                 source=source,
                                 scorer_id=scorer_id,
                             )
-                        except (ValueError, TypeError, RecursionError):
+                        except (ValueError, TypeError, RecursionError) as exc:
+                            diagnostic = judgment_diagnostic(exc)
                             score = score.model_copy(
                                 update={"reason": "independent_judgment_invalid"}
                             )
@@ -268,6 +271,7 @@ class AnswerScoringService:
                     "model_call_id": str(call_id) if call_id else None,
                     "model_call_ids": [str(value) for value in call_ids],
                     "score": score.model_dump(mode="json"),
+                    "judgment_diagnostic": diagnostic,
                 },
             ),
         )
@@ -281,6 +285,7 @@ class AnswerScoringService:
                         "model_call_id": str(call_id) if call_id else None,
                         "model_call_ids": [str(value) for value in call_ids],
                         "policy_decision_ids": decision_ids,
+                        "judgment_diagnostic": diagnostic,
                     },
                 ]
             }

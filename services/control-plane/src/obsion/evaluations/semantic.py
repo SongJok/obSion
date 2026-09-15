@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, ValidationError
 
 from obsion.evaluations.acceptance import FrozenCase, Score
 from obsion.evaluations.engine import canonical_sha256
@@ -32,6 +33,47 @@ absence against the complete source, not a single extracted passage. Never suppl
 an overall PASS label: the server computes it from all checks.
 """
 POLICY_SHA256 = hashlib.sha256(POLICY.encode()).hexdigest()
+
+JudgmentDiagnostic = Literal[
+    "json_invalid",
+    "json_duplicate_key",
+    "json_depth_invalid",
+    "schema_invalid",
+    "rule_coverage_invalid",
+    "rule_support_missing",
+    "answer_quote_invalid",
+    "source_quote_invalid",
+    "quote_not_substantive",
+    "protocol_invalid",
+]
+
+
+class JudgmentProtocolError(ValueError):
+    def __init__(self, code: JudgmentDiagnostic) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def judgment_diagnostic(error: Exception) -> JudgmentDiagnostic:
+    """Return only fixed labels, never validation messages or model/source text."""
+    if isinstance(error, JudgmentProtocolError):
+        return error.code
+    if isinstance(error, json.JSONDecodeError):
+        return "json_invalid"
+    if isinstance(error, RecursionError):
+        return "json_depth_invalid"
+    if isinstance(error, ValidationError):
+        return "schema_invalid"
+    return "protocol_invalid"
+
+
+def _unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    fields: dict[str, object] = {}
+    for key, value in pairs:
+        if key in fields:
+            raise JudgmentProtocolError("json_duplicate_key")
+        fields[key] = value
+    return fields
 
 
 class SemanticScoreRequest(BaseModel):
@@ -77,11 +119,11 @@ def semantic_score(
     response: str, *, case: FrozenCase, answer: str, source: str, scorer_id: str
 ) -> Score:
     """Strict protocol checks complement, but cannot prove, model semantics."""
-    payload = json.loads(response)
+    payload = json.loads(response, object_pairs_hook=_unique_fields)
     judgment = Judgment.model_validate(payload)
     indices = [rule.rule_index for rule in judgment.rules]
     if sorted(indices) != list(range(1, len(case.scoring_rules) + 1)):
-        raise ValueError("independent_rule_coverage_invalid")
+        raise JudgmentProtocolError("rule_coverage_invalid")
     evidence = []
     for rule in judgment.rules:
         refs: dict[str, list[dict[str, object]]] = {}
@@ -90,13 +132,15 @@ def semantic_score(
             ("source", rule.source_quotes, source),
         ):
             if rule.passed and not quotes:
-                raise ValueError("independent_rule_support_missing")
+                raise JudgmentProtocolError("rule_support_missing")
             refs[key] = []
             for quote in quotes:
                 if not quote.strip() or quote not in text or len(quote) > 4000:
-                    raise ValueError("independent_quote_invalid")
+                    raise JudgmentProtocolError(
+                        "answer_quote_invalid" if key == "answer" else "source_quote_invalid"
+                    )
                 if rule.passed and len(quote.strip()) < min(8, len(text.strip())):
-                    raise ValueError("independent_quote_not_substantive")
+                    raise JudgmentProtocolError("quote_not_substantive")
                 refs[key].append(
                     {
                         "start": text.index(quote),

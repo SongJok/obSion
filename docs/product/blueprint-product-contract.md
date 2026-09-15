@@ -20,7 +20,7 @@ V1 打通企业知识、企业问数、线上问题调查三个场景；在隔�
 | --- | --- | --- |
 | Experience | 一个助手，多客户端入口 | 同一身份、任务、答案、引用和取消/恢复状态，不存在独立客户端 Agent 后端 |
 | App Server | 统一任务协议 | Thread/Turn/Run、流式事件、审批、产物和幂等重连统一进入服务端 |
-| Harness | 理解→计划→执行→观察→验证→反思→响应 | 有界补查与重规划；失败、等待补齐、取消和恢复都持久化 |
+| Harness | 观察→理解→计划→执行→验证→反思→响应 | 有界补查与重规划；失败、等待补齐、取消和恢复都持久化 |
 | Registries | Agent、Skill、Capability 的版本目录 | 每个 Run 固定执行版本；Skill 提供方法，不能替代企业事实来源 |
 | Gateway | 企业能力访问入口 | MCP/HTTP/SDK/gRPC/SQL等适配统一经过授权、风险、审批、脱敏、秘密管理、限流和出口控制 |
 | Intelligence | Code、Data、Logs、Knowledge、Runtime | 外部调用、时间、版本、完整性和证据可回溯；开发适配器明确标注 |
