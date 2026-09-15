@@ -26,6 +26,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version-file: .python-version
+      # The complete pytest suite also invokes the Java SDK's Maven wrapper.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: packages/sdk-java/pom.xml
       - uses: actions/setup-node@v6
         with:
           node-version: "22"

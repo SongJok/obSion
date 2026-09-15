@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "recorded_at": "2026-09-15T07:00:35.579832+00:00",
+  "recorded_at": "2026-09-15T07:20:46.186215+00:00",
   "base_commit": "e1d0285",
-  "scope": "diagnostic development deployment and bounded quote repair implementation; repair live verification pending",
+  "scope": "ADR0136 development deployment and full regression; real quotation correction did not resolve the sample",
   "adr": "0136-actionable-review-diagnostics",
   "diagnostic_probe": {
     "status": "COMPLETED",
@@ -26,7 +26,23 @@
     "format_files": 1098,
     "contracts": "PASSED",
     "secrets_found": 0,
-    "full_suite_current_increment": "NOT_RUN",
+    "full_suite_current_increment": {
+      "status": "PASSED",
+      "passed": 2922,
+      "skipped": 279,
+      "seconds": 511.37,
+      "coverage_percent": 79.65,
+      "lines_covered": 25284,
+      "lines_valid": 31743,
+      "tracked_files_checked_after_completion": 1489,
+      "snapshot_started_during_run": true,
+      "snapshot_sha256": "7492551b86dddc267e7b09c26de45fa7489cef8a9a8545fb7a50c73f18b53ed4",
+      "changed_tracked_files": 0,
+      "separate_distribution_test": {
+        "passed": 1,
+        "seconds": 0.44
+      }
+    },
     "initial_fixture_correction": "The deep-JSON fixture assumed an interpreter recursion threshold; replaced by the actual RecursionError contract and revalidated. No rejection assertion removed."
   },
   "repair_contract": {
@@ -42,7 +58,26 @@
     "existing_source_and_publication_fences_preserved": true
   },
   "real_correction_probe": {
-    "status": "PENDING"
+    "status": "COMPLETED",
+    "acceptance": "FAILED",
+    "source_status": "READY",
+    "verified": false,
+    "citations": 0,
+    "seconds": 234.81,
+    "review_duration_ms": 149782,
+    "review_attempts": 2,
+    "both_diagnostics": "quote_not_exact",
+    "model_calls": 3,
+    "model_call_outcomes": [
+      "SUCCESS",
+      "SUCCESS",
+      "SUCCESS"
+    ],
+    "document_evidence": 1,
+    "body_count": 7,
+    "model_gateway_redacted_bodies": 0,
+    "raw_response_retained": false,
+    "conclusion": "Exact-copy correction was attempted but did not resolve the real sample; publication remained withheld."
   },
   "ci": {
     "failed_run_id": 34937186351,
@@ -50,9 +85,14 @@
     "failed_step": "complete parallel coverage tests",
     "migrations": "success",
     "containers": "skipped",
-    "root_cause": "UNRESOLVED",
-    "new_annotation_reporting": "bounded identities/category only; assertion bodies stay in artifact; original failure status preserved"
+    "root_cause": "Failing test identified; detailed assertion unavailable. Quality job lacked explicit JDK 21 setup required by the SDK; setup alignment is included in the next increment and awaits remote verification.",
+    "new_annotation_reporting": "Observed working: safely identified the failing Maven test in run 34939722344",
+    "current_run_id": 34939722344,
+    "current_status": "COMPLETED",
+    "current_conclusion": "failure",
+    "identified_failure": "services.control-plane.tests.test_phase45_core_sdk::test_java_sdk_maven_tests"
   },
   "migration": "No database migration; optional review metadata; historical records not backfilled",
-  "phase_status": "P1 IN_PROGRESS; Phase99 not promoted"
+  "phase_status": "P1 IN_PROGRESS; Phase99 not promoted",
+  "validated_commit": "19dd769a3c5734acd4c5805b07e1632d67830261"
 }

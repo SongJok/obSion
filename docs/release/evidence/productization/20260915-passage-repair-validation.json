@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-15T07:27:21.177141+00:00",
+  "base_commit": "19dd769a3c5734acd4c5805b07e1632d67830261",
+  "adr": "0137-server-owned-review-passages",
+  "scope": "Final source passage correction increment and quality JDK alignment; user requested stop after this commit",
+  "validation": {
+    "related_tests": {
+      "passed": 129,
+      "seconds": 59.31,
+      "scope": [
+        "test_grounding_passage_repair.py",
+        "test_review_quote_repair.py",
+        "test_grounding_diagnostics.py",
+        "test_knowledge_grounding.py",
+        "test_answerability.py",
+        "test_quantitative_grounding.py",
+        "test_knowledge_investigation.py",
+        "test_answer_presentation.py",
+        "test_ci_failure_annotations.py"
+      ]
+    },
+    "java_and_annotations": {
+      "passed": 4,
+      "seconds": 2.27
+    },
+    "existing_ci_gate_tests": {
+      "passed": 5,
+      "seconds": 0.09
+    },
+    "mypy_source_files": 284,
+    "ruff": "PASSED",
+    "format_files": 1101,
+    "contracts": "PASSED",
+    "secret_findings": 0,
+    "full_suite_current_increment": "NOT_RUN",
+    "fixture_correction": "Use existing quote start + length fields instead of nonexistent end; exact source assertion retained"
+  },
+  "build": {
+    "status": "PASSED",
+    "runtime_source_files": 259,
+    "all_runtime_source_hashes_match": true,
+    "deployment": "NOT_RUN"
+  },
+  "live_semantic_acceptance": "NOT_RUN; previous exact-copy correction failed and is recorded separately",
+  "ci": {
+    "observed_run_id": 34939722344,
+    "observed_commit": "19dd769a3c5734acd4c5805b07e1632d67830261",
+    "conclusion": "failure",
+    "identified_test": "services.control-plane.tests.test_phase45_core_sdk::test_java_sdk_maven_tests",
+    "change": "Quality job explicitly installs SDK-required Temurin JDK 21, matching existing Java job; original test preserved",
+    "remote_fix_verification": "PENDING"
+  },
+  "source_sha256": {
+    "services/control-plane/src/obsion/harness/grounding.py": "8da7c5fa405212148b118e88392af17def10ff646d9203fef5a8e5a338fe989d",
+    "services/control-plane/src/obsion/knowledge/passages.py": "925b2f77115361b538e11ae2e30bc6fea52ff69a5a48c7417b74e417c9afcc0b",
+    "services/control-plane/tests/test_grounding_passage_repair.py": "0f01fb5ba24aeaa7aac9bd8596a346d0a8e985d12c24169896f32d94fd3ba297",
+    "services/control-plane/tests/test_review_quote_repair.py": "283395fe3d2315235b1681a9501be8a5d5f9fdba4d45b651406fbbd7029b3749",
+    "services/control-plane/tests/test_knowledge_grounding.py": "4c36dde8c56aa715322aa5eb2ea205404236752a03394875a2e555f659000f40",
+    ".github/workflows/ci.yml": "72a355bc7dc9c97c6daac05343331f968a3b4b3dfa4212dd76fb4e8c7491a1b5"
+  },
+  "migration": "No database or public API migration; exact-text review outputs remain compatible",
+  "closure": "Commit and synchronize main, then stop editing at user request; P1 and Phase99 remain incomplete; no production-readiness claim"
+}

@@ -21,6 +21,7 @@ from obsion.common.time import ensure_utc, utc_now
 from obsion.db.models import Evidence, Run
 from obsion.domain.enums import Classification
 from obsion.knowledge.evidence import document_bodies
+from obsion.knowledge.passages import source_passages
 from obsion.model_gateway.gateway import ModelGateway, ModelUnavailableError
 
 GROUNDING_VERSION = "knowledge-grounding.v1"
@@ -55,9 +56,14 @@ GROUNDING_POLICY = (
 QUOTE_REPAIR_POLICY = (
     " Your previous review's quotation text did not match a supplied source body. "
     "Recheck the SAME candidate against the SAME sources under every rule above. "
-    "Copy quotations verbatim from ONE body each: do not join separate passages, "
-    "paraphrase, normalize punctuation or change whitespace. Use separate quote entries "
-    "for separate passages. If exact substantive quotations cannot support a claim, "
+    "For this correction, sources contain server-owned passages with passage_id and text. "
+    "Select the passages that together support the WHOLE claim instead of copying text. "
+    'Each quote entry must be {"evidence_id":"linked Evidence ID",'
+    '"passage_id":"the supplied passage_id"}; all other response fields stay unchanged. '
+    "The platform will restore the exact source text and validate it. Never invent identifiers, "
+    "treat identifiers as factual support, or cite a passage just because it shares words. "
+    "Some passages may be omitted for safe handling; do not assume missing facts. "
+    "If the supplied substantive passages cannot support a claim, "
     "mark it INSUFFICIENT or CONTRADICTED as appropriate. Never invent supporting text. "
     "This is one correction opportunity, not an instruction to approve the answer."
 )
@@ -89,6 +95,7 @@ class ReviewDiagnostic(StrEnum):
     QUOTE_NOT_EXACT = "quote_not_exact"
     QUOTE_NOT_SUBSTANTIVE = "quote_not_substantive"
     QUOTE_COVERAGE_INVALID = "quote_coverage_invalid"
+    QUOTE_REFERENCE_INVALID = "quote_reference_invalid"
 
 
 class InvalidReview(ValueError):
@@ -97,6 +104,36 @@ class InvalidReview(ValueError):
     def __init__(self, diagnostic: ReviewDiagnostic) -> None:
         super().__init__(diagnostic.value)
         self.diagnostic = diagnostic
+
+
+def _resolve_passage_quotes(payload: Any, lookup: dict[tuple[str, str], str]) -> Any:
+    """Resolve only server-issued references, then use the unchanged strict validator.
+
+    Exact-text quotes remain supported for older model adapters. Malformed shapes
+    are left to the existing schema checks; never accept model-supplied text with
+    a passage identifier or resolve an identifier from a different Evidence.
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("claims"), list):
+        return payload
+    resolved_claims = []
+    for claim in payload["claims"]:
+        if not isinstance(claim, dict) or not isinstance(claim.get("quotes"), list):
+            resolved_claims.append(claim)
+            continue
+        quotes = []
+        for quote in claim["quotes"]:
+            if isinstance(quote, dict) and set(quote) == {"evidence_id", "passage_id"}:
+                evidence_id, passage_id = quote["evidence_id"], quote["passage_id"]
+                if not isinstance(evidence_id, str) or not isinstance(passage_id, str):
+                    raise InvalidReview(ReviewDiagnostic.QUOTE_REFERENCE_INVALID)
+                text = lookup.get((evidence_id, passage_id))
+                if text is None:
+                    raise InvalidReview(ReviewDiagnostic.QUOTE_REFERENCE_INVALID)
+                quotes.append({"evidence_id": evidence_id, "quote": text})
+            else:
+                quotes.append(quote)
+        resolved_claims.append({**claim, "quotes": quotes})
+    return {**payload, "claims": resolved_claims}
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,7 +341,17 @@ async def review_knowledge_answer(
         if attempt and repair_stopped():
             return outcome("grounding_repair_stopped")
         policy = GROUNDING_POLICY + (QUOTE_REPAIR_POLICY if attempt else "")
-        input_hash = _fingerprint({"policy": policy, "payload": payload})
+        request_payload = payload
+        passage_lookup: dict[tuple[str, str], str] = {}
+        if attempt:
+            passages, passage_lookup = source_passages(sources)
+            request_payload = {**payload, "sources": passages}
+            if any(not passages.get(key) for key in linked):
+                return outcome("grounding_sources_incomplete")
+        input_hash = _fingerprint({"policy": policy, "payload": request_payload})
+        serialized = json.dumps(request_payload, ensure_ascii=False, separators=(",", ":"))
+        if len(serialized) > 120_000:
+            return outcome("grounding_input_too_large")
         remaining_input = run.max_input_tokens - run.input_tokens
         remaining_output = run.max_output_tokens - run.output_tokens
         remaining_cost = Decimal(run.max_cost_amount) - Decimal(run.cost_amount)
@@ -357,6 +404,8 @@ async def review_knowledge_answer(
                 diagnostic=ReviewDiagnostic.RESPONSE_NOT_JSON,
             )
         try:
+            if attempt:
+                review_payload = _resolve_passage_quotes(review_payload, passage_lookup)
             accepted, checked = _validate_review(review_payload, claims, sources)
         except InvalidReview as exc:
             # Repair only copying errors in an otherwise positive review. Never

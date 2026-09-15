@@ -308,7 +308,8 @@ async def test_invalid_review_json_is_billed_and_never_accepted(
 
 
 @pytest.mark.parametrize(
-    "verdict", ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT", "INVALID_QUOTE", "REPAIRED"]
+    "verdict",
+    ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT", "INVALID_QUOTE", "REPAIRED", "PASSAGE_REPAIRED"],
 )
 def test_harness_persists_review_and_enforces_publication(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, verdict: str
@@ -340,7 +341,7 @@ def test_harness_persists_review_and_enforces_publication(
     evidence_ids: list[str] = []
     candidate = (
         "交通报销需要审批。"
-        if verdict in {"SUPPORTED", "INVALID_QUOTE", "REPAIRED"}
+        if verdict in {"SUPPORTED", "INVALID_QUOTE", "REPAIRED", "PASSAGE_REPAIRED"}
         else "交通报销不需要审批。"
     )
 
@@ -359,12 +360,18 @@ def test_harness_persists_review_and_enforces_publication(
         else:
             assert json.loads(kwargs["messages"][1]["content"])["answer"] == candidate
             output = review(evidence_ids[0], verdict)
-            if verdict in {"INVALID_QUOTE", "REPAIRED"}:
+            if verdict in {"INVALID_QUOTE", "REPAIRED", "PASSAGE_REPAIRED"}:
                 output = review(evidence_ids[0])
                 if verdict == "INVALID_QUOTE" or not kwargs["messages"][0]["content"].endswith(
                     QUOTE_REPAIR_POLICY
                 ):
                     output["claims"][0]["quotes"][0]["quote"] = "这不是所提供资料的原文。"
+                elif verdict == "PASSAGE_REPAIRED":
+                    sources = json.loads(kwargs["messages"][1]["content"])["sources"]
+                    passage = next(p for p in sources[evidence_ids[0]] if p["text"] == SOURCE)
+                    output["claims"][0]["quotes"] = [
+                        {"evidence_id": evidence_ids[0], "passage_id": passage["passage_id"]}
+                    ]
         return ModelResult(
             content=json.dumps(output),
             profile_id=kwargs["profile_id"],
@@ -387,8 +394,9 @@ def test_harness_persists_review_and_enforces_publication(
     assert run["status"] == "COMPLETED", run
     artifacts = client.get(f"/api/v1/runs/{run['id']}/artifacts").json()
     answer = next(a for a in artifacts if a["title"] == "Obsion answer")["inline_content"]
-    assert answer["grounding"]["accepted"] == (verdict in {"SUPPORTED", "REPAIRED"})
-    assert answer["verification"]["verified"] == (verdict in {"SUPPORTED", "REPAIRED"})
+    supported = verdict in {"SUPPORTED", "REPAIRED", "PASSAGE_REPAIRED"}
+    assert answer["grounding"]["accepted"] == supported
+    assert answer["verification"]["verified"] == supported
     steps = client.get(f"/api/v1/runs/{run['id']}/steps").json()
     check = next(s for s in steps if s["kind"] == "VERIFY")
 
@@ -414,12 +422,12 @@ def test_harness_persists_review_and_enforces_publication(
         assert saved["reason_code"] == "grounding_review_invalid"
         assert saved["diagnostic"] == "quote_not_exact"
         assert "这不是所提供资料的原文。" not in json.dumps(saved, ensure_ascii=False)
-    if verdict == "REPAIRED":
+    if verdict in {"REPAIRED", "PASSAGE_REPAIRED"}:
         assert len(saved["attempts"]) == 2
         assert saved["attempts"][0]["diagnostic"] == "quote_not_exact"
         assert saved["attempts"][1]["reason_code"] == "grounding_supported"
         assert "diagnostic" not in saved
-    if verdict in {"SUPPORTED", "REPAIRED"}:
+    if supported:
         assert [c["title"] for c in answer["citations"]] == ["交通报销审批"]
         assert "其他归档说明" not in answer["markdown"]
         assert evidence_ids[0] not in answer["markdown"]

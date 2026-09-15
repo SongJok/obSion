@@ -101,7 +101,12 @@ async def test_quote_repair_is_bounded_budgeted_and_cannot_reroll_negative_revie
     assert result.attempts[0]["diagnostic"] == "quote_not_exact"
     assert "NOT_EXACT_QUOTE_FOR_TEST" not in json.dumps(result.summary())
     if count == 2:
-        assert requests[0]["messages"][1] == requests[1]["messages"][1]
+        original = json.loads(requests[0]["messages"][1]["content"])
+        correction = json.loads(requests[1]["messages"][1]["content"])
+        assert {k: v for k, v in original.items() if k != "sources"} == {
+            k: v for k, v in correction.items() if k != "sources"
+        }
+        assert "".join(p["text"] for p in correction["sources"][str(item.id)]) == SOURCE
         assert requests[1]["messages"][0]["content"].endswith(QUOTE_REPAIR_POLICY)
         assert "NOT_EXACT_QUOTE_FOR_TEST" not in json.dumps(requests[1]["messages"])
         assert requests[1]["classification"] == Classification.RESTRICTED
