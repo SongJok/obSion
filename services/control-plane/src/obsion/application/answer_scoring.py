@@ -36,6 +36,7 @@ from obsion.security.auth import load_principal_by_id
 from obsion.security.identity import Principal
 from obsion.security.policy import PolicyEngine, ResourcePolicyInput
 from obsion.security.redaction import redact
+from obsion.security.source_fence import acquire_source_publication_fence
 from obsion.security.workspace_access import require_run_access
 
 
@@ -205,6 +206,9 @@ class AnswerScoringService:
                                 update={"reason": "independent_judgment_invalid"}
                             )
                     # Recheck identities, permission, content and policy after a slow model call.
+                    # Serialize final checks and score commit with real authorization writes.
+                    # The short publication fence is deliberately absent during model work.
+                    await acquire_source_publication_fence(session, principal.organization_id)
                     current = await load_principal_by_id(
                         session, principal.organization_id, principal.id
                     )

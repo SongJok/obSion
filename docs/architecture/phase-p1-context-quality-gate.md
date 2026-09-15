@@ -3,6 +3,10 @@
 状态：IN_PROGRESS
 日期：2026-09-13
 
+最新[ADR0139](../adr/0139-independent-score-publication-fence.md)复用已有PostgreSQL发布锁，
+只在评分模型完成后覆盖最后授权读取至审计提交。真实并发竞态修复前4通过/1失败，修复后
+5项通过；93项相关回归通过。外部权限同步、签名及执行身份门禁仍保留，没有新增schema。
+
 2026-09-15继续开发：[ADR0138](../adr/0138-independent-published-answer-scoring.md)增加同一
 控制面的独立发布答案评分接口及CLI接线。当前主体经Policy后重新读取实际问题、答案及
 冻结原文；候选验证状态不送入评分器。前后撤权/摘要/密级检查、逐项规则与精确引用、
