@@ -32,6 +32,14 @@ def test_ci_failure_annotations_preserve_failure_and_hide_assertion_bodies(tmp_p
     )
     assert len(module.annotations(report)) == 20
     assert "PRIVATE_ERROR_BODY" not in "".join(module.annotations(report))
+    report.write_text(
+        "<testsuite><testcase name='pool'><failure>PRIVATE_ERROR_BODY\n"
+        "RuntimeError: Queue is bound to a different event loop\n"
+        "database is locked\nassert 500 == 202</failure></testcase></testsuite>"
+    )
+    diagnostic = module.annotations(report)[0]
+    assert "diagnostics=event_loop_mismatch,sqlite_busy,http_500_expected_202" in diagnostic
+    assert "PRIVATE_ERROR_BODY" not in diagnostic and "RuntimeError: Queue" not in diagnostic
     steps = yaml.safe_load((root / ".github/workflows/ci.yml").read_text())["jobs"]["quality"][
         "steps"
     ]

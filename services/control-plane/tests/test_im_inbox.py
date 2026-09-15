@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
@@ -135,7 +134,7 @@ def counts(client: TestClient) -> tuple[int, int, int]:
                 int(await session.scalar(select(func.count()).select_from(Run)) or 0),
             )
 
-    return asyncio.run(read())
+    return client.portal.call(read)
 
 
 def test_durable_ack_unique_process_and_restart(client: TestClient) -> None:
@@ -224,7 +223,7 @@ def test_content_conflict_is_durable_and_audited(
                 or 0
             )
 
-    assert asyncio.run(read()) == 1
+    assert client.portal.call(read) == 1
     assert counts(client) == (1, 0, 0)
 
 
@@ -345,7 +344,7 @@ def test_processing_rechecks_authorization(client: TestClient, revoke: str) -> N
                 assert user is not None
                 user.active = False
 
-        asyncio.run(disable())
+        client.portal.call(disable)
     response = client.post(f"{installation['url']}/{receipt['id']}/process")
     assert response.status_code == 403, response.text
     assert counts(client) == (1, 0, 0)
@@ -405,7 +404,7 @@ def test_multiturn_history_is_installation_and_subject_scoped(client: TestClient
             assert all(ref["type"] != "im_delivery" for turn in turns for ref in turn.context_refs)
             return [(turn.thread_id, turn.ordinal) for turn in turns]
 
-    turns = asyncio.run(read())
+    turns = client.portal.call(read)
     assert turns[0][0] == turns[1][0]
     assert turns[0][0] != turns[2][0]
     assert [row[1] for row in turns] == [1, 2, 1]
@@ -452,7 +451,7 @@ def test_precreated_labels_cannot_capture_im_context(client: TestClient) -> None
             workspace.name = "renamed workspace"
             thread.title = "renamed thread"
 
-    asyncio.run(check())
+    client.portal.call(check)
     next_receipt = client.post(installation["url"], json={**MESSAGE, "vendor_event_id": "second"})
     assert (
         client.post(f"{installation['url']}/{next_receipt.json()['id']}/process").status_code == 200
@@ -463,7 +462,7 @@ def test_precreated_labels_cannot_capture_im_context(client: TestClient) -> None
             turns = list(await session.scalars(select(Turn)))
             assert len(turns) == 2 and turns[0].thread_id == turns[1].thread_id
 
-    asyncio.run(same_thread())
+    client.portal.call(same_thread)
 
 
 @pytest.mark.parametrize("sharing", ["organization", "member"])
@@ -501,7 +500,7 @@ def test_shared_mapped_workspace_fails_closed(client: TestClient, sharing: str) 
                     )
                 )
 
-    asyncio.run(share())
+    client.portal.call(share)
     next_receipt = client.post(installation["url"], json={**MESSAGE, "vendor_event_id": "second"})
     response = client.post(f"{installation['url']}/{next_receipt.json()['id']}/process")
     assert response.status_code == 403, response.text
@@ -521,7 +520,7 @@ def test_installation_requires_matching_supported_connector(
             assert connector is not None
             connector.connector_type = connector_type
 
-    asyncio.run(change_type())
+    client.portal.call(change_type)
     request = {
         key: installation[key]
         for key in (
