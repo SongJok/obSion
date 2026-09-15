@@ -9,6 +9,10 @@
 Capability、Policy 和完整资料，固定配置摘要并逐条检查金标引文。它不访问供应商 API，
 不向云效写入，也不会创建候选任务。
 
+Profile读取现在包含组织内Endpoint绑定与优先级，纳入配置摘要；新增绑定也会使旧冻结
+配置失效。响应继续隐藏供应商URL和凭据引用，不能由该快照推断密钥或完整部署版本证明。
+详见[ADR0141](../adr/0141-freeze-model-bindings-and-clarify-score-quotes.md)。
+
 `obsion acceptance run` 使用既有 Workspace → Thread → Turn → Run 入口，每个独立
 案例新建 Thread。只传问题和模型配置名；答案、来源引文、预期结果不传入候选任务。
 部署和配置在开始、每个案例前后及结束时复核，资料在任务前后经当前权限重新读取。

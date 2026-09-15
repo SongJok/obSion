@@ -997,11 +997,28 @@ async def list_model_profiles(
     principal: Principal = Depends(get_principal),
 ) -> list[dict]:
     _require_admin(principal)
-    profiles = await session.scalars(
-        select(ModelProfile)
-        .where(ModelProfile.organization_id == principal.organization_id)
-        .order_by(ModelProfile.name)
+    profiles = list(
+        await session.scalars(
+            select(ModelProfile)
+            .where(ModelProfile.organization_id == principal.organization_id)
+            .order_by(ModelProfile.name)
+        )
     )
+    bindings = await session.scalars(
+        select(ModelProfileEndpoint)
+        .join(ModelProfile, ModelProfile.id == ModelProfileEndpoint.profile_id)
+        .join(ModelEndpoint, ModelEndpoint.id == ModelProfileEndpoint.endpoint_id)
+        .where(
+            ModelProfile.organization_id == principal.organization_id,
+            ModelEndpoint.organization_id == principal.organization_id,
+        )
+        .order_by(ModelProfileEndpoint.priority, ModelProfileEndpoint.endpoint_id)
+    )
+    by_profile: dict[UUID, list[dict[str, str | int]]] = {}
+    for binding in bindings:
+        by_profile.setdefault(binding.profile_id, []).append(
+            {"endpoint_id": str(binding.endpoint_id), "priority": binding.priority}
+        )
     return [
         {
             "id": str(item.id),
@@ -1009,6 +1026,7 @@ async def list_model_profiles(
             "requirements": item.requirements,
             "routing_policy": item.routing_policy,
             "enabled": item.enabled,
+            "bindings": by_profile.get(item.id, []),
         }
         for item in profiles
     ]

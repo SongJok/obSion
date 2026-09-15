@@ -563,9 +563,20 @@ def test_frozen_runner_resolves_scorer_and_records_real_api_result(
                 api, profile, candidate=revision, scorer_model_profile="missing-judge"
             )
             blocked = await missing.run(tmp_path, tmp_path / "blocked")
-            return report, blocked
+            judge_endpoint = next(
+                item
+                for item in client.get("/api/v1/admin/models/endpoints").json()
+                if item["name"] == "synthetic-judge"
+            )
+            rebound = client.post(
+                f"/api/v1/admin/models/profiles/{candidate_profile['id']}/endpoints",
+                json={"endpoint_id": judge_endpoint["id"], "priority": 1},
+            )
+            assert rebound.status_code == 201, rebound.text
+            drifted = await runner.run(tmp_path, tmp_path / "drifted")
+            return report, blocked, drifted
 
-    report, blocked = asyncio.run(execute())
+    report, blocked, drifted = asyncio.run(execute())
     assert report["counts"] == {"PASS": 1, "FAIL": 0, "BLOCKED": 0, "NOT_RUN": 0}, report
     assert report["scorer"]["profile_id"] == str(request.model_profile_id)
     assert report["scorer"]["policy_sha256"] == POLICY_SHA256
@@ -575,5 +586,7 @@ def test_frozen_runner_resolves_scorer_and_records_real_api_result(
         blocked["status"] == "BLOCKED"
         and blocked["blocker"] == "independent_model_profile_unavailable"
     )
+    assert drifted.get("blocker") == "runtime_configuration_drift", drifted
+    assert drifted["counts"] == {"PASS": 0, "FAIL": 0, "BLOCKED": 0, "NOT_RUN": 1}
     assert sent_turns == [{"input": QUESTION, "model_profile": candidate_profile["name"]}]
     assert (tmp_path / "blocked/report.json").is_file()

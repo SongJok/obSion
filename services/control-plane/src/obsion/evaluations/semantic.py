@@ -27,7 +27,11 @@ Return exactly a JSON object with factual_correctness (boolean), task_completed
 (boolean), reason (brief explanation), answer_quotes (exact answer substrings),
 source_quotes (exact complete-source substrings). Include every rule exactly once.
 Use exact quotes supporting your judgment. Do not paraphrase quotes. A passing
-rule requires at least one substantive quote from BOTH answer and source. If a
+rule requires at least one substantive quote from BOTH answer and source. For a
+passing rule, EVERY quote must contain at least 8 characters after trimming outer
+whitespace (or the entire trimmed text when that text has fewer than 8 characters),
+and no quote may exceed 4000 characters. Quote complete supporting clauses rather
+than isolated short terms. Preserve exact characters and punctuation. If a
 missing fact cannot be quoted, explain the omission and fail that rule. Evaluate
 absence against the complete source, not a single extracted passage. Never supply
 an overall PASS label: the server computes it from all checks.
