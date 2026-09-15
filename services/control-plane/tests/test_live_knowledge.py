@@ -125,7 +125,12 @@ def test_normal_question_does_not_use_available_native_index_or_model(
 
 
 @pytest.mark.parametrize("mode", ["old_scan", "future_scan", "legacy", "error", "leased"])
-def test_stale_or_unavailable_scans_cannot_be_freshness_receipts(client, mode):
+def test_stale_or_unavailable_scans_cannot_be_freshness_receipts(client, mode, monkeypatch):
+    # Exercise one admitted scheduling pass, then expiry. Real SQLite/CI latency
+    # must not decide whether this test reaches the scheduling branch at all.
+    clock = iter((0.0, 0.0, 0.0, 0.02))
+    monkeypatch.setattr("obsion.knowledge.live.monotonic", lambda: next(clock, 0.02))
+
     async def run():
         principal, source, _ = await setup(client)
         database = client.app.state.database
@@ -165,6 +170,33 @@ def test_stale_or_unavailable_scans_cannot_be_freshness_receipts(client, mode):
                 assert ensure_utc(current.next_poll_at) > utc_now()
             else:
                 assert ensure_utc(current.next_poll_at) <= utc_now()
+
+    client.portal.call(run)
+
+
+def test_expired_source_wait_does_not_schedule_late_or_modify_scan(client, monkeypatch):
+    clock = iter((0.0, 0.02))
+    monkeypatch.setattr("obsion.knowledge.live.monotonic", lambda: next(clock, 0.02))
+
+    async def run():
+        principal, source, _ = await setup(client)
+        database = client.app.state.database
+        next_poll = utc_now() + timedelta(minutes=5)
+        scan_start = utc_now() - timedelta(minutes=1)
+        async with database.sessions() as session, session.begin():
+            current = await session.get(KnowledgeSyncSource, source.id)
+            current.generation = 3
+            current.next_poll_at = next_poll
+            current.scan_state = {"stage": "READ", "cursor": "saved"}
+            current.scan_started_at = scan_start
+        with pytest.raises(LiveKnowledgeUnavailable, match="source_refresh_timeout"):
+            await await_live_sources(database, principal, requested_at=utc_now(), wait_seconds=0.02)
+        async with database.sessions() as session:
+            current = await session.get(KnowledgeSyncSource, source.id)
+            assert current.generation == 3
+            assert current.scan_state == {"stage": "READ", "cursor": "saved"}
+            assert ensure_utc(current.scan_started_at) == scan_start
+            assert ensure_utc(current.next_poll_at) == next_poll
 
     client.portal.call(run)
 
