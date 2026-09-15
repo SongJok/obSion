@@ -9,6 +9,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from decimal import Decimal
+from enum import StrEnum
 from time import perf_counter
 from typing import Any
 from uuid import UUID
@@ -16,6 +17,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obsion.common.errors import BudgetExceededError
+from obsion.common.time import ensure_utc, utc_now
 from obsion.db.models import Evidence, Run
 from obsion.domain.enums import Classification
 from obsion.knowledge.evidence import document_bodies
@@ -50,6 +52,16 @@ GROUNDING_POLICY = (
     "per quote. Non-supported claims may have no quotes. No confidence or free-form explanation."
 )
 
+QUOTE_REPAIR_POLICY = (
+    " Your previous review's quotation text did not match a supplied source body. "
+    "Recheck the SAME candidate against the SAME sources under every rule above. "
+    "Copy quotations verbatim from ONE body each: do not join separate passages, "
+    "paraphrase, normalize punctuation or change whitespace. Use separate quote entries "
+    "for separate passages. If exact substantive quotations cannot support a claim, "
+    "mark it INSUFFICIENT or CONTRADICTED as appropriate. Never invent supporting text. "
+    "This is one correction opportunity, not an instruction to approve the answer."
+)
+
 
 def _fingerprint(value: Any) -> str:
     return hashlib.sha256(
@@ -59,6 +71,32 @@ def _fingerprint(value: Any) -> str:
 
 def _bodies(item: Evidence) -> list[str]:
     return [body.text for body in document_bodies(item)]
+
+
+class ReviewDiagnostic(StrEnum):
+    RESPONSE_NOT_JSON = "response_not_json"
+    RESPONSE_TRUNCATED = "response_truncated"
+    ROOT_FIELDS_INVALID = "root_fields_invalid"
+    ANSWER_FLAGS_INVALID = "answer_flags_invalid"
+    CLAIM_COVERAGE_INVALID = "claim_coverage_invalid"
+    CLAIM_FIELDS_INVALID = "claim_fields_invalid"
+    CLAIM_INDEX_INVALID = "claim_index_invalid"
+    VERDICT_INVALID = "verdict_invalid"
+    QUOTE_LIST_INVALID = "quote_list_invalid"
+    QUOTE_FIELDS_INVALID = "quote_fields_invalid"
+    QUOTE_SOURCE_INVALID = "quote_source_invalid"
+    QUOTE_TEXT_INVALID = "quote_text_invalid"
+    QUOTE_NOT_EXACT = "quote_not_exact"
+    QUOTE_NOT_SUBSTANTIVE = "quote_not_substantive"
+    QUOTE_COVERAGE_INVALID = "quote_coverage_invalid"
+
+
+class InvalidReview(ValueError):
+    """Only a fixed diagnostic, never model text, is safe to persist."""
+
+    def __init__(self, diagnostic: ReviewDiagnostic) -> None:
+        super().__init__(diagnostic.value)
+        self.diagnostic = diagnostic
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +110,8 @@ class GroundingAssessment:
     duration_ms: int = 0
     answer_supported: bool | None = None
     question_answered: bool | None = None
+    diagnostic: ReviewDiagnostic | None = None
+    attempts: tuple[dict[str, Any], ...] = ()
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -86,6 +126,8 @@ class GroundingAssessment:
             "duration_ms": self.duration_ms,
             "answer_supported": self.answer_supported,
             "question_answered": self.question_answered,
+            **({"diagnostic": self.diagnostic.value} if self.diagnostic is not None else {}),
+            **({"attempts": list(self.attempts)} if self.attempts else {}),
         }
 
 
@@ -93,45 +135,50 @@ def validate_review(
     payload: Any, claims: list[dict[str, Any]], sources: dict[str, list[str]]
 ) -> tuple[bool, tuple[dict[str, Any], ...]]:
     """Malformed, incomplete or ungrounded reviews cannot partly pass."""
+    try:
+        return _validate_review(payload, claims, sources)
+    except InvalidReview:
+        return False, ()
+
+
+def _validate_review(
+    payload: Any, claims: list[dict[str, Any]], sources: dict[str, list[str]]
+) -> tuple[bool, tuple[dict[str, Any], ...]]:
     if not isinstance(payload, dict) or set(payload) != {
         "answer_supported",
         "question_answered",
         "claims",
     }:
-        return False, ()
+        raise InvalidReview(ReviewDiagnostic.ROOT_FIELDS_INVALID)
     if not all(type(payload[key]) is bool for key in ("answer_supported", "question_answered")):
-        return False, ()
+        raise InvalidReview(ReviewDiagnostic.ANSWER_FLAGS_INVALID)
     reviews = payload["claims"]
     if not isinstance(reviews, list) or not claims or len(reviews) != len(claims):
-        return False, ()
+        raise InvalidReview(ReviewDiagnostic.CLAIM_COVERAGE_INVALID)
     checked: dict[int, dict[str, Any]] = {}
     for review in reviews:
         if not isinstance(review, dict) or set(review) != {"claim_index", "verdict", "quotes"}:
-            return False, ()
+            raise InvalidReview(ReviewDiagnostic.CLAIM_FIELDS_INVALID)
         index = review["claim_index"]
         if type(index) is not int or not 1 <= index <= len(claims) or index in checked:
-            return False, ()
+            raise InvalidReview(ReviewDiagnostic.CLAIM_INDEX_INVALID)
         verdict = review["verdict"]
         if verdict not in ("SUPPORTED", "CONTRADICTED", "INSUFFICIENT"):
-            return False, ()
+            raise InvalidReview(ReviewDiagnostic.VERDICT_INVALID)
         quotes = review["quotes"]
         if not isinstance(quotes, list) or len(quotes) > 20:
-            return False, ()
+            raise InvalidReview(ReviewDiagnostic.QUOTE_LIST_INVALID)
         linked = set(claims[index - 1]["evidence_ids"])
         quoted: set[str] = set()
         quote_refs: list[dict[str, Any]] = []
         for quote in quotes:
             if not isinstance(quote, dict) or set(quote) != {"evidence_id", "quote"}:
-                return False, ()
+                raise InvalidReview(ReviewDiagnostic.QUOTE_FIELDS_INVALID)
             evidence_id, text = quote["evidence_id"], quote["quote"]
-            if (
-                not isinstance(evidence_id, str)
-                or evidence_id not in linked
-                or not isinstance(text, str)
-                or not text.strip()
-                or len(text) > 2000
-            ):
-                return False, ()
+            if not isinstance(evidence_id, str) or evidence_id not in linked:
+                raise InvalidReview(ReviewDiagnostic.QUOTE_SOURCE_INVALID)
+            if not isinstance(text, str) or not text.strip() or len(text) > 2000:
+                raise InvalidReview(ReviewDiagnostic.QUOTE_TEXT_INVALID)
             location = next(
                 (
                     (body_index, body.find(text))
@@ -141,7 +188,9 @@ def validate_review(
                 None,
             )
             if location is None:
-                return False, ()
+                if any(text in body for body in sources.get(evidence_id, [])):
+                    raise InvalidReview(ReviewDiagnostic.QUOTE_NOT_SUBSTANTIVE)
+                raise InvalidReview(ReviewDiagnostic.QUOTE_NOT_EXACT)
             quoted.add(evidence_id)
             quote_refs.append(
                 {
@@ -153,7 +202,7 @@ def validate_review(
                 }
             )
         if verdict == "SUPPORTED" and (not linked or quoted != linked):
-            return False, ()
+            raise InvalidReview(ReviewDiagnostic.QUOTE_COVERAGE_INVALID)
         checked[index] = {"claim_index": index, "verdict": verdict, "quotes": quote_refs}
     accepted = (
         payload["answer_supported"] is True
@@ -199,6 +248,26 @@ async def review_knowledge_answer(
     }
     candidate_hash = _fingerprint(candidate)
     input_hash = _fingerprint({"policy": GROUNDING_POLICY, "payload": payload})
+    attempts: list[dict[str, Any]] = []
+
+    def repair_stopped() -> bool:
+        return run.cancellation_requested_at is not None or (
+            run.deadline_at is not None and ensure_utc(run.deadline_at) <= utc_now()
+        )
+
+    def record_attempt(
+        reason: str, response_hash: str | None, diagnostic: ReviewDiagnostic | None
+    ) -> None:
+        attempts.append(
+            {
+                "attempt": len(attempts) + 1,
+                "policy_variant": "quote_repair" if attempts else "initial",
+                "reason_code": reason,
+                "input_fingerprint": input_hash,
+                "response_fingerprint": response_hash,
+                **({"diagnostic": diagnostic.value} if diagnostic is not None else {}),
+            }
+        )
 
     def outcome(
         reason: str,
@@ -208,7 +277,10 @@ async def review_knowledge_answer(
         response_hash: str | None = None,
         answer_supported: bool | None = None,
         question_answered: bool | None = None,
+        diagnostic: ReviewDiagnostic | None = None,
     ) -> GroundingAssessment:
+        if response_hash is not None:
+            record_attempt(reason, response_hash, diagnostic)
         return GroundingAssessment(
             accepted,
             reason,
@@ -219,6 +291,8 @@ async def review_knowledge_answer(
             int((perf_counter() - started) * 1000),
             answer_supported,
             question_answered,
+            diagnostic,
+            tuple(attempts),
         )
 
     if not claims or len(claims) > 20 or any(not sources.get(key) for key in linked):
@@ -226,51 +300,89 @@ async def review_knowledge_answer(
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if len(serialized) > 120_000:
         return outcome("grounding_input_too_large")
-    remaining_input = run.max_input_tokens - run.input_tokens
-    remaining_output = run.max_output_tokens - run.output_tokens
-    remaining_cost = Decimal(run.max_cost_amount) - Decimal(run.cost_amount)
-    if min(remaining_input, remaining_output) <= 0 or remaining_cost <= 0:
-        return outcome("grounding_budget_unavailable")
-    if run.model_profile_id is None:
-        return outcome("grounding_model_unavailable")
-    try:
-        result = await models.complete(
-            session,
-            organization_id=run.organization_id,
-            run_id=run.id,
-            step_id=step_id,
-            profile_id=run.model_profile_id,
-            messages=[
-                {"role": "system", "content": GROUNDING_POLICY},
-                {"role": "user", "content": serialized},
-            ],
-            classification=classification,
-            json_mode=True,
-            temperature=0,
-            max_input_tokens=remaining_input,
-            max_output_tokens=min(4000, remaining_output),
-            max_cost_amount=remaining_cost,
+    for attempt in range(2):
+        if attempt and repair_stopped():
+            return outcome("grounding_repair_stopped")
+        policy = GROUNDING_POLICY + (QUOTE_REPAIR_POLICY if attempt else "")
+        input_hash = _fingerprint({"policy": policy, "payload": payload})
+        remaining_input = run.max_input_tokens - run.input_tokens
+        remaining_output = run.max_output_tokens - run.output_tokens
+        remaining_cost = Decimal(run.max_cost_amount) - Decimal(run.cost_amount)
+        if min(remaining_input, remaining_output) <= 0 or remaining_cost <= 0:
+            return outcome("grounding_budget_unavailable")
+        if run.model_profile_id is None:
+            return outcome("grounding_model_unavailable")
+        try:
+            result = await models.complete(
+                session,
+                organization_id=run.organization_id,
+                run_id=run.id,
+                step_id=step_id,
+                profile_id=run.model_profile_id,
+                messages=[
+                    {"role": "system", "content": policy},
+                    {"role": "user", "content": serialized},
+                ],
+                classification=classification,
+                json_mode=True,
+                temperature=0,
+                max_input_tokens=remaining_input,
+                max_output_tokens=min(4000, remaining_output),
+                max_cost_amount=remaining_cost,
+            )
+        except BudgetExceededError:
+            record_attempt("grounding_budget_unavailable", None, None)
+            return outcome("grounding_budget_unavailable")
+        except ModelUnavailableError:
+            record_attempt("grounding_model_unavailable", None, None)
+            return outcome("grounding_model_unavailable")
+        run.input_tokens += result.input_tokens
+        run.output_tokens += result.output_tokens
+        run.cost_amount = Decimal(run.cost_amount) + result.cost_amount
+        response_hash = hashlib.sha256(result.content.encode()).hexdigest()
+        if attempt and repair_stopped():
+            return outcome("grounding_repair_stopped", response_hash=response_hash)
+        if result.finish_reason in {"length", "max_tokens"}:
+            return outcome(
+                "grounding_review_invalid",
+                response_hash=response_hash,
+                diagnostic=ReviewDiagnostic.RESPONSE_TRUNCATED,
+            )
+        try:
+            review_payload = json.loads(result.content)
+        except (ValueError, TypeError, RecursionError):
+            return outcome(
+                "grounding_review_invalid",
+                response_hash=response_hash,
+                diagnostic=ReviewDiagnostic.RESPONSE_NOT_JSON,
+            )
+        try:
+            accepted, checked = _validate_review(review_payload, claims, sources)
+        except InvalidReview as exc:
+            # Repair only copying errors in an otherwise positive review. Never
+            # reroll a semantic denial, missing facts, arbitrary schema or truncation.
+            if (
+                attempt == 0
+                and exc.diagnostic == ReviewDiagnostic.QUOTE_NOT_EXACT
+                and review_payload["answer_supported"] is True
+                and review_payload["question_answered"] is True
+                and all(
+                    isinstance(item, dict) and item.get("verdict") == "SUPPORTED"
+                    for item in review_payload["claims"]
+                )
+                and not repair_stopped()
+            ):
+                record_attempt("grounding_review_invalid", response_hash, exc.diagnostic)
+                continue
+            return outcome(
+                "grounding_review_invalid", response_hash=response_hash, diagnostic=exc.diagnostic
+            )
+        return outcome(
+            "grounding_supported" if accepted else "grounding_not_supported",
+            accepted=accepted,
+            checked=checked,
+            response_hash=response_hash,
+            answer_supported=review_payload["answer_supported"],
+            question_answered=review_payload["question_answered"],
         )
-    except BudgetExceededError:
-        return outcome("grounding_budget_unavailable")
-    except ModelUnavailableError:
-        return outcome("grounding_model_unavailable")
-    run.input_tokens += result.input_tokens
-    run.output_tokens += result.output_tokens
-    run.cost_amount = Decimal(run.cost_amount) + result.cost_amount
-    response_hash = hashlib.sha256(result.content.encode()).hexdigest()
-    try:
-        review_payload = json.loads(result.content)
-        accepted, checked = validate_review(review_payload, claims, sources)
-    except (ValueError, TypeError):
-        return outcome("grounding_review_invalid", response_hash=response_hash)
-    if result.finish_reason in {"length", "max_tokens"} or not checked:
-        return outcome("grounding_review_invalid", response_hash=response_hash)
-    return outcome(
-        "grounding_supported" if accepted else "grounding_not_supported",
-        accepted=accepted,
-        checked=checked,
-        response_hash=response_hash,
-        answer_supported=review_payload["answer_supported"],
-        question_answered=review_payload["question_answered"],
-    )
+    raise AssertionError("The bounded review must return after its second attempt")

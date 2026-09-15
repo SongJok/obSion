@@ -78,6 +78,9 @@ jobs:
           --cov-report=xml
           --junitxml=test-results.xml
           --durations=30 -v -o faulthandler_timeout=120
+      - name: Report failing Python test identities
+        if: failure()
+        run: python scripts/report_pytest_failures.py test-results.xml
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

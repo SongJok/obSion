@@ -110,6 +110,7 @@ tests:
   e2e: passed
 
 known_issues:
+  - 2026-09-15 ADR0136：诊断版日常开发部署后，真实重新采集任务明确复核失败为quote_not_exact；补齐仅全正面判断时的一次有界引文修正，原候选与来源不变，保留逐次预算/已知取消截止/原发布屏障，不重试语义否定，不回灌原响应。121项相关验证通过，源码测试配置摘要稳定；修正部署与真实复验待完成。e1d0285的main CI完整测试失败、迁移通过，新增安全失败测试注释以便自动定位；P1及Phase99仍未完成。
   - 2026-09-15 ADR0135：日常开发环境完成c5d7e9f1a3b5迁移、备份与固定源码/API匹配升级，保留15条来源文档关联；补齐扫描完成但无可用正文时的BLOCKED处理，跳过无效生成。86项专项/相关/PostgreSQL验证通过。原账号重新登录后恢复6份完整正文，真实任务取得7条新受管证据，但最终grounding_review_invalid阻止发布，问答验收仍失败。d348d87的main CI迁移通过、完整测试失败；同提交独立干净macOS源码复验2896通过、278条件跳过、79.67%覆盖率，未复现Ubuntu失败，等待失败摘要定位。P1独立评分、真实完整问答与Phase99仍未完成。
   - 2026-09-15 ADR0134：main84973ec的CI再次45分钟超时取消，改为四进程完整覆盖率验证并记录逐项/慢测试/调用栈/JUnit；保留全部目录、合并后70%阈值和容器依赖，无运行代码或数据库改动。本地完整2896通过、278条件跳过（513.60秒），覆盖率79.67%；独立安装包契约1通过。辅助串行诊断主动停止不计全量通过。283源码类型、Ruff和秘密扫描通过，使用当日官方漏洞库扫描完整Python锁定依赖HIGH/CRITICAL零发现。新远端CI待验证，P1独立评分、日常部署和完整产品化仍未完成。
   - 2026-09-14 ADR0133：受管钉钉企业问答默认等待本轮提问后的外部扫描，新取得的完整正文才进入检索；无法取得来源不回退旧索引，不请求模型编造事实。迁移c5d7e9f1a3b5保存实际扫描开始及完成世代，不回填旧时间。一次性PostgreSQL重新采集/正常Run等待/迁移往返3项与来源发布并发28项通过；全量2894通过、2失败、271跳过、7排除（892.62秒），源码摘要一致。错误转发行号和离线演练配置两项回归修复后74项相关复验通过（74.94秒）；修正后未重复全量，待CI覆盖率复验。283源码类型、Ruff/1091格式与秘密扫描零发现；临时数据库容器已清理，真实厂商UAT和日常部署未执行。上轮main基线0371712的GitHub质量任务25分钟超时取消，时限调整45分钟且全部检查保留；不能记作CI通过。P1和正式Phase99不晋级，云效仍严格只读。
@@ -294,7 +295,7 @@ productization_program:
   scope_decisions: docs/product/productization-scope-decisions.md
   cloud_code_execution: not_required_by_user_read_only_analysis_continues
   macos_xcode_validation: user_authorized_optional_not_a_current_delivery_prerequisite
-  github_main_conflict_check: pre_publication_fetch_verified_same_base_d348d874624f4b0eab1db4bde0f063142d92d10c
+  github_main_conflict_check: pre_publication_fetch_verified_same_base_e1d02858bd3a72368154058044542efc0ffe0cad
   github_main_publication: user_authorized_normal_fast_forward_after_local_validation
   acceptance_driver: normal_task_entry_frozen_inputs_and_known_run_reconciliation_implemented_semantic_scorer_pending
   phase_99_promotion_eligible: false

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-15T07:00:35.579832+00:00",
+  "base_commit": "e1d0285",
+  "scope": "diagnostic development deployment and bounded quote repair implementation; repair live verification pending",
+  "adr": "0136-actionable-review-diagnostics",
+  "diagnostic_probe": {
+    "status": "COMPLETED",
+    "source_status": "READY",
+    "fresh_scan_after_question": true,
+    "grounding_reason": "grounding_review_invalid",
+    "diagnostic": "quote_not_exact",
+    "verified": false,
+    "citations": 0,
+    "seconds": 112.33,
+    "review_duration_ms": 37224,
+    "raw_response_retained": false
+  },
+  "validation": {
+    "passed": 121,
+    "seconds": 53.65,
+    "source_test_workflow_hashes_stable": true,
+    "grounding_source_sha256": "99dfe059f6f51418df1a8fcd1d6b01b95846ae27d9e125b52344ef56f73eaf56",
+    "mypy_source_files": 283,
+    "ruff_and_format": "PASSED",
+    "format_files": 1098,
+    "contracts": "PASSED",
+    "secrets_found": 0,
+    "full_suite_current_increment": "NOT_RUN",
+    "initial_fixture_correction": "The deep-JSON fixture assumed an interpreter recursion threshold; replaced by the actual RecursionError contract and revalidated. No rejection assertion removed."
+  },
+  "repair_contract": {
+    "max_review_calls": 2,
+    "eligible_failure": "quote_not_exact",
+    "requires_all_positive_flags_and_verdicts": true,
+    "same_candidate_and_sources": true,
+    "negative_verdicts_not_retried": true,
+    "all_attempts_accounted": true,
+    "raw_prior_review_not_replayed": true,
+    "known_cancel_deadline_and_remaining_budgets_checked": true,
+    "late_correction_cannot_publish": true,
+    "existing_source_and_publication_fences_preserved": true
+  },
+  "real_correction_probe": {
+    "status": "PENDING"
+  },
+  "ci": {
+    "failed_run_id": 34937186351,
+    "quality": "failure",
+    "failed_step": "complete parallel coverage tests",
+    "migrations": "success",
+    "containers": "skipped",
+    "root_cause": "UNRESOLVED",
+    "new_annotation_reporting": "bounded identities/category only; assertion bodies stay in artifact; original failure status preserved"
+  },
+  "migration": "No database migration; optional review metadata; historical records not backfilled",
+  "phase_status": "P1 IN_PROGRESS; Phase99 not promoted"
+}

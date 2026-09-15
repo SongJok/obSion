@@ -15,7 +15,13 @@ from test_phase13_knowledge_agent import _create_thread, _wait_terminal
 from obsion.common.errors import BudgetExceededError
 from obsion.db.models import Run, RunStep, VerificationAssessment
 from obsion.domain.enums import Classification, EvidenceType
-from obsion.harness.grounding import review_knowledge_answer, validate_review
+from obsion.harness.grounding import (
+    QUOTE_REPAIR_POLICY,
+    InvalidReview,
+    _validate_review,
+    review_knowledge_answer,
+    validate_review,
+)
 from obsion.harness.investigation import INVESTIGATION_POLICY
 from obsion.harness.runtime import HarnessRuntime
 from obsion.model_gateway.gateway import ModelGateway, ModelResult, ModelUnavailableError
@@ -38,21 +44,21 @@ def review(evidence_id: str, verdict: str = "SUPPORTED") -> dict[str, Any]:
 
 
 @pytest.mark.parametrize(
-    "mutation",
+    ("mutation", "diagnostic"),
     [
-        "missing_claim",
-        "duplicate_claim",
-        "wrong_index",
-        "bool_index",
-        "fake_quote",
-        "foreign_source",
-        "missing_quote",
-        "wrong_boolean",
-        "extra_field",
-        "short_quote",
+        ("missing_claim", "claim_coverage_invalid"),
+        ("duplicate_claim", "claim_coverage_invalid"),
+        ("wrong_index", "claim_index_invalid"),
+        ("bool_index", "claim_index_invalid"),
+        ("fake_quote", "quote_not_exact"),
+        ("foreign_source", "quote_source_invalid"),
+        ("missing_quote", "quote_coverage_invalid"),
+        ("wrong_boolean", "answer_flags_invalid"),
+        ("extra_field", "root_fields_invalid"),
+        ("short_quote", "quote_not_substantive"),
     ],
 )
-def test_malformed_reviews_do_not_partially_pass(mutation: str) -> None:
+def test_malformed_reviews_do_not_partially_pass(mutation: str, diagnostic: str) -> None:
     evidence_id = str(uuid4())
     claims = [{"statement": "交通报销需要审批。", "evidence_ids": [evidence_id]}]
     payload = review(evidence_id)
@@ -78,6 +84,10 @@ def test_malformed_reviews_do_not_partially_pass(mutation: str) -> None:
     else:
         item["quotes"][0]["quote"] = "交通"
     assert validate_review(payload, claims, {evidence_id: [SOURCE]}) == (False, ())
+    with pytest.raises(InvalidReview) as invalid:
+        _validate_review(payload, claims, {evidence_id: [SOURCE]})
+    assert invalid.value.diagnostic.value == diagnostic
+    assert str(invalid.value) == diagnostic
 
 
 def test_valid_quote_has_a_replayable_location_without_copying_text_to_metadata() -> None:
@@ -189,6 +199,8 @@ async def test_review_failure_withholds_instead_of_accepting_author_confidence(
     )
     assert not result.accepted and not result.claims
     assert run.cost_amount == Decimal("0.1")
+    assert len(result.attempts) == 1
+    assert result.attempts[0]["response_fingerprint"] is None
 
 
 @pytest.mark.parametrize("failure", ["foreign_run", "foreign_org", "metadata_only", "no_budget"])
@@ -230,8 +242,27 @@ async def test_invalid_scope_or_budget_never_calls_the_review_model(failure: str
     models.complete.assert_not_called()  # type: ignore[attr-defined]
 
 
-@pytest.mark.parametrize("content", ["not JSON", "{}", '{"claims":[]}'])
-async def test_invalid_review_json_is_billed_and_never_accepted(content: str) -> None:
+@pytest.mark.parametrize(
+    ("content", "finish_reason", "diagnostic"),
+    [
+        ("not JSON", "stop", "response_not_json"),
+        ("{}", "stop", "root_fields_invalid"),
+        ('{"claims":[]}', "stop", "root_fields_invalid"),
+        ("parser depth limit", "stop", "response_not_json"),
+        ('{"claims":', "length", "response_truncated"),
+        ("{}", "max_tokens", "response_truncated"),
+    ],
+)
+async def test_invalid_review_json_is_billed_and_never_accepted(
+    content: str, finish_reason: str, diagnostic: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if content == "parser depth limit":
+        # The parser's recursion threshold differs by interpreter/test runner.
+        # Exercise the actual exception contract without a platform-specific depth.
+        def depth_limit(_content: str) -> Any:
+            raise RecursionError()
+
+        monkeypatch.setattr("obsion.harness.grounding.json.loads", depth_limit)
     item = evidence(EvidenceType.DOCUMENT, "knowledge", "source")
     item.content = {"text": SOURCE}
     run = Run(
@@ -254,7 +285,7 @@ async def test_invalid_review_json_is_billed_and_never_accepted(content: str) ->
         output_tokens=20,
         cost_amount=Decimal("0.01"),
         latency_ms=1,
-        finish_reason="stop",
+        finish_reason=finish_reason,
     )
     result = await review_knowledge_answer(
         models,
@@ -268,12 +299,17 @@ async def test_invalid_review_json_is_billed_and_never_accepted(content: str) ->
         classification=Classification.INTERNAL,
     )
     assert not result.accepted and result.reason_code == "grounding_review_invalid"
+    assert result.summary()["diagnostic"] == diagnostic
+    assert "not JSON" not in json.dumps(result.summary())
+    models.complete.assert_awaited_once()  # type: ignore[attr-defined]
     assert (
         run.input_tokens == 130 and run.output_tokens == 70 and run.cost_amount == Decimal("0.11")
     )
 
 
-@pytest.mark.parametrize("verdict", ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT"])
+@pytest.mark.parametrize(
+    "verdict", ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT", "INVALID_QUOTE", "REPAIRED"]
+)
 def test_harness_persists_review_and_enforces_publication(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, verdict: str
 ) -> None:
@@ -302,7 +338,11 @@ def test_harness_persists_review_and_enforces_publication(
     )
     assert distractor.status_code == 201
     evidence_ids: list[str] = []
-    candidate = "交通报销需要审批。" if verdict == "SUPPORTED" else "交通报销不需要审批。"
+    candidate = (
+        "交通报销需要审批。"
+        if verdict in {"SUPPORTED", "INVALID_QUOTE", "REPAIRED"}
+        else "交通报销不需要审批。"
+    )
 
     async def synthesize(self: HarnessRuntime, *args: Any) -> tuple[str, list[dict[str, Any]]]:
         assert len(args[5][0].content["hits"]) == 2
@@ -319,6 +359,12 @@ def test_harness_persists_review_and_enforces_publication(
         else:
             assert json.loads(kwargs["messages"][1]["content"])["answer"] == candidate
             output = review(evidence_ids[0], verdict)
+            if verdict in {"INVALID_QUOTE", "REPAIRED"}:
+                output = review(evidence_ids[0])
+                if verdict == "INVALID_QUOTE" or not kwargs["messages"][0]["content"].endswith(
+                    QUOTE_REPAIR_POLICY
+                ):
+                    output["claims"][0]["quotes"][0]["quote"] = "这不是所提供资料的原文。"
         return ModelResult(
             content=json.dumps(output),
             profile_id=kwargs["profile_id"],
@@ -341,8 +387,8 @@ def test_harness_persists_review_and_enforces_publication(
     assert run["status"] == "COMPLETED", run
     artifacts = client.get(f"/api/v1/runs/{run['id']}/artifacts").json()
     answer = next(a for a in artifacts if a["title"] == "Obsion answer")["inline_content"]
-    assert answer["grounding"]["accepted"] == (verdict == "SUPPORTED")
-    assert answer["verification"]["verified"] == (verdict == "SUPPORTED")
+    assert answer["grounding"]["accepted"] == (verdict in {"SUPPORTED", "REPAIRED"})
+    assert answer["verification"]["verified"] == (verdict in {"SUPPORTED", "REPAIRED"})
     steps = client.get(f"/api/v1/runs/{run['id']}/steps").json()
     check = next(s for s in steps if s["kind"] == "VERIFY")
 
@@ -361,9 +407,19 @@ def test_harness_persists_review_and_enforces_publication(
     saved, lineage = client.portal.call(persisted)
     assert saved == answer["grounding"]
     assert lineage["deterministic"] is False and lineage["grounding"] == saved
-    assert run["input_tokens"] == (30 if verdict == "SUPPORTED" else 60)
-    assert run["output_tokens"] == (20 if verdict == "SUPPORTED" else 40)
-    if verdict == "SUPPORTED":
+    calls = 1 if verdict == "SUPPORTED" else 2
+    assert run["input_tokens"] == 30 * calls
+    assert run["output_tokens"] == 20 * calls
+    if verdict == "INVALID_QUOTE":
+        assert saved["reason_code"] == "grounding_review_invalid"
+        assert saved["diagnostic"] == "quote_not_exact"
+        assert "这不是所提供资料的原文。" not in json.dumps(saved, ensure_ascii=False)
+    if verdict == "REPAIRED":
+        assert len(saved["attempts"]) == 2
+        assert saved["attempts"][0]["diagnostic"] == "quote_not_exact"
+        assert saved["attempts"][1]["reason_code"] == "grounding_supported"
+        assert "diagnostic" not in saved
+    if verdict in {"SUPPORTED", "REPAIRED"}:
         assert [c["title"] for c in answer["citations"]] == ["交通报销审批"]
         assert "其他归档说明" not in answer["markdown"]
         assert evidence_ids[0] not in answer["markdown"]

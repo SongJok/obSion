@@ -68,9 +68,15 @@ async def test_global_review_decisions_are_retained_only_after_full_local_valida
     assert summary["question_answered"] is (question_answered if invalid is None else None)
     if invalid is None:
         assert summary["claims"][0]["verdict"] == "SUPPORTED"
+        assert "diagnostic" not in summary
     else:
         assert not summary["claims"]
+        assert summary["diagnostic"] == (
+            "quote_not_exact" if invalid == "schema" else "response_truncated"
+        )
     assert SOURCE not in json.dumps(summary, ensure_ascii=False)
     messages = models.complete.call_args.kwargs["messages"]  # type: ignore[attr-defined]
     assert "untrusted citation label" not in str(messages)
-    assert run.input_tokens == run.output_tokens == 10
+    calls = 2 if invalid == "schema" and answer_supported and question_answered else 1
+    assert run.input_tokens == run.output_tokens == 10 * calls
+    assert len(summary["attempts"]) == calls
