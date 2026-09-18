@@ -81,6 +81,7 @@ from obsion.harness.agent_router import AgentRouter, RouteSelection
 from obsion.harness.answerability import GenerationStatus, generation_reply, record_generation
 from obsion.harness.critic import Critic
 from obsion.harness.evidence_gaps import gap_step_contract, gap_step_name, select_gap_capabilities
+from obsion.harness.execution_identity import ExecutionIdentity
 from obsion.harness.general import (
     GENERAL_OUTPUT_CONTRACT,
     everyday_request,
@@ -203,6 +204,7 @@ class HarnessRuntime:
         self.models = model_gateway
         self.object_store = object_store
         self.events = EventStore()
+        self.execution_identity = ExecutionIdentity.observe(settings)
         self.agent_router = AgentRouter()
         self.understanding = UnderstandingEngine()
         self.planner = Planner()
@@ -225,6 +227,7 @@ class HarnessRuntime:
         with tracer.start_as_current_span("obsion.run") as span:
             span.set_attribute("obsion.run.id", str(run_id))
             try:
+                await self._record_execution_identity(organization_id, run_id)
                 replay = await self._materialize_replay(organization_id, run_id)
                 if replay:
                     span.set_attribute("obsion.run.replay", True)
@@ -269,6 +272,32 @@ class HarnessRuntime:
                 span.set_attribute("error.type", type(exc).__name__)
                 _observe_run("FAILED", started)
                 await self._fail(organization_id, run_id, exc)
+
+    async def _record_execution_identity(self, organization_id: UUID, run_id: UUID) -> None:
+        async with self.database.sessions() as session, session.begin():
+            run = await session.scalar(
+                select(Run)
+                .where(Run.id == run_id, Run.organization_id == organization_id)
+                .with_for_update()
+            )
+            if run is None:
+                raise NotFoundError("Run", run_id)
+            if is_terminal(run.status):
+                return
+            await self.events.append(
+                session,
+                EventDraft(
+                    name="run.execution_observed",
+                    aggregate_type="run",
+                    aggregate_id=run.id,
+                    organization_id=organization_id,
+                    correlation_id=run.id,
+                    actor_type=ActorType.SYSTEM,
+                    actor_id=None,
+                    run_id=run.id,
+                    payload=self.execution_identity.event_payload(),
+                ),
+            )
 
     async def _materialize_replay(self, organization_id: UUID, run_id: UUID) -> bool:
         async with self.database.sessions() as session, session.begin():

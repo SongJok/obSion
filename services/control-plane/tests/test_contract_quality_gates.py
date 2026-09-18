@@ -42,8 +42,8 @@ def test_contract_cli_is_registered_and_contracts_are_valid() -> None:
     args = parser.parse_args(["validate-contracts"])
     assert args.command == "validate-contracts"
     events = validate_event_contracts()
-    assert events.event_count == 98
-    assert events.version_count == 102
+    assert events.event_count == 99
+    assert events.version_count == 103
     assert validate_error_catalog() == 344
 
 
@@ -73,7 +73,7 @@ def test_production_event_registry_exactly_covers_reviewed_producers() -> None:
     assert analysis.helper_caller_pairs == REVIEWED_EVENT_HELPER_CALLS
     assert analysis.enum_dependencies == REVIEWED_EVENT_ENUMS
     assert analysis.all_event_versions == set(registered_event_versions())
-    assert len(analysis.sink_pairs) == 54
+    assert len(analysis.sink_pairs) == 55
     assert len(analysis.helper_caller_pairs) == 67
 
 

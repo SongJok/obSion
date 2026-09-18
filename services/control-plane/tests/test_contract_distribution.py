@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
+
+from obsion.harness.execution_identity import snapshot_package
 
 _REPOSITORY_ROOT = Path(__file__).parents[3]
 _CONTROL_PLANE_ROOT = _REPOSITORY_ROOT / "services" / "control-plane"
@@ -55,5 +58,16 @@ def test_wheel_contains_every_frozen_contract_resource() -> None:
                 for name in archive.namelist()
                 if name.startswith("obsion/contracts/") and name.endswith(".json")
             }
+            package_hashes = {
+                name.removeprefix("obsion/"): hashlib.sha256(archive.read(name)).hexdigest()
+                for name in archive.namelist()
+                if name.startswith("obsion/") and Path(name).suffix in {".py", ".json"}
+            }
 
     assert packaged_resources == expected_resources
+    wheel_digest = hashlib.sha256(
+        json.dumps(package_hashes, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    reviewed_package = snapshot_package(_CONTROL_PLANE_ROOT / "src" / "obsion")
+    assert wheel_digest == reviewed_package.sha256
+    assert len(package_hashes) == reviewed_package.files

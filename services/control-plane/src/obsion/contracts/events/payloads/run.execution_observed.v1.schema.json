@@ -1,0 +1,81 @@
+{
+  "$id": "https://obsion.dev/contracts/events/payloads/run.execution_observed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "package_files": {
+          "const": 0
+        },
+        "package_sha256": {
+          "type": "null"
+        }
+      }
+    },
+    {
+      "properties": {
+        "package_files": {
+          "minimum": 1
+        },
+        "package_sha256": {
+          "type": "string"
+        }
+      }
+    }
+  ],
+  "properties": {
+    "execution_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "image_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "observation": {
+      "const": "installed_package_at_runtime_initialization"
+    },
+    "package_files": {
+      "maximum": 4096,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "package_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "revision": {
+      "pattern": "^[0-9a-f]{40}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "runtime_instance_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "signature_verified": {
+      "const": false
+    }
+  },
+  "required": [
+    "execution_id",
+    "runtime_instance_id",
+    "revision",
+    "image_digest",
+    "package_sha256",
+    "package_files",
+    "observation",
+    "signature_verified"
+  ],
+  "title": "run.execution_observed payload v1",
+  "type": "object"
+}

@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from obsion.common.time import ensure_utc
 from obsion.evaluations.engine import canonical_sha256
+from obsion.harness.execution_identity import snapshot_package
 from obsion.security.redaction import redact
 
 Status = Literal["PASS", "FAIL", "BLOCKED", "NOT_RUN"]
@@ -60,6 +61,9 @@ class AcceptanceProfile(BaseModel):
     model_profile: str = Field(min_length=1, max_length=120)
     model_profile_id: UUID
     agent_version_id: UUID
+    worker_package_sha256: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$", exclude_if=lambda value: value is None
+    )
     configuration_sha256: dict[str, str]
     timeout_seconds: int = Field(default=120, ge=1, le=120)
     poll_seconds: float = Field(default=1, ge=0.01, le=5)
@@ -240,6 +244,13 @@ class AcceptanceRunner:
             dataset_sha256=dataset_sha256,
             configuration_sha256=dict.fromkeys(_CONFIG_PATHS, "0" * 64),
         )
+        package_root = root / "services/control-plane/src/obsion"
+        if package_root.exists():
+            try:
+                package = await asyncio.to_thread(snapshot_package, package_root)
+            except (OSError, ValueError) as exc:
+                raise AcceptanceError("candidate_package_snapshot_unavailable") from exc
+            provisional = provisional.model_copy(update={"worker_package_sha256": package.sha256})
         _, cases = await asyncio.to_thread(load_frozen_cases, provisional, root)
         probe = cls(client, provisional, candidate=candidate)
         snapshot = {path: await probe._json("GET", path) for path in sorted(_CONFIG_PATHS)}
@@ -344,6 +355,75 @@ class AcceptanceRunner:
         if any(not quote or quote not in source for quote in case.reviewed_source_quotes):
             raise AcceptanceError("reviewed_quote_not_in_complete_source")
         return source
+
+    async def _execution_observations(self, run_id: str) -> list[dict[str, Any]]:
+        """Check every execution, including a resume on a different worker.
+
+        This detects deployment mistakes; it does not trust a self-reported
+        image digest as a signed or remotely measured execution attestation.
+        """
+        observations: list[dict[str, Any]] = []
+        cursor = 0
+        execution_ids: set[str] = set()
+        completed = False
+        for _ in range(100):
+            events = await self._json(
+                "GET", f"/api/v1/runs/{run_id}/events", params={"after": cursor, "limit": 200}
+            )
+            if not isinstance(events, list) or len(events) > 200:
+                raise AcceptanceError("worker_execution_events_invalid")
+            for event in events:
+                if not isinstance(event, dict):
+                    raise AcceptanceError("worker_execution_events_invalid")
+                sequence = event.get("run_sequence")
+                if type(sequence) is not int or sequence <= cursor or event.get("run_id") != run_id:
+                    raise AcceptanceError("worker_execution_events_invalid")
+                cursor = sequence
+                if event.get("name") == "run.completed":
+                    completed = True
+                if event.get("name") != "run.execution_observed":
+                    continue
+                payload = event.get("payload") or {}
+                if (
+                    completed
+                    or not isinstance(payload, dict)
+                    or type(event.get("schema_version")) is not int
+                    or event["schema_version"] != 1
+                    or event.get("aggregate_type") != "run"
+                    or event.get("aggregate_id") != run_id
+                    or event.get("actor_type") != "SYSTEM"
+                    or event.get("actor_id") is not None
+                    or payload.get("revision") != self.candidate
+                    or payload.get("image_digest") != self.profile.image_digest
+                    or payload.get("package_sha256") != self.profile.worker_package_sha256
+                    or type(payload.get("package_files")) is not int
+                    or not 1 <= payload["package_files"] <= 4096
+                    or payload.get("observation") != "installed_package_at_runtime_initialization"
+                    or payload.get("signature_verified") is not False
+                ):
+                    raise AcceptanceError("worker_execution_identity_mismatch")
+                execution_id = str(UUID(payload["execution_id"]))
+                if execution_id in execution_ids:
+                    raise AcceptanceError("worker_execution_events_invalid")
+                execution_ids.add(execution_id)
+                observations.append(
+                    {
+                        "event_id": str(UUID(event["id"])),
+                        "run_sequence": sequence,
+                        "execution_id": execution_id,
+                        "runtime_instance_id": str(UUID(payload["runtime_instance_id"])),
+                        "package_sha256": payload["package_sha256"],
+                        "package_files": payload["package_files"],
+                        "revision": payload["revision"],
+                        "image_digest": payload["image_digest"],
+                        "signature_verified": False,
+                    }
+                )
+            if len(events) < 200:
+                if not observations or not completed:
+                    raise AcceptanceError("worker_execution_identity_missing")
+                return observations
+        raise AcceptanceError("worker_execution_events_exceed_limit")
 
     async def _case(
         self,
@@ -510,6 +590,8 @@ class AcceptanceRunner:
             "agent_version_id"
         ) != str(self.profile.agent_version_id):
             raise AcceptanceError("run_model_or_agent_pin_mismatch")
+        if self.profile.worker_package_sha256 is not None:
+            result["worker_executions"] = await self._execution_observations(run_id)
         artifacts = await self._json("GET", f"/api/v1/runs/{run_id}/artifacts")
         answers = [
             item

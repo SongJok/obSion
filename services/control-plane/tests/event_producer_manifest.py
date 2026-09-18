@@ -3,6 +3,9 @@ from __future__ import annotations
 from static_contract_analysis import EnumFingerprint, EventContractPair
 
 REVIEWED_EVENT_SINKS: dict[str, frozenset[EventContractPair]] = {
+    "harness/runtime.py::HarnessRuntime._record_execution_identity#EventDraft[1]": frozenset(
+        {("run.execution_observed", 1)}
+    ),
     "harness/runtime.py::HarnessRuntime._event#EventDraft[1]": frozenset({("plan.updated", 2)}),
     "actions/gateway.py::ActionGateway._invoke#EventDraft[1]": frozenset(
         {("action.policy_decided", 1)}

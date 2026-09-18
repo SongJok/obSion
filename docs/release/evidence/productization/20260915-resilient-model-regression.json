@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-15",
+  "candidate": "d389c7fdfff4933f976fca899df7c3c2709f1e83",
+  "image": "sha256:00b248267be4287844a5a7e67b05c11ef337dff16a1f8b96cc11e3674ce28e29",
+  "scope": "two previously observed cases, development regression; not fresh heldout, phase acceptance, or an isolated performance benchmark",
+  "new_profile": "reasoning-kimi-resilient",
+  "limits_or_scope_expanded": false,
+  "same_provider_independence_proven": false,
+  "summary": {
+    "answerable_accuracy": 0.0,
+    "blocker": null,
+    "counts": {
+      "BLOCKED": 2,
+      "FAIL": 0,
+      "NOT_RUN": 0,
+      "PASS": 0
+    },
+    "duration_seconds": 227.23,
+    "insufficient_accuracy": 0.0,
+    "phase_status": "BLOCKED",
+    "promotion_eligible": false,
+    "scope": "development-regression-not-phase-acceptance",
+    "status": "BLOCKED"
+  },
+  "report_sha256": "6293947afd79a15bfb668cc23923f01b02beac87c97227f3edd41ed262308b87",
+  "cases": [
+    {
+      "original_case_index": 3,
+      "expected_kind": "ANSWER",
+      "status": "BLOCKED",
+      "reason": "independent_judgment_invalid",
+      "judgment_diagnostic": "quote_not_substantive",
+      "candidate_status": "COMPLETED",
+      "live_source_status": "READY",
+      "scorer_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "SUCCESS",
+          "latency_ms": 22652,
+          "input_tokens": 912,
+          "output_tokens": 799,
+          "standalone": true
+        }
+      ]
+    },
+    {
+      "original_case_index": 9,
+      "expected_kind": "INSUFFICIENT",
+      "status": "BLOCKED",
+      "reason": "independent_model_unavailable",
+      "judgment_diagnostic": null,
+      "candidate_status": "COMPLETED",
+      "live_source_status": "READY",
+      "scorer_calls": [
+        {
+          "model_id": "kimi-k3-kimi",
+          "outcome": "FAILED",
+          "latency_ms": 4176,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "standalone": true
+        },
+        {
+          "model_id": "kimi-k2.7-kimi",
+          "outcome": "FAILED",
+          "latency_ms": 4161,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "standalone": true
+        }
+      ]
+    }
+  ],
+  "deployment": {
+    "source_base_commit": "d389c7fdfff4933f976fca899df7c3c2709f1e83",
+    "fingerprint": "973a279ec0ef977001e5b83421774e566cb6f1e761f1ae956627b4d8b0c69209",
+    "python_files": 262,
+    "mode": "live",
+    "head": "c5d7e9f1a3b5",
+    "preserved_items": 15,
+    "sources_resumed": 1
+  },
+  "promotion_eligible": false
+}

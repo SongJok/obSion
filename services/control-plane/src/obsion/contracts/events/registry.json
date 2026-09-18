@@ -612,6 +612,16 @@
       ]
     },
     {
+      "name": "run.execution_observed",
+      "versions": [
+        {
+          "payload_schema": "payloads/run.execution_observed.v1.schema.json",
+          "payload_schema_sha256": "ec90b9dcd34ef61f79b29242c98e487b2832ce68dac96ccdaae87f0e8495f869",
+          "schema_version": 1
+        }
+      ]
+    },
+    {
       "name": "run.failed",
       "versions": [
         {

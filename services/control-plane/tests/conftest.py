@@ -24,6 +24,8 @@ async def _create_schema(settings: Settings) -> None:
 def app_settings(tmp_path: Path) -> Settings:
     settings = Settings(
         environment=Environment.TEST,
+        release_revision=None,
+        release_image_digest=None,
         # Synthetic index fixtures deliberately opt in; dedicated live tests assert no fallback.
         enterprise_knowledge_mode="indexed-development",
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'obsion-test.db'}",

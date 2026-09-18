@@ -5,6 +5,10 @@ from static_error_analysis import ErrorCodeDomain
 REVIEWED_ERROR_ORIGIN_SINKS: dict[str, ErrorCodeDomain] = dict(
     [
         (
+            "harness/runtime.py::HarnessRuntime._record_execution_identity#NotFoundError[1]",
+            frozenset({"resource_not_found"}),
+        ),
+        (
             "harness/runtime.py::HarnessRuntime._prepare#NotFoundError[2]",
             frozenset({"resource_not_found"}),
         ),
@@ -4358,12 +4362,12 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:3896:exc.code",
+            "forward:harness/runtime.py:3925:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",
-            "forward:harness/runtime.py:1677:exc.code | "
-            "forward:harness/runtime.py:1707:result.error_code",
+            "forward:harness/runtime.py:1706:exc.code | "
+            "forward:harness/runtime.py:1736:result.error_code",
         ),
         ("main.py::_error_response#ErrorBody[1]", "forward:main.py:423:exc.code"),
         (
