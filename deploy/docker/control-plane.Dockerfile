@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM ghcr.io/astral-sh/uv:0.11.16 AS uv
 
-FROM python:3.12.14-alpine3.24@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b AS builder
+FROM python:3.14.6-alpine3.24@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92 AS builder
 COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 \
@@ -12,7 +12,7 @@ COPY services/control-plane/ services/control-plane/
 COPY packages/sdk-python/ packages/sdk-python/
 RUN uv sync --frozen --no-dev --no-editable --package obsion-control-plane
 
-FROM python:3.12.14-alpine3.24@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b AS runtime
+FROM python:3.14.6-alpine3.24@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92 AS runtime
 RUN addgroup -S -g 10001 obsion \
     && adduser -S -D -H -u 10001 -G obsion -s /sbin/nologin obsion
 WORKDIR /app
