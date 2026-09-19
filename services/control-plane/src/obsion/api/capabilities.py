@@ -13,13 +13,15 @@ from obsion.api.schemas import (
 from obsion.capabilities.gateway import CapabilityGateway, GatewayRequest
 from obsion.common.errors import ConflictError, NotFoundError
 from obsion.db.models import CapabilityDefinition, CapabilityVersion
-from obsion.domain.enums import RegistryStatus, RunStatus
+from obsion.domain.enums import DecisionEffect, RegistryStatus, RiskLevel, RunStatus
 from obsion.registry.capability_descriptor import CapabilityDescriptor
 from obsion.security.auth import get_principal, get_session
 from obsion.security.identity import Principal
+from obsion.security.policy import PolicyEngine, ResourcePolicyInput
 from obsion.security.workspace_access import require_run_access
 
 router = APIRouter(tags=["capabilities"])
+_policy = PolicyEngine()
 
 
 def _capability_view(
@@ -30,30 +32,80 @@ def _capability_view(
     )
 
 
+async def _authorized_capabilities(
+    session: AsyncSession,
+    principal: Principal,
+    capability_id: UUID | None = None,
+) -> list[tuple[CapabilityDefinition, CapabilityVersion]]:
+    """Authorize minimal envelopes before loading descriptor text or schemas."""
+
+    statement = (
+        select(
+            CapabilityDefinition.id,
+            CapabilityDefinition.name,
+            CapabilityVersion.id.label("version_id"),
+            CapabilityVersion.version,
+            CapabilityVersion.permission_action,
+            CapabilityVersion.data_classification,
+        )
+        .join(CapabilityVersion, CapabilityVersion.capability_id == CapabilityDefinition.id)
+        .where(
+            CapabilityDefinition.organization_id == principal.organization_id,
+            CapabilityDefinition.status == RegistryStatus.ACTIVE,
+            CapabilityVersion.organization_id == principal.organization_id,
+        )
+        .order_by(CapabilityDefinition.name, CapabilityVersion.version.desc())
+    )
+    if capability_id is not None:
+        statement = statement.where(CapabilityDefinition.id == capability_id)
+    envelopes = (await session.execute(statement)).all()
+    authorized_versions: set[UUID] = set()
+    seen: set[UUID] = set()
+    for envelope in envelopes:
+        if envelope.id in seen:
+            continue
+        seen.add(envelope.id)
+        decision = await _policy.evaluate_resource(
+            session,
+            ResourcePolicyInput(
+                principal=principal,
+                action=envelope.permission_action,
+                resource={
+                    "id": str(envelope.id),
+                    "version_id": str(envelope.version_id),
+                    "name": envelope.name,
+                    "classification": envelope.data_classification.value,
+                },
+                context={"operation": "capability_descriptor_read"},
+                risk_level=RiskLevel.L1,
+                resource_type="capability_descriptor",
+                capability_version_id=envelope.version_id,
+                resource_access_allowed=True,
+            ),
+        )
+        if decision.effect == DecisionEffect.ALLOW:
+            authorized_versions.add(envelope.version_id)
+    if not authorized_versions:
+        return []
+    rows = (
+        await session.execute(
+            select(CapabilityDefinition, CapabilityVersion)
+            .join(CapabilityVersion, CapabilityVersion.capability_id == CapabilityDefinition.id)
+            .where(CapabilityVersion.id.in_(authorized_versions))
+            .order_by(CapabilityDefinition.name)
+        )
+    ).all()
+    return [row._tuple() for row in rows]
+
+
 @router.get("/capabilities", response_model=list[CapabilityDescriptorView])
 async def list_capabilities(
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
 ) -> list[CapabilityDescriptorView]:
-    rows = (
-        await session.execute(
-            select(CapabilityDefinition, CapabilityVersion)
-            .join(CapabilityVersion, CapabilityVersion.capability_id == CapabilityDefinition.id)
-            .where(
-                CapabilityDefinition.organization_id == principal.organization_id,
-                CapabilityDefinition.status == RegistryStatus.ACTIVE,
-            )
-            .order_by(CapabilityDefinition.name, CapabilityVersion.version.desc())
-        )
-    ).all()
-    visible: list[CapabilityDescriptorView] = []
-    seen: set[object] = set()
-    for definition, version in rows:
-        if definition.id in seen or not principal.can(version.permission_action):
-            continue
-        visible.append(_capability_view(definition, version))
-        seen.add(definition.id)
-    return visible
+    async with session.begin():
+        rows = await _authorized_capabilities(session, principal)
+    return [_capability_view(definition, version) for definition, version in rows]
 
 
 @router.get("/capabilities/{capability_id}", response_model=CapabilityDescriptorView)
@@ -62,22 +114,11 @@ async def get_capability(
     session: AsyncSession = Depends(get_session),
     principal: Principal = Depends(get_principal),
 ) -> CapabilityDescriptorView:
-    row = (
-        await session.execute(
-            select(CapabilityDefinition, CapabilityVersion)
-            .join(CapabilityVersion, CapabilityVersion.capability_id == CapabilityDefinition.id)
-            .where(
-                CapabilityDefinition.id == capability_id,
-                CapabilityDefinition.organization_id == principal.organization_id,
-                CapabilityDefinition.status == RegistryStatus.ACTIVE,
-            )
-            .order_by(CapabilityVersion.version.desc())
-            .limit(1)
-        )
-    ).one_or_none()
-    if row is None or not principal.can(row[1].permission_action):
+    async with session.begin():
+        rows = await _authorized_capabilities(session, principal, capability_id)
+    if not rows:
         raise NotFoundError("Capability", capability_id)
-    return _capability_view(*row._tuple())
+    return _capability_view(*rows[0])
 
 
 @router.post("/capabilities/{capability_name}/invoke", response_model=CapabilityInvokeView)

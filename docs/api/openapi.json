@@ -1645,6 +1645,44 @@
         "title": "Body_upload_artifact_api_v1_workspaces__workspace_id__artifacts_post",
         "type": "object"
       },
+      "CapabilityAvailability": {
+        "enum": [
+          "READY",
+          "UNCONFIGURED",
+          "STALE",
+          "UNAVAILABLE"
+        ],
+        "title": "CapabilityAvailability",
+        "type": "string"
+      },
+      "CapabilityCostView": {
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "cost_class": {
+            "title": "Cost Class",
+            "type": "string"
+          },
+          "declared_timeout_seconds": {
+            "title": "Declared Timeout Seconds",
+            "type": "integer"
+          },
+          "gateway_invocations": {
+            "title": "Gateway Invocations",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "basis",
+          "cost_class",
+          "declared_timeout_seconds",
+          "gateway_invocations"
+        ],
+        "title": "CapabilityCostView",
+        "type": "object"
+      },
       "CapabilityDescriptorView": {
         "properties": {
           "data_classification": {
@@ -1727,6 +1765,43 @@
           "data_classification"
         ],
         "title": "CapabilityDescriptorView",
+        "type": "object"
+      },
+      "CapabilityFreshnessView": {
+        "properties": {
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "CapabilityFreshnessView",
         "type": "object"
       },
       "CapabilityInvokeRequest": {
@@ -1916,6 +1991,486 @@
           "WORKFLOW"
         ],
         "title": "CapabilityTransport",
+        "type": "string"
+      },
+      "CatalogCapabilityView": {
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/CapabilityAvailability"
+          },
+          "connector_dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectorDependencyView"
+            },
+            "title": "Connector Dependencies",
+            "type": "array"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/CapabilityCostView"
+          },
+          "data_classification": {
+            "$ref": "#/components/schemas/Classification"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "evidence_categories": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceType"
+            },
+            "title": "Evidence Categories",
+            "type": "array"
+          },
+          "executable_environments": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Executable Environments",
+            "type": "array"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/CapabilityFreshnessView"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "permission": {
+            "title": "Permission",
+            "type": "string"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/RiskLevel"
+          },
+          "side_effect": {
+            "$ref": "#/components/schemas/SideEffect"
+          },
+          "transport": {
+            "$ref": "#/components/schemas/CapabilityTransport"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version_id",
+          "name",
+          "display_name",
+          "description",
+          "version",
+          "transport",
+          "risk",
+          "side_effect",
+          "permission",
+          "input_schema",
+          "output_schema",
+          "evidence_categories",
+          "executable_environments",
+          "connector_dependencies",
+          "availability",
+          "freshness",
+          "cost",
+          "data_classification",
+          "policy_decision_id"
+        ],
+        "title": "CatalogCapabilityView",
+        "type": "object"
+      },
+      "CatalogDiscoveryStatus": {
+        "enum": [
+          "RESULTS",
+          "EMPTY",
+          "UNAUTHORIZED"
+        ],
+        "title": "CatalogDiscoveryStatus",
+        "type": "string"
+      },
+      "CatalogDiscoveryView": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogCapabilityView"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "query": {
+            "maxLength": 200,
+            "title": "Query",
+            "type": "string"
+          },
+          "relations": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogRelationView"
+            },
+            "title": "Relations",
+            "type": "array"
+          },
+          "repair_actions": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogRepairActionView"
+            },
+            "title": "Repair Actions",
+            "type": "array"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogResourceView"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CatalogDiscoveryStatus"
+          }
+        },
+        "required": [
+          "status",
+          "query",
+          "policy_decision_id"
+        ],
+        "title": "CatalogDiscoveryView",
+        "type": "object"
+      },
+      "CatalogProvenanceView": {
+        "properties": {
+          "evidence_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Version"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          },
+          "verification_level": {
+            "$ref": "#/components/schemas/CatalogVerificationLevel"
+          }
+        },
+        "required": [
+          "source_type",
+          "source_ref",
+          "source_version",
+          "verification_level",
+          "observed_at"
+        ],
+        "title": "CatalogProvenanceView",
+        "type": "object"
+      },
+      "CatalogRelationType": {
+        "enum": [
+          "DOMAIN_CONTAINS_SERVICE",
+          "SERVICE_DEPLOYED_AS",
+          "DEPLOYMENT_BUILT_FROM",
+          "REPOSITORY_EXPOSES_API",
+          "DATA_SOURCE_CONTAINS_TABLE",
+          "LOGICAL_DATA_SOURCE_MAPS_TO_PHYSICAL_CLUSTER",
+          "METRIC_DERIVED_FROM_TABLE",
+          "SERVICE_EMITS_LOG"
+        ],
+        "title": "CatalogRelationType",
+        "type": "string"
+      },
+      "CatalogRelationView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/CatalogProvenanceView"
+          },
+          "relation_type": {
+            "$ref": "#/components/schemas/CatalogRelationType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CatalogResourceRefView"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CatalogResourceState"
+          },
+          "target": {
+            "$ref": "#/components/schemas/CatalogResourceRefView"
+          }
+        },
+        "required": [
+          "id",
+          "relation_type",
+          "source",
+          "target",
+          "state",
+          "provenance",
+          "policy_decision_id"
+        ],
+        "title": "CatalogRelationView",
+        "type": "object"
+      },
+      "CatalogRepairActionView": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "target_ref": {
+            "title": "Target Ref",
+            "type": "string"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "target_type",
+          "target_ref",
+          "summary"
+        ],
+        "title": "CatalogRepairActionView",
+        "type": "object"
+      },
+      "CatalogResourceKind": {
+        "enum": [
+          "BUSINESS_DOMAIN",
+          "SERVICE",
+          "REPOSITORY",
+          "API",
+          "TABLE",
+          "METRIC",
+          "LOG",
+          "DEPLOYMENT",
+          "DATA_SOURCE",
+          "LOGICAL_DATA_SOURCE",
+          "PHYSICAL_DATA_CLUSTER"
+        ],
+        "title": "CatalogResourceKind",
+        "type": "string"
+      },
+      "CatalogResourceRefView": {
+        "properties": {
+          "canonical_key": {
+            "title": "Canonical Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CatalogResourceKind"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "kind",
+          "canonical_key"
+        ],
+        "title": "CatalogResourceRefView",
+        "type": "object"
+      },
+      "CatalogResourceState": {
+        "enum": [
+          "ACTIVE",
+          "UNCONFIGURED",
+          "STALE",
+          "UNAVAILABLE"
+        ],
+        "title": "CatalogResourceState",
+        "type": "string"
+      },
+      "CatalogResourceView": {
+        "properties": {
+          "canonical_key": {
+            "title": "Canonical Key",
+            "type": "string"
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Classification"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CatalogResourceKind"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "policy_decision_id": {
+            "format": "uuid",
+            "title": "Policy Decision Id",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/CatalogProvenanceView"
+          },
+          "required_permission": {
+            "title": "Required Permission",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CatalogResourceState"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "canonical_key",
+          "display_name",
+          "description",
+          "owner",
+          "version",
+          "state",
+          "classification",
+          "required_permission",
+          "updated_at",
+          "provenance",
+          "policy_decision_id"
+        ],
+        "title": "CatalogResourceView",
+        "type": "object"
+      },
+      "CatalogVerificationLevel": {
+        "enum": [
+          "DECLARED",
+          "STATIC_INFERENCE",
+          "RUNTIME_OBSERVED"
+        ],
+        "title": "CatalogVerificationLevel",
         "type": "string"
       },
       "ClaimImDeliveryRequest": {
@@ -3056,6 +3611,52 @@
           "name"
         ],
         "title": "ConfluenceSpaceView",
+        "type": "object"
+      },
+      "ConnectorDependencyView": {
+        "properties": {
+          "connector_type": {
+            "title": "Connector Type",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CapabilityAvailability"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "connector_type",
+          "environment",
+          "state"
+        ],
+        "title": "ConnectorDependencyView",
         "type": "object"
       },
       "ConnectorStatus": {
@@ -6510,6 +7111,23 @@
         ],
         "title": "EventView",
         "type": "object"
+      },
+      "EvidenceType": {
+        "enum": [
+          "DOCUMENT",
+          "DATA",
+          "SQL",
+          "METRIC",
+          "LOG",
+          "TRACE",
+          "CODE",
+          "GIT",
+          "DEPLOYMENT",
+          "CONFIG",
+          "TOOL"
+        ],
+        "title": "EvidenceType",
+        "type": "string"
       },
       "EvidenceView": {
         "properties": {
@@ -26230,6 +26848,157 @@
         "summary": "Invoke Capability",
         "tags": [
           "capabilities"
+        ]
+      }
+    },
+    "/api/v1/catalog/discovery": {
+      "get": {
+        "operationId": "discover_catalog_api_v1_catalog_discovery_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kinds",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogResourceKind"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kinds"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogDiscoveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The requested resource was not found.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The HTTP method is not allowed for the matched route.",
+            "headers": {
+              "Allow": {
+                "description": "HTTP methods supported by the matched route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request does not satisfy the API input contract.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The server encountered an unexpected internal failure.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Stable correlation identifier for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Discover Catalog",
+        "tags": [
+          "catalog"
         ]
       }
     },

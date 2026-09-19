@@ -21,6 +21,7 @@ from obsion.api import (
     auth,
     automation,
     capabilities,
+    catalog,
     code,
     codeup,
     collaboration,
@@ -494,6 +495,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     protected_api.include_router(artifacts.router)
     protected_api.include_router(automation.router)
     protected_api.include_router(actions.router)
+    protected_api.include_router(catalog.router)
     protected_api.include_router(capabilities.router)
     protected_api.include_router(collaboration.router)
     protected_api.include_router(knowledge.router)

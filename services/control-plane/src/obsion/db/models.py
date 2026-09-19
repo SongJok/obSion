@@ -42,6 +42,10 @@ from obsion.domain.enums import (
     AutomationStepStatus,
     AutomationTrigger,
     CapabilityTransport,
+    CatalogRelationType,
+    CatalogResourceKind,
+    CatalogResourceState,
+    CatalogVerificationLevel,
     Classification,
     CodeRelation,
     CodeSymbolKind,
@@ -1460,6 +1464,147 @@ class CapabilityBinding(Base, IdMixin, OrganizationMixin, TimestampMixin):
     environment: Mapped[str] = mapped_column(String(80), nullable=False)
     resource_selector: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class CatalogResource(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """A governed, provenance-bearing enterprise resource fact.
+
+    Existing registries are projected at read time. This table stores resource
+    kinds that do not already have a durable source of truth and explicit
+    metadata overlays; it is never an authority or credential store.
+    """
+
+    __tablename__ = "catalog_resources"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "kind",
+            "canonical_key",
+            name="uq_catalog_resources_org_kind_key",
+        ),
+        CheckConstraint("length(trim(canonical_key)) > 0", name="nonempty_catalog_resource_key"),
+        CheckConstraint("length(trim(display_name)) > 0", name="nonempty_catalog_display_name"),
+        CheckConstraint("length(trim(source_type)) > 0", name="nonempty_catalog_source_type"),
+        CheckConstraint("length(trim(source_ref)) > 0", name="nonempty_catalog_source_ref"),
+        CheckConstraint(
+            "length(trim(required_permission)) > 0",
+            name="nonempty_catalog_required_permission",
+        ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from IS NULL OR valid_until >= valid_from",
+            name="ordered_catalog_resource_validity",
+        ),
+        Index("ix_catalog_resources_lookup", "organization_id", "kind", "canonical_key"),
+    )
+
+    kind: Mapped[CatalogResourceKind] = mapped_column(
+        enum_type(CatalogResourceKind, 40), nullable=False
+    )
+    canonical_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(240), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    owner: Mapped[str | None] = mapped_column(String(320))
+    version: Mapped[str | None] = mapped_column(String(200))
+    state: Mapped[CatalogResourceState] = mapped_column(
+        enum_type(CatalogResourceState, 24), nullable=False, default=CatalogResourceState.ACTIVE
+    )
+    required_permission: Mapped[str] = mapped_column(
+        String(200), nullable=False, default="catalog.discover"
+    )
+    classification: Mapped[Classification] = mapped_column(
+        enum_type(Classification), nullable=False, default=Classification.INTERNAL
+    )
+    access_policy: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    search_terms: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    source_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_ref: Mapped[str] = mapped_column(String(1000), nullable=False)
+    source_version: Mapped[str | None] = mapped_column(String(200))
+    verification_level: Mapped[CatalogVerificationLevel] = mapped_column(
+        enum_type(CatalogVerificationLevel, 24), nullable=False
+    )
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CatalogRelation(Base, IdMixin, OrganizationMixin, TimestampMixin):
+    """A relation whose source, version, validity, and verification are explicit."""
+
+    __tablename__ = "catalog_relations"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "relation_type",
+            "source_kind",
+            "source_key",
+            "target_kind",
+            "target_key",
+            "provenance_ref",
+            name="uq_catalog_relations_fact",
+        ),
+        CheckConstraint("length(trim(source_key)) > 0", name="nonempty_catalog_source_key"),
+        CheckConstraint("length(trim(target_key)) > 0", name="nonempty_catalog_target_key"),
+        CheckConstraint(
+            "length(trim(provenance_source)) > 0",
+            name="nonempty_catalog_relation_source",
+        ),
+        CheckConstraint(
+            "length(trim(provenance_ref)) > 0",
+            name="nonempty_catalog_relation_ref",
+        ),
+        CheckConstraint(
+            "length(trim(required_permission)) > 0",
+            name="nonempty_catalog_relation_permission",
+        ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from IS NULL OR valid_until >= valid_from",
+            name="ordered_catalog_relation_validity",
+        ),
+        CheckConstraint(
+            "relation_type != 'LOGICAL_DATA_SOURCE_MAPS_TO_PHYSICAL_CLUSTER' OR "
+            "(verification_level = 'RUNTIME_OBSERVED' AND evidence_category = 'DEPLOYMENT')",
+            name="observed_physical_cluster_mapping",
+        ),
+        Index(
+            "ix_catalog_relations_source",
+            "organization_id",
+            "source_kind",
+            "source_key",
+        ),
+        Index(
+            "ix_catalog_relations_target",
+            "organization_id",
+            "target_kind",
+            "target_key",
+        ),
+    )
+
+    relation_type: Mapped[CatalogRelationType] = mapped_column(
+        enum_type(CatalogRelationType, 56), nullable=False
+    )
+    source_kind: Mapped[CatalogResourceKind] = mapped_column(
+        enum_type(CatalogResourceKind, 40), nullable=False
+    )
+    source_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    source_version: Mapped[str | None] = mapped_column(String(200))
+    target_kind: Mapped[CatalogResourceKind] = mapped_column(
+        enum_type(CatalogResourceKind, 40), nullable=False
+    )
+    target_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    target_version: Mapped[str | None] = mapped_column(String(200))
+    provenance_source: Mapped[str] = mapped_column(String(80), nullable=False)
+    provenance_ref: Mapped[str] = mapped_column(String(1000), nullable=False)
+    provenance_version: Mapped[str | None] = mapped_column(String(200))
+    evidence_category: Mapped[EvidenceType] = mapped_column(enum_type(EvidenceType), nullable=False)
+    verification_level: Mapped[CatalogVerificationLevel] = mapped_column(
+        enum_type(CatalogVerificationLevel, 24), nullable=False
+    )
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    required_permission: Mapped[str] = mapped_column(
+        String(200), nullable=False, default="catalog.discover"
+    )
 
 
 class Policy(Base, IdMixin, OrganizationMixin, TimestampMixin):

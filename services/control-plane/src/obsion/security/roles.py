@@ -22,6 +22,7 @@ SYSTEM_ROLE_DEFINITIONS: tuple[SystemRoleDefinition, ...] = (
         (
             "artifact.write",
             "automation.trigger",
+            "catalog.discover",
             "code.read.confidential",
             "code.read.internal",
             "code.write",
@@ -41,6 +42,7 @@ SYSTEM_ROLE_DEFINITIONS: tuple[SystemRoleDefinition, ...] = (
         "Data analyst for governed research, semantic data, and evidence workflows",
         (
             "artifact.write",
+            "catalog.discover",
             "evaluations.read",
             "knowledge.read.confidential",
             "knowledge.read.internal",
@@ -56,6 +58,7 @@ SYSTEM_ROLE_DEFINITIONS: tuple[SystemRoleDefinition, ...] = (
             "approval.read",
             "artifact.write",
             "automation.trigger",
+            "catalog.discover",
             "knowledge.read.confidential",
             "knowledge.read.internal",
             "memory.read",
@@ -67,6 +70,7 @@ SYSTEM_ROLE_DEFINITIONS: tuple[SystemRoleDefinition, ...] = (
         "Support investigator with bounded internal knowledge and workspace access",
         (
             "artifact.write",
+            "catalog.discover",
             "knowledge.read.internal",
             "memory.read",
             "memory.write",
@@ -76,6 +80,7 @@ SYSTEM_ROLE_DEFINITIONS: tuple[SystemRoleDefinition, ...] = (
         SystemRole.VIEWER,
         "Read-only participant for authorized workspaces and internal knowledge",
         (
+            "catalog.discover",
             "knowledge.read.internal",
             "memory.read",
         ),

@@ -63,6 +63,10 @@ class ResourcePolicyInput:
     agent_name: str = "control-plane"
     agent_version_id: UUID | None = None
     run_id: UUID | None = None
+    # Resource-native ACL/grant checks are facts supplied to, and decided by,
+    # the Policy Engine. A connector or service identity can never turn False
+    # into an allow decision.
+    resource_access_allowed: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -311,7 +315,10 @@ class PolicyEngine:
         )
         obligations: list[dict[str, Any]] = []
         policy_ids: list[UUID] = []
-        if request.risk_level.ordinal >= RiskLevel.L3.ordinal:
+        if request.resource_access_allowed is False:
+            effect = DecisionEffect.DENY
+            reasons = ["resource_access_denied"]
+        elif request.risk_level.ordinal >= RiskLevel.L3.ordinal:
             effect = DecisionEffect.DENY
             reasons = ["high_risk_resource_mutation_denied"]
         elif matching:
@@ -353,6 +360,7 @@ class PolicyEngine:
             "resource": redact(request.resource),
             "context": redact(request.context),
             "risk": request.risk_level,
+            "resource_access_allowed": request.resource_access_allowed,
             "effect": effect,
             "matched_policy_ids": [str(policy_id) for policy_id in policy_ids],
         }

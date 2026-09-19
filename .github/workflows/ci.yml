@@ -263,6 +263,10 @@ jobs:
             database: obsion_im_inbox_migration
             opt_in: OBSION_RUN_IM_INBOX_MIGRATION_TEST
             test: services/control-plane/tests/integration/test_postgres_im_inbox_migration.py
+          - name: h03-authorized-catalog
+            database: obsion_h03_authorized_catalog
+            opt_in: OBSION_RUN_H03_CATALOG_MIGRATION_TEST
+            test: services/control-plane/tests/integration/test_postgres_h03_catalog_migration.py
     name: migration-round-trip (${{ matrix.name }})
     services:
       postgres:
