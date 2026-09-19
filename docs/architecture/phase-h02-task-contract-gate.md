@@ -1,8 +1,9 @@
 # H02 architecture gate: versioned TaskContract
 
 Date: 2026-09-19
-Decision: **repository architecture and full local validation PASS; remote code-candidate validation pending**
+Decision: **PASS**
 ADR: [0144](../adr/0144-versioned-task-contract.md)
+Validated candidate: `2a8d4e621f33e9de3347650b3e7592d9f3348be4`
 
 ## Boundary reviewed
 
@@ -30,8 +31,11 @@ remain the only external execution and authorization boundaries.
 The CI-equivalent local suite completed with 3,020 passing tests, 285 explicit
 environment skips and 80.06% coverage; the isolated contract-distribution test,
 strict type/format checks, all repository validators, secret scan, and all JavaScript
-workspace checks also passed. PostgreSQL, migration, image and live-provider gates
-remain delegated to the pushed GitHub candidate and must pass before completion.
+workspace checks also passed. GitHub Actions run
+[35443823582](https://github.com/SongJok/obSion/actions/runs/35443823582)
+then passed all 15 jobs, including PostgreSQL, migration, release-image security and
+container smoke gates. Live-provider actions remain explicitly outside H02 and were
+not represented as executed.
 
 ## Acceptance scenarios
 

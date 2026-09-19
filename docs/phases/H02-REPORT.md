@@ -2,8 +2,9 @@
 
 Date: 2026-09-19
 Baseline: `dbcf708a82020db6e59672b020e0360f4c49a6d5`
+Validated candidate: `2a8d4e621f33e9de3347650b3e7592d9f3348be4`
 Architecture gate: [versioned TaskContract](../architecture/phase-h02-task-contract-gate.md)
-Decision: **implementation and full local validation complete; remote code-candidate validation pending**
+Decision: **COMPLETE**
 
 ## Outcome
 
@@ -58,9 +59,12 @@ digests while retaining the fact that Gateway and Policy enforcement are mandato
 - JavaScript workspaces: PASS — lint, typecheck, production build, and 297 tests
   across Desktop, IDE, Web, and TypeScript SDK.
 - PostgreSQL-only, destructive-migration, and live-vendor tests remained explicitly
-  skipped in the local profile; their configured CI jobs and container gates remain
-  mandatory for the pushed candidate.
-- Remote code-candidate results will be recorded before H02 is marked complete.
+  skipped in the local profile rather than simulated.
+- GitHub Actions candidate run
+  [35443823582](https://github.com/SongJok/obSion/actions/runs/35443823582):
+  PASS — all 15 jobs, including complete quality, PostgreSQL integration and migration
+  checks, seven isolated migration paths, Java SDK, Helm, release-image build, image
+  security scans and container smoke tests.
 
 The main-branch H01 documentation revalidation exposed a slow-host SQLite duplicate
 receipt failure in addition to a static producer-manifest failure. H02 runtime edits
