@@ -10,6 +10,10 @@ from obsion.db.base import Base
 from obsion.db.session import Database
 from obsion.main import create_app
 
+# Repository-local developer settings must never influence any test, including
+# tests that construct Settings directly instead of using app_settings.
+Settings.model_config["env_file"] = None
+
 TEST_BEARER_TOKEN = "obsion-phase2-test-bearer-token"  # noqa: S105
 
 

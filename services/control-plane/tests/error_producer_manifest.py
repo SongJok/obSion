@@ -4369,7 +4369,7 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
             "forward:harness/runtime.py:1706:exc.code | "
             "forward:harness/runtime.py:1736:result.error_code",
         ),
-        ("main.py::_error_response#ErrorBody[1]", "forward:main.py:423:exc.code"),
+        ("main.py::_error_response#ErrorBody[1]", "forward:main.py:425:exc.code"),
         (
             "api/codeup.py::_raise_gateway_failure#ObsionError[1]",
             "forward:api/codeup.py:219:result.error_code",
