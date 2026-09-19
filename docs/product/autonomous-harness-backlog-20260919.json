@@ -1,0 +1,1366 @@
+{
+  "repository": "SongJok/obSion",
+  "baseline_commit": "24d5503826d1901fe95abe8cb80ebb8466949682",
+  "review_date": "2026-09-19",
+  "artifact_status": "DESIGN_ONLY_NOT_IMPLEMENTED",
+  "id_namespace_note": "H01-H20是本计划工作包编号，不替换仓库已有phase/ADR编号；实施前映射到实际开发分支。",
+  "invariants": [
+    "复用一个Python控制面、一个Harness和PostgreSQL事实源；客户端与连接器不实现第二执行循环。",
+    "所有外部能力通过Gateway/Policy；Agent和沙箱不持有生产凭据。",
+    "当前生产动作与sandbox生产启动禁用保持兼容；更改必须单独ADR、授权、安全与真实部署验收。",
+    "每阶段交付实现、失败先行测试、集成与必要UI、迁移或无迁移说明、文档、回滚/恢复、验证报告。",
+    "模型提案不是执行授权，日志/文档/工具输出都是不可信数据，不能改写任务合同或权限。",
+    "已执行与未执行、成功空与失败、静态代码与生产事实、计划与实际结果必须区分。",
+    "不得降低测试或评分标准、用mock伪装生产、绕预算或无回执声称成功。"
+  ],
+  "parallel_work_note": "H01即启动评测与UI纵向切片；H19是最终评测整合而非开始测试。H15和H17是按需求启用的扩展，不是只读企业V1的强制前置。",
+  "phases": [
+    {
+      "id": "H01",
+      "title": "冻结事实基线与修复当前工程阻断",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [],
+      "integration_targets": [
+        "services/control-plane/src/obsion/harness/",
+        "services/control-plane/src/obsion/evaluations/",
+        "services/control-plane/src/obsion/release/"
+      ],
+      "tasks": [
+        {
+          "id": "H01-T01",
+          "title": "冻结实际HEAD、API/Worker包摘要、镜像digest、模型Profile、连接器版本、策略版本和评测版本；建立需求—代码—入口—测试—真实回执矩阵。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H01-T02",
+          "title": "读取当前quality任务失败日志，修复前端lint的实际根因；保持检查范围，重新运行完整CI与被跳过的后续任务。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H01-T03",
+          "title": "保留旧24例基线及原始分母；按来源、语义、引用、模型协议、端点、资源、时效七类错误建立诊断账本。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H01-T04",
+          "title": "统一README的发布范围与project-status的开发版本表达；不得用版本号或completed_phases列表替代发布证据。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H01-T05",
+          "title": "建立3类首批纵向真实案例：业务定位、精确统计、隔离代码执行；设立独立保留集访问规则。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H01-A01",
+          "scenario": "同一个候选的代码、镜像、模型或连接器发生漂移时，验收必须标记不可比较，而不是沿用旧成绩。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H01-A02",
+          "scenario": "quality完整通过后才记录工程门通过；上游失败导致跳过的build不得算成功。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H01-A03",
+          "scenario": "24例旧基线保持5 PASS/1 FAIL/18 BLOCKED的历史记录，新候选另建批次，不覆盖旧分数。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H01-A04",
+          "scenario": "没有企业凭据的验收返回NOT_RUN或BLOCKED，不以mock冒充厂商实测。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不在此阶段声称已解决真实问答质量，也不修改已有生产授权边界。"
+    },
+    {
+      "id": "H02",
+      "title": "任务合同、业务义务与变更版本",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H01"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/harness/intent_resolution.py",
+        "services/control-plane/src/obsion/harness/task_context.py",
+        "services/control-plane/src/obsion/domain/",
+        "services/control-plane/src/obsion/api/"
+      ],
+      "tasks": [
+        {
+          "id": "H02-T01",
+          "title": "扩展现有RunIntent为版本化TaskContract：目标、资料范围、对象、时间时区、精确性、交付物、约束、权限、预算和成功条件。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H02-T02",
+          "title": "按知识/定位/统计/故障/代码任务生成必要信息维度，区分硬义务与可选义务；允许领域插件扩展。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H02-T03",
+          "title": "先用已授权来源消除歧义，只有无法查明且实质影响结果的歧义才产生用户选择请求。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H02-T04",
+          "title": "追问继承当前有权访问的任务上下文；用户更改指标或时间窗时递增合同版本并使受影响结果失效。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H02-T05",
+          "title": "向所有作者、调查、验证、输出模块传递同一合同摘要；防止不同模块回答不同问题。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H02-A01",
+          "scenario": "用户仅改时间窗时，旧SQL、统计和依赖Claim被重新验证；不混入上轮口径。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H02-A02",
+          "scenario": "来源文字要求忽略用户筛选条件时，不得修改合同或提升权限。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H02-A03",
+          "scenario": "用户指定两个附件时，探测不能自动搜索全组织知识库。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H02-A04",
+          "scenario": "关键实体无法唯一确定时挂起选择；能从授权目录唯一确定时不重复追问。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不把任务合同做成新的外部Agent服务，不要求存储原始隐藏思维链。"
+    },
+    {
+      "id": "H03",
+      "title": "授权资源目录与企业关系映射",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H02"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/registry/",
+        "services/control-plane/src/obsion/capabilities/",
+        "services/control-plane/src/obsion/code_intelligence/",
+        "services/control-plane/src/obsion/knowledge/"
+      ],
+      "tasks": [
+        {
+          "id": "H03-T01",
+          "title": "复用现有注册表，建立业务资源目录：业务域、服务、仓库、接口、表、指标、日志、Owner、版本和更新时间。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H03-T02",
+          "title": "维护资源之间的有出处关系，例如服务—部署SHA—源码、逻辑数据源—实际集群、指标—业务表。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H03-T03",
+          "title": "能力描述包含输入输出Schema、风险、可执行环境、证据类别、权限、连接器依赖、时效和代价信息。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H03-T04",
+          "title": "提供先过滤授权再检索的资源/能力发现；目录描述、搜索排名、错误信息都不能泄露无权资源。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H03-T05",
+          "title": "区分未配置、未授权、失效、不可用、成功空结果；对有权管理员生成修复动作，不向模型暴露凭据。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H03-A01",
+          "scenario": "两个租户对同一业务词检索，只能得到各自可见的资源、能力与关系边。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H03-A02",
+          "scenario": "已建立连接但个人无权限时，不得借服务账号访问该资源。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H03-A03",
+          "scenario": "连接过期与真实查询无记录产生不同状态，不能都返回空数组。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H03-A04",
+          "scenario": "源码中的逻辑库映射缺少部署证据时，只能报告逻辑库，不能猜测生产集群。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不强制引入图数据库；先以PostgreSQL和现有索引实现可用的关系投影。"
+    },
+    {
+      "id": "H04",
+      "title": "通用探索规划与动态动作绑定",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H02",
+        "H03"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/harness/planner.py",
+        "services/control-plane/src/obsion/harness/investigation.py",
+        "services/control-plane/src/obsion/harness/evidence_gaps.py",
+        "services/control-plane/src/obsion/harness/runtime.py"
+      ],
+      "tasks": [
+        {
+          "id": "H04-T01",
+          "title": "将knowledge-only提案协议扩展为受管ProbeAction；仍由服务器校验后进入既有Gateway，不直接执行模型文本。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H04-T02",
+          "title": "保留现有业务路由模板作为计划种子，增加基于缺口的短视野重规划与受版本控制的DAG。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H04-T03",
+          "title": "引入类型化结果引用：后续查询参数必须绑定实际上一步的实体、符号、分页cursor或版本，不复制原问题充当符号。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H04-T04",
+          "title": "去重从已用工具集合改为动作指纹：能力版本、授权资源、查询、时窗、快照、cursor；瞬时故障另计attempt。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H04-T05",
+          "title": "实现共享预算、无进展检测、有限重试和继续/澄清/等待/部分交付/终止决策；并行只用于无依赖步骤。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H04-A01",
+          "scenario": "同一code.search用不同有效查询可继续；同一查询反复无新证据会有界停止。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H04-A02",
+          "scenario": "上一动作解析出service_id后，下一动作绑定该值，而非把自然语言问题当服务名。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H04-A03",
+          "scenario": "两个并行动作累计超预算时，服务端阻止超额执行，不允许通过子Agent重置预算。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H04-A04",
+          "scenario": "模型提议不存在的工具或任意生产shell时，动作被拒绝并留下结构化原因。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不新建第二Agent Loop，不以无限递归或持续延长提示词实现自主性。"
+    },
+    {
+      "id": "H05",
+      "title": "充分度账本与可信交付判定",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H02",
+        "H04"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/harness/critic.py",
+        "services/control-plane/src/obsion/harness/grounding.py",
+        "services/control-plane/src/obsion/harness/answerability.py",
+        "services/control-plane/src/obsion/harness/runtime.py"
+      ],
+      "tasks": [
+        {
+          "id": "H05-T01",
+          "title": "维护Dimension Ledger：每个义务的状态、支持与冲突证据、适用时点、验证方法和剩余动作。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H05-T02",
+          "title": "每次工具回执、合同变更、来源失效或权限变化后重算全局缺口；局部partialFindings可以累积。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H05-T03",
+          "title": "为完整交付设置硬门：必要义务全部满足、无关键冲突、当前ACL/时效合格、必要执行与产物验证完成。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H05-T04",
+          "title": "规则核验数字/引用/Schema/集合不变量，独立语义复核支持关系；校准误拒与误放，不把模型confidence当正确率。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H05-T05",
+          "title": "AnswerEnvelope区分已验证完整、部分、冲突、受阻；综合多源不是新的证据，必须逐Claim追溯。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H05-A01",
+          "scenario": "四个来源各不完整但合并覆盖全部硬义务时，可以综合交付，无需某单源独立答全。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H05-A02",
+          "scenario": "只缺一项关键统计筛选时，模型即便confidence=0.99也不得发布精确完整答案。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H05-A03",
+          "scenario": "部分Claim可验证而另一些缺日志时，仅输出安全可验证部分并明确边界。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H05-A04",
+          "scenario": "引用逐字正确但与结论无关的候选必须被语义验证拒绝。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不通过关闭引用、语义或授权检查来提升表面成功率；不把所有部分问题整体一刀切封禁。"
+    },
+    {
+      "id": "H06",
+      "title": "四阶入口：知识与Skills渐进加载",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H03",
+        "H04",
+        "H05"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/knowledge/",
+        "services/control-plane/src/obsion/registry/",
+        "services/control-plane/src/obsion/capabilities/",
+        "services/control-plane/src/obsion/harness/investigation.py"
+      ],
+      "tasks": [
+        {
+          "id": "H06-T01",
+          "title": "复用现有钉钉与DWS连接器，区分元数据发现、检索、正文读取、分页完成与权限核验。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H06-T02",
+          "title": "设计FreshnessPolicy：LIVE_REQUIRED、BOUNDED_STALENESS、PINNED_AS_OF；当前严格实时默认保留，变更走ADR。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H06-T03",
+          "title": "Skills按metadata→适用规则→完整规范→必要资源渐进加载，固定版本并校验所需能力和参数。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H06-T04",
+          "title": "Skill定义方法、前置证据、业务口径、验证器、预算、失败和回滚约束，不把Skill说明当作当前业务结果。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H06-T05",
+          "title": "每轮保存知识和技能阶段的部分发现与缺口，按必要性进入代码和运行时探测，避免固定全阶串行。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H06-A01",
+          "scenario": "常规知识在被批准的时效范围内可本地早停；强实时问题不能用旧缓存冒充当前事实。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H06-A02",
+          "scenario": "DWS只返回目录/help时，不把这些信息当政策正文或业务数据。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H06-A03",
+          "scenario": "Skill声明需要额外数据库权限时，发现Skill本身不会授予该权限。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H06-A04",
+          "scenario": "选中文档分页读完可停止，正文不完整必须保留不完整状态，不能默认为无内容。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不将未经审核的技能脚本直接安装到控制面，不把DWS管理命令开放给问答Agent。"
+    },
+    {
+      "id": "H07",
+      "title": "12仓代码理解与线上版本定位",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H03",
+        "H04",
+        "H06"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/code_intelligence/parsers.py",
+        "services/control-plane/src/obsion/code_intelligence/",
+        "services/control-plane/src/obsion/capabilities/",
+        "services/control-plane/src/obsion/api/codeup.py"
+      ],
+      "tasks": [
+        {
+          "id": "H07-T01",
+          "title": "建立12仓接入矩阵：实际语言、框架、默认分支、索引SHA、生产部署SHA、Owner和ACL；按变更增量索引。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H07-T02",
+          "title": "在现有Python AST与Java/TS保守提取上，按真实语言补齐语法解析、符号解析、Spring/ORM/MyBatis XML/配置映射。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H07-T03",
+          "title": "构建入口→服务实现→Mapper/SQL→物理表→判别枚举链；静态解析无法确定时保留多候选。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H07-T04",
+          "title": "将逻辑数据源与部署配置/CMDB对应，区分语法确认、语义确认、部署确认和运行观察。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H07-T05",
+          "title": "证据固定repo、commit、path、line、parser版本与解析覆盖范围；查询优先定位相关仓库而非全量扫描。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H07-A01",
+          "scenario": "默认分支和实际部署SHA不同时，回答当前线上逻辑必须使用部署证据或明确未知。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H07-A02",
+          "scenario": "Java方法经MyBatis XML访问物理表的真实样例必须能形成可验证完整链。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H07-A03",
+          "scenario": "反射、动态分表、环境注入未解析时不得把候选关系标为已确认。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H07-A04",
+          "scenario": "12仓每仓至少5条独立定位题，覆盖未索引文件、重载符号及权限撤销。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不把AST当作生产事件证明，不在主进程执行仓库代码来获取静态索引。"
+    },
+    {
+      "id": "H08",
+      "title": "业务语义、历史SQL与精确问数",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H02",
+        "H03",
+        "H05",
+        "H07"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/data/",
+        "services/control-plane/src/obsion/data_intelligence/",
+        "services/control-plane/src/obsion/capabilities/",
+        "services/control-plane/src/obsion/harness/quantities.py"
+      ],
+      "tasks": [
+        {
+          "id": "H08-T01",
+          "title": "整理经人工确认的历史需求—SQL—业务规则—适用版本，作为检索与口径资产；运行时核验Schema，不直接照搬。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H08-T02",
+          "title": "将指标、维度、实体、粒度、时间、去重、JOIN和过滤转为逻辑计划并编译参数化方言SQL。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H08-T03",
+          "title": "沿现有SQL Gateway施加数据库只读身份、Schema/AST、行列权限、资源与超时限制，不凭SELECT文本认定安全。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H08-T04",
+          "title": "验证一对多JOIN放大、NULL、时间边界、历史状态与当前状态、分母分子同一人群；截断结果不得称精确全量。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H08-T05",
+          "title": "SQL、结果、执行时点、数据水位、来源、校验与口径共同形成可追溯DataResult和Artifact。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H08-A01",
+          "scenario": "老板人群、财富阈值、等级与任务条件同时存在时，不能删掉最难条件来凑出数字。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H08-A02",
+          "scenario": "一对多关联产生重复时，按合同粒度校验并拒绝错误完成率。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H08-A03",
+          "scenario": "执行失败或分页未完成不得返回0，抽样估计必须与精确统计分开。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H08-A04",
+          "scenario": "多数据源无共同快照时明确一致性边界，不宣称同一事务时点。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不训练生产数据库写入能力；不以历史SQL很多推导无需语义治理。"
+    },
+    {
+      "id": "H09",
+      "title": "接通现有隔离沙箱",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H02",
+        "H04",
+        "H05"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/sandbox/contracts.py",
+        "services/control-plane/src/obsion/sandbox/kubernetes.py",
+        "services/control-plane/src/obsion/sandbox/entrypoint.py",
+        "services/control-plane/src/obsion/sandbox/project.py",
+        "services/control-plane/src/obsion/capabilities/",
+        "services/control-plane/src/obsion/harness/"
+      ],
+      "tasks": [
+        {
+          "id": "H09-T01",
+          "title": "复用KubernetesSandboxAdapter与现有无凭据契约，注册受策略保护的隔离执行能力；不得绕过当前生产禁用保护。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H09-T02",
+          "title": "将sandbox handle、命令指纹、Run/Step/Attempt、Job UID及镜像digest写入既有持久状态，支持对账。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H09-T03",
+          "title": "为Python分析、代码测试分别设置可信镜像/资源模板；模型只能提出合法命令与已授权输入，不能修改安全配置。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H09-T04",
+          "title": "在专用测试集群验证真实gVisor RuntimeClass、CNI隔离、Pod安全准入、无宿主挂载与凭据、限额和取消清理。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H09-T05",
+          "title": "验证现有UTF-8文件包规模边界；大仓/二进制/依赖由另审的输入协议扩展，不直接调大限制并跳过安全扫描。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H09-A01",
+          "scenario": "没有gVisor或网络策略实际生效证据时不接收生产服务流量，不能降级为普通宿主进程。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H09-A02",
+          "scenario": "执行尝试读取宿主、云元数据、生产数据库与其他租户文件时，必须在真实隔离环境被阻止。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H09-A03",
+          "scenario": "创建响应丢失后，只对同一sandbox_id及UID对账，不新建另一个执行副本。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H09-A04",
+          "scenario": "取消后验证进程和Job实际终止；清理失败标为待回收，不谎报完成。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不重写已有gVisor适配器；不通过简单enabled开关开放生产资源变更。"
+    },
+    {
+      "id": "H10",
+      "title": "分析执行、Workspace与Artifact闭环",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H08",
+        "H09"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/sandbox/workspace.py",
+        "services/control-plane/src/obsion/sandbox/delivery.py",
+        "services/control-plane/src/obsion/artifacts/",
+        "services/control-plane/src/obsion/harness/"
+      ],
+      "tasks": [
+        {
+          "id": "H10-T01",
+          "title": "将授权数据结果经最小化与脱敏后物化为不可变输入Artifact，沙箱不持有生产数据库连接串。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H10-T02",
+          "title": "实现分析计划→生成脚本→隔离执行→读取错误→有界修正→数值验证→图表/报告交付的闭环。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H10-T03",
+          "title": "产物绑定输入hash、脚本hash、依赖镜像、口径、时间、Run/Step和输出校验；沙箱stdout不得伪造可信执行元数据。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H10-T04",
+          "title": "Workspace按租户和任务隔离，使用受权限控制的文件快照与版本恢复；重建工作区与重复执行外部动作分离。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H10-T05",
+          "title": "完善表格、SQL、代码diff、报告与图表预览/下载/分享授权、生命周期、大小与有害内容检查。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H10-A01",
+          "scenario": "计算脚本首次报错后可在相同授权范围修复并重跑，重跑消耗原预算。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H10-A02",
+          "scenario": "CSV/表格带恶意指令或公式时，不能更改任务权限；导出处理公式注入风险。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H10-A03",
+          "scenario": "撤销源权限后，历史产物的预览与下载按现行规则阻断或重生成脱敏版本。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H10-A04",
+          "scenario": "报告数字可从固定输入与脚本复算；没有执行回执的代码不能标记运行成功。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不将所有原始业务数据放进模型上下文；不把生成一个图片或文件视为正确性证明。"
+    },
+    {
+      "id": "H11",
+      "title": "运行时证据与故障调查",
+      "status": "PLANNED",
+      "priority": "P1",
+      "depends_on": [
+        "H03",
+        "H04",
+        "H05",
+        "H07"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/capabilities/observability.py",
+        "services/control-plane/src/obsion/harness/incident.py",
+        "services/control-plane/src/obsion/harness/planner.py"
+      ],
+      "tasks": [
+        {
+          "id": "H11-T01",
+          "title": "复用日志、指标、Trace、部署与配置能力，明确各自支持的结论类别。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H11-T02",
+          "title": "固定服务、环境、时间窗、采样率、保留期、索引延迟、扫描完成度和trace/deployment关联。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H11-T03",
+          "title": "将事故固定模板升级为候选解释→区分性证据→验证或否定的探索；只在有运行时义务时查日志。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H11-T04",
+          "title": "缺凭据、超时、权限拒绝、查询成功空、采样缺失必须区分；不能根据静态代码猜测真实日志。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H11-T05",
+          "title": "输出事实、假设、已排除解释和待验证项；根因与时间相关性严格区分。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H11-A01",
+          "scenario": "只读到代码异常分支，没有真实事件证据时不得宣称该bug已经在线发生。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H11-A02",
+          "scenario": "日志采样或已过保留期时，空查询不能解释为事件没发生。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H11-A03",
+          "scenario": "日志连接未配置时交付安全部分并产生连接请求，不生成假日志。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H11-A04",
+          "scenario": "代码版本、部署版本与日志窗口冲突时，先标冲突并调查，不能强行合成根因。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不把自动重启、发布、配置修改列入事故调查默认工具。"
+    },
+    {
+      "id": "H12",
+      "title": "持久执行、等待恢复与副作用对账",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H04",
+        "H05",
+        "H09"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/harness/worker.py",
+        "services/control-plane/src/obsion/harness/replay.py",
+        "services/control-plane/src/obsion/persistence/",
+        "services/control-plane/src/obsion/automation/",
+        "services/control-plane/src/obsion/actions/worker.py"
+      ],
+      "tasks": [
+        {
+          "id": "H12-T01",
+          "title": "扩展既有Run/Step/Event/lease而非另建队列真相源，贯通检查点、Outbox、执行attempt和资源handle。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H12-T02",
+          "title": "实现等待连接、等待用户选择、等待审批、等待外部结果的持久状态，并在恢复时重新核验权限和合同版本。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H12-T03",
+          "title": "跨进程恢复使用租约与fencing阻止过期Worker提交；进程重启不得重新开始已知的外部动作。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H12-T04",
+          "title": "外部操作使用幂等键、provider回执和UNKNOWN对账；供应商无幂等支持时不承诺exactly-once。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H12-T05",
+          "title": "取消传播到子任务、查询和沙箱；回放只重建历史视图，重新执行需要新的授权执行标识。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H12-A01",
+          "scenario": "Worker在外部请求成功但本地落库前崩溃，恢复后不重复创建工单或PR。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H12-A02",
+          "scenario": "等待审批期间用户被撤权，恢复必须拒绝执行而非继承旧授权。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H12-A03",
+          "scenario": "两个Worker抢占同一任务时，旧租约不能发布最终结果。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H12-A04",
+          "scenario": "用户点击重放时不得触发原查询、写操作或发送通知。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不承诺网络与第三方服务上的通用exactly-once；不将内存asyncio任务称为持久后台执行。"
+    },
+    {
+      "id": "H13",
+      "title": "多轮上下文、记忆和模型适配",
+      "status": "PLANNED",
+      "priority": "P1",
+      "depends_on": [
+        "H02",
+        "H04",
+        "H05",
+        "H12"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/model_gateway/",
+        "services/control-plane/src/obsion/harness/task_context.py",
+        "services/control-plane/src/obsion/harness/intent_resolution.py",
+        "services/control-plane/src/obsion/domain/"
+      ],
+      "tasks": [
+        {
+          "id": "H13-T01",
+          "title": "区分会话承诺、工作状态、业务证据、用户偏好与候选假设；保留证据指针与合同版本而非只压缩自然语言。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H13-T02",
+          "title": "上下文构建按任务选择小范围工具Schema、证据片段、技能和文件；压缩不能删除硬约束或混合不同主体数据。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H13-T03",
+          "title": "模型Profile按理解、规划、代码、综合、复核能力评测；固定版本、协议适配和密级，失败回退不扩权限或预算。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H13-T04",
+          "title": "长任务检查点后重建上下文；维持Artifact版本、选定资料、实体和未解决缺口。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H13-T05",
+          "title": "经验证的业务经验进入候选知识，经Owner/有效期/ACL治理后复用；模型假设不自动成为事实记忆。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H13-A01",
+          "scenario": "连续追问中的这个活动指向正确合同实体，用户改主题后不错误继承。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H13-A02",
+          "scenario": "压缩后精确性、资料范围、时间窗和未满足义务保持不变。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H13-A03",
+          "scenario": "公共模型失败回退不能将私有密级数据发往未经批准端点。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H13-A04",
+          "scenario": "一个用户的会话记忆不会被其他主体的任务召回；撤权后历史正文不继续送模型。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不依赖厂商隐藏思维链或特定超长上下文型号，不把压缩记忆当可靠证据副本。"
+    },
+    {
+      "id": "H14",
+      "title": "统一交互、阻断修复与钉钉体验",
+      "status": "PLANNED",
+      "priority": "P1",
+      "depends_on": [
+        "H03",
+        "H05",
+        "H10",
+        "H12",
+        "H13"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/app_server/",
+        "services/control-plane/src/obsion/api/",
+        "services/control-plane/src/obsion/artifacts/"
+      ],
+      "tasks": [
+        {
+          "id": "H14-T01",
+          "title": "扩展现有Workbench与SDK，展示同一Run的计划、真实动作状态、证据、产物、等待项和操作回执。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H14-T02",
+          "title": "用户补充信息或更改目标时更新合同版本；可暂停、取消、恢复、查看失败点，不能靠前端假进度模拟执行。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H14-T03",
+          "title": "UserActionRequest支持授权连接、选择对象、上传资料、审批；凭据输入只在管理面，模型与聊天记录不接收。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H14-T04",
+          "title": "钉钉和Web/CLI/IDE共享App Server；完成稳定身份绑定、回调签名、重试去重及群聊输出权限。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H14-T05",
+          "title": "聊天直接回答路径、简单授权检索路径与长任务路径分流；断线重连用事件cursor恢复，重复事件幂等。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H14-A01",
+          "scenario": "用户配置日志连接后原Run继续，不要求重新描述原问题或重复已有查询。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H14-A02",
+          "scenario": "普通用户只看到可告知的连接缺口，不能从卡片得知私密资源名称。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H14-A03",
+          "scenario": "群聊里敏感结论不能仅按提问者权限广播，必须满足可见受众策略。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H14-A04",
+          "scenario": "浏览器断线重连后不重复发送消息，不显示未发生过的工具成功事件。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不为钉钉、桌面和IDE各自实现一套独立Agent状态机。"
+    },
+    {
+      "id": "H15",
+      "title": "受管浏览器、外部工具与插件传输",
+      "status": "PLANNED",
+      "priority": "P2",
+      "depends_on": [
+        "H03",
+        "H09",
+        "H12",
+        "H14"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/capabilities/",
+        "services/control-plane/src/obsion/registry/",
+        "services/control-plane/src/obsion/sandbox/"
+      ],
+      "tasks": [
+        {
+          "id": "H15-T01",
+          "title": "公开现有in-process MCP/SDK/gRPC/Workflow/Agent与远程传输的真实支持矩阵，不用同一名称混淆。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H15-T02",
+          "title": "仅为已确定的企业需求实现远程传输适配；固定服务器身份/工具Schema/版本并进行参数、资源、出口校验。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H15-T03",
+          "title": "浏览器在独立隔离会话运行，限制目标站点与账号权限，下载进入受管Artifact；默认不继承用户全部cookie。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H15-T04",
+          "title": "工具发现、插件安装、插件运行分离；安装需供应链审核与授权，不能由外部网页指令触发npx/pip宿主安装。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H15-T05",
+          "title": "浏览器提交、发送、删除与发布也映射动作风险和审批；API有稳定能力时优先使用API。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H15-A01",
+          "scenario": "网页或工具输出要求发送内部资料到新站点时，出口与数据授权层阻止。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H15-A02",
+          "scenario": "发现远程工具不等于已授权安装或执行；Schema变更导致固定合同复核。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H15-A03",
+          "scenario": "浏览器读页面可以自动完成，点击不可逆提交前必须满足当前动作策略。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H15-A04",
+          "scenario": "远程服务登录失败返回连接状态与修复请求，不改用宿主shell绕过。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不开放任意远程MCP/任意依赖安装，不建立拥有所有企业登录态的共享浏览器。"
+    },
+    {
+      "id": "H16",
+      "title": "代码修改、测试与受控Action闭环",
+      "status": "PLANNED",
+      "priority": "P1",
+      "depends_on": [
+        "H07",
+        "H09",
+        "H10",
+        "H12",
+        "H14"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/sandbox/",
+        "services/control-plane/src/obsion/actions/gateway.py",
+        "services/control-plane/src/obsion/actions/service.py",
+        "services/control-plane/src/obsion/actions/worker.py"
+      ],
+      "tasks": [
+        {
+          "id": "H16-T01",
+          "title": "固定授权源码快照，生成最小patch并在沙箱工作副本执行构建和真实测试；保留失败回执。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H16-T02",
+          "title": "执行前后核验合同范围、依赖、敏感配置及差异；测试不能通过删除断言、跳过关键用例或换业务口径变绿。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H16-T03",
+          "title": "复用Action Gateway，将PR/工单preflight、差异、目标环境、影响范围、验证和补偿计划形成不可变审批对象。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H16-T04",
+          "title": "执行、回滚独立审批，绑定具体动作hash/主体/有效期；审批后参数变化必须重新评估。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H16-T05",
+          "title": "外部创建后读取provider实际状态，交付PR/工单回执；没有结果回执不宣称已提交。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H16-A01",
+          "scenario": "代码修改未经真实测试时只能标记未验证，不能以模型自评替代测试通过。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H16-A02",
+          "scenario": "审批后patch或目标仓库变化时，旧审批不能继续执行。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H16-A03",
+          "scenario": "重复通知与网络重试不创建第二个PR；UNKNOWN状态先对账。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H16-A04",
+          "scenario": "生产数据库写、上线、重启和配置变更仍由服务器拒绝，不因用户说全自动而放行。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "本阶段仍只扩展经过验收的开发/测试环境动作，不默认放开生产闭环修复。"
+    },
+    {
+      "id": "H17",
+      "title": "受约束多Agent与任务委派",
+      "status": "PLANNED",
+      "priority": "P2",
+      "depends_on": [
+        "H04",
+        "H05",
+        "H10",
+        "H11",
+        "H12",
+        "H13"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/harness/",
+        "services/control-plane/src/obsion/registry/",
+        "services/control-plane/src/obsion/model_gateway/"
+      ],
+      "tasks": [
+        {
+          "id": "H17-T01",
+          "title": "只有独立子问题有收益时才委派，使用现有Harness受管子Run或等价记录，不循环嵌套任意Agent。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H17-T02",
+          "title": "父任务声明子任务目标、输入证据、输出契约、资源范围、预算和截止条件；权限只能缩小。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H17-T03",
+          "title": "多Agent共享不可变Evidence引用与Artifact版本，不共享可变自然语言笔记作为事实源。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H17-T04",
+          "title": "子任务结果回到父任务进行冲突与充分度核验，不通过多模型投票替代事实验证。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H17-T05",
+          "title": "取消、预算、错误、trace和计费沿父子关系传播；防止递归爆炸与循环委派。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H17-A01",
+          "scenario": "子Agent尝试获得父任务没有的数据库权限时被拒绝。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H17-A02",
+          "scenario": "父Run取消后所有子任务停止，剩余预算不被后台继续消耗。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H17-A03",
+          "scenario": "两个Agent对同一事实产生相反结论时进入冲突调查，不简单多数表决。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H17-A04",
+          "scenario": "共享预算达到上限后，即使创建新子Run也无法继续消耗。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不把多Agent作为解决主循环质量不足的第一手段，不设无上限自我繁殖。"
+    },
+    {
+      "id": "H18",
+      "title": "持续任务、触发器与可靠通知",
+      "status": "PLANNED",
+      "priority": "P1",
+      "depends_on": [
+        "H11",
+        "H12",
+        "H14"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/automation/",
+        "services/control-plane/src/obsion/actions/",
+        "services/control-plane/src/obsion/app_server/"
+      ],
+      "tasks": [
+        {
+          "id": "H18-T01",
+          "title": "复用现有工作流、cron/IANA时区和lease能力，建立一次性、周期性、事件触发任务的统一契约。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H18-T02",
+          "title": "每次执行绑定当时授权主体、数据范围和收件人；定时任务不能永久继承创建时的权限。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H18-T03",
+          "title": "通知采用变更检测、去重、冷却和无变化抑制；保留触发证据、执行结果与实际送达状态。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H18-T04",
+          "title": "外部事件校验来源身份、防重放和幂等；支持禁用、取消及既有积压的明确处理策略。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H18-T05",
+          "title": "运行策略明确截止时间、重试、重叠任务及错过执行语义，不靠长期占用聊天连接实现。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H18-A01",
+          "scenario": "夏令时切换与时区改变时按所定义策略运行，不重复或遗漏而不记账。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H18-A02",
+          "scenario": "收件人变更、退群或撤权后，后续通知不能泄露旧任务敏感内容。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H18-A03",
+          "scenario": "相同外部事件重复投递只产生一次受管执行或同一幂等结果。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H18-A04",
+          "scenario": "无有意义变化时不发送告警；传输失败和已成功送达明确区分。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不在用户未授权时自动创建真实通知任务，也不将调度器当另一个Agent运行时。"
+    },
+    {
+      "id": "H19",
+      "title": "独立评测、故障注入与性能工程",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H05",
+        "H06",
+        "H07",
+        "H08",
+        "H10",
+        "H11",
+        "H12",
+        "H14",
+        "H16"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/evaluations/",
+        "services/control-plane/src/obsion/feedback/",
+        "services/control-plane/src/obsion/telemetry.py",
+        "services/control-plane/src/obsion/release/"
+      ],
+      "tasks": [
+        {
+          "id": "H19-T01",
+          "title": "从H01开始持续建设数据集，本阶段完成独立发布门：旧回归、60例评分校准、240例新业务保留集及安全故障矩阵。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H19-T02",
+          "title": "对语义评审双人标注与仲裁，分别报告误拒正确答案、误放无证据答案；避免作者与评分器共享候选自评。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H19-T03",
+          "title": "统计所有任务的完成质量、BLOCKED/FAIL/NOT_RUN、支持证据和人工介入；不得剔除失败分母制造高成功率。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H19-T04",
+          "title": "注入连接失效、503、工具超时、撤权、预算耗尽、进程崩溃、事件乱序、提示注入及沙箱隔离故障。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H19-T05",
+          "title": "按简单问答/多源调查/数据分析/代码动作分别记录首事件与最终结果p50/p95、成本、检索覆盖和无效调用；针对瓶颈优化。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H19-A01",
+          "scenario": "开发者已看过的24例不得重新宣称新的未见集；保留集访问与版本有记录。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H19-A02",
+          "scenario": "简单正确答案被复核误拒的比例与错误答案误放比例分别可见。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H19-A03",
+          "scenario": "关键安全反向用例任一失败阻断发布，不能用平均业务分抵消。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H19-A04",
+          "scenario": "多源调查达到预算后输出带原因部分结果，不为了时延指标伪造成功或静默删掉校验。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "所有数值为建议验收设计，不是本次测试成绩；有限用例全过不构成对任意输入绝对安全的证明。"
+    },
+    {
+      "id": "H20",
+      "title": "可安装发布、运维与企业上线门禁",
+      "status": "PLANNED",
+      "priority": "P0",
+      "depends_on": [
+        "H01",
+        "H09",
+        "H12",
+        "H13",
+        "H14",
+        "H16",
+        "H18",
+        "H19"
+      ],
+      "integration_targets": [
+        "services/control-plane/src/obsion/release/",
+        "services/control-plane/src/obsion/security/",
+        "services/control-plane/src/obsion/persistence/"
+      ],
+      "tasks": [
+        {
+          "id": "H20-T01",
+          "title": "形成版本化支持矩阵、配置向导、最小权限安装、健康诊断与受控demo；README与真实支持一致。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H20-T02",
+          "title": "冻结依赖与镜像、生成SBOM和可信构建/签名证明，关联部署与Worker实际观察；包hash不冒充硬件远程证明。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H20-T03",
+          "title": "验证多副本调度、数据库备份恢复、迁移升级/回滚、对象存储生命周期及审计导出。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H20-T04",
+          "title": "在目标环境证明OIDC/会话、租户隔离、脱敏、出口、凭据轮换和沙箱隔离成立，并设紧急禁用与事件响应流程。",
+          "status": "PLANNED"
+        },
+        {
+          "id": "H20-T05",
+          "title": "发布Read-only Enterprise V1支持范围；浏览器/多Agent等可选能力单独标记preview和独立门禁，生产写扩展另立ADR。",
+          "status": "PLANNED"
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "H20-A01",
+          "scenario": "在干净目标环境按文档安装并执行真实首个任务，而不依赖开发者隐藏配置。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H20-A02",
+          "scenario": "升级失败时能够按演练恢复数据和可用服务，回滚不丢失待对账动作。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H20-A03",
+          "scenario": "版本、权限或隔离前置条件不满足时系统拒绝启动对应能力，不能仅打印警告继续。",
+          "execution_status": "NOT_RUN"
+        },
+        {
+          "id": "H20-A04",
+          "scenario": "全部关键门禁证据关联本次发布候选；不以早期版本测试替代当前候选验证。",
+          "execution_status": "NOT_RUN"
+        }
+      ],
+      "non_goal": "不把alpha/dev状态改成1.0字符串就当发布，不以默认开启高风险动作证明自主性。"
+    }
+  ]
+}

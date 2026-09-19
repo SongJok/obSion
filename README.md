@@ -7,10 +7,14 @@ decision, approval, and replayable trajectory behind every result.
 
 The name combines **OBServability + Intelligence + OrchestratiON**.
 
-Current release status: **`0.80.0-alpha.1` repository candidate**. Its machine
-contract, migration lineage, verification procedure, and operator-owned limits are in
-the [Alpha.1 release notes](docs/release/0.80.0-alpha.1.md). No external tag, package,
-image, signature, or production approval is implied.
+Current repository status: **`0.98.0-dev`**, with the autonomous Harness program and
+P1 quality validation still in progress. The historical **`0.80.0-alpha.1`**
+repository candidate remains documented in the
+[Alpha.1 release notes](docs/release/0.80.0-alpha.1.md); it is not the current
+development version or a production release. No external tag, package, image,
+signature, UAT approval, or production approval is implied. The authoritative phase
+state is [project-status.yaml](docs/project-status.yaml), and version numbers or
+completed-phase counts are never substitutes for release evidence.
 
 Obsion is not a chat wrapper, an unrestricted tool runner, or a prompt-only Text-to-SQL
 application. Its durable architecture centers on five assets:
@@ -26,10 +30,12 @@ application. Its durable architecture centers on five assets:
 - **Enterprise Control Plane** — identity, policy, risk, approval, credentials,
   masking, rate limits, egress control, governed actions, audit, and evaluations.
 
-## What is implemented
+## Repository implementation inventory
 
-The first-generation boundary covers the foundation and three complete intelligence
-paths:
+The repository contains the foundation and bounded intelligence paths below. This is
+an implementation inventory, not a claim that every path is configured, live-tested,
+or production-supported in every environment. In particular, P1/Phase 99 remains
+blocked by real-task quality and operator promotion gates.
 
 - governed document ingestion and ACL-before-ranking PostgreSQL full-text/pgvector
   retrieval, hybrid reranking, citations, and versioned originals;

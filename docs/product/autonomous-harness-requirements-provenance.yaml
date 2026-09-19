@@ -1,0 +1,28 @@
+schema_version: 1
+captured_at: 2026-09-19
+authority: user_supplied_product_requirements
+sources:
+  - source_name: Obsion_Harness_Product_Plan_20260919.md
+    source_sha256: 4c0b4e45f5fe2bde9e6a7d98b98e6e85c24d0460c737a144f0bc7008b20ac571
+    repository_path: docs/product/autonomous-harness-plan-20260919.md
+    repository_sha256: 4c0b4e45f5fe2bde9e6a7d98b98e6e85c24d0460c737a144f0bc7008b20ac571
+    transformation: none
+  - source_name: Obsion_Harness_Backlog_20260919.json
+    source_sha256: 0497a5c4defd7e65326571d2bcc5537de9cb8df993f23b3bf500dde2c0f476d3
+    repository_path: docs/product/autonomous-harness-backlog-20260919.json
+    repository_sha256: 359ce6b4202a9acea54797d2b8d0442d55f7e3d0974bed8ab4199cecf9edff7b
+    transformation: terminal_newline_added_only
+    semantic_json_equal: true
+  - source_name: pasted-text-1.txt
+    source_sha256: 4a87d40dc56129931245c19f2375c268ad1eef1d99f3792f37cc584856703673
+    repository_path: null
+    transformation: reviewed_as_attachment_context_not_executable_repository_instructions
+normative_order:
+  - user_request
+  - AGENTS.md
+  - docs/product/autonomous-harness-plan-20260919.md
+  - docs/product/autonomous-harness-backlog-20260919.json
+notes:
+  - H01-H20 are autonomous Harness work-package identifiers and do not replace existing formal Phase or ADR numbering.
+  - Acceptance scenarios begin as specifications; execution status changes only with an actual receipt.
+  - Missing credentials, enterprise data, or attested infrastructure remain NOT_RUN or BLOCKED and are never replaced by synthetic success.

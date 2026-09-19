@@ -1,279 +1,97 @@
-# Obsion 企业智能工作台 - 开发完成报告
+# Obsion
 
-**完成日期**: 2026-09-05  
-**版本**: Alpha.1  
-**状态**: ✅ 全部完成
+Obsion 是开源的企业 Agent 运行时与智能工作台。它以统一 Python 控制面运行受治理的
+企业知识、数据、代码和运行时任务，并保留每次结果背后的证据、策略决定、审批与可回放
+轨迹。
 
----
+当前仓库版本为 **`0.98.0-dev`**。自主 Harness 改造和 P1 真实任务质量验证仍在进行，
+P1 与 Phase 99 均未完成。历史 **`0.80.0-alpha.1`** 仅是仓库内候选记录，不代表当前
+版本、外部发布或生产批准。权威状态见
+[项目状态](docs/project-status.yaml)；版本号和“已完成阶段”数量不能替代发布证据。
 
-## 🎯 项目概述
+## 当前边界
 
-Obsion 是一个开源的企业 Agent 运行时和智能工作台，专注于企业知识管理、数据查询、故障调查等场景。
+仓库已经包含以下受治理基础能力，但能否使用取决于部署配置、显式授权和对应验收：
 
-### 核心特性
-- 📚 企业知识检索（文档、Wiki、代码）
-- 📊 自然语言数据查询（NL2SQL）
-- 🔍 故障智能调查（日志、链路、指标）
-- 🔄 工作流自动化编排
-- 🤖 多渠道集成（钉钉、飞书、企业微信）
-- 🧠 上下文感知意图识别
-- ✅ Context-first clarification（澄清优先机制）
+- `Workspace → Thread → Turn → Run → Step → Event` 持久 Harness 模型；
+- 统一 Capability Gateway、Policy Engine、审批、审计、速率限制和凭据代理；
+- 企业文档检索、静态代码图谱、受限只读查询及证据化结果；
+- 模型 Profile、端点路由、调用成本记录和失败关闭；
+- Web、CLI、IDE、桌面端、SDK 与 IM 适配入口，共用同一 App Server；
+- 持久任务恢复、取消、回放、Artifact、Evidence 和评测框架；
+- 开发/预发布环境中的受控 PR 与工单动作合同；
+- 沙箱合同和 Kubernetes/gVisor 适配器基础实现。
 
----
+这些条目是源码能力清单，不是所有连接器、真实租户、模型、沙箱集群或业务场景都已验收
+的声明。生产写入、部署、重启、配置修改、非幂等写入和 L4–L5 操作继续由服务端拒绝。
+缺少真实数据、凭据或回执时，结果必须是 `NOT_RUN`、`BLOCKED` 或明确拒绝，不能用
+Mock 冒充真实通过。
 
-## ✅ Alpha.1 完成清单
+## 架构
 
-### 核心系统
-- [x] Obsion Harness 运行时引擎
-- [x] App Server WebSocket 协议
-- [x] 治理化执行计划
-- [x] 事件驱动架构
-- [x] 预审批机制
-- [x] Phase 100: Context-first clarification
-
-### 企业集成
-- [x] 钉钉 Stream 模式机器人（已部署）
-- [x] 飞书应用集成（已配置）
-- [x] 阿里云云效集成（已配置）
-- [x] 企业知识库连接器
-- [x] 数据源连接器
-
-### 前端应用
-- [x] Web Workbench 界面
-- [x] CLI 工具
-- [x] SDK（Python + TypeScript）
-
-### 测试和质量
-- [x] 980+ 单元测试通过
-- [x] 5个质量门全部通过
-- [x] 合约验证完整
-- [x] 数据库迁移完成
-
----
-
-## 📊 系统架构
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     用户界面层                           │
-├──────────┬──────────┬──────────┬──────────┬────────────┤
-│ Web UI   │   CLI    │  钉钉    │  飞书    │  企业微信  │
-└──────────┴──────────┴──────────┴──────────┴────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              Obsion App Server (WebSocket)              │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                 Obsion Harness Runtime                  │
-├─────────────────────────────────────────────────────────┤
-│  • Intent Resolution（意图识别）                         │
-│  • Context Exploration（上下文探索）                     │
-│  • Clarification Management（澄清管理）                 │
-│  • Plan Generation（计划生成）                          │
-│  • Step Execution（步骤执行）                           │
-│  • Response Generation（回复生成）                      │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              Capability Gateway（能力网关）              │
-├──────────┬──────────┬──────────┬──────────┬────────────┤
-│ 知识检索 │ 数据查询 │ 代码图谱 │ 日志分析 │   监控    │
-└──────────┴──────────┴──────────┴──────────┴────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                   基础设施层                             │
-├──────────┬──────────┬──────────┬──────────┬────────────┤
-│PostgreSQL│  Redis   │  MinIO   │   AI模型 │  事件总线 │
-└──────────┴──────────┴──────────┴──────────┴────────────┘
+```text
+Web / IM / CLI / IDE / SDK / API
+                │
+          统一 App Server
+                │
+ Workspace → Thread → Turn → Run → Step → Event
+                │
+ Observe → Understand → Plan → Execute → Verify → Reflect → Respond
+                │
+       Capability Gateway + Policy Engine
+                │
+ Knowledge / Data / Code / Runtime / Sandbox
+                │
+          Evidence + Artifact + Audit
 ```
 
----
+PostgreSQL 是事务事实源；Redis 用于分布式协调；S3 兼容存储保存大 Artifact。Agent 不接收
+连接器凭据，所有外部能力必须经过 Gateway，所有授权决定必须经过 Policy Engine。
 
-## 🚀 快速开始
+## 本地开发
 
-### 环境要求
-- Python 3.12+
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL 15+
-- Redis 7+
+需要 Python 3.12、uv、Node.js 22、npm、Docker 与 Docker Compose：
 
-### 启动服务
-
-1. **启动基础设施**
 ```bash
-docker-compose up -d
+cp .env.example .env
+make bootstrap
+make compose-up
+make migrate
+make dev-api
 ```
 
-2. **初始化数据库**
+另一个终端运行 `make dev-web`。按 `.env.example` 的开发端口，Web 地址为
+<http://localhost:53001>，API 文档为 <http://localhost:58081/api/docs>。端口可由 `.env`
+覆盖。
+
+创建或轮换本地管理员时，不要把密码写进命令参数：
+
 ```bash
-uv run --package obsion-control-plane alembic upgrade head
+uv run obsion provision-user --email admin@example.com --role admin
 ```
 
-3. **创建管理员账户**
+命令从标准输入、`OBSION_PROVISION_PASSWORD` 或隐藏输入读取密码。模型与连接器密钥只放在
+未纳入版本控制的环境或 Secret Manager 中；Agent、配置文档和源码不得包含明文凭据。
+
+## 验证
+
 ```bash
-uv run obsion provision-user \
-  --email songts@tuwan.com \
-  --password 123456 \
-  --role admin
+make check
 ```
 
-4. **启动API服务**
-```bash
-cd services/control-plane
-uv run uvicorn obsion.main:app --host 0.0.0.0 --port 58081
-```
+完整工程门只有在同一候选的 lint、类型检查、测试和构建全部完成后才算通过。真实企业
+验收与本地合成测试分开记账；上游失败导致的跳过不能记作成功。当前质量事实、未执行项和
+阻断项见 [项目状态](docs/project-status.yaml) 及 [阶段报告](docs/phases/)。
 
-5. **启动Web界面**
-```bash
-cd apps/web
-npm run dev
-```
+## 文档
 
-6. **启动钉钉机器人**
-```bash
-cd /path/to/project
-export OBSION_DINGTALK_APP_KEY=dingonkbr6jzpcwjbnpp
-export OBSION_DINGTALK_APP_SECRET=your_secret
-python3 dingtalk_bot_d.py
-```
+- [系统设计](docs/architecture/system-design.md)
+- [产品路线](docs/product/roadmap.md)
+- [安全模型](docs/security/security-model.md)
+- [ADR](docs/adr/)
+- [阶段报告](docs/phases/)
+- [贡献指南](CONTRIBUTING.md)
 
-### 访问地址
-- Web界面: http://localhost:53001
-- API服务: http://localhost:58081
-- API文档: http://localhost:58081/docs
-
----
-
-## 📱 钉钉机器人使用
-
-### 添加机器人到群聊
-
-1. 打开钉钉客户端
-2. 进入群聊设置
-3. 智能群助手 → 添加机器人
-4. 搜索"点仔"（AgentId: 4958738508）
-5. 添加到群聊
-
-### 测试对话
-
-```
-@点仔 你好
-@点仔 介绍一下你的功能
-@点仔 帮助
-@点仔 最近7天的订单数据
-```
-
----
-
-## 🧪 测试
-
-### 运行所有测试
-```bash
-uv run make check
-```
-
-### 运行特定测试
-```bash
-# Python测试
-uv run pytest services/control-plane/tests/
-
-# TypeScript测试
-npm test --workspace apps/web
-
-# 质量门
-uv run pytest services/control-plane/tests/test_contract_quality_gates.py
-```
-
----
-
-## 📖 文档
-
-- [架构设计](docs/architecture/)
-- [ADR决策记录](docs/adr/)
-- [Phase报告](docs/phases/)
-- [API文档](http://localhost:58081/docs)
-- [开发指南](CONTRIBUTING.md)
-
----
-
-## 🔧 配置
-
-### 环境变量
-
-所有配置在 `.env` 文件中，示例见 `.env.example`。
-
-关键配置：
-- `OBSION_DATABASE_URL`: PostgreSQL连接地址
-- `OBSION_REDIS_URL`: Redis连接地址
-- `OBSION_AI_BASE_URL`: AI模型API地址
-- `OBSION_DINGTALK_APP_KEY`: 钉钉应用Key
-- `OBSION_FEISHU_APP_ID`: 飞书应用ID
-
----
-
-## 📊 项目统计
-
-- **代码行数**: ~50,000 行（Python + TypeScript）
-- **测试用例**: 1,008 个
-- **测试覆盖**: 97.2%
-- **API端点**: 150+ 个
-- **事件类型**: 96 个
-- **错误代码**: 325 个
-- **能力注册**: 150+ 个
-
----
-
-## 🤝 贡献
-
-欢迎贡献！请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-### 开发流程
-1. Fork 项目
-2. 创建功能分支
-3. 提交代码
-4. 运行测试
-5. 提交 Pull Request
-
----
-
-## 📄 许可证
+## 许可证
 
 [MIT License](LICENSE)
-
----
-
-## 👥 团队
-
-- **技术负责人**: @tuwan
-- **AI架构**: Claude AI
-- **开发工具**: Claude Code
-
----
-
-## 🎯 路线图
-
-### Phase 101（计划中）
-- [ ] 数据智能增强
-- [ ] 前端体验优化
-- [ ] 多轮澄清对话
-- [ ] 工作流可视化编辑器
-
-### 未来规划
-- [ ] 企业微信完整支持
-- [ ] Slack/Teams集成
-- [ ] 私有化部署方案
-- [ ] SaaS版本
-
----
-
-## 📞 联系方式
-
-- **技术支持**: tech@tuwan.com
-- **问题反馈**: GitHub Issues
-- **文档**: https://obsion.dev
-
----
-
-**感谢使用 Obsion！** 🎉

@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "phase": "H01",
+  "captured_at": "2026-09-19T11:36:18Z",
+  "status": "FROZEN_DEVELOPMENT_CANDIDATE",
+  "promotion_eligible": false,
+  "repository": {
+    "remote": "github.com/SongJok/obSion",
+    "review_baseline_commit": "24d5503826d1901fe95abe8cb80ebb8466949682",
+    "candidate_commit": "2765f5d2fc06184625b9088c437fc5afd5cca108",
+    "candidate_tree": "0cddcffd23a7c0322889336e8fefb8973f0bda81"
+  },
+  "deployment": {
+    "environment": "development",
+    "image_digest": "sha256:4b15de5d07c00a520acf9e94784ab25542ae068103794e996775e39a7fe2b9b7",
+    "signature_verified": false,
+    "api_health": "ready",
+    "api_package": {
+      "sha256": "cec96b89215e0c5d6ded03d5231551c3d27aa733a73d8488deb856d96412f863",
+      "files": 372,
+      "observation": "installed_package_at_api_initialization"
+    },
+    "expected_worker_package": {
+      "sha256": "cec96b89215e0c5d6ded03d5231551c3d27aa733a73d8488deb856d96412f863",
+      "files": 372,
+      "observation": "candidate_image_package_snapshot",
+      "actual_run_observation_required": true
+    }
+  },
+  "evaluation": {
+    "acceptance_profile_schema": 2,
+    "policy_sha256": "61f46ff2f7d22d9a8352d3e0a15cf8e94e6e7b04a0f31abf479082c3466ca3a0",
+    "failure_taxonomy_schema": 1,
+    "selected_model_profile": null,
+    "selected_model_profile_status": "NOT_RUN",
+    "selected_model_profile_reason": "protected vertical cases were not executed; the complete model catalog is frozen below"
+  },
+  "configuration": {
+    "/api/v1/admin/agents": {
+      "records": 9,
+      "sha256": "69ebda697f7abeb91c482db836b8e11ef5ee2a027366a526c82cce89645d9c65"
+    },
+    "/api/v1/admin/capabilities": {
+      "records": 122,
+      "sha256": "ccad1cdaa47565ed62315c80862e76d88cbfdb6991b7cb2ceaa501330b7131ba"
+    },
+    "/api/v1/admin/connectors/configuration-snapshot": {
+      "records": 150,
+      "sha256": "6b9e61f917fe36420cb162a49d8dabf04c2ee02536523a6160aa5e75f87eda4d"
+    },
+    "/api/v1/admin/models/endpoints": {
+      "records": 3,
+      "sha256": "39823cdd197fbda231f78120153a3afa20576fdcb1948a58b71b5fc01b988602"
+    },
+    "/api/v1/admin/models/profiles": {
+      "records": 6,
+      "sha256": "21678a4f728729a8ecd24fa4b089f9b576573f9633a9d721af03b4946a0953e7"
+    },
+    "/api/v1/admin/policies": {
+      "records": 7,
+      "sha256": "e5f093309f3d3e47ac3001dfdfdb3a01cdeb2c3a839520995f02bd1afda5b743"
+    },
+    "/api/v1/admin/prompts": {
+      "records": 1,
+      "sha256": "a94f45886cc110358ad2fc632f441e7003a18cd8d95b2d6adc0ee9467b6c41de"
+    },
+    "/api/v1/admin/skills": {
+      "records": 14,
+      "sha256": "f810a607d0527cc7592d10f29b15de68b939d46940a5a6fd8b74ba372cf7bc9a"
+    }
+  },
+  "continuous_integration": {
+    "run_id": 35439987679,
+    "url": "https://github.com/SongJok/obSion/actions/runs/35439987679",
+    "candidate_commit": "2765f5d2fc06184625b9088c437fc5afd5cca108",
+    "status_at_capture": "COMPLETED",
+    "conclusion": "SUCCESS",
+    "quality_gate": "PASS",
+    "quality_job": "SUCCESS",
+    "container_job": "SUCCESS",
+    "job_count": 15,
+    "started_at": "2026-09-19T11:23:40Z",
+    "completed_at": "2026-09-19T11:49:54Z"
+  },
+  "engineering_blocker": {
+    "observed_failure_run": "https://github.com/SongJok/obSion/actions/runs/35324033490",
+    "observed_failure": "npm run lint failed before downstream JavaScript checks",
+    "clean_archive_reproduction": "Desktop and IDE TypeScript resolution could not load @obsion/sdk because its ignored dist declarations had not been built",
+    "same_revision_later_run": "https://github.com/SongJok/obSion/actions/runs/35431205769",
+    "same_revision_later_result": "SUCCESS",
+    "interpretation": "The inconsistent same-revision receipts are not treated as proof of determinism; root commands now build the SDK before every consumer quality entry.",
+    "fix_commit": "a43c2ccc3216d47c376329aea0cd0a5434d1bf51",
+    "first_candidate_contract_failure_run": "https://github.com/SongJok/obSion/actions/runs/35435416402",
+    "first_candidate_contract_failures": [
+      "the generated OpenAPI document omitted the new connector configuration snapshot endpoint",
+      "the reviewed error forwarding manifest retained a stale source line after execution identity initialization changed main.py"
+    ],
+    "contract_fix_commit": "1c517122f8a05280dd9eab7f2d05e4821a5175ae",
+    "local_full_python_after_contract_fix": "3010 passed, 285 skipped, 0 failed; 79.75% coverage; 507.71 seconds",
+    "container_scan_failure_run": "https://github.com/SongJok/obSion/actions/runs/35437282780",
+    "container_scan_failure": "release artifacts and candidate validation passed, then the first Trivy image gate rejected the stale control-plane base image",
+    "container_security_fix_commit": "2765f5d2fc06184625b9088c437fc5afd5cca108",
+    "local_full_python_after_container_fix": "3011 passed, 285 skipped, 0 failed; 79.62% coverage; 511.33 seconds"
+  },
+  "container_security": {
+    "scanner": "Trivy 0.70.0",
+    "gate": "HIGH,CRITICAL; ignore_unfixed=false; vulnerability and secret scanners enabled",
+    "root_cause": "release runtime images retained stale operating-system packages and the web runtime retained package managers that are unnecessary for serving the standalone application",
+    "before": {
+      "control_plane": {
+        "high": 93,
+        "critical": 9
+      },
+      "web": {
+        "high": 51,
+        "critical": 5
+      }
+    },
+    "remediation": {
+      "python_base": "python:3.12.14-alpine3.24@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b",
+      "node_base": "node:22.23.2-alpine3.24@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85",
+      "web_runtime_build_tools_removed": [
+        "npm",
+        "corepack",
+        "yarn"
+      ]
+    },
+    "after": {
+      "control_plane": {
+        "high_or_critical_vulnerabilities": 0,
+        "secrets": 0
+      },
+      "web": {
+        "high_or_critical_vulnerabilities": 0,
+        "secrets": 0
+      }
+    }
+  },
+  "historical_quality": {
+    "evidence_path": "docs/release/evidence/productization/20260915-frozen-knowledge-baseline.json",
+    "evidence_sha256": "36961d9c99a34deb161b9d5f4b0387ffaa89e7a0a1f8b550079657aa6f1c39a0",
+    "counts": {
+      "PASS": 5,
+      "FAIL": 1,
+      "BLOCKED": 18,
+      "NOT_RUN": 0
+    },
+    "rerun_as_new_candidate": false
+  },
+  "protected_vertical_cases": {
+    "contract": "evaluations/productization/h01-vertical-slices-v1.json",
+    "BUSINESS_LOCALIZATION": "NOT_RUN",
+    "EXACT_STATISTICS": "NOT_RUN",
+    "ISOLATED_CODE_EXECUTION": "NOT_RUN",
+    "reason": "protected holdout inputs and all required real execution environments were not supplied; no mock result is substituted"
+  },
+  "limitations": [
+    "The local image is unsigned and is not production attestation.",
+    "The expected Worker package matches the candidate image, but every evaluated Run must still carry its own run.execution_observed event.",
+    "Catalog digests freeze the current development configuration without publishing connector endpoints, configuration, credentials, enterprise content, or model identifiers.",
+    "No protected business case was executed and no quality improvement is claimed."
+  ]
+}

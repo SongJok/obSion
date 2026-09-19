@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "phase": "H01",
+  "recorded_at": "2026-09-19",
+  "status": "HISTORICAL_BLOCKED",
+  "scope": "reason-level diagnostic projection of the immutable 24-case historical baseline",
+  "source": {
+    "path": "docs/release/evidence/productization/20260915-frozen-knowledge-baseline.json",
+    "sha256": "36961d9c99a34deb161b9d5f4b0387ffaa89e7a0a1f8b550079657aa6f1c39a0",
+    "candidate": "b23431b29b5fb2edd4be02703d13a26d5b42633f",
+    "report_sha256": "a6f670f739bbfff6c345f412358fd3556677f7fb91a595af258eba5cfe53f399"
+  },
+  "denominator": {
+    "required_cases": 24,
+    "answerable_cases": 16,
+    "insufficient_cases": 8,
+    "counts": {
+      "PASS": 5,
+      "FAIL": 1,
+      "BLOCKED": 18,
+      "NOT_RUN": 0
+    }
+  },
+  "taxonomy": [
+    "SOURCE",
+    "SEMANTIC",
+    "CITATION",
+    "MODEL_PROTOCOL",
+    "ENDPOINT",
+    "RESOURCE",
+    "FRESHNESS"
+  ],
+  "reason_classification": {
+    "independent_judgment_invalid": {
+      "count": 7,
+      "category": "MODEL_PROTOCOL",
+      "basis": "The historical public ledger records only a rejected judgment envelope and no bounded judgment diagnostic. It cannot honestly distinguish a citation failure from another protocol failure."
+    },
+    "independent_model_unavailable": {
+      "count": 11,
+      "category": "ENDPOINT",
+      "basis": "The independent scoring endpoint did not return an eligible usable model result."
+    },
+    "task_timeout": {
+      "count": 1,
+      "category": "RESOURCE",
+      "basis": "The task exceeded its recorded execution deadline."
+    }
+  },
+  "category_counts": {
+    "SOURCE": 0,
+    "SEMANTIC": 0,
+    "CITATION": 0,
+    "MODEL_PROTOCOL": 7,
+    "ENDPOINT": 11,
+    "RESOURCE": 1,
+    "FRESHNESS": 0,
+    "UNCLASSIFIED": 0
+  },
+  "invariants": {
+    "historical_source_rewritten": false,
+    "pass_cases_classified_as_failures": false,
+    "blocked_or_failed_cases_removed_from_denominator": false,
+    "new_candidate_score_claimed": false
+  },
+  "limitations": [
+    "This is a projection of an existing public evidence ledger, not a rerun.",
+    "The old ledger has no per-case judgment_diagnostic field, so its seven independent_judgment_invalid cases cannot be split between CITATION and other MODEL_PROTOCOL causes without guessing.",
+    "Zero counts mean no explicit machine evidence in this ledger, not proof that the failure class cannot occur."
+  ]
+}

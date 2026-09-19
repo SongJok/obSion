@@ -110,6 +110,7 @@ tests:
   e2e: passed
 
 known_issues:
+  - 2026-09-19 H01已冻结自主Harness需求包与可比开发候选：Profile v2绑定提交、API/Worker包、镜像、评测策略及八类管理配置；连接器快照排除瞬态健康和扫描时间且不输出Endpoint/配置/凭据。旧24例原文件保持5 PASS/1 FAIL/18 BLOCKED，原因级诊断不臆测缺失细因。README统一为0.98.0-dev；三类保护纵向案例仅建立合同，因未提供真实保留集/查询源/证明沙箱均为NOT_RUN。完整CI先后暴露派生合同不同步及旧运行镜像漏洞；均按根因修复且不放宽门。最终候选2765f5d使用digest固定的Python3.12.14/Node22.23.2 Alpine3.24运行层，Web运行层移除不需要的包管理器；两个镜像按Trivy0.70.0原门均为0高危/严重和0秘密。本地完整Python为3011通过/285显式跳过/0失败、79.62%覆盖率；GitHub Actions 35439987679对同一候选的15个作业全部成功，完整质量门、发布构建、候选校验和两个镜像扫描均真实通过。H01工程包完成，但不改变P1/Phase99阻断或未执行的真实业务验收。
   - 2026-09-15 d389c7f开发部署完成，262源码匹配、数据库/11对象备份与15来源关联保留，采集恢复；两条预选旧案例经新受管K3/K2.7备用配置正常回答，独立验收仍0通过/2阻塞（227.23秒）：引文过短及两模型均FAILED。原24条基线不重写，未扩密级/权限/预算，不宣称真实质量改善；公开元数据见20260915-resilient-model-regression.json。新CI迁移任务在setup-python网络超时，迁移未执行，质量任务尚在运行；P1/Phase99仍未完成。
   - 2026-09-15 8b7a84c的CI34948510341报告IM Inbox100并发测试失败，日志下载403。Mac和0.5CPU Linux原用例通过；池耗尽诊断复现辅助函数跨事件循环错误，8处读写改为应用portal，原100接收/20处理与全部断言、生产逻辑、SQLite超时均不变。压力修复后1通过（7.92秒）、相关38通过（39.74秒）、Linux1通过（23.44秒）；CI增加固定诊断标签不输出原文，新main仍待验证，不能认定唯一远端根因。P1/Phase99未完成。
   - 2026-09-15 b23431b完整24条真实冻结知识基线已执行，5 PASS/1超时FAIL/18 BLOCKED/0 NOT_RUN，2184.22秒；可答4/16、资料不足1/8，保留阻塞与失败分母，不能解释为校准事实准确率。已用于诊断的该集不冒充新未见确认集。原记录/摘要保留，公开账本无企业正文；新修复111项相关通过及262镜像源码匹配，尚未混入旧候选。P1/Phase99继续BLOCKED，见20260915-frozen-knowledge-baseline.json。
@@ -308,3 +309,27 @@ productization_program:
   github_main_publication: user_authorized_normal_fast_forward_after_local_validation
   acceptance_driver: normal_task_entry_frozen_inputs_reconciliation_and_independent_model_scoring_implemented_calibration_pending
   phase_99_promotion_eligible: false
+
+autonomous_harness_program:
+  requirements: docs/product/autonomous-harness-plan-20260919.md
+  backlog: docs/product/autonomous-harness-backlog-20260919.json
+  provenance: docs/product/autonomous-harness-requirements-provenance.yaml
+  review_baseline: 24d5503826d1901fe95abe8cb80ebb8466949682
+  order: [H01, H02, H03, H04, H05, H06, H07, H08, H09, H10, H11, H12, H13, H14, H15, H16, H17, H18, H19, H20]
+  current_work_package: H02
+  status: h02_in_progress
+  h01:
+    status: complete
+    runtime_candidate: 2765f5d2fc06184625b9088c437fc5afd5cca108
+    report: docs/phases/H01-REPORT.md
+    architecture_gate: docs/architecture/phase-h01-comparable-candidate-baseline-gate.md
+    adr: docs/adr/0143-comparable-harness-candidate-baseline.md
+    candidate_evidence: docs/release/evidence/harness/20260919-h01-candidate-baseline.json
+    legacy_diagnostics: docs/release/evidence/harness/20260919-h01-legacy-diagnostics.json
+    protected_vertical_contract: evaluations/productization/h01-vertical-slices-v1.json
+    protected_vertical_execution: NOT_RUN
+    remote_ci_run: https://github.com/SongJok/obSion/actions/runs/35439987679
+    remote_quality: PASS
+    remote_container_gate: PASS
+    database_migration: none
+    production_promotion_eligible: false

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "phase": "H01",
+  "contract_id": "h01-vertical-slices-v1",
+  "status": "CONTRACT_ONLY",
+  "purpose": "Define the first protected real-business vertical cases without publishing questions, source data, credentials, or gold answers.",
+  "holdout": {
+    "storage": "operator-controlled external evaluation store",
+    "repository_contains_case_content": false,
+    "minimum_reviewers": 2,
+    "access_log_required": true,
+    "candidate_access_before_freeze": false,
+    "reuse_as_unseen_after_diagnosis": false
+  },
+  "absence_policy": {
+    "missing_enterprise_source_or_credential": "NOT_RUN",
+    "missing_required_runtime_receipt": "BLOCKED",
+    "mock_or_synthetic_substitution": "FORBIDDEN"
+  },
+  "cases": [
+    {
+      "id": "H01-BUS-001",
+      "family": "BUSINESS_LOCALIZATION",
+      "execution_status": "NOT_RUN",
+      "entry_contract": "A normal product client submits a protected business-location question against explicitly authorized enterprise sources.",
+      "required_path": [
+        "App Server",
+        "Harness",
+        "Capability Gateway",
+        "Policy Engine",
+        "Evidence",
+        "published result"
+      ],
+      "required_receipts": [
+        "candidate and configuration profile digests",
+        "policy decision ids",
+        "source version and freshness",
+        "claim-to-evidence citations",
+        "terminal Run and Artifact ids"
+      ],
+      "blocker": "protected holdout and authorized enterprise source were not supplied to this repository run"
+    },
+    {
+      "id": "H01-STAT-001",
+      "family": "EXACT_STATISTICS",
+      "execution_status": "NOT_RUN",
+      "entry_contract": "A normal product client requests an exact protected statistic with fixed population, time, grouping, join, deduplication and precision semantics.",
+      "required_path": [
+        "App Server",
+        "Harness",
+        "Capability Gateway",
+        "Policy Engine",
+        "read-only query",
+        "isolated recomputation",
+        "Artifact"
+      ],
+      "required_receipts": [
+        "semantic contract digest",
+        "source snapshot or consistency boundary",
+        "query execution id and query fingerprint",
+        "row-count and denominator checks",
+        "recomputable table or report artifact"
+      ],
+      "blocker": "protected gold data and authorized query source were not supplied to this repository run"
+    },
+    {
+      "id": "H01-CODE-001",
+      "family": "ISOLATED_CODE_EXECUTION",
+      "execution_status": "NOT_RUN",
+      "entry_contract": "A normal product client requests a bounded code change or analysis in an isolated working copy with no direct production write path.",
+      "required_path": [
+        "App Server",
+        "Harness",
+        "Capability Gateway",
+        "Policy Engine",
+        "isolated sandbox worker",
+        "verification",
+        "Artifact"
+      ],
+      "required_receipts": [
+        "repository commit and tree digest",
+        "sandbox image and policy digest",
+        "network and mount policy",
+        "command exit and test receipts",
+        "patch or analysis artifact digest"
+      ],
+      "blocker": "protected repository case and an attested sandbox execution environment were not supplied to this repository run"
+    }
+  ]
+}
