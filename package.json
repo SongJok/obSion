@@ -3,10 +3,15 @@
   "private": true,
   "workspaces": ["apps/*", "packages/sdk-ts"],
   "scripts": {
+    "build:sdk": "npm run build --workspace @obsion/sdk",
+    "prebuild": "npm run build:sdk",
     "build": "npm run build --workspaces --if-present",
     "dev:web": "npm run dev --workspace @obsion/web",
+    "prelint": "npm run build:sdk",
     "lint": "npm run lint --workspaces --if-present",
+    "pretypecheck": "npm run build:sdk",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "pretest": "npm run build:sdk",
     "test": "npm run test --workspaces --if-present"
   },
   "engines": {"node": ">=22"}
