@@ -435,6 +435,8 @@ async def list_connectors(
 def _connector_configuration_sha256(item: Connector, runtime: ConnectorSdkRuntime) -> str:
     """Fingerprint execution-relevant references without exposing their values."""
 
+    plugin = inspect_plugin(item).as_dict()
+    plugin.pop("checked_at", None)
     payload = {
         "connector_type": item.connector_type,
         "status": item.status.value,
@@ -445,7 +447,7 @@ def _connector_configuration_sha256(item: Connector, runtime: ConnectorSdkRuntim
         "declared_grants": sorted(item.declared_grants),
         "allowed_egress": sorted(item.allowed_egress),
         "spi": runtime.supports(item.connector_type),
-        "plugin": inspect_plugin(item).as_dict(),
+        "plugin": plugin,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
     return hashlib.sha256(encoded).hexdigest()
