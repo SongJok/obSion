@@ -1048,18 +1048,28 @@ class ResourceCatalogService:
             return selected
         by_ref = {item.ref: item for item in resources}
         selected_refs = {item.ref for item in selected}
-        for relation in relations:
-            adjacent = None
-            if relation.source in selected_refs:
-                adjacent = relation.target
-            elif relation.target in selected_refs:
-                adjacent = relation.source
-            if adjacent is None or adjacent in selected_refs or adjacent not in by_ref:
-                continue
-            selected.append(by_ref[adjacent])
-            selected_refs.add(adjacent)
-            if len(selected) >= limit:
+        frontier = set(selected_refs)
+        ordered_relations = sorted(relations, key=lambda item: (item.relation_type.value, item.id))
+        # Two hops cover the required service -> deployment -> source chain while
+        # keeping catalog discovery bounded and independent of edge insertion order.
+        for _depth in range(2):
+            next_frontier: set[tuple[CatalogResourceKind, str]] = set()
+            for relation in ordered_relations:
+                adjacent = None
+                if relation.source in frontier:
+                    adjacent = relation.target
+                elif relation.target in frontier:
+                    adjacent = relation.source
+                if adjacent is None or adjacent in selected_refs or adjacent not in by_ref:
+                    continue
+                selected.append(by_ref[adjacent])
+                selected_refs.add(adjacent)
+                next_frontier.add(adjacent)
+                if len(selected) >= limit:
+                    return selected
+            if not next_frontier:
                 break
+            frontier = next_frontier
         return selected
 
     async def _capabilities(

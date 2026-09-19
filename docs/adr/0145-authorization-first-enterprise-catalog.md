@@ -39,8 +39,9 @@ inside the existing Python control plane.
 4. Discovery first evaluates the generic `catalog.discover` gate. It then loads only
    minimal authorization envelopes, submits native ACL/grant outcomes to the Policy
    Engine, and loads descriptions, schemas, source locations, connector state, and
-   ranking text only for allowed records. Search and one-hop relation expansion run
-   over that authorized set. Hidden rows do not affect result counts or error text.
+   ranking text only for allowed records. Search and deterministic two-hop relation
+   expansion run over that authorized set. Hidden rows do not affect result counts or
+   error text.
 5. Connector configuration, endpoints, credential references, egress policy, grants,
    and private health diagnostics never enter the discovery response. A connector's
    grants cannot replace the current Principal's permission or resource ACL.

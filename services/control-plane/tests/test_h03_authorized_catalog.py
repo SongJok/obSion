@@ -201,7 +201,7 @@ async def test_h03_a01_tenants_only_discover_their_own_resources_capabilities_an
         org_a,
         kind=CatalogResourceKind.DEPLOYMENT,
         key="deployment:checkout-a:sha-a",
-        name="Checkout Search deployment",
+        name="Release sha-a",
         source_ref="deployment-a",
         version="sha-a",
     )
@@ -216,7 +216,7 @@ async def test_h03_a01_tenants_only_discover_their_own_resources_capabilities_an
         org_b,
         kind=CatalogResourceKind.DEPLOYMENT,
         key="deployment:checkout-b:sha-b",
-        name="Checkout Search deployment",
+        name="Release sha-b",
         source_ref="deployment-b",
         version="sha-b",
     )
@@ -837,6 +837,54 @@ async def test_existing_code_and_semantic_registries_project_api_table_metric_re
     assert metric_relation.source.version == "3"
     assert metric_relation.provenance.source_type == "SEMANTIC_REGISTRY"
     assert metric_relation.provenance.evidence_category == EvidenceType.METRIC
+
+
+@pytest.mark.asyncio
+async def test_restricted_persisted_overlay_cannot_be_bypassed_by_dynamic_projection(
+    catalog_database: Database,
+) -> None:
+    organization_id = uuid4()
+    async with catalog_database.sessions() as session, session.begin():
+        session.add(
+            Organization(
+                id=organization_id,
+                slug=f"overlay-{organization_id}",
+                name="Overlay tenant",
+            )
+        )
+        repository = CodeRepository(
+            organization_id=organization_id,
+            name="restricted-overlay-repository",
+            default_branch="main",
+            classification=Classification.INTERNAL,
+            acl={},
+        )
+        session.add(repository)
+        await session.flush()
+        session.add(
+            _resource(
+                organization_id,
+                kind=CatalogResourceKind.REPOSITORY,
+                key=f"repository:{repository.id}",
+                name="Restricted metadata overlay",
+                source_ref="restricted-registry-entry",
+                permission="restricted.metadata.read",
+            )
+        )
+
+    principal = _principal(
+        organization_id,
+        permissions={"catalog.discover", "code.read.internal"},
+    )
+    async with catalog_database.sessions() as session, session.begin():
+        result = await ResourceCatalogService().discover(
+            session,
+            principal,
+            query="restricted-overlay-repository",
+        )
+
+    assert result.status.value == "EMPTY"
+    assert result.resources == []
 
 
 def test_catalog_discovery_returns_generic_unauthorized_without_loading_results(

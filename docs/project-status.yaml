@@ -355,7 +355,7 @@ autonomous_harness_program:
     scope: Authorized resource and capability discovery with provenance-bound enterprise relations
     acceptance: [H03-A01, H03-A02, H03-A03, H03-A04]
     adr: docs/adr/0145-authorization-first-enterprise-catalog.md
-    local_acceptance: PASS_10_TESTS
+    local_acceptance: PASS_11_TESTS
     local_migration_round_trip: PASS_POSTGRESQL_17
     database_migration: d6e8f0a2b4c6
     remote_ci: pending
