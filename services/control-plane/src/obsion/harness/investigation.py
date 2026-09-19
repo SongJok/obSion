@@ -13,6 +13,10 @@ from obsion.common.errors import BudgetExceededError
 from obsion.db.models import Evidence, Run, RunStep
 from obsion.domain.enums import Classification
 from obsion.domain.task_context import selected_document_scope
+from obsion.domain.task_contract import (
+    source_scope_allows_organization_search,
+    task_contract_summary_from_intent,
+)
 from obsion.knowledge.evidence import document_bodies
 from obsion.model_gateway.gateway import ModelGateway, ModelUnavailableError
 
@@ -176,7 +180,9 @@ async def propose_investigation(
         "knowledge.search",
         "document.read",
     }
-    if selected_document_scope(run.intent):
+    if selected_document_scope(run.intent) or not source_scope_allows_organization_search(
+        run.intent
+    ):
         available.discard("knowledge.search")
     previous = [
         s.input_payload
@@ -187,6 +193,7 @@ async def propose_investigation(
     attempted = {action_fingerprint(c) for c in previous}
     payload = {
         "question": question,
+        "task_contract": task_contract_summary_from_intent(run.intent),
         "reason": reason,
         "rejected_candidate": rejected_candidate,
         "validated_review": review,

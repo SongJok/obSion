@@ -74,3 +74,8 @@ async def test_plain_read_keeps_legacy_behavior_without_blocking_independent_wri
             await writer.execute(text("INSERT INTO fixture VALUES (1)"))
         # 普通读取保留原有非 repeatable 行为；不声称 SQLite 提供 PostgreSQL 隔离语义。
         assert await reader.scalar(text("SELECT count(*) FROM fixture")) == 1
+
+
+async def test_sqlite_writer_wait_budget_covers_concurrent_local_receipts(database):
+    async with database.engine.connect() as connection:
+        assert await connection.scalar(text("PRAGMA busy_timeout")) == 30_000

@@ -99,6 +99,22 @@ excludes source Runs completed after capture, and is inspected or replayed witho
 re-resolving current Thread state. Previous conversation assists intent resolution but
 never satisfies the Evidence requirement for a new factual claim.
 
+Before planning, the Harness binds a versioned `TaskContract` inside the typed
+`RunIntent`. The contract records the goal, exact or policy-filtered source scope,
+objects, time window and timezone, accuracy, deliverables, constraints, descriptive
+authority binding, budgets, success criteria, and domain-specific information
+obligations. It is not an authorization token: Capability Gateway and Policy Engine
+checks remain authoritative at every external boundary.
+
+Only trusted request metadata, currently authorized catalogs, and revalidated prior
+task context can build or revise the contract. Evidence and attachment bodies are
+untrusted data and cannot amend it. An exact attachment or document scope disables
+organization-wide discovery. A changed metric or time window increments the contract
+revision, records the parent fingerprint, invalidates the old query/statistics/claims,
+and excludes old semantic answer history from authoring. Planning, authoring,
+investigation, verification, and output all consume the same content-addressed safe
+contract summary.
+
 Recurring execution adds a separate deterministic lifecycle:
 
 ```text

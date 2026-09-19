@@ -1,6 +1,17 @@
 import time
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from obsion.capabilities.connectors import ConnectorResult
+from obsion.db.models import (
+    CapabilityBinding,
+    CapabilityDefinition,
+    CapabilityVersion,
+    Connector,
+)
+from obsion.domain.enums import ConnectorStatus
 
 
 def _create_catalog(client: TestClient) -> dict[str, str]:
@@ -204,3 +215,115 @@ def test_paid_user_semantic_compile_is_stable_and_unregistered_metrics_fail(
     )
     assert unresolved.status_code == 422, unresolved.text
     assert unresolved.json()["code"] == "metric_not_resolved"
+
+
+def test_time_window_followup_rebuilds_query_contract_without_old_semantics(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    class SyntheticReadOnlyExecutor:
+        async def invoke(self, connector, payload, credential, context):
+            del payload, credential, context
+            return ConnectorResult(
+                data={
+                    "columns": ["paid_user_count"],
+                    "rows": [{"paid_user_count": 17}],
+                    "row_count": 1,
+                },
+                source=connector.name,
+                resource="h02-statistics-fixture",
+                observed_at=datetime.now(UTC),
+            )
+
+    monkeypatch.setitem(
+        client.app.state.capability_gateway.executors,
+        "SQL_PROXY",
+        SyntheticReadOnlyExecutor(),
+    )
+    catalog = _create_catalog(client)
+
+    async def bind_test_source() -> None:
+        async with client.app.state.database.sessions() as session, session.begin():
+            connector = await session.scalar(
+                select(Connector).where(Connector.name == "phase14-semantic-db")
+            )
+            version = await session.scalar(
+                select(CapabilityVersion)
+                .join(
+                    CapabilityDefinition,
+                    CapabilityDefinition.id == CapabilityVersion.capability_id,
+                )
+                .where(CapabilityDefinition.name == "data.query")
+                .order_by(CapabilityVersion.version.desc())
+            )
+            assert connector is not None and version is not None
+            connector.status = ConnectorStatus.ACTIVE
+            connector.declared_grants = [version.permission_action]
+            session.add(
+                CapabilityBinding(
+                    organization_id=connector.organization_id,
+                    capability_version_id=version.id,
+                    connector_id=connector.id,
+                    environment="test",
+                    resource_selector={},
+                    enabled=True,
+                )
+            )
+
+    client.portal.call(bind_test_source)
+    workspace = client.post(
+        "/api/v1/workspaces",
+        json={"name": "H02 semantic amendment", "description": "TaskContract revision"},
+    ).json()
+    thread = client.post(
+        "/api/v1/threads",
+        json={"workspace_id": workspace["id"], "title": "Time-window amendment"},
+    ).json()
+
+    first = client.post(
+        "/api/v1/data/query",
+        json={"thread_id": thread["id"], "question": "查看最近7天的付费人数"},
+    )
+    assert first.status_code == 202, first.text
+    first_run = _wait_terminal(client, first.json()["run"]["id"])
+    first_steps = client.get(f"/api/v1/runs/{first_run['id']}/steps").json()
+    assert first_run["status"] == "COMPLETED", [
+        (step["name"], step["status"], step["error_code"])
+        for step in first_steps
+        if step["status"] == "FAILED"
+    ]
+
+    changed = client.post(
+        f"/api/v1/threads/{thread['id']}/turns",
+        json={"input": "把时间改成昨天"},
+    )
+    assert changed.status_code == 202, changed.text
+    changed_run = _wait_terminal(client, changed.json()["run"]["id"])
+    assert changed_run["status"] == "COMPLETED", changed_run
+
+    first_contract = first_run["intent"]["task_contract"]
+    changed_contract = changed_run["intent"]["task_contract"]
+    assert changed_run["intent"]["route"] == "DATA"
+    assert changed_run["intent"]["metrics"] == [
+        {
+            "id": catalog["metric_id"],
+            "name": "paid_user_count",
+            "display_name": "Paid users",
+        }
+    ]
+    assert changed_contract["revision"] == first_contract["revision"] + 1
+    assert changed_contract["parent_fingerprint"] == first_contract["fingerprint"]
+    assert "TIME_WINDOW" in changed_contract["changed_fields"]
+    assert {"DATA_QUERY", "STATISTICS", "CLAIMS"} <= set(changed_contract["invalidated_outputs"])
+    first_parameters = first_run["plan"]["steps"][0]["payload"]["parameters"]
+    changed_parameters = changed_run["plan"]["steps"][0]["payload"]["parameters"]
+    assert changed_parameters != first_parameters
+    assert changed_run["plan"]["task_contract"] == changed_contract
+    assert changed_run["plan"]["invalidated_history_excluded"] is True
+    assert changed_run["plan"]["conversation_source_run_ids"] == []
+    artifacts = client.get(f"/api/v1/runs/{changed_run['id']}/artifacts").json()
+    assert artifacts
+    assert all(
+        item["lineage"].get("task_contract_fingerprint") == changed_contract["fingerprint"]
+        for item in artifacts
+    )

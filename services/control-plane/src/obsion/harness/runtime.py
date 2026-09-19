@@ -76,6 +76,11 @@ from obsion.domain.enums import (
 from obsion.domain.run_intent import RunIntent, parse_run_intent
 from obsion.domain.run_state import is_terminal, validate_run_transition
 from obsion.domain.task_context import task_context_reference, task_prompt
+from obsion.domain.task_contract import (
+    semantic_history_invalidated,
+    task_contract_summary,
+    task_contract_summary_from_intent,
+)
 from obsion.domains.evidence.fabric import EvidenceFabric, EvidenceInput
 from obsion.harness.agent_router import AgentRouter, RouteSelection
 from obsion.harness.answerability import GenerationStatus, generation_reply, record_generation
@@ -101,8 +106,10 @@ from obsion.harness.presentation import contains_transport_references
 from obsion.harness.replay import RunReplayService
 from obsion.harness.steps import StepExecutor
 from obsion.harness.task_context import resolve_task_context
+from obsion.harness.task_contract import TaskContractBuilder
 from obsion.harness.understanding import (
     UnderstandingEngine,
+    followup_amendments,
     is_contextual_followup,
     task_question,
 )
@@ -214,6 +221,7 @@ class HarnessRuntime:
         self.data = DataIntelligenceService(settings)
         self.code = CodeIntelligenceService(settings)
         self.intent_explorer = IntentContextExplorer()
+        self.task_contracts = TaskContractBuilder()
         self.memory = MemoryService(settings)
         self.replays = RunReplayService()
         self.audit = AuditWriter()
@@ -689,6 +697,19 @@ class HarnessRuntime:
                 # phrased conversationally (for example, "why did GMV decline?").
                 data_result = await self.data.understand(session, principal, question)
                 data_understanding = asdict(data_result)
+                amendments = followup_amendments(turn.sanitized_input)
+                if previous_task is not None and amendments:
+                    # Parse an explicit amendment from the current turn alone. The
+                    # carried goal remains useful for every unchanged semantic slot,
+                    # but must not let an old time window or metric win by text order.
+                    amendment_result = asdict(
+                        await self.data.understand(session, principal, turn.sanitized_input)
+                    )
+                    if "time_window" in amendments:
+                        data_understanding["time_range"] = amendment_result["time_range"]
+                    if "metric" in amendments:
+                        data_understanding["metrics"] = amendment_result["metrics"]
+                        data_understanding["dimensions"] = amendment_result["dimensions"]
                 if (
                     not data_understanding.get("metrics")
                     and not turn.attachment_refs
@@ -846,6 +867,27 @@ class HarnessRuntime:
                 ),
             )
             intent = exploration.intent
+            parent_contract = (
+                persisted_intent.task_contract
+                if persisted_intent is not None and persisted_intent.task_contract is not None
+                else previous_task[0].task_contract
+                if previous_task is not None
+                else None
+            )
+            contract = self.task_contracts.build(
+                intent=intent,
+                principal=principal,
+                attachment_refs=turn.attachment_refs,
+                max_steps=run.max_steps,
+                timeout_seconds=run.timeout_seconds,
+                max_input_tokens=run.max_input_tokens,
+                max_output_tokens=run.max_output_tokens,
+                max_cost_amount=Decimal(run.max_cost_amount),
+                previous=parent_contract,
+            )
+            intent = RunIntent.model_validate(
+                intent.model_copy(update={"task_contract": contract}).model_dump(mode="python")
+            )
             run.intent = intent.model_dump(mode="json")
             if intent.preparation_stage == "WAITING_USER":
                 active = intent.clarification.active_request()
@@ -928,6 +970,8 @@ class HarnessRuntime:
                             "slots": sorted(field.slot for field in active.fields),
                             "explored_sources": list(exploration.explored_sources),
                             "expires_at": active.expires_at,
+                            "task_contract_fingerprint": contract.fingerprint,
+                            "task_contract_revision": contract.revision,
                         },
                         agent_version_id=run.agent_version_id,
                         model_profile_id=run.model_profile_id,
@@ -964,6 +1008,7 @@ class HarnessRuntime:
             plan_payload = plan.as_dict()
             plan_payload["available_capabilities"] = sorted(allowed_capabilities)
             plan_payload["sandbox"] = sandbox
+            plan_payload["task_contract"] = task_contract_summary(contract)
             if skill_snapshot is not None:
                 plan_payload["agent"] = agent_definition.name
                 plan_payload["skill"] = skill_snapshot
@@ -1010,7 +1055,10 @@ class HarnessRuntime:
                         kind=StepKind.VERIFY,
                         status=StepStatus.PENDING,
                         depends_on=capability_ordinals or [3],
-                        input_payload={"required_evidence": list(plan.required_evidence)},
+                        input_payload={
+                            "required_evidence": list(plan.required_evidence),
+                            "task_contract": task_contract_summary(contract),
+                        },
                     ),
                     RunStep(
                         organization_id=organization_id,
@@ -1850,6 +1898,12 @@ class HarnessRuntime:
                 conversation_snapshots = await self._general_conversation(
                     session, run, conversation_snapshots
                 )
+            if semantic_history_invalidated(run.intent):
+                # A semantic amendment gets fresh SQL, statistics, evidence review,
+                # and claims. Old answer/memory prose is not supplied to the author.
+                memory_snapshots = []
+                conversation_snapshots = []
+                run.plan = {**run.plan, "invalidated_history_excluded": True}
             if not evidence and not evidence_free_response:
                 failed_steps = list(
                     await session.scalars(
@@ -2278,6 +2332,15 @@ class HarnessRuntime:
                 "run_id": str(run.id),
                 "result_artifact_ids": [str(item.id) for item in result_artifacts],
             }
+            contract_summary = task_contract_summary_from_intent(run.intent)
+            if contract_summary is not None:
+                answer_content["task_contract"] = contract_summary
+                answer_lineage["task_contract_fingerprint"] = contract_summary["fingerprint"]
+                for result_artifact in result_artifacts:
+                    result_artifact.lineage = {
+                        **dict(result_artifact.lineage or {}),
+                        "task_contract_fingerprint": contract_summary["fingerprint"],
+                    }
             if incident_fusion is not None:
                 answer_content["incident_fusion"] = jsonable_encoder(incident_fusion.as_dict())
                 answer_lineage["incident_fusion"] = {
@@ -2319,6 +2382,12 @@ class HarnessRuntime:
                     **artifact.lineage,
                     "report_artifact_id": str(report.id),
                 }
+            if contract_summary is not None:
+                for result_artifact in result_artifacts:
+                    result_artifact.lineage = {
+                        **dict(result_artifact.lineage or {}),
+                        "task_contract_fingerprint": contract_summary["fingerprint"],
+                    }
             await self.events.append(session, self._event(run, "critic.completed", asdict(critic)))
             await self.events.append(
                 session,
@@ -2391,6 +2460,14 @@ class HarnessRuntime:
                         + [str(artifact.id)],
                         "verified": critic.verified,
                         "confidence": critic.confidence,
+                        **(
+                            {
+                                "task_contract_fingerprint": contract_summary["fingerprint"],
+                                "task_contract_revision": contract_summary["revision"],
+                            }
+                            if contract_summary is not None
+                            else {}
+                        ),
                     },
                     latency_ms=(
                         max(

@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, m
 from obsion.common.ids import new_id
 from obsion.common.time import ensure_utc
 from obsion.domain.enums import RunStatus
+from obsion.domain.task_contract import TaskContract, task_contract_summary
 from obsion.security.redaction import redact, redact_text
 
 INTENT_SCHEMA_VERSION: Literal[1] = 1
@@ -48,6 +49,7 @@ _DERIVED_SLOT_PARTS = {
     "route",
     "schemaversion",
     "skill",
+    "taskcontract",
 }
 _PUBLIC_INTENT_KEYS = (
     "schema_version",
@@ -421,6 +423,7 @@ class RunIntent(StrictDomainModel):
     decision: Literal["PROCEED", "CLARIFY", "UNAVAILABLE", "DENY"] | None = None
     decision_reason: str | None = Field(default=None, max_length=200)
     resolved_slots: list[ResolvedSlot] = Field(default_factory=list, max_length=20)
+    task_contract: TaskContract | None = None
     clarification: ClarificationState = Field(default_factory=ClarificationState)
 
     @field_validator("domain", "route", "intent", "risk", "agent", "skill")
@@ -860,6 +863,8 @@ def public_intent_projection(raw: Any) -> dict[str, Any]:
         }
         if context:
             projected["task_context"] = context
+        if intent.task_contract is not None:
+            projected["task_contract"] = task_contract_summary(intent.task_contract)
         return projected
     if not isinstance(raw, dict):
         return {}

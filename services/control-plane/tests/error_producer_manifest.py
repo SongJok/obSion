@@ -4362,12 +4362,12 @@ REVIEWED_ERROR_FORWARDING_SINKS: dict[str, str] = dict(
         ),
         (
             "harness/runtime.py::HarnessRuntime._fail#Run.error_code[1]",
-            "forward:harness/runtime.py:3925:exc.code",
+            "forward:harness/runtime.py:4002:exc.code",
         ),
         (
             "harness/runtime.py::HarnessRuntime._finish_step#RunStep.error_code[1]",
-            "forward:harness/runtime.py:1706:exc.code | "
-            "forward:harness/runtime.py:1736:result.error_code",
+            "forward:harness/runtime.py:1754:exc.code | "
+            "forward:harness/runtime.py:1784:result.error_code",
         ),
         ("main.py::_error_response#ErrorBody[1]", "forward:main.py:425:exc.code"),
         (

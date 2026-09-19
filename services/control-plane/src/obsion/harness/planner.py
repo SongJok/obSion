@@ -51,6 +51,9 @@ class Planner:
         question = understanding["question"]
         time_range = understanding.get("time_range", {})
         available = available_capabilities
+        contract = understanding.get("task_contract")
+        source_scope = contract.get("source_scope", {}) if isinstance(contract, dict) else {}
+        organization_search_allowed = source_scope.get("organization_search_allowed", True)
 
         def can_select(capability: str) -> bool:
             return available is None or capability in available
@@ -114,6 +117,13 @@ class Planner:
                     ),
                     required_evidence=("DOCUMENT",),
                     verification=("citation_coverage", "acl_retained", "question_coverage"),
+                )
+            if not organization_search_allowed:
+                return ExecutionPlan(
+                    route=route,
+                    steps=(),
+                    required_evidence=("DOCUMENT",),
+                    verification=("citation_coverage", "source_scope", "question_coverage"),
                 )
             knowledge_steps: tuple[PlannedStep, ...] = (
                 (
@@ -232,7 +242,7 @@ class Planner:
             )
         if route == "SUPPORT":
             support_steps: list[PlannedStep] = []
-            if can_select("ticket.search"):
+            if organization_search_allowed and can_select("ticket.search"):
                 support_steps.append(
                     PlannedStep(
                         name="Search authorized support tickets",
@@ -246,7 +256,7 @@ class Planner:
                         environment="development",
                     )
                 )
-            if can_select("knowledge.search"):
+            if organization_search_allowed and can_select("knowledge.search"):
                 support_steps.append(
                     PlannedStep(
                         name="Search authorized support knowledge",

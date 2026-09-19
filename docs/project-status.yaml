@@ -333,3 +333,17 @@ autonomous_harness_program:
     remote_container_gate: PASS
     database_migration: none
     production_promotion_eligible: false
+  h02:
+    status: repository_implementation_complete_local_full_validation_passed_remote_pending
+    report: docs/phases/H02-REPORT.md
+    architecture_gate: docs/architecture/phase-h02-task-contract-gate.md
+    adr: docs/adr/0144-versioned-task-contract.md
+    acceptance: [H02-A01, H02-A02, H02-A03, H02-A04]
+    local_acceptance: PASS
+    local_quality: PASS_3020_PASSED_285_SKIPPED_80_06_PERCENT_PLUS_CONTRACT_DISTRIBUTION
+    javascript_workspaces: PASS_297_TESTS_LINT_TYPECHECK_BUILD
+    secret_scan: PASS_ZERO_FINDINGS
+    remote_quality: PENDING
+    remote_container_gate: PENDING
+    database_migration: none
+    production_promotion_eligible: false

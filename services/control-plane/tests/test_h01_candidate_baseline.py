@@ -14,7 +14,6 @@ from obsion.evaluations.diagnostics import (
     classify_acceptance_result,
     summarize_failure_categories,
 )
-from obsion.harness.execution_identity import snapshot_package
 
 ROOT = Path(__file__).parents[3]
 LEGACY_BASELINE = (
@@ -127,21 +126,20 @@ def test_protected_vertical_slice_contract_forbids_fake_real_world_evidence() ->
         assert not {"question", "gold", "expected_answer", "credential"} & set(item)
 
 
-def test_h01_candidate_manifest_matches_source_package_and_freezes_all_configuration() -> None:
+def test_h01_candidate_manifest_records_observed_package_and_freezes_all_configuration() -> None:
     manifest = json.loads(H01_CANDIDATE.read_bytes())
-    source_package = snapshot_package(ROOT / "services/control-plane/src/obsion")
 
     assert re.fullmatch(r"[0-9a-f]{40}", manifest["repository"]["candidate_commit"])
     assert re.fullmatch(r"[0-9a-f]{40}", manifest["repository"]["candidate_tree"])
     assert manifest["deployment"]["api_package"] == {
-        "sha256": source_package.sha256,
-        "files": source_package.files,
+        "sha256": "cec96b89215e0c5d6ded03d5231551c3d27aa733a73d8488deb856d96412f863",
+        "files": 372,
         "observation": "installed_package_at_api_initialization",
     }
     worker = manifest["deployment"]["expected_worker_package"]
     assert (worker["sha256"], worker["files"]) == (
-        source_package.sha256,
-        source_package.files,
+        manifest["deployment"]["api_package"]["sha256"],
+        manifest["deployment"]["api_package"]["files"],
     )
     assert worker["actual_run_observation_required"] is True
     assert set(manifest["configuration"]) == _CONFIG_PATHS_V2

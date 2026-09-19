@@ -35,6 +35,12 @@ class Database:
                 pool_size=settings.database_pool_size,
                 max_overflow=settings.database_pool_max_overflow,
             )
+        else:
+            # SQLite is a development/test adapter, but concurrent idempotent
+            # HTTP receipts still serialize on its single writer. The driver
+            # default (five seconds) can turn legitimate lock waiting into a
+            # spurious HTTP 500 on a loaded CI host.
+            engine_kwargs["connect_args"] = {"timeout": 30.0}
         self.engine: AsyncEngine = create_async_engine(settings.database_url, **engine_kwargs)
         if self.engine.dialect.name == "sqlite":
             event.listen(self.engine.sync_engine, "savepoint", _begin_sqlite_savepoint)

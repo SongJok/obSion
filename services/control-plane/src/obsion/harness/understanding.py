@@ -17,10 +17,43 @@ _FOLLOWUP = re.compile(
     r"give (?:me )?an example|make it shorter|summarize (?:it|that))[.!?\s]*$",
     re.I,
 )
+_TIME_AMENDMENT = re.compile(
+    r"^(?:(?:请|麻烦|能否|可以|帮我|再|把|将)[，,\s]*)*"
+    r"(?:(?:时间|时间范围|时间窗|观察时间)[\s]*)?"
+    r"(?:改成|改为|换成|只看|看)\s*"
+    r"(?:昨天|今天|前天|本周|上周|本月|上月|最近\s*\d+\s*(?:天|小时))"
+    r"[。？！!?,，\s]*$|"
+    r"^(?:change|set|limit)\s+(?:the\s+)?(?:time\s+(?:range|window)\s+)?(?:to\s+)?"
+    r"(?:today|yesterday|last\s+\d+\s+(?:days?|hours?))[.!?\s]*$",
+    re.I,
+)
+_METRIC_AMENDMENT = re.compile(
+    r"^(?:(?:请|麻烦|能否|可以|帮我|再|把|将)[，,\s]*)*"
+    r"(?:(?:指标|口径)[\s]*(?:改成|改为|换成)|(?:改看|换看))\s*"
+    r"[^\n]{1,120}[。？！!?,，\s]*$|"
+    r"^(?:change|switch|set)\s+(?:the\s+)?metric\s+(?:to\s+)?[^\n]{1,120}$",
+    re.I,
+)
 
 
 def is_contextual_followup(question: str) -> bool:
-    return bool(_FOLLOWUP.fullmatch(question.strip())) or requested_format(question) is not None
+    normalized = question.strip()
+    return (
+        bool(_FOLLOWUP.fullmatch(normalized))
+        or bool(_TIME_AMENDMENT.fullmatch(normalized))
+        or bool(_METRIC_AMENDMENT.fullmatch(normalized))
+        or requested_format(question) is not None
+    )
+
+
+def followup_amendments(question: str) -> frozenset[str]:
+    normalized = question.strip()
+    values: set[str] = set()
+    if _TIME_AMENDMENT.fullmatch(normalized):
+        values.add("time_window")
+    if _METRIC_AMENDMENT.fullmatch(normalized):
+        values.add("metric")
+    return frozenset(values)
 
 
 def task_question(question: str, previous_question: str | None) -> str:
