@@ -23,7 +23,7 @@ jobs:
         with:
           version: "0.11.16"
           enable-cache: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
       # The complete pytest suite also invokes the Java SDK's Maven wrapper.
@@ -130,7 +130,7 @@ jobs:
         with:
           version: "0.11.16"
           enable-cache: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
       - run: uv sync --locked --all-packages --all-extras
@@ -171,7 +171,7 @@ jobs:
         with:
           version: "0.11.16"
           enable-cache: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
       - run: uv sync --locked --all-packages --all-extras
@@ -211,7 +211,7 @@ jobs:
         with:
           version: "0.11.16"
           enable-cache: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
       - run: uv sync --locked --all-packages --all-extras
@@ -292,7 +292,7 @@ jobs:
         with:
           version: "0.11.16"
           enable-cache: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
       - run: uv sync --locked --all-packages --all-extras
@@ -311,7 +311,7 @@ jobs:
         with:
           version: "0.11.16"
           enable-cache: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
       - uses: actions/setup-node@v6
