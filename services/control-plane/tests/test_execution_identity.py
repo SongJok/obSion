@@ -227,9 +227,20 @@ async def test_freeze_records_local_package_without_calling_it_signed_proof(froz
     package = root / "services/control-plane/src/obsion"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("# reviewed candidate\n")
+    observed = snapshot_package(package)
     api = SyntheticAPI()
+    api.identity.update(
+        {
+            "package_sha256": observed.sha256,
+            "package_files": observed.files,
+            "observation": "installed_package_at_api_initialization",
+            "signature_verified": False,
+        }
+    )
 
     def freeze_api(request):
+        if request.url.path.endswith("/connectors/configuration-snapshot"):
+            return httpx.Response(200, json=[])
         if request.url.path.endswith("/models/profiles"):
             return httpx.Response(
                 200, json=[{"id": PROFILE_ID, "name": "test-only", "enabled": True}]
@@ -254,5 +265,12 @@ async def test_freeze_records_local_package_without_calling_it_signed_proof(froz
             dataset=old.dataset,
             dataset_sha256=hashlib.sha256((root / old.dataset).read_bytes()).hexdigest(),
         )
-    assert new.worker_package_sha256 == snapshot_package(package).sha256
+    assert new.schema_version == 2
+    assert new.candidate_revision == REVISION
+    assert new.api_package_sha256 == observed.sha256
+    assert new.api_package_files == observed.files
+    assert new.worker_package_sha256 == observed.sha256
+    assert new.worker_package_files == observed.files
+    assert new.evaluation_policy_sha256 is not None
+    assert "/api/v1/admin/connectors/configuration-snapshot" in new.configuration_sha256
     assert api.turns == 0

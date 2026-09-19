@@ -23,6 +23,7 @@ async def _create_schema(settings: Settings) -> None:
 @pytest.fixture
 def app_settings(tmp_path: Path) -> Settings:
     settings = Settings(
+        _env_file=None,
         environment=Environment.TEST,
         release_revision=None,
         release_image_digest=None,
@@ -31,6 +32,7 @@ def app_settings(tmp_path: Path) -> Settings:
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'obsion-test.db'}",
         allowed_origins=["http://testserver"],
         dev_bearer_token=TEST_BEARER_TOKEN,
+        model_allowed_ids=None,
         run_worker_concurrency=2,
         event_stream_heartbeat_seconds=5,
     )

@@ -118,6 +118,7 @@ from obsion.common.errors import ObsionError
 from obsion.config import Environment, Settings, get_settings
 from obsion.db.session import Database
 from obsion.domain.enums import CapabilityTransport
+from obsion.harness.execution_identity import ExecutionIdentity
 from obsion.harness.runtime import HarnessRuntime
 from obsion.harness.worker import RunWorker
 from obsion.knowledge.handler import create_knowledge_search_handler
@@ -211,6 +212,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        app.state.api_execution_identity = ExecutionIdentity.observe(resolved_settings)
         database = Database(resolved_settings)
         instrument_database(database)
         app.state.database = database

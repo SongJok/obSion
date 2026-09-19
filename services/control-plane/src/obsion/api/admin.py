@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 from sqlalchemy import func, select
@@ -427,6 +427,50 @@ async def list_connectors(
             "health": item.last_health,
             "spi": runtime.supports(item.connector_type),
             "plugin": inspect_plugin(item).as_dict(),
+        }
+        for item in connectors
+    ]
+
+
+def _connector_configuration_sha256(item: Connector, runtime: ConnectorSdkRuntime) -> str:
+    """Fingerprint execution-relevant references without exposing their values."""
+
+    payload = {
+        "connector_type": item.connector_type,
+        "status": item.status.value,
+        "environment": item.environment,
+        "endpoint": item.endpoint,
+        "configuration": item.configuration,
+        "credential_ref": item.credential_ref,
+        "declared_grants": sorted(item.declared_grants),
+        "allowed_egress": sorted(item.allowed_egress),
+        "spi": runtime.supports(item.connector_type),
+        "plugin": inspect_plugin(item).as_dict(),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+@router.get("/connectors/configuration-snapshot")
+async def connector_configuration_snapshot(
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(get_principal),
+    runtime: ConnectorSdkRuntime = Depends(get_connector_sdk_runtime),
+) -> list[dict[str, str]]:
+    """Return content-free connector revisions for candidate comparability."""
+
+    _require_admin(principal)
+    connectors = await session.scalars(
+        select(Connector)
+        .where(Connector.organization_id == principal.organization_id)
+        .order_by(Connector.name, Connector.id)
+    )
+    return [
+        {
+            "id": str(item.id),
+            "name": item.name,
+            "status": item.status.value,
+            "configuration_sha256": _connector_configuration_sha256(item, runtime),
         }
         for item in connectors
     ]
@@ -1931,16 +1975,21 @@ async def list_audit(
 
 @router.get("/runtime-identity")
 async def runtime_identity(
+    request: Request,
     principal: Principal = Depends(get_principal),
     settings: Settings = Depends(get_app_settings),
 ) -> dict[str, Any]:
     """Deployment declarations for acceptance drift detection, not signature proof."""
     _require_admin(principal)
+    observed = request.app.state.api_execution_identity
     return {
         "revision": settings.release_revision,
         "image_digest": settings.release_image_digest,
         "environment": settings.environment.value,
         "provenance": "deployment_configuration",
+        "package_sha256": observed.package.sha256 if observed.package else None,
+        "package_files": observed.package.files if observed.package else 0,
+        "observation": "installed_package_at_api_initialization",
         "signature_verified": False,
     }
 

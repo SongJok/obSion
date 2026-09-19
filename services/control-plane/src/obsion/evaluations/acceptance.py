@@ -23,12 +23,17 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from obsion.common.time import ensure_utc
+from obsion.evaluations.diagnostics import (
+    _evaluation_policy_sha256,
+    classify_acceptance_result,
+    summarize_failure_categories,
+)
 from obsion.evaluations.engine import canonical_sha256
 from obsion.harness.execution_identity import snapshot_package
 from obsion.security.redaction import redact
 
 Status = Literal["PASS", "FAIL", "BLOCKED", "NOT_RUN"]
-_CONFIG_PATHS = frozenset(
+_CONFIG_PATHS_V1 = frozenset(
     {
         "/api/v1/admin/models/profiles",
         "/api/v1/admin/models/endpoints",
@@ -39,6 +44,10 @@ _CONFIG_PATHS = frozenset(
         "/api/v1/admin/policies",
     }
 )
+_CONFIG_PATHS_V2 = _CONFIG_PATHS_V1 | {"/api/v1/admin/connectors/configuration-snapshot"}
+# Imported by legacy tests and operator extensions.  V1 remains byte-compatible;
+# newly frozen source candidates use V2 when a package snapshot is available.
+_CONFIG_PATHS = _CONFIG_PATHS_V1
 _TERMINAL = {"COMPLETED", "FAILED", "CANCELLED"}
 _MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 
@@ -50,7 +59,7 @@ class AcceptanceError(ValueError):
 class AcceptanceProfile(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[1]
+    schema_version: Literal[1, 2]
     name: str = Field(min_length=1, max_length=100)
     phase: Literal["P1"]
     api_base_url: str
@@ -58,11 +67,38 @@ class AcceptanceProfile(BaseModel):
     dataset: str
     dataset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     image_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    candidate_revision: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{40}$",
+        exclude_if=lambda value: value is None,
+    )
     model_profile: str = Field(min_length=1, max_length=120)
     model_profile_id: UUID
     agent_version_id: UUID
+    api_package_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+        exclude_if=lambda value: value is None,
+    )
+    api_package_files: int | None = Field(
+        default=None,
+        ge=1,
+        le=4096,
+        exclude_if=lambda value: value is None,
+    )
     worker_package_sha256: str | None = Field(
         default=None, pattern=r"^[0-9a-f]{64}$", exclude_if=lambda value: value is None
+    )
+    worker_package_files: int | None = Field(
+        default=None,
+        ge=1,
+        le=4096,
+        exclude_if=lambda value: value is None,
+    )
+    evaluation_policy_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+        exclude_if=lambda value: value is None,
     )
     configuration_sha256: dict[str, str]
     timeout_seconds: int = Field(default=120, ge=1, le=120)
@@ -87,10 +123,23 @@ class AcceptanceProfile(BaseModel):
 
     @model_validator(mode="after")
     def validate_configuration(self) -> AcceptanceProfile:
-        if set(self.configuration_sha256) != _CONFIG_PATHS or not all(
+        expected_paths = _CONFIG_PATHS_V2 if self.schema_version == 2 else _CONFIG_PATHS_V1
+        if set(self.configuration_sha256) != expected_paths or not all(
             re.fullmatch(r"[0-9a-f]{64}", value) for value in self.configuration_sha256.values()
         ):
             raise ValueError("Freeze every required runtime configuration endpoint")
+        if self.schema_version == 2 and any(
+            value is None
+            for value in (
+                self.candidate_revision,
+                self.api_package_sha256,
+                self.api_package_files,
+                self.worker_package_sha256,
+                self.worker_package_files,
+                self.evaluation_policy_sha256,
+            )
+        ):
+            raise ValueError("H01 profiles require candidate, package and evaluation pins")
         return self
 
 
@@ -230,8 +279,17 @@ class AcceptanceRunner:
         dataset_sha256: str,
     ) -> AcceptanceProfile:
         """Observe configured pins and validate gold sources before task creation."""
+        package_root = root / "services/control-plane/src/obsion"
+        schema_version = 2 if package_root.exists() else 1
+        configuration_paths = _CONFIG_PATHS_V2 if schema_version == 2 else _CONFIG_PATHS_V1
+        package = None
+        if schema_version == 2:
+            try:
+                package = await asyncio.to_thread(snapshot_package, package_root)
+            except (OSError, ValueError) as exc:
+                raise AcceptanceError("candidate_package_snapshot_unavailable") from exc
         provisional = AcceptanceProfile(
-            schema_version=1,
+            schema_version=schema_version,
             name=name,
             phase="P1",
             api_base_url=str(client.base_url).rstrip("/"),
@@ -240,20 +298,19 @@ class AcceptanceRunner:
             model_profile_id=UUID(int=0),
             agent_version_id=UUID(int=0),
             image_digest=image_digest,
+            candidate_revision=candidate if schema_version == 2 else None,
+            api_package_sha256=package.sha256 if package else None,
+            api_package_files=package.files if package else None,
+            worker_package_sha256=package.sha256 if package else None,
+            worker_package_files=package.files if package else None,
             dataset=dataset,
             dataset_sha256=dataset_sha256,
-            configuration_sha256=dict.fromkeys(_CONFIG_PATHS, "0" * 64),
+            evaluation_policy_sha256=(_evaluation_policy_sha256() if schema_version == 2 else None),
+            configuration_sha256=dict.fromkeys(configuration_paths, "0" * 64),
         )
-        package_root = root / "services/control-plane/src/obsion"
-        if package_root.exists():
-            try:
-                package = await asyncio.to_thread(snapshot_package, package_root)
-            except (OSError, ValueError) as exc:
-                raise AcceptanceError("candidate_package_snapshot_unavailable") from exc
-            provisional = provisional.model_copy(update={"worker_package_sha256": package.sha256})
         _, cases = await asyncio.to_thread(load_frozen_cases, provisional, root)
         probe = cls(client, provisional, candidate=candidate)
-        snapshot = {path: await probe._json("GET", path) for path in sorted(_CONFIG_PATHS)}
+        snapshot = {path: await probe._json("GET", path) for path in sorted(configuration_paths)}
         models = [
             item
             for item in snapshot["/api/v1/admin/models/profiles"]
@@ -294,6 +351,8 @@ class AcceptanceRunner:
     ) -> None:
         if not re.fullmatch(r"[0-9a-f]{40}", candidate):
             raise AcceptanceError("candidate_requires_full_commit_sha")
+        if profile.candidate_revision is not None and profile.candidate_revision != candidate:
+            raise AcceptanceError("candidate_differs_from_frozen_profile")
         if str(client.base_url).rstrip("/") != profile.api_base_url:
             raise AcceptanceError("client_origin_differs_from_frozen_profile")
         self.client = client
@@ -340,6 +399,13 @@ class AcceptanceRunner:
             or identity.get("image_digest") != self.profile.image_digest
         ):
             raise AcceptanceError("deployed_candidate_or_image_mismatch")
+        if self.profile.schema_version == 2 and (
+            identity.get("package_sha256") != self.profile.api_package_sha256
+            or identity.get("package_files") != self.profile.api_package_files
+            or identity.get("observation") != "installed_package_at_api_initialization"
+            or identity.get("signature_verified") is not False
+        ):
+            raise AcceptanceError("api_execution_identity_mismatch")
         for path, digest in sorted(self.profile.configuration_sha256.items()):
             if canonical_sha256(await self._json("GET", path)) != digest:
                 raise AcceptanceError("runtime_configuration_drift")
@@ -398,6 +464,10 @@ class AcceptanceRunner:
                     or payload.get("package_sha256") != self.profile.worker_package_sha256
                     or type(payload.get("package_files")) is not int
                     or not 1 <= payload["package_files"] <= 4096
+                    or (
+                        self.profile.worker_package_files is not None
+                        and payload["package_files"] != self.profile.worker_package_files
+                    )
                     or payload.get("observation") != "installed_package_at_runtime_initialization"
                     or payload.get("signature_verified") is not False
                 ):
@@ -733,6 +803,11 @@ class AcceptanceRunner:
             for status in ("PASS", "FAIL", "BLOCKED", "NOT_RUN")
         }
         report["counts"] = counts
+        for result in report["results"]:
+            category = classify_acceptance_result(result)
+            if category is not None:
+                result["failure_category"] = category
+        report["failure_categories"] = summarize_failure_categories(report["results"])
         answerable = [r for r in report["results"] if r["expected_kind"] == "ANSWER"]
         insufficient = [r for r in report["results"] if r["expected_kind"] == "INSUFFICIENT"]
         report["answerable_accuracy"] = (

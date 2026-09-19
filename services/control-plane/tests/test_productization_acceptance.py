@@ -1,5 +1,6 @@
 """Adversarial driver tests; synthetic API/scoring is never live quality evidence."""
 
+import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -12,6 +13,7 @@ from pydantic import ValidationError
 from obsion.cli import build_parser
 from obsion.evaluations.acceptance import (
     _CONFIG_PATHS,
+    _CONFIG_PATHS_V2,
     AcceptanceError,
     AcceptanceProfile,
     AcceptanceRunner,
@@ -202,6 +204,71 @@ async def test_normal_entry_never_receives_gold_and_denominator_keeps_failures(f
         assert (frozen[0] / "result" / name).stat().st_mode & 0o777 == 0o600
 
 
+def test_h01_profile_v2_freezes_candidate_packages_connectors_and_evaluation(frozen) -> None:
+    _, legacy = frozen
+    document = {
+        **legacy.model_dump(mode="json"),
+        "schema_version": 2,
+        "candidate_revision": REVISION,
+        "api_package_sha256": "c" * 64,
+        "api_package_files": 300,
+        "worker_package_sha256": "c" * 64,
+        "worker_package_files": 300,
+        "evaluation_policy_sha256": "d" * 64,
+        "configuration_sha256": dict.fromkeys(_CONFIG_PATHS_V2, canonical_sha256([])),
+    }
+
+    profile = AcceptanceProfile.model_validate(document)
+
+    assert profile.schema_version == 2
+    assert "/api/v1/admin/connectors/configuration-snapshot" in profile.configuration_sha256
+    assert profile.candidate_revision == REVISION
+    for missing in (
+        "candidate_revision",
+        "api_package_sha256",
+        "api_package_files",
+        "worker_package_sha256",
+        "worker_package_files",
+        "evaluation_policy_sha256",
+    ):
+        invalid = dict(document)
+        invalid.pop(missing)
+        with pytest.raises(ValidationError):
+            AcceptanceProfile.model_validate(invalid)
+
+    missing_connector = dict(document)
+    missing_connector["configuration_sha256"] = {
+        key: value
+        for key, value in document["configuration_sha256"].items()
+        if key != "/api/v1/admin/connectors/configuration-snapshot"
+    }
+    with pytest.raises(ValidationError):
+        AcceptanceProfile.model_validate(missing_connector)
+
+
+def test_h01_profile_candidate_cannot_be_reused_for_another_revision(frozen) -> None:
+    _, legacy = frozen
+    profile = AcceptanceProfile.model_validate(
+        {
+            **legacy.model_dump(mode="json"),
+            "schema_version": 2,
+            "candidate_revision": REVISION,
+            "api_package_sha256": "c" * 64,
+            "api_package_files": 300,
+            "worker_package_sha256": "c" * 64,
+            "worker_package_files": 300,
+            "evaluation_policy_sha256": "d" * 64,
+            "configuration_sha256": dict.fromkeys(_CONFIG_PATHS_V2, canonical_sha256([])),
+        }
+    )
+    client = httpx.AsyncClient(base_url=profile.api_base_url)
+    try:
+        with pytest.raises(AcceptanceError, match="candidate_differs_from_frozen_profile"):
+            AcceptanceRunner(client, profile, candidate="e" * 40)
+    finally:
+        asyncio.run(client.aclose())
+
+
 async def test_internal_verified_never_substitutes_for_independent_scoring(frozen):
     report = await execute(frozen, SyntheticAPI())
     assert report["status"] == "BLOCKED"
@@ -343,13 +410,15 @@ def test_cli_requires_exact_phase_profile_candidate_and_output():
 def test_runtime_identity_reports_missing_pins_honestly(client):
     response = client.get("/api/v1/admin/runtime-identity")
     assert response.status_code == 200
-    assert response.json() == {
-        "revision": None,
-        "image_digest": None,
-        "environment": "test",
-        "provenance": "deployment_configuration",
-        "signature_verified": False,
-    }
+    identity = response.json()
+    assert identity["revision"] is None
+    assert identity["image_digest"] is None
+    assert identity["environment"] == "test"
+    assert identity["provenance"] == "deployment_configuration"
+    assert identity["observation"] == "installed_package_at_api_initialization"
+    assert identity["signature_verified"] is False
+    assert len(identity["package_sha256"]) == 64
+    assert identity["package_files"] > 250
 
 
 def test_driver_uses_real_application_routes_and_published_answer(
