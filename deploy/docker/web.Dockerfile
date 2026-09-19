@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22.22.0-alpine AS dependencies
+FROM node:22.23.2-alpine3.24@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
@@ -16,8 +16,15 @@ COPY packages/sdk-ts/ packages/sdk-ts/
 RUN npm run build --workspace @obsion/sdk \
     && npm run build --workspace @obsion/web
 
-FROM node:22.22.0-alpine AS runtime
-RUN addgroup --system --gid 10001 obsion \
+FROM node:22.23.2-alpine3.24@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS runtime
+# The standalone server only needs the Node runtime. Keeping package managers
+# here would retain their transitive archive/extraction surface in production.
+RUN rm -r /usr/local/lib/node_modules/npm \
+        /usr/local/lib/node_modules/corepack \
+        /opt/yarn-v1.22.22 \
+    && rm /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+        /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+    && addgroup --system --gid 10001 obsion \
     && adduser --system --uid 10001 --ingroup obsion obsion
 WORKDIR /app
 ENV NODE_ENV=production \

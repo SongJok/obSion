@@ -387,6 +387,26 @@ def test_helm_api_drains_and_loads_encryption_from_secret() -> None:
     assert "--timeout-graceful-shutdown" in dockerfile
 
 
+def test_release_images_use_digest_pinned_security_baselines() -> None:
+    control_plane = (_REPO_ROOT / "deploy/docker/control-plane.Dockerfile").read_text(
+        encoding="utf-8"
+    )
+    web = (_REPO_ROOT / "deploy/docker/web.Dockerfile").read_text(encoding="utf-8")
+    expected_python_base = (
+        "python:3.12.14-alpine3.24@"
+        "sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b"
+    )
+    expected_node_base = (
+        "node:22.23.2-alpine3.24@"
+        "sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85"
+    )
+    assert control_plane.count(f"FROM {expected_python_base}") == 2
+    assert web.count(f"FROM {expected_node_base}") == 2
+    assert "slim-bookworm" not in control_plane
+    assert "/usr/local/lib/node_modules/npm" in web
+    assert "/opt/yarn-v1.22.22" in web
+
+
 def test_golden_routing_and_sql_policy_cases_execute() -> None:
     result = execute_offline_evaluations(_REPO_ROOT / "evaluations/datasets")
     assert result["status"] == "PASSED"
