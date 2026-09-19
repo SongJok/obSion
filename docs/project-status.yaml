@@ -316,8 +316,8 @@ autonomous_harness_program:
   provenance: docs/product/autonomous-harness-requirements-provenance.yaml
   review_baseline: 24d5503826d1901fe95abe8cb80ebb8466949682
   order: [H01, H02, H03, H04, H05, H06, H07, H08, H09, H10, H11, H12, H13, H14, H15, H16, H17, H18, H19, H20]
-  current_work_package: H03
-  status: h03_in_progress
+  current_work_package: H04
+  status: h04_in_progress
   h01:
     status: complete
     runtime_candidate: 2765f5d2fc06184625b9088c437fc5afd5cca108
@@ -351,12 +351,24 @@ autonomous_harness_program:
     database_migration: none
     production_promotion_eligible: false
   h03:
-    status: implemented_validation_in_progress
+    status: complete
+    candidate_commit: 6ede6ddce833db5bcedb666af9bd77228a91c42e
     scope: Authorized resource and capability discovery with provenance-bound enterprise relations
+    report: docs/phases/H03-REPORT.md
+    architecture_gate: docs/architecture/phase-h03-authorized-catalog-gate.md
     acceptance: [H03-A01, H03-A02, H03-A03, H03-A04]
     adr: docs/adr/0145-authorization-first-enterprise-catalog.md
     local_acceptance: PASS_11_TESTS
     local_migration_round_trip: PASS_POSTGRESQL_17
     database_migration: d6e8f0a2b4c6
-    remote_ci: pending
+    remote_ci_run: https://github.com/SongJok/obSion/actions/runs/35449883526
+    remote_quality: PASS
+    remote_postgresql_and_migrations: PASS
+    remote_container_gate: PASS
+    production_promotion_eligible: false
+  h04:
+    status: in_progress
+    scope: Managed ProbeAction planning, typed result binding, versioned DAGs, action fingerprints, and shared exploration budgets
+    acceptance: [H04-A01, H04-A02, H04-A03, H04-A04]
+    database_migration: none_expected
     production_promotion_eligible: false
